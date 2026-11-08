@@ -1,91 +1,53 @@
 #!/usr/bin/env python3
-"""Run the owner's skill-delivery switch, its automatic inverse and its state.
+"""Run the owner's skill-delivery switch, its restore and its read-only reports.
 
 docs/specs/owner-skill-delivery.md owns every rule this program applies: "The
-switch inside finish", "Concurrent writers", "Resuming the switch", "The
-rehearsed plan" and "Rollback". No model checks these rules.
-The specification's section "The recovery model" states why.
+native settings inside finish", "The switch inside finish", "Concurrent
+writers", "Resuming the switch", "The rehearsed plan" and "Rollback". No
+model checks these rules. The specification's section "The recovery model"
+states why.
 
-The program is one file, so the copy in each backup is exact. It uses only
-the standard library and runs on Python 3.9 and later. It reaches
-renamex_np, the ACL calls and the extended-attribute calls through ctypes,
-so it runs only on macOS.
+The program is one file. It uses only the standard library and runs on
+Python 3.9 and later. It reaches renamex_np, the ACL calls and the
+extended-attribute calls through ctypes, so it runs only on macOS.
 
 Usage:
-    python3 -I owner_switch.py state       --plan PLAN [--home HOME] [--json]
-    python3 -I owner_switch.py run         --plan PLAN [--home HOME] [--dry-run]
-    python3 -I owner_switch.py inverse     --plan PLAN [--home HOME]
-    python3 -I owner_switch.py merge       --plan PLAN [--home HOME] COPY [--record-only]
-    python3 -I owner_switch.py purge-check --plan PLAN [--home HOME]
-    python3 -I owner_switch.py pending     --plan PLAN [--home HOME] [--grove-commit SHA]
-    python3 -I owner_switch.py native-off  [--home HOME] [--print-command]
-    python3 -I owner_switch.py processes   [--home HOME] [--owned FILE] [--json]
-    python3 -I owner_switch.py identity    PATH
-    python3 -I owner_switch.py digest      PATH
-    python3 -I owner_switch.py gate        {4,5,6,7} [--plan PLAN] [--home HOME]
-    python3 -I owner_switch.py attempt     --plan PLAN [--home HOME]
-    python3 -I owner_switch.py switch      --plan PLAN --attempt NOTE [--home HOME] [--guidance PATH]...
-    python3 -I owner_switch.py restore     --backup DIR --attempt NOTE [--home HOME] [--recovery NOTE]
-    python3 -I owner_switch.py restore-identity PATH
-    python3 -I owner_switch.py status      --plan PLAN [--home HOME] [--json]
+    python3 -I owner_switch.py report       --plan PLAN [--home HOME]
+    python3 -I owner_switch.py native-off   [--home HOME] [--print-command]
+    python3 -I owner_switch.py attempt      --plan PLAN [--home HOME]
+    python3 -I owner_switch.py switch       --plan PLAN --attempt NOTE [--home HOME] [--guidance PATH]...
+    python3 -I owner_switch.py restore      --backup DIR --attempt NOTE [--home HOME] [--recovery NOTE]
+                                            [--guidance PATH]...
+    python3 -I owner_switch.py status       --plan PLAN [--home HOME] [--json]
     python3 -I owner_switch.py purge-report --plan PLAN [--home HOME]
+    python3 -I owner_switch.py processes    [--home HOME] [--owned FILE] [--json]
+    python3 -I owner_switch.py gate         {4,5,6,7} [--plan PLAN] [--home HOME]
+    python3 -I owner_switch.py identity     PATH
+    python3 -I owner_switch.py digest       PATH
+    python3 -I owner_switch.py restore-identity PATH
 
-The serial switch ("The switch inside finish") is `attempt`, `switch` and
-`restore`, with the read-only `status` and `purge-report`. It stands beside
-the old `run`, `inverse`, `merge`, `pending`, `state` and `purge-check`,
-which owner-switch-contraction-k270 removes. The sections "The serial switch"
-and "Status and the purge report" at the end of this text state it.
+`report` is the read-only plan report. It lists each write of the plan with
+its planned original and its current restore identity, each value that the
+switch sets with its current value, and the restore order. It also compares
+both expected inventories, evaluates both lists of delivery assertions,
+compares each command input with its planned digest and lists each command.
+It runs no command and changes nothing. `native-off`, `attempt`, `switch`
+and `restore` are the switch and its recovery, which the section "The
+switch" below states. `status` and `purge-report` read the switch's records,
+as the section "Status and the purge report" states. `processes` runs the
+narrow process inspection. `gate` runs the check of one of steps 4 to 7,
+which a plan names as a command. `identity` prints the change identity of an
+entry, `digest` prints the digest of a file, and `restore-identity` prints
+the whole-file identity of a path, for a plan's author.
 
-`state` reads the state of the switch set and changes nothing. While a run
-is open, the program copy of its backup reads it. `run` runs the
-switch from step 1, or continues an open run as the state table states.
-`run --dry-run` reports the parts, the current value of each cell and the
-inverse, runs no command and changes nothing. `identity` prints the change
-identity of an entry, and `digest` prints the digest of a file, for a plan's
-author. `gate` runs the check of one of steps 4 to 7, which a plan names as
-a command. HOME defaults to the account's home directory. Each path in the
-plan is relative to HOME, normalised and without "..". Before any step, the
-program stops unless each path's parent folder resolves inside HOME.
+HOME defaults to the account's home directory. Each path in the plan is
+relative to HOME, normalised and without "..". Before any step, the program
+stops unless each path's parent folder resolves inside HOME.
 
-Exit status: 0 when the run reached the complete or the native state that it
-was asked for, 2 for a usage error, 3 for a stop. A stop prints "stop:" and
-the reason, and it changes nothing more than its run log.
-
-The owner's entries ("Rollback", "Concurrent writers" and "Purge"):
-    inverse      The owner's inverse. The program copy of the latest backup
-                 runs it, while that backup's run is open. It runs the
-                 narrow process inspection. It resets each switched cell
-                 and leaves each third value. It moves an entry back only onto an
-                 absent original path, whatever the entry's change identity.
-                 An occupied path is a third value: both entries stay, and
-                 the program reports the cell. It then runs the native probe
-                 and appends one line to the manual. It ends with 0 only in
-                 the native state.
-    merge        Merge the flagged kept copy COPY into its live file. The
-                 difference between the copy and its last recorded content,
-                 an erased key included, reaches the live file by a settings
-                 record and the exchange. A cell takes the copy's value only
-                 when no run writes that value there. The record
-                 COPY.merge-<n>.json holds the copy's digest and bytes, and
-                 that digest is from then on the only recorded content.
-                 --record-only records a merge that the owner applied by
-                 hand.
-    purge-check  Read the `retained` list of each receipt, or the entry
-                 parts of a backup without a receipt. Stop unless each
-                 retained entry keeps its recorded change identity, no copy
-                 is flagged and no run is open outside the complete state.
-                 List the conditions that only the owner confirms. Change
-                 nothing.
-    pending      Append the pending-activation record to the manual, from
-                 the latest run log. A `run` or `inverse` writes its run log
-                 into <state>/runs when it ends or stops. The record names
-                 the Grove version and keg, the Ravel path and version, each
-                 installed formula version, the output of `mise -C HOME
-                 bootstrap packages status --json`, the failed commands, each
-                 backup, the state, each cell of a drifted or changed state,
-                 each changed entry outside the switch set and each flagged
-                 copy. Finish supplies the release commit. A later receipt
-                 names each pending-activation record that it replaces.
+Exit status: 0 for success or a report, 2 for a usage error, 3 for a stop or
+a refusal before any switch-set write. `switch` and `restore` also exit with
+4 when recovery is incomplete and the backup stays, and `switch` exits with
+5 when the switch failed and restore verified native delivery.
 
 native-off ("The native settings inside finish"). Finish runs it immediately
 after promotion, before source acceptance and before any new default launch.
@@ -113,8 +75,8 @@ command, executable, program, HOME and settings path as one JSON object for
 the prepared recovery instructions, and writes nothing.
 
 The narrow process inspection ("The narrow process inspection" and "Probe
-process lifetime"). Each gate of the switch, the hooks installation and the
-inverse runs it. It reads the process table and signals no process. A
+process lifetime"). The switch runs it before its first write, after the
+backup, before its final comparison and inside restore. It reads the process table and signals no process. A
 process is one of the four tools when:
     its executable (proc_pidpath) has the basename claude, codex, grove,
     grove-llm or ravel, or a basename that starts with "codex-", as Codex's
@@ -161,19 +123,39 @@ state. The prepared plan and program are <state>/prepared/plan.json and
 <state>/prepared/owner_switch.py. `mac-check` runs that program's `status
 --json` with that plan.
 
-The plan (JSON, schema "owner-switch-plan/1"):
-    state        directory of backups and rehearsal records, relative to HOME
+The plan (JSON, schema "owner-switch-plan/2"):
+    state        directory of attempt notes, backups, receipts and restored
+                 records, relative to HOME
     manual       the maintained manual, relative to HOME
-    parts        ordered parts. {"kind": "entry", "path", "identity"} or
-                 {"kind": "file", "path", "cells": [{"key": [...],
-                 "earlier": V, "switched": V}]}. A value {"$absent": true}
-                 is an absent key. Entries come first.
-    outside      entries outside the switch set: {"path", "identity"}, or
+    writes       [{"path", "type": "file"|"entry", "original":
+                 {"absent": true} | {"identity": restore identity}}]: the
+                 whole write set with each original's content, metadata or
+                 absence. It names settings.json, known_marketplaces.json,
+                 installed_plugins.json and the Ravel settings. The switch
+                 deactivates each entry. A file may hold "set": [{"key":
+                 [...], "value": V}], the values that the switch writes; a
+                 value {"$absent": true} erases its key. The Ravel settings
+                 set "skills" to a value that names no "sources".
+    restore      the paths of writes in restore order, the Ravel settings first
+    inventory    {"before": [...], "after": [...]}: the expected inventories.
+                 Each item is {"path", "identity"} with a change identity, or
                  {"root", "entries": {name: identity}} for each child of a
-                 directory that no part names. The comparison skips only
-                 the platform subtrees .claude/skills/synced and
-                 .codex/skills/.system, each while it is a plain directory.
-    baseline     command: the baseline instrument that step 3 reruns
+                 root. A comparison skips only the platform subtrees
+                 .claude/skills/synced and .codex/skills/.system, each while
+                 it is a plain directory.
+    inputs       [{"role", "path", "digest"}]: each command input by content.
+                 "$program" names this program
+    assertions   [{"path", "key", "value"} | {"path", "absent": true}]: the
+                 delivery assertions of the switched layout, which the
+                 receipt keeps apart from the restore identities. In place
+                 of "value", "values" lists each accepted value
+    native_assertions
+                 the delivery assertions of native delivery, in the same
+                 form. `status` reads them
+    tools        {"claude": the held `claude --version` line}
+    retained     optional [{"item", "path", "condition": [...]}]: further
+                 retained resources for the receipt, such as old binaries
+    baseline     command: the baseline instrument of step 3
     gates        {"4": [command], "5": [...], "6": [...], "7": [...]}
     accepted     the accepted values that the gates read:
                  sources   {id: {"formula", "resourceDigest"}}, exactly the
@@ -183,19 +165,18 @@ The plan (JSON, schema "owner-switch-plan/1"):
                  trials    {id: [command]}: the staging trials of a source
                  staging   {"home", "candidate_keg"}: the absolute paths of
                            the retained staging HOME and the candidate keg
-    probes       [command]: the probes of step 10
-    native_probe [command]: the native probe of Rollback
-    mac_check    command: step 12
-Each field is required. Each list of commands names at least one command, and
-the list of each of steps 4 to 7 names that step's gate of this program. A
-plan that holds "session", "watch" or "jobs" is refused: it holds no process,
-MCP or job pattern. The
-switch's steps are fixed, so no plan can omit one of their checks.
+    probes       [command]: the probes of step 7
+    native_probe [command]: the native probes of restore
+    mac_check    command: the `mac-check` of step 8
+Each field except "retained" is required. Each list of commands names at
+least one command, and the list of each of steps 4 to 7 names that step's
+gate of this program. The switch's steps are fixed, so no plan can omit one
+of their checks. Any other field is refused, so a plan holds no process, MCP
+or job pattern, no earlier value of a key and no recovery field of an entry.
 A command is {"name", "argv"}. The argv items "$python" and "$program" become
-this program's interpreter and path, so a continuation runs the gates of the
-program copy in its backup. A command runs in HOME, with HOME set to HOME. Its
-environment holds none of Grove's loop control variables, Claude Code's five
-location variables, CODEX_HOME or a RAVEL_* name. It receives
+this program's interpreter and path. A command runs in HOME, with HOME set to
+HOME. Its environment holds none of Grove's loop control variables, Claude
+Code's five location variables, CODEX_HOME or a RAVEL_* name. It receives
 OWNER_SWITCH_HOME, OWNER_SWITCH_STATE, OWNER_SWITCH_STEP, OWNER_SWITCH_PLAN,
 the path of the plan that names it, and OWNER_SWITCH_PLAN_DIGEST, the digest
 of the bytes that the program admitted. Its last line of standard output may
@@ -223,67 +204,30 @@ has the digest OWNER_SWITCH_PLAN_DIGEST.
        names (colon-separated; finish sets it from the cache paths that it
        read). Stop if a directory is missing, holds .orphaned_at, or was named
        but has no registration in .claude/plugins/installed_plugins.json.
-The drafted real settings are the switched cells of the plan's part for
-.config/ravel/settings.json. They must name no "sources". The program passes
-step 4's admitted values to the later gates as OWNER_SWITCH_ADMITTED, and the
-active continuation reads them from the step-4 evidence of its backup.
+The drafted real settings are the values that the plan sets in
+.config/ravel/settings.json. The program passes step 4's admitted values to
+the later gates as OWNER_SWITCH_ADMITTED.
 
-Step 3 runs the baseline command after the preludes. Each output row with a
-field UNCLASSIFIED, UNASSIGNED, UNCOVERED or NEEDS-REVIEW counts as a changed
-entry outside the switch set. The program prints each row whose field says
-"unverified", for finish to compare with its own skill listing. `state` does
-not run the baseline.
+The baseline. Each output row of the baseline command with a field
+UNCLASSIFIED, UNASSIGNED, UNCOVERED or NEEDS-REVIEW counts as a changed entry
+outside the switch set. The program prints each row whose field says
+"unverified", for finish to compare with its own skill listing.
 
-A passing rehearsal record is a JSON file in <state>/rehearsals with
-"passed": true, "plan_digest", "program_digest" and "settings_writes", the
-rerun of settings-writes.sh with "passed": true and its "claude_version".
-Step 8 needs a record that names the plan and the program. The preludes
-need a record that names the program only, because a prelude applies no
-plan. The hooks installation runs a Claude Code command only when `claude
---version` prints a version that a passing record names.
-
-Inside the probes, the run reads each version directory of step 7's evidence
-in the backup again. A missing directory, an orphan marker or a lost
-registration counts as a failed probe. The receipt holds the activated
-configuration, each source's keg path, formula version and snapshot, the
-trials of step 4, the reader evidence, the backup and each retained byte set
-with its purge condition. The backup keeps the evidence of steps 4 to 7.
-
-Step 3 erases each held link whose inode is still at the path. While the
-latest complete backup's run is open, it runs no prelude. Otherwise it runs
-the native settings and then the hooks installation. Their paths and values
-are constants of this program, not of the plan:
-    native settings     .config/ravel/settings.json, "skills" set to
-                        {"schemaVersion": 1, "sources": []}
-    hooks installation  technical-communication-hooks@writing-hooks from the
-                        marketplace registered at $(brew --prefix)/opt/grove,
-                        read and installed with `claude`, then disabled in
-                        .claude/settings.json by an exchange
+The hooks installation. Its paths and values are constants of this program,
+not of the plan: technical-communication-hooks@writing-hooks from the
+marketplace registered at $(brew --prefix)/opt/grove, read and installed
+with `claude`, then disabled in .claude/settings.json by an ordinary write.
 The program finds `claude` and `brew` on PATH. Each runs in HOME, with the
 environment of a plan's command.
-
-A settings record is a directory in <state>/settings, named under a
-temporary name until it is complete. It holds record.json, the file `copy`
-and the file `read`, the bytes that its reading read. For an exchange, `copy`
-is the stage file and, after the exchange, the kept copy. Its record.json
-holds the digests "read" and "stage". In a backup, the bytes that an exchange
-read are <copy>.read beside the kept copy.
-
-For a Claude Code command, `copy` is the held link and record.json holds
-"read", the digest of the one reading through it. A held link whose inode is still
-at the path holds no kept copy. The owner's merge of a flagged copy is
-`copy.merge-<n>.json` with its "digest" and "content", as in a backup.
 
 Rehearsal hook: OWNER_SWITCH_REHEARSAL_HOOK names a command that the program
 runs at each named point with the point as its argument. Exit 99 ends the
 program at once, as a crash. The program refuses the hook when HOME is the
-account's home directory, so a real run never honours it.
+account's home directory, so a real switch never honours it. The fixture
+suite scripts/owner_switch_rehearsal.py uses it.
 
-The serial switch. These entries use no exchange, held link, kept copy, cell
-inverse, run record or rehearsal record. Exit status: 0 for success, 2 for a
-usage error, 3 for a refusal before any switch-set write, 4 when recovery is
-incomplete and the backup stays, and 5 when the switch failed and restore
-verified native delivery.
+The switch. No operation continues from a run state: a crash leaves the
+backup, and its attempt note names the restore.
     attempt   Preparation. Write the immutable attempt note
               <state>/attempts/<id>.json, mode 0444. It names the attempt
               ID, canonical HOME, the plan's path and digest, the program's
@@ -315,8 +259,8 @@ verified native delivery.
                    install` serially, only when needed. After each command,
                    reread settings.json and refuse a change of another key.
                    Then write the plugin's disabled value.
-              6    Move each entry part into <state>/discard/<id> and erase
-                   it. Write the switched cells of each file part, the
+              6    Move each entry of writes into <state>/discard/<id> and
+                   erase it. Write the values of each file's "set", the
                    Ravel settings last. Each write keeps the file's other
                    keys and metadata, and the program rereads it.
               7    Run the probes. A probe result {"owned": [{"pid",
@@ -355,37 +299,13 @@ verified native delivery.
               that the earlier restore could not append.
 
               Restore writes each destination whole, or removes it for an
-              original absence, in the order of switch.restore, the Ravel
+              original absence, in the order of the plan's restore, the Ravel
               settings first. It then runs native-off, verifies each
               destination against the backup, runs the native probes,
               invalidates the receipt, writes <state>/restored/<id>.json
               and appends to the manual. A success observation without a
               correction receives one.
-    restore-identity
-              Print the restore identity of a path for a plan's author.
-The plan's "switch" section, which the old entries ignore:
-    writes      [{"path", "type": "file"|"entry", "original":
-                {"absent": true} | {"identity": restore identity}}]: the
-                whole write set. It names each part, settings.json,
-                known_marketplaces.json, installed_plugins.json and the
-                Ravel settings.
-    restore     the paths of writes in restore order, the Ravel settings first
-    inventory   {"before": [...], "after": [...]}: the expected inventories,
-                each item as an `outside` item, with the parts included
-    inputs      [{"role", "path", "digest"}]: each command input by content;
-                "$program" names this program
-    assertions  [{"path", "key", "value"} | {"path", "absent": true}]: the
-                delivery assertions of the switched layout, which the
-                receipt keeps apart from the restore identities. In place
-                of "value", "values" lists each accepted value.
-    native_assertions
-                the delivery assertions of native delivery, in the same
-                form. `status` reads them
-    tools       {"claude": the held `claude --version` line}
-    retained    optional [{"item", "path", "condition": [...]}]: further
-                retained resources for the receipt, such as old binaries
-The serial switch ignores each cell's "earlier" value and each entry part's
-identity. Hook points: switch:start, backup:copy:<n>, backup:verify,
+Hook points: switch:start, backup:copy:<n>, backup:verify,
 backup:before-publish, backup:published, hooks:before:<label>,
 hooks:after:<label>, write:<path>:before, write:<path>:replace,
 deactivate:<path>, probes, receipt:written, manual:<what>, switch:final,
@@ -393,15 +313,15 @@ restore:start, restore:<path> and restore:native-probes, besides gate:<point>
 and command:<name>.
 
 Status and the purge report ("Current health and restore eligibility" and
-"Purge"). Both read the serial records in <state> and the layout, and write
+"Purge"). Both read the switch's records in <state> and the layout, and write
 nothing. Exit status: 0 for a report, 3 when the plan is unusable or, for
 `purge-report`, when purge is blocked.
     status    The latest switch attempt with a published backup governs.
               Delivery health is one of:
                 native    no attempt, or a restored one: the native
-                          assertions and switch.inventory.before hold
+                          assertions and inventory.before hold
                 switched  the attempt has a valid receipt of the prepared
-                          plan, and the assertions, switch.inventory.after,
+                          plan, and the assertions, inventory.after,
                           the receipt's reader evidence and the sources hold
                 restore   a published backup has no receipt and no restored
                           record, or a recovery backup waits for its retry
@@ -434,7 +354,6 @@ nothing. Exit status: 0 for a report, 3 when the plan is unusable or, for
 from __future__ import annotations
 
 import argparse
-import base64
 import contextlib
 import ctypes
 import datetime
@@ -454,8 +373,7 @@ import subprocess
 import sys
 import tempfile
 
-PLAN_SCHEMA = "owner-switch-plan/1"
-REHEARSAL_SCHEMA = "owner-switch-rehearsal/1"
+PLAN_SCHEMA = "owner-switch-plan/2"
 ABSENT = {"$absent": True}
 UNREADABLE = {"$unreadable": True}
 # docs/specs/harness-selection-and-execution.md#environment lists these.
@@ -472,8 +390,6 @@ PLAN_DIGEST_VAR = "OWNER_SWITCH_PLAN_DIGEST"
 ADMITTED_VAR = "OWNER_SWITCH_ADMITTED"
 READERS_VAR = "OWNER_SWITCH_READERS"
 RESULT_MARK = "owner-switch-result: "
-# The bytes that an exchange in a backup read, beside its kept copy.
-READ_SUFFIX = ".read"
 
 # The gates: docs/specs/owner-skill-delivery.md, steps 4 to 7 of "The switch
 # inside finish", "Ravel sources" and "Skill formulae".
@@ -485,8 +401,8 @@ SOURCE_IDS = ("design", "engineering", "grove-core", "personal", "quint", "requi
 ANOMALIES = ("UNCLASSIFIED", "UNASSIGNED", "UNCOVERED", "NEEDS-REVIEW")
 UNVERIFIED = "unverified"
 
-# The preludes: docs/specs/owner-skill-delivery.md, "The native settings
-# inside finish" and "The hooks installation inside finish".
+# docs/specs/owner-skill-delivery.md, "The native settings inside finish"
+# and "The hooks installation inside finish".
 RAVEL_SETTINGS = ".config/ravel/settings.json"
 OFF = {"schemaVersion": 1, "sources": []}
 CLAUDE_SETTINGS = ".claude/settings.json"
@@ -504,15 +420,6 @@ CLAUDE_LOCATION_VARS = (
 )
 # Codex keeps its configuration, hooks, plugins and skills under CODEX_HOME.
 CODEX_HOME = "CODEX_HOME"
-RAVEL_CONFIG = ".config/ravel/config.rhai"
-# "Purge": the five conditions of each retained byte set.
-PURGE_CONDITIONS = (
-    "no session that ran during the switch remains",
-    "the driver's group is reaped",
-    "no kept copy is flagged",
-    "each retained entry keeps the change identity that its move recorded",
-    "the owner decides that the rollback window is closed",
-)
 # Grove 22.8's Codex snapshot store ("Resource lifetime").
 CODEX_SNAPSHOT_STORE = ".agents/.grove"
 
@@ -523,18 +430,17 @@ PROGRAM_DIGEST = hashlib.sha256(PROGRAM_BYTES).hexdigest()
 
 
 class Stop(Exception):
-    """A stop: the run changes nothing more."""
+    """A stop: the program changes nothing more, or restores what it changed."""
 
 
 class Conflict(Exception):
-    """A failed read, comparison or rename inside a write interval."""
+    """A key of a written value crosses a value that is not an object."""
 
 
 # --- macOS calls -----------------------------------------------------------
 
 _libc = ctypes.CDLL(None, use_errno=True)
-RENAME_SWAP, RENAME_EXCL = 0x2, 0x4
-XATTR_NOFOLLOW = 0x1
+RENAME_EXCL = 0x4
 ACL_TYPE_EXTENDED = 0x100
 COPYFILE_METADATA = 0x7  # ACL, STAT and XATTR: copyfile(3)
 _libc.renamex_np.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint]
@@ -557,7 +463,7 @@ def _oserror(what: str, path: str) -> OSError:
 
 
 def renamex(src: str, dst: str, flags: int) -> None:
-    """renamex_np(2). RENAME_SWAP exchanges two paths, RENAME_EXCL refuses an existing target."""
+    """renamex_np(2). RENAME_EXCL refuses an existing target."""
     if _libc.renamex_np(os.fsencode(src), os.fsencode(dst), flags) != 0:
         raise _oserror("renamex_np", dst)
 
@@ -643,15 +549,6 @@ def fd_reading(fd: int):
     """One reading of an open file: its digest and its content."""
     reading = fd_reading_full(fd)
     return reading["digest"], reading["content"]
-
-
-def inode_of(path: str):
-    """The device and inode at a path, without following a link, or None."""
-    try:
-        st = os.lstat(path)
-    except FileNotFoundError:
-        return None
-    return (st.st_dev, st.st_ino)
 
 
 def path_digest(path: str):
@@ -782,16 +679,23 @@ def plan_path_problem(rel) -> str:
     return ""
 
 
-# "The narrow process inspection": the plan holds no process, MCP or job pattern.
-REMOVED_PLAN_FIELDS = ("session", "watch", "jobs")
+PLAN_FIELDS = ("schema", "state", "manual", "writes", "restore", "inventory", "inputs", "assertions",
+               "native_assertions", "tools", "retained", "baseline", "gates", "accepted", "probes",
+               "native_probe", "mac_check")
+DIGEST = re.compile(r"[0-9a-f]{64}")
+
+
+def is_key(key) -> bool:
+    return isinstance(key, list) and bool(key) and all(isinstance(k, str) for k in key)
 
 
 def validate_plan(plan: dict) -> None:
-    """Refuse a plan that lacks a field, a check or a HOME-relative path.
+    """Refuse a plan that lacks a field, a check or a HOME-relative path, or holds another field.
 
     Each step of "The switch inside finish" is fixed, so no plan can omit
-    the commands of steps 3 to 7, 10, 11 and 12. Each gate list names the
-    program's own gate of its step.
+    the baseline, the gates, the probes or `mac-check`. Each gate list names
+    the program's own gate of its step. A field outside PLAN_FIELDS, such
+    as a process, MCP or job pattern, is refused.
     """
     problems = []
 
@@ -813,58 +717,100 @@ def validate_plan(plan: dict) -> None:
         for i, c in enumerate(value):
             command(f"{where}[{i}]", c)
 
+    other = [k for k in plan if k not in PLAN_FIELDS]
+    if other:
+        problems.append(f"the plan holds {', '.join(other)}, which schema {PLAN_SCHEMA} does not name; "
+                        "the narrow process inspection is built in, and the owner's checklist replaces "
+                        "process, MCP and job patterns")
     path("state", plan.get("state"))
     path("manual", plan.get("manual"))
-    parts = plan.get("parts")
-    if not isinstance(parts, list) or not parts:
-        problems.append("parts names no part")
-        parts = []
-    seen = set()
-    for i, part in enumerate(parts):
-        if not isinstance(part, dict) or part.get("kind") not in ("entry", "file"):
-            problems.append(f"part {i} is neither an entry nor a file")
+
+    writes = plan.get("writes")
+    if not isinstance(writes, list) or not writes:
+        problems.append("writes names no write")
+        writes = []
+    types = {}
+    for i, w in enumerate(writes):
+        if not isinstance(w, dict) or w.get("type") not in ("file", "entry"):
+            problems.append(f"writes[{i}] is neither a file nor an entry")
             continue
-        path(f"part {i}", part.get("path"))
-        if part.get("path") in seen:
-            problems.append(f"part {i} names {part.get('path')!r} twice")
-        seen.add(part.get("path"))
-        if part["kind"] == "entry":
-            if not re.fullmatch(r"[0-9a-f]{64}", str(part.get("identity"))):
-                problems.append(f"part {i} has no change identity")
-            continue
-        cells = part.get("cells")
-        if not isinstance(cells, list) or not cells:
-            problems.append(f"part {i} names no cell")
-            continue
-        for cell in cells:
-            key = cell.get("key") if isinstance(cell, dict) else None
-            if (not isinstance(key, list) or not key or not all(isinstance(k, str) for k in key)
-                    or "earlier" not in cell or "switched" not in cell):
-                problems.append(f"part {i} has a cell without a key, an earlier and a switched value")
-    kinds = [p.get("kind") for p in parts if isinstance(p, dict)]
-    if kinds != sorted(kinds, key=lambda k: k != "entry"):
-        problems.append("the plan's entry parts must come before its file parts")
-    outside = plan.get("outside")
-    if not isinstance(outside, list) or not outside:
-        problems.append("outside names no entry outside the switch set")
-        outside = []
-    for i, item in enumerate(outside):
-        if isinstance(item, dict) and "root" in item:
-            path(f"outside {i}", item["root"])
-            if not isinstance(item.get("entries"), dict):
-                problems.append(f"outside {i} has no entries")
-            else:
-                for name in item["entries"]:
-                    if not name or "/" in name or name in (".", ".."):
-                        problems.append(f"outside {i} names the child {name!r}")
-        elif isinstance(item, dict) and "path" in item and "identity" in item:
-            path(f"outside {i}", item["path"])
-        else:
-            problems.append(f"outside {i} is neither a path with an identity nor a root with entries")
-    removed = [name for name in REMOVED_PLAN_FIELDS if name in plan]
-    if removed:
-        problems.append(f"the plan holds {', '.join(removed)}: the narrow process inspection is built in, "
-                        "and the owner's checklist replaces process, MCP and job patterns")
+        path(f"writes[{i}]", w.get("path"))
+        if w.get("path") in types:
+            problems.append(f"writes names {w.get('path')!r} twice")
+        types[w.get("path")] = w["type"]
+        original = w.get("original")
+        if not (same(original, {"absent": True}) or (isinstance(original, dict) and list(original) == ["identity"]
+                                                       and DIGEST.fullmatch(str(original["identity"])))):
+            problems.append(f"writes[{i}] has no original: {{\"absent\": true}} or {{\"identity\": <digest>}}")
+        extra = sorted(set(w) - {"path", "type", "original", "set"})
+        if extra or (w["type"] == "entry" and "set" in w):
+            problems.append(f"writes[{i}] holds {', '.join(extra) or 'set'}: an entry is deactivated, "
+                            "and a file names only the values that the switch sets")
+        values = w.get("set", [])
+        if not isinstance(values, list) or not all(isinstance(v, dict) and sorted(v) == ["key", "value"]
+                                                   and is_key(v["key"]) for v in values):
+            problems.append(f"writes[{i}].set is not a list of keys with values")
+    for rel in HOOK_FILES + (RAVEL_SETTINGS,):
+        if types.get(rel) != "file":
+            problems.append(f"writes does not name the file {rel}")
+    restore = plan.get("restore")
+    if not isinstance(restore, list) or sorted(map(str, restore)) != sorted(map(str, types)):
+        problems.append("restore must name each path of writes once")
+    elif restore[0] != RAVEL_SETTINGS:
+        problems.append(f"restore must restore {RAVEL_SETTINGS} first")
+
+    inventory = plan.get("inventory")
+    if not isinstance(inventory, dict) or sorted(inventory) != ["after", "before"]:
+        problems.append("inventory must name the expected inventories before and after")
+    else:
+        for when in ("before", "after"):
+            items = inventory[when]
+            if not isinstance(items, list) or not items:
+                problems.append(f"inventory.{when} names no entry")
+                continue
+            for i, item in enumerate(items):
+                where = f"inventory.{when}[{i}]"
+                if isinstance(item, dict) and isinstance(item.get("entries"), dict) and "root" in item:
+                    path(where, item["root"])
+                    for name in item["entries"]:
+                        if not name or "/" in name or name in (".", ".."):
+                            problems.append(f"{where} names the child {name!r}")
+                elif isinstance(item, dict) and "path" in item and "identity" in item:
+                    path(where, item["path"])
+                else:
+                    problems.append(f"{where} is neither a path with an identity nor a root with entries")
+
+    inputs = plan.get("inputs")
+    if not isinstance(inputs, list) or not any(isinstance(r, dict) and r.get("path") == "$program" for r in inputs):
+        problems.append("inputs must name the program as \"$program\"")
+        inputs = []
+    for i, row in enumerate(inputs):
+        if (not isinstance(row, dict) or not isinstance(row.get("role"), str)
+                or not (row.get("path") == "$program" or (isinstance(row.get("path"), str)
+                                                          and os.path.isabs(row["path"])))
+                or not DIGEST.fullmatch(str(row.get("digest")))):
+            problems.append(f"inputs[{i}] needs a role, an absolute path or \"$program\", and a digest")
+    for name in ("assertions", "native_assertions"):
+        assertions = plan.get(name)
+        if not isinstance(assertions, list) or not assertions:
+            problems.append(f"{name} names no delivery assertion")
+            assertions = []
+        for i, a in enumerate(assertions):
+            keyed = (isinstance(a, dict) and is_key(a.get("key")) and ("value" in a) != ("values" in a)
+                     and (isinstance(a.get("values"), list) and a["values"] if "values" in a else True))
+            absent = isinstance(a, dict) and a.get("absent") is True and "key" not in a
+            if not (keyed or absent) or a.get("path") not in types:
+                problems.append(f"{name}[{i}] needs a path of writes, and a key with a value, "
+                                "a non-empty list of values, or \"absent\": true")
+    tools = plan.get("tools")
+    if not isinstance(tools, dict) or not isinstance(tools.get("claude"), str):
+        problems.append("tools must name the held Claude Code version as \"claude\"")
+    retained = plan.get("retained", [])
+    for i, row in enumerate(retained if isinstance(retained, list) else [None]):
+        if not isinstance(row, dict) or not isinstance(row.get("item"), str) or not isinstance(row.get("condition"),
+                                                                                                list):
+            problems.append(f"retained[{i}] needs an item and a condition list")
+
     command("baseline", plan.get("baseline"))
     gates = plan.get("gates")
     if not isinstance(gates, dict) or sorted(gates) != ["4", "5", "6", "7"]:
@@ -885,6 +831,11 @@ def validate_plan(plan: dict) -> None:
     commands("probes", plan.get("probes"))
     commands("native_probe", plan.get("native_probe"))
     command("mac_check", plan.get("mac_check"))
+    if not problems:
+        try:
+            drafted_settings(plan)
+        except Stop as e:
+            problems.append(str(e))
     if problems:
         raise Stop("the plan is incomplete: " + "; ".join(problems))
 
@@ -899,8 +850,6 @@ class Layout:
         self.contain(plan)
         self.state = os.path.join(self.home, plan["state"])
         self.backups = os.path.join(self.state, "backups")
-        self.rehearsals = os.path.join(self.state, "rehearsals")
-        self.settings = os.path.join(self.state, "settings")
         self.manual = os.path.join(self.home, plan["manual"])
 
     def path(self, rel: str) -> str:
@@ -914,10 +863,10 @@ class Layout:
         inside it. The last component is not followed: an entry can be a
         link.
         """
-        rels = [plan["state"], plan["manual"]] + [p["path"] for p in plan["parts"]]
-        for item in plan["outside"]:
+        rels = [plan["state"], plan["manual"]] + [w["path"] for w in plan["writes"]]
+        for when in ("before", "after"):
             # A root's children are read below it, so the root itself is a parent.
-            rels += [item["root"] + "/child"] if "root" in item else [item["path"]]
+            rels += [i["root"] + "/child" if "root" in i else i["path"] for i in plan["inventory"][when]]
         for rel in rels:
             parent = os.path.realpath(os.path.dirname(self.path(rel)))
             if parent != self.home and not parent.startswith(self.home + os.sep):
@@ -946,7 +895,7 @@ def hook_at(home: str, point: str) -> None:
         raise Stop(f"the rehearsal hook failed at {point}")
 
 
-# --- backups and the run record ---------------------------------------------------
+# --- exclusive writes and times ----------------------------------------------------
 
 def write_exclusive(path: str, data: bytes) -> None:
     """Write a file under a temporary name and rename it into place exclusively."""
@@ -960,342 +909,25 @@ def write_exclusive(path: str, data: bytes) -> None:
     renamex(tmp, path, RENAME_EXCL)
 
 
-class Backup:
-    def __init__(self, path: str):
-        self.path = path
-        self.id = os.path.basename(path)
-        self.plan = load_plan(os.path.join(path, "plan.json"))
-        self.program = os.path.join(path, "program.py")
-        with open(self.program, "rb") as f:
-            self.program_digest = hashlib.sha256(f.read()).hexdigest()
-        self.stage = os.path.join(path, "stage")
-        self.retained = os.path.join(path, "retained")
-        self.run = os.path.join(path, "run")
-
-    def records(self) -> list:
-        names = sorted(n for n in os.listdir(self.run) if not n.startswith("."))
-        return ["switch-begun"] + [n.split("-", 1)[1][:-len(".json")] for n in names]
-
-    def last(self) -> str:
-        return self.records()[-1]
-
-    def is_open(self) -> bool:
-        return self.last() != "inverse-ended"
-
-    def add_record(self, layout: Layout, kind: str, data: dict) -> None:
-        hook(layout, f"before-record:{kind}")
-        number = len(self.records())
-        body = dict(data, kind=kind, at=now())
-        write_exclusive(os.path.join(self.run, f"{number:02d}-{kind}.json"), dump_json(body))
-        log(f"record: {kind} in {self.id}")
-        hook(layout, f"after-record:{kind}")
-
-    def record_body(self, kind: str) -> dict:
-        for name in sorted(os.listdir(self.run)):
-            if name.endswith(f"-{kind}.json"):
-                with open(os.path.join(self.run, name)) as f:
-                    body = json.load(f)
-        return body
-
-    def retained_path(self, rel: str) -> str:
-        return os.path.join(self.retained, rel)
-
-    def evidence(self, step: str) -> list:
-        """The command results of one step that step 8 kept in this backup."""
-        try:
-            with open(os.path.join(self.path, "evidence", f"step-{step}.json")) as f:
-                body = json.load(f)
-        except (OSError, ValueError):
-            return []
-        return body if isinstance(body, list) else []
-
-
-def complete_backups(layout: Layout) -> list:
-    if not os.path.isdir(layout.backups):
-        return []
-    return sorted(n for n in os.listdir(layout.backups) if not n.startswith("."))
-
-
-def latest_backup(layout: Layout):
-    names = complete_backups(layout)
-    return Backup(os.path.join(layout.backups, names[-1])) if names else None
-
-
 def now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
-# --- kept copies ----------------------------------------------------------------
+# --- readings and the platform subtrees ----------------------------------------
 
-def kept_copy_records(layout: Layout) -> list:
-    """Each kept copy of each complete backup and settings record, with its record."""
-    out = []
-    for name in complete_backups(layout):
-        stage = os.path.join(layout.backups, name, "stage")
-        if not os.path.isdir(stage):
-            continue
-        for rec in sorted(n for n in os.listdir(stage) if n.endswith(".record.json")):
-            with open(os.path.join(stage, rec)) as f:
-                body = json.load(f)
-            body["_copy"] = os.path.join(stage, body["copy"])
-            body["_backup"] = name
-            out.append(body)
-    for name in settings_records(layout):
-        folder = os.path.join(layout.settings, name)
-        with open(os.path.join(folder, "record.json")) as f:
-            body = json.load(f)
-        body["_copy"] = os.path.join(folder, "copy")
-        body["_backup"] = None
-        body["_live"] = layout.path(body["path"])
-        out.append(body)
-    return out
-
-
-def settings_records(layout: Layout) -> list:
-    """The complete settings records, oldest first."""
-    if not os.path.isdir(layout.settings):
-        return []
-    return sorted(n for n in os.listdir(layout.settings) if not n.startswith(".")
-                  and os.path.isfile(os.path.join(layout.settings, n, "record.json")))
-
-
-def merge_digests(copy: str) -> list:
-    """The digests that the owner's merges recorded, oldest first."""
-    return [m["digest"] for m in merge_records(copy)]
-
-
-def is_flagged(record: dict) -> bool:
-    """A kept copy is flagged when it holds no recorded content.
-
-    After a merge, the merge's digest is the only recorded content. A held
-    link holds a kept copy only once another inode replaced it at the path:
-    before that, a write through the link is a write to the live file.
-    """
-    if record.get("kind") == "held":
-        if not os.path.lexists(record["_copy"]):
-            return False
-        if inode_of(record["_copy"]) == inode_of(record["_live"]):
-            return False
-    digest = path_digest(record["_copy"])
-    merges = merge_digests(record["_copy"])
-    if merges:
-        return digest != merges[-1]
-    return digest not in [record[k] for k in ("read", "stage") if k in record]
-
-
-def flagged_copies(layout: Layout) -> list:
-    return [r for r in kept_copy_records(layout) if is_flagged(r)]
-
-
-def report_flagged(layout: Layout) -> list:
-    flagged = flagged_copies(layout)
-    for r in flagged:
-        what = "held copy" if r.get("kind") == "held" else "kept copy"
-        log(f"flagged: {what} {r['_copy']} of {r['path']} holds no recorded content")
-    return flagged
-
-
-def flagged_summary(record: dict) -> dict:
-    return {"copy": record["_copy"], "of": record["path"], "backup": record["_backup"],
-            "kind": "held" if record.get("kind") == "held" else "kept"}
-
-
-# --- the merge entry ----------------------------------------------------------------
-
-def merge_records(copy: str) -> list:
-    """The merge records of a kept copy, oldest first, with their file names."""
-    folder, base = os.path.split(copy)
-    names = sorted(n for n in os.listdir(folder) if n.startswith(base + ".merge-") and n.endswith(".json"))
-    out = []
-    for n in names:
-        with open(os.path.join(folder, n)) as f:
-            out.append(dict(json.load(f), _name=n))
-    return out
-
-
-def recorded_base(record: dict) -> bytes:
-    """The last recorded content of a kept copy, as bytes.
-
-    Before a merge, that is the content that the run read. After a merge,
-    it is the content that the last merge recorded.
-    """
-    merges = merge_records(record["_copy"])
-    if merges:
-        if "content" not in merges[-1]:
-            raise Stop(f"the last merge of {record['_copy']} recorded no content; merge by hand, "
-                       "then record the merge with --record-only")
-        return base64.b64decode(merges[-1]["content"])
-    if record["_backup"] is not None:
-        read = record["_copy"] + READ_SUFFIX
-    else:
-        read = os.path.join(os.path.dirname(record["_copy"]), "read")
+def read_key(layout: Layout, rel: str, key: list):
+    """The value at KEY of the JSON file REL: ABSENT for an absent file or key, UNREADABLE for another file."""
     try:
-        with open(read, "rb") as f:
-            return f.read()
+        fd = os.open(layout.path(rel), os.O_RDONLY | os.O_NOFOLLOW)
     except FileNotFoundError:
-        raise Stop(f"{record['_copy']} keeps no bytes of what its run read; merge by hand, "
-                   "then record the merge with --record-only")
-
-
-def known_cells(layout: Layout, record: dict, prepared: dict) -> dict:
-    """Each cell key of the copy's file, with the values that a run writes there.
-
-    A cell takes the copy's value only when it is none of these values.
-    """
-    plan = prepared
-    if record["_backup"] is not None:
-        plan = Backup(os.path.join(layout.backups, record["_backup"])).plan
-    known = {}
-    for p in (plan, prepared):
-        for part in p["parts"]:
-            if part["kind"] == "file" and part["path"] == record["path"]:
-                for cell in part["cells"]:
-                    known.setdefault(tuple(cell["key"]), []).extend([cell["earlier"], cell["switched"]])
-    if record["path"] == RAVEL_SETTINGS:
-        known.setdefault(("skills",), []).extend([ABSENT, OFF])
-    if record["path"] == CLAUDE_SETTINGS:
-        known.setdefault(tuple(HOOKS_KEY), []).extend([ABSENT, True, False])
-    return known
-
-
-def merge_difference(base: dict, copy: dict, known: dict) -> list:
-    """The copy's difference from its base, as (key, value) pairs; ABSENT erases a key.
-
-    Each other key that the copy gained, changed or lost is in the
-    difference. A cell is in it only when the copy holds a value that no run
-    writes there.
-    """
-    ops = []
-    for key, values in sorted(known.items()):
-        value = get_cell(copy, list(key))
-        if not same(value, get_cell(base, list(key))) and not any(same(value, v) for v in values):
-            ops.append((list(key), value))
-
-    def walk(b: dict, c: dict, path: tuple) -> None:
-        for k in sorted(set(b) | set(c)):
-            p = path + (k,)
-            if p in known:
-                continue
-            bv, cv = b.get(k, ABSENT), c.get(k, ABSENT)
-            if same(bv, cv):
-                continue
-            holds_cell = any(len(key) > len(p) and key[:len(p)] == p for key in known)
-            if isinstance(bv, dict) and isinstance(cv, dict):
-                walk(bv, cv, p)
-            elif holds_cell and isinstance(bv, dict) and same(cv, ABSENT):
-                walk(bv, {}, p)
-            elif holds_cell and same(bv, ABSENT) and isinstance(cv, dict):
-                walk({}, cv, p)
-            elif holds_cell:
-                raise Stop(f"the copy replaces {key_name(list(p))}, which holds a cell; merge by hand, "
-                           "then record the merge with --record-only")
-            else:
-                ops.append((list(p), cv))
-    walk(base, copy, ())
-    return ops
-
-
-def apply_difference(obj: dict, ops: list) -> list:
-    replaced = []
-    for key, value in ops:
-        old = get_cell(obj, key)
-        if same(value, ABSENT):
-            parent = get_cell(obj, key[:-1]) if len(key) > 1 else obj
-            if isinstance(parent, dict) and key[-1] in parent:
-                del parent[key[-1]]
-                replaced.append((key_name(key), old, value))
-        elif not same(old, value):
-            set_cell(obj, key, value)
-            replaced.append((key_name(key), old, value))
-    return replaced
-
-
-def merge_command(args) -> int:
-    """Merge a flagged kept copy into its live file, and record the merge.
-
-    "Concurrent writers": the merge applies the difference between the copy
-    and its last recorded content, an erased key included. Its record holds
-    the digest of the copy, which is from then on the only recorded content.
-    """
-    prepared = load_plan(args.plan)
-    layout = Layout(args.home, prepared)
-    wanted = os.path.realpath(args.copy)
-    found = [r for r in kept_copy_records(layout) if os.path.realpath(r["_copy"]) == wanted]
-    if not found:
-        raise Stop(f"{args.copy} is no kept copy of a complete backup or settings record")
-    record = found[0]
-    if not is_flagged(record):
-        raise Stop(f"{args.copy} holds its recorded content, so it is not flagged and needs no merge")
-    fd = os.open(record["_copy"], os.O_RDONLY | os.O_NOFOLLOW)
-    try:
-        digest, content = fd_reading(fd)
-    finally:
-        os.close(fd)
-    applied = []
-    if args.record_only:
-        log(f"merge: recording {args.copy} without applying a difference, as the owner asked")
-    else:
-        base, copy = parse_json(recorded_base(record)), parse_json(content)
-        if same(base, UNREADABLE) or same(copy, UNREADABLE):
-            raise Stop(f"{args.copy} or its recorded content is not a JSON object; merge by hand, "
-                       "then record the merge with --record-only")
-        ops = merge_difference(base, copy, known_cells(layout, record, prepared))
-        if ops:
-            applied = record_exchange(layout, record["path"], lambda obj: apply_difference(obj, ops), "merge")
-        if not applied:
-            log(f"merge: the difference of {args.copy} changes no key of {record['path']}")
-    number = len(merge_records(record["_copy"])) + 1
-    body = {"digest": digest, "content": base64.b64encode(content).decode(), "at": now(),
-            "record_only": bool(args.record_only),
-            "applied": [{"key": k, "from": old, "to": new} for k, old, new in applied]}
-    write_exclusive(f"{record['_copy']}.merge-{number:03d}.json", dump_json(body))
-    log(f"record: merge {number} of {args.copy}, with the digest {digest}")
-    return 0
-
-
-# --- part readings --------------------------------------------------------------
-
-def read_file_cells(layout: Layout, part: dict) -> list:
-    path = layout.path(part["path"])
-    try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
-    except FileNotFoundError:
-        return [ABSENT for _ in part["cells"]]
+        return ABSENT
     except OSError:
-        return [UNREADABLE for _ in part["cells"]]
+        return UNREADABLE
     try:
         obj = parse_json(fd_reading(fd)[1])
     finally:
         os.close(fd)
-    return [get_cell(obj, c["key"]) for c in part["cells"]]
-
-
-def part_status(layout: Layout, part: dict, backup) -> dict:
-    """Classify one part as earlier, switched or third."""
-    if part["kind"] == "file":
-        values = read_file_cells(layout, part)
-        cells = []
-        for cell, value in zip(part["cells"], values):
-            if same(value, cell["switched"]):
-                status = "switched"
-            elif same(value, cell["earlier"]):
-                status = "earlier"
-            else:
-                status = "third"
-            cells.append({"key": key_name(cell["key"]), "value": value, "status": status})
-        statuses = {c["status"] for c in cells}
-        overall = statuses.pop() if len(statuses) == 1 else "third"
-        return {"status": overall, "cells": cells}
-    original = identity(layout.path(part["path"]))
-    retained = identity(backup.retained_path(part["path"])) if backup else None
-    expected = part["identity"]
-    if original == expected and retained is None:
-        status = "earlier"
-    elif backup and original is None and retained == expected:
-        status = "switched"
-    else:
-        status = "third"
-    return {"status": status, "original": original, "retained": retained}
+    return get_cell(obj, key)
 
 
 # "Concurrent writers": the only subtrees that a comparison skips. A probe
@@ -1307,89 +939,6 @@ PLATFORM_SUBTREES = (".claude/skills/synced", ".codex/skills/.system")
 def platform_subtree(layout: Layout, rel: str) -> bool:
     p = layout.path(rel)
     return rel in PLATFORM_SUBTREES and os.path.isdir(p) and not os.path.islink(p)
-
-
-def outside_changes(layout: Layout, plan: dict) -> list:
-    """Each entry outside the switch set that differs from the plan's manifest."""
-    changed = []
-    part_paths = {p["path"] for p in plan["parts"]}
-    for item in plan.get("outside", []):
-        if "root" in item:
-            root = layout.path(item["root"])
-            names = set(os.listdir(root)) if os.path.isdir(root) else set()
-            names = {n for n in names if os.path.join(item["root"], n) not in part_paths}
-            for name in sorted(names | set(item["entries"])):
-                rel = os.path.join(item["root"], name)
-                if platform_subtree(layout, rel):
-                    continue
-                if identity(layout.path(rel)) != item["entries"].get(name):
-                    changed.append(rel)
-        elif identity(layout.path(item["path"])) != item["identity"]:
-            changed.append(item["path"])
-    return changed
-
-
-def is_prefix(statuses: list) -> bool:
-    """The switched parts are a prefix of the plan's order and the others are earlier."""
-    seen_earlier = False
-    for s in statuses:
-        if s == "third":
-            return False
-        if s == "earlier":
-            seen_earlier = True
-        elif seen_earlier:
-            return False
-    return True
-
-
-def find_state(layout: Layout, prepared: dict, baseline=()) -> dict:
-    """Find the state of the switch set from the layout, the run record and a plan.
-
-    baseline holds the rows of step 3's baseline instrument that count as
-    changed entries outside the switch set.
-    """
-    backup = latest_backup(layout)
-    is_open = bool(backup and backup.is_open())
-    plan = backup.plan if is_open else prepared
-    layout.contain(plan)
-    parts =[part_status(layout, p, backup if is_open else None) for p in plan["parts"]]
-    statuses = [p["status"] for p in parts]
-    outside = outside_changes(layout, plan) + list(baseline)
-    last = backup.last() if backup else None
-    if is_open:
-        all_switched = all(s == "switched" for s in statuses)
-        if last == "receipt":
-            state = "complete" if all_switched else "drifted"
-        elif last == "switch-begun" and all_switched:
-            state = "active"
-        elif last in ("switch-begun", "inverse-begun") and is_prefix(statuses):
-            state = "interrupted"
-        else:
-            state = "drifted"
-    else:
-        native = all(s == "earlier" for s in statuses) and not outside
-        state = "native" if native else "changed"
-    return {
-        "state": state, "open": is_open, "backup": backup, "plan": plan,
-        "parts": parts, "outside_changed": outside,
-        "records": backup.records() if backup else [],
-        "prepared_differs": bool(is_open and plan["_digest"] != prepared["_digest"]),
-    }
-
-
-def report_state(st: dict) -> None:
-    backup = st["backup"]
-    log(f"state: {st['state']}" + (f" (backup {backup.id}, records {', '.join(st['records'])})" if backup else ""))
-    for i, (part, status) in enumerate(zip(st["plan"]["parts"], st["parts"])):
-        if part["kind"] == "file":
-            for c in status["cells"]:
-                log(f"  part {i} {part['path']} {c['key']}: {show(c['value'])} ({c['status']})")
-        else:
-            log(f"  part {i} {part['path']}: {status['status']}")
-    for rel in st["outside_changed"]:
-        log(f"  changed outside the switch set: {rel}")
-    if st["prepared_differs"]:
-        log("  the prepared plan differs from the open run's plan; apply it only after the inverse")
 
 
 # --- the narrow process inspection ---------------------------------------------
@@ -1853,7 +1402,6 @@ def run_command_full(layout: Layout, command: dict, step: str, plan=None, admitt
     evidence = {"name": command["name"], "argv": command["argv"], "exit": result.returncode, "output": output}
     if parsed is not None:
         evidence["result"] = parsed
-    RUN_LOG["commands"].append(dict(evidence, step=step))
     return evidence, result.stdout
 
 
@@ -1877,197 +1425,7 @@ def admitted_of(results: list) -> dict:
     return admitted
 
 
-# --- parts ----------------------------------------------------------------------
-
-def exchange_file(layout: Layout, backup: Backup, index: int, part: dict, phase: str, wanted,
-                  changed=None) -> list:
-    """Publish one file part by stage file, exchange and comparison.
-
-    `wanted` maps each cell to its new value, or None to leave it. It returns
-    the replaced values. A failed read or comparison raises Conflict.
-    """
-    path = layout.path(part["path"])
-    try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
-    except OSError as e:
-        raise Conflict(f"part {index} {part['path']}: {e.strerror}")
-    try:
-        read_digest, content = fd_reading(fd)
-        obj = parse_json(content)
-        if same(obj, UNREADABLE):
-            raise Conflict(f"part {index} {part['path']} is not a JSON object")
-        replaced = []
-        for cell in part["cells"]:
-            new = wanted(cell, get_cell(obj, cell["key"]))
-            if new is not None:
-                replaced.append((key_name(cell["key"]), get_cell(obj, cell["key"]), new))
-                set_cell(obj, cell["key"], new)
-        if not replaced:
-            return []
-        hook(layout, f"{phase}-read:{index}")
-        token = secrets.token_hex(4)
-        copy = f"{phase}-{index:03d}-{token}"
-        stage_path = os.path.join(backup.stage, copy)
-        sfd = os.open(stage_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        try:
-            os.write(sfd, dump_json(obj))
-            os.fsync(sfd)
-            copy_metadata(fd, sfd)
-        finally:
-            os.close(sfd)
-        stage_digest = path_digest(stage_path)
-    finally:
-        os.close(fd)
-    record = {"path": part["path"], "part": index, "phase": phase, "copy": copy,
-              "read": read_digest, "stage": stage_digest}
-    # The merge entry takes the difference from the bytes that the run read.
-    write_exclusive(os.path.join(backup.stage, copy + READ_SUFFIX), content)
-    write_exclusive(os.path.join(backup.stage, copy + ".record.json"), dump_json(record))
-    hook(layout, f"{phase}-before-exchange:{index}")
-    try:
-        renamex(stage_path, path, RENAME_SWAP)
-    except OSError as e:
-        raise Conflict(f"part {index} {part['path']}: exchange failed: {e.strerror}")
-    if changed is not None:
-        changed.add(index)
-    hook(layout, f"{phase}-exchanged:{index}")
-    if path_digest(stage_path) != read_digest:
-        raise Conflict(f"part {index} {part['path']}: the kept copy {stage_path} differs from what the run read")
-    for key, old, new in replaced:
-        log(f"replaced: part {index} {part['path']} {key}: {show(old)} -> {show(new)}")
-    return replaced
-
-
-def switch_part(layout: Layout, backup: Backup, index: int, part: dict, changed: set) -> None:
-    hook(layout, f"switch-before-part:{index}")
-    if part["kind"] == "file":
-        def wanted(cell, value):
-            if not same(value, cell["earlier"]):
-                raise Conflict(f"part {index} {part['path']} {key_name(cell['key'])} holds "
-                               f"{show(value)}, not its earlier value")
-            return cell["switched"]
-        exchange_file(layout, backup, index, part, "switch", wanted, changed)
-    else:
-        src, dst = layout.path(part["path"]), backup.retained_path(part["path"])
-        if identity(src) != part["identity"] or os.path.lexists(dst):
-            raise Conflict(f"part {index} {part['path']} is not at its earlier value")
-        os.makedirs(os.path.dirname(dst), exist_ok=True)
-        hook(layout, f"switch-read:{index}")
-        try:
-            renamex(src, dst, RENAME_EXCL)
-        except OSError as e:
-            raise Conflict(f"part {index} {part['path']}: move failed: {e.strerror}")
-        changed.add(index)
-        hook(layout, f"switch-exchanged:{index}")
-        if identity(dst) != part["identity"]:
-            raise Conflict(f"part {index} {part['path']}: the moved entry changed its identity")
-        log(f"replaced: part {index} {part['path']}: moved into {dst}")
-    hook(layout, f"switch-after-part:{index}")
-
-
-def invert_part(layout: Layout, backup: Backup, index: int, part: dict) -> None:
-    hook(layout, f"inverse-before-part:{index}")
-    if part["kind"] == "file":
-        def wanted(cell, value):
-            if same(value, cell["switched"]):
-                return cell["earlier"]
-            if not same(value, cell["earlier"]):
-                log(f"third value: part {index} {part['path']} {key_name(cell['key'])}: {show(value)}; left")
-            return None
-        exchange_file(layout, backup, index, part, "inverse", wanted)
-    else:
-        src, dst = backup.retained_path(part["path"]), layout.path(part["path"])
-        if not os.path.lexists(src):
-            if identity(dst) != part["identity"]:
-                log(f"third value: part {index} {part['path']}; left")
-            return
-        if os.path.lexists(dst):
-            log(f"third value: part {index} {part['path']} is occupied while its retained entry exists; "
-                "both are left")
-            return
-        hook(layout, f"inverse-read:{index}")
-        try:
-            renamex(src, dst, RENAME_EXCL)
-        except OSError as e:
-            raise Conflict(f"part {index} {part['path']}: move back failed: {e.strerror}")
-        if identity(dst) != part["identity"]:
-            log(f"third value: part {index} {part['path']} moved back with a changed identity")
-        log(f"replaced: part {index} {part['path']}: moved back from {src}")
-    hook(layout, f"inverse-after-part:{index}")
-
-
-def run_inverse(layout: Layout, backup: Backup, limit=None) -> None:
-    """The inverse of the backup's plan, in its own write interval."""
-    plan = backup.plan
-    process_gate(layout, "the inverse")
-    if backup.last() != "inverse-begun":
-        backup.add_record(layout, "inverse-begun", {})
-    for index in reversed(range(len(plan["parts"]))):
-        if limit is not None and index not in limit:
-            continue
-        try:
-            invert_part(layout, backup, index, plan["parts"][index])
-        except Conflict as e:
-            raise Stop(f"the inverse stopped at a conflict: {e}; the next run resumes it")
-    statuses = [part_status(layout, p, backup) for p in plan["parts"]]
-    switched = [i for i, s in enumerate(statuses) if s["status"] == "switched"
-                or any(c["status"] == "switched" for c in s.get("cells", []))]
-    if switched:
-        raise Stop(f"parts {switched} still hold a switched value after the inverse")
-    backup.add_record(layout, "inverse-ended", {})
-
-
-def failed_probe(layout: Layout, backup: Backup, reason: str) -> None:
-    """Step 11: apply the inverse, then verify the native route."""
-    log(f"failed probe: {reason}")
-    run_inverse(layout, backup)
-    _, failed = run_commands(layout, backup.plan, backup.plan["native_probe"], "11")
-    if failed:
-        raise Stop(f"the inverse ran after a failed probe ({reason}), and the native probe failed: "
-                   + ", ".join(f["name"] for f in failed))
-    raise Stop(f"the inverse ran after a failed probe ({reason}); the native probe passed")
-
-
-# --- the preludes of step 3 -------------------------------------------------------
-
-def new_record_name(label: str) -> str:
-    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    return f"{stamp}-{label}-{secrets.token_hex(3)}"
-
-
-def erase_held_links(layout: Layout) -> None:
-    """Erase each held link whose inode is still at the path.
-
-    Such a link holds no kept copy, because the path still names its inode.
-    A stop or a crash before a command's rename leaves one. A record whose
-    link is gone, or a temporary record with no file, holds nothing either.
-    """
-    if not os.path.isdir(layout.settings):
-        return
-    live = layout.path(CLAUDE_SETTINGS)
-    for name in sorted(os.listdir(layout.settings)):
-        folder = os.path.join(layout.settings, name)
-        if not os.path.isdir(folder) or os.path.islink(folder):
-            continue
-        record = os.path.join(folder, "record.json")
-        body = load_json_file(record)
-        if body is not None and body.get("kind") != "held":
-            continue
-        copy = os.path.join(folder, "copy")
-        if os.path.lexists(copy):
-            if inode_of(copy) != inode_of(live):
-                continue
-            os.unlink(copy)
-        elif body is None and set(os.listdir(folder)) - {"read"}:
-            continue
-        for leftover in (os.path.join(folder, "read"), record):
-            if os.path.exists(leftover):
-                os.unlink(leftover)
-        try:
-            os.rmdir(folder)
-        except OSError:
-            continue
-        log(f"erased: held link {folder}")
+# --- JSON files -------------------------------------------------------------------
 
 
 def load_json_file(path: str):
@@ -2077,132 +1435,6 @@ def load_json_file(path: str):
     except (OSError, ValueError):
         return None
     return body if isinstance(body, dict) else None
-
-
-def refuse(layout: Layout, prepared: dict, reason: str) -> None:
-    """Item 4 of a prelude: change nothing, and ask the owner."""
-    report_state(find_state(layout, prepared))
-    raise Stop(f"{reason}; stop for classification, and ask the owner")
-
-
-def prelude_exchange(layout: Layout, rel: str, key: list, earlier, new, label: str) -> None:
-    """Change one cell by a settings record, the atomic exchange and the comparison."""
-    def mutate(obj: dict) -> list:
-        old = get_cell(obj, key)
-        if not same(old, earlier):
-            raise Stop(f"{rel} {key_name(key)} holds {show(old)}, not {show(earlier)}")
-        set_cell(obj, key, new)
-        return [(key_name(key), old, new)]
-    record_exchange(layout, rel, mutate, label, {"key": key})
-
-
-def record_exchange(layout: Layout, rel: str, mutate, label: str, extra=None) -> list:
-    """Change a JSON file by a settings record, the atomic exchange and the comparison.
-
-    `mutate` changes the object that one reading read, and returns the
-    replaced values. The record holds the digest of what this reading read
-    and of the stage file, and the file `read` holds the bytes that it read.
-    It is complete under its own name before the exchange. After the
-    exchange, the stage name holds the kept copy. A difference at the
-    comparison flags that copy, and it is a stop.
-    """
-    path = layout.path(rel)
-    try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
-    except OSError as e:
-        raise Stop(f"{rel} could not be read: {e.strerror}")
-    os.makedirs(layout.settings, exist_ok=True)
-    name = new_record_name(label)
-    tmp = os.path.join(layout.settings, f".tmp-{name}")
-    try:
-        read_digest, content = fd_reading(fd)
-        obj = parse_json(content)
-        if same(obj, UNREADABLE):
-            raise Stop(f"{rel} is not a JSON object")
-        replaced = mutate(obj)
-        if not replaced:
-            return []
-        hook(layout, f"{label}-read")
-        os.mkdir(tmp, 0o700)
-        with open(os.path.join(tmp, "read"), "wb") as f:
-            f.write(content)
-        stage = os.path.join(tmp, "copy")
-        sfd = os.open(stage, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        try:
-            os.write(sfd, dump_json(obj))
-            os.fsync(sfd)
-            copy_metadata(fd, sfd)
-        finally:
-            os.close(sfd)
-    finally:
-        os.close(fd)
-    record = dict(extra or {}, kind="exchange", path=rel, label=label,
-                  read=read_digest, stage=path_digest(stage), at=now())
-    with open(os.path.join(tmp, "record.json"), "wb") as f:
-        f.write(dump_json(record))
-        f.flush()
-        os.fsync(f.fileno())
-    folder = os.path.join(layout.settings, name)
-    renamex(tmp, folder, RENAME_EXCL)
-    log(f"record: settings record {folder}")
-    hook(layout, f"{label}-recorded")
-    copy = os.path.join(folder, "copy")
-    try:
-        renamex(copy, path, RENAME_SWAP)
-    except OSError as e:
-        raise Stop(f"{rel}: the exchange failed: {e.strerror}")
-    hook(layout, f"{label}-exchanged")
-    if path_digest(copy) != read_digest:
-        raise Stop(f"the kept copy {copy} of {rel} differs from what the run read; it is flagged")
-    for key, old, new in replaced:
-        log(f"replaced: {rel} {key}: {show(old)} -> {show(new)}")
-    hook(layout, f"{label}-compared")
-    return replaced
-
-
-def native_settings(layout: Layout, prepared: dict) -> None:
-    """The native settings: give the Ravel settings the off value as `skills`."""
-    hook(layout, "prelude:native-settings")
-    path = layout.path(RAVEL_SETTINGS)
-    try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
-    except FileNotFoundError:
-        fd = None
-    except OSError as e:
-        refuse(layout, prepared, f"the native settings could not read {RAVEL_SETTINGS}: {e.strerror}")
-    if fd is None:
-        process_gate(layout, "the native settings")
-        os.makedirs(layout.settings, exist_ok=True)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        stage = os.path.join(layout.settings, f".create-{new_record_name('native')}")
-        sfd = os.open(stage, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
-        try:
-            os.write(sfd, dump_json({"skills": OFF}))
-            os.fsync(sfd)
-        finally:
-            os.close(sfd)
-        hook(layout, "native-before-create")
-        try:
-            renamex(stage, path, RENAME_EXCL)
-        except OSError as e:
-            raise Stop(f"the native settings could not create {RAVEL_SETTINGS}: {e.strerror}")
-        log(f"replaced: {RAVEL_SETTINGS} skills: (absent file) -> {show(OFF)}")
-        hook(layout, "native-created")
-        return
-    try:
-        obj = parse_json(fd_reading(fd)[1])
-    finally:
-        os.close(fd)
-    if same(obj, UNREADABLE):
-        refuse(layout, prepared, f"the native settings found {RAVEL_SETTINGS} not a JSON object")
-    value = get_cell(obj, ["skills"])
-    if same(value, OFF):
-        log(f"native settings: {RAVEL_SETTINGS} holds the off value")
-        return
-    if not same(value, ABSENT):
-        refuse(layout, prepared, f"the native settings found skills {show(value)} in {RAVEL_SETTINGS}")
-    process_gate(layout, "the native settings")
-    prelude_exchange(layout, RAVEL_SETTINGS, ["skills"], ABSENT, OFF, "native")
 
 
 # --- native-off ("The native settings inside finish") ------------------------
@@ -2545,7 +1777,7 @@ def hooks_state(layout: Layout, expected: str) -> dict:
     plugins = [r for r in claude_list(layout, ["plugin", "list", "--json"]) if r.get("id") == HOOKS_PLUGIN]
     markets = [r for r in claude_list(layout, ["plugin", "marketplace", "list", "--json"])
                if r.get("name") == HOOKS_MARKETPLACE]
-    cell = read_file_cells(layout, {"path": CLAUDE_SETTINGS, "cells": [{"key": HOOKS_KEY}]})[0]
+    cell = read_key(layout, CLAUDE_SETTINGS, HOOKS_KEY)
     registered = (len(markets) == 1 and markets[0].get("source") == "directory"
                   and markets[0].get("path") == expected)
     out = {"registered": registered, "cell": cell}
@@ -2565,116 +1797,6 @@ def hooks_state(layout: Layout, expected: str) -> dict:
     if same(cell, False) and row.get("enabled") is False:
         return dict(out, kind="disabled", reason="the plugin is installed and disabled")
     return dict(out, kind="other", reason=f"the plugin's cell holds {show(cell)}")
-
-
-def write_held_record(layout: Layout, label: str):
-    """Step 1 of a command: a settings record with a held link and one reading through it."""
-    path = layout.path(CLAUDE_SETTINGS)
-    try:
-        st = os.lstat(path)
-    except FileNotFoundError:
-        raise Stop(f"{CLAUDE_SETTINGS} is absent, so no held link can keep it")
-    if not stat.S_ISREG(st.st_mode):
-        raise Stop(f"{CLAUDE_SETTINGS} is not a regular file")
-    os.makedirs(layout.settings, exist_ok=True)
-    name = new_record_name(label)
-    tmp = os.path.join(layout.settings, f".tmp-{name}")
-    os.mkdir(tmp, 0o700)
-    held = os.path.join(tmp, "copy")
-    os.link(path, held, follow_symlinks=False)
-    fd = os.open(held, os.O_RDONLY | os.O_NOFOLLOW)
-    try:
-        reading = fd_reading_full(fd)
-    finally:
-        os.close(fd)
-    with open(os.path.join(tmp, "read"), "wb") as f:
-        f.write(reading["content"])
-    record = {"kind": "held", "path": CLAUDE_SETTINGS, "label": label, "read": reading["digest"],
-              "inode": list(reading["inode"]), "at": now()}
-    with open(os.path.join(tmp, "record.json"), "wb") as f:
-        f.write(dump_json(record))
-        f.flush()
-        os.fsync(f.fileno())
-    folder = os.path.join(layout.settings, name)
-    renamex(tmp, folder, RENAME_EXCL)
-    log(f"record: held link {folder}")
-    return folder, reading
-
-
-def held_command(layout: Layout, prepared: dict, expected: str, args: list, label: str, needed) -> None:
-    """Run one Claude Code command in the six steps of "Claude Code's own writes"."""
-    hook(layout, f"hooks-before-held:{label}")
-    folder, reading = write_held_record(layout, label)
-    hook(layout, f"hooks-held:{label}")
-    others = [n.decode(errors="replace") for n in reading["xattrs"] if n != PROVENANCE]
-    if reading["acl"] or others:
-        what = "an ACL" if reading["acl"] else "the extended attribute " + ", ".join(others)
-        raise Stop(f"{CLAUDE_SETTINGS} holds {what}, which `claude {' '.join(args)}` would drop")
-    state = hooks_state(layout, expected)
-    if state["kind"] == "other":
-        refuse(layout, prepared, f"the hooks installation found that {state['reason']}")
-    if not needed(state):
-        log(f"hooks installation: `claude {' '.join(args)}` is no longer needed")
-        erase_held_links(layout)
-        return
-    hook(layout, f"hooks-command:{label}")
-    result = run_tool(layout, ["claude"] + args)
-    if result.returncode != 0:
-        raise Stop(f"`claude {' '.join(args)}` failed: {(result.stdout + result.stderr).strip()[-2000:]}")
-    path = layout.path(CLAUDE_SETTINGS)
-    held = os.path.join(folder, "copy")
-    if inode_of(path) == inode_of(held):
-        raise Stop(f"`claude {' '.join(args)}` replaced no inode at {CLAUDE_SETTINGS}, so the held link "
-                   "proves nothing")
-    hook(layout, f"hooks-renamed:{label}")
-    if path_digest(held) != reading["digest"]:
-        raise Stop(f"the held copy {held} of {CLAUDE_SETTINGS} differs from its record; it is flagged")
-    hook(layout, f"hooks-compared:{label}")
-
-
-def hooks_installation(layout: Layout, prepared: dict) -> None:
-    """The hooks installation: install the hooks plugin disabled."""
-    hook(layout, "prelude:hooks-installation")
-    expected = marketplace_path(layout)
-    state = hooks_state(layout, expected)
-    if state["kind"] == "disabled":
-        log(f"hooks installation: {state['reason']}")
-        return
-    if state["kind"] == "other":
-        refuse(layout, prepared, f"the hooks installation found that {state['reason']}")
-    process_gate(layout, "the hooks installation")
-    if state["kind"] == "absent":
-        check_claude_version(layout)
-        if not state["registered"]:
-            held_command(layout, prepared, expected, ["plugin", "marketplace", "add", expected],
-                         "marketplace-add", lambda s: s["kind"] == "absent" and not s["registered"])
-        held_command(layout, prepared, expected, ["plugin", "install", HOOKS_PLUGIN],
-                     "install", lambda s: s["kind"] == "absent" and s["registered"])
-    hook(layout, "hooks-before-disable")
-    cell = read_file_cells(layout, {"path": CLAUDE_SETTINGS, "cells": [{"key": HOOKS_KEY}]})[0]
-    if same(cell, False):
-        log("hooks installation: the plugin's cell already holds false; nothing written")
-        return
-    if not same(cell, True):
-        refuse(layout, prepared, f"the hooks installation found the plugin's cell {show(cell)}")
-    prelude_exchange(layout, CLAUDE_SETTINGS, HOOKS_KEY, True, False, "hooks-disable")
-
-
-def step_3_preludes(layout: Layout, prepared: dict) -> None:
-    """Step 3 up to the state: held links, the run record and the preludes."""
-    erase_held_links(layout)
-    backup = latest_backup(layout)
-    if backup and backup.is_open():
-        log(f"preludes: the run of {backup.id} is open, so no prelude runs")
-        return
-    if not passing_rehearsals(layout):
-        raise Stop("no passing rehearsal record names this program, so no prelude runs")
-    try:
-        native_settings(layout, prepared)
-        hooks_installation(layout, prepared)
-    except Stop:
-        report_flagged(layout)
-        raise
 
 
 # --- the gates of steps 4 to 7 ---------------------------------------------------
@@ -2778,16 +1900,15 @@ def staging_env(gate: "Gate") -> dict:
 
 
 def drafted_settings(plan: dict) -> dict:
-    """The drafted real Ravel settings: the switched cells of the plan's Ravel settings part."""
-    parts = [p for p in plan["parts"] if p["kind"] == "file" and p["path"] == RAVEL_SETTINGS]
-    if len(parts) != 1:
-        raise Stop(f"the plan needs one part for {RAVEL_SETTINGS}")
+    """The drafted real Ravel settings: the values that the plan sets in the Ravel settings."""
     settings = {}
-    for cell in parts[0]["cells"]:
-        set_cell(settings, cell["key"], cell["switched"])
+    for w in plan["writes"]:
+        if w["path"] == RAVEL_SETTINGS:
+            for v in w.get("set", []):
+                set_cell(settings, v["key"], v["value"])
     skills = settings.get("skills")
     if not isinstance(skills, dict) or "sources" in skills:
-        raise Stop("the drafted settings must hold a skills value that names no sources, "
+        raise Stop(f"the plan must set a skills value in {RAVEL_SETTINGS} that names no sources, "
                    "so that Ravel reads the default skill directory")
     return settings
 
@@ -3004,278 +2125,7 @@ def gate_command(args) -> int:
     return 0
 
 
-# --- the switch -----------------------------------------------------------------
-
-def passing_rehearsals(layout: Layout) -> list:
-    """Each passing rehearsal record that names this program."""
-    if not os.path.isdir(layout.rehearsals):
-        return []
-    out = []
-    for name in sorted(os.listdir(layout.rehearsals)):
-        if not name.endswith(".json"):
-            continue
-        try:
-            with open(os.path.join(layout.rehearsals, name)) as f:
-                rec = json.load(f)
-        except (OSError, ValueError):
-            continue
-        if (isinstance(rec, dict) and rec.get("schema") == REHEARSAL_SCHEMA and rec.get("passed") is True
-                and rec.get("program_digest") == PROGRAM_DIGEST and measured_version(rec)):
-            out.append(rec)
-    return out
-
-
-def measured_version(rec: dict):
-    """The Claude Code version whose writes a record's rerun of settings-writes.sh measured.
-
-    "Test seams": the rehearsal reruns settings-writes.sh with the version
-    that it uses and names that version. A record without a passing rerun
-    certifies no write method.
-    """
-    rerun = rec.get("settings_writes")
-    if not isinstance(rerun, dict) or rerun.get("passed") is not True:
-        return None
-    version = rerun.get("claude_version")
-    return version if isinstance(version, str) and version else None
-
-
-def check_claude_version(layout: Layout) -> None:
-    """Stop unless `claude --version` names a version that a passing record measured."""
-    result = run_tool(layout, ["claude", "--version"])
-    version = result.stdout.strip()
-    measured = sorted({measured_version(rec) for rec in passing_rehearsals(layout)})
-    if result.returncode != 0 or version not in measured:
-        raise Stop(f"claude --version printed {version!r}, and no passing rehearsal record measured the "
-                   f"writes of that version (measured: {', '.join(measured) or 'none'})")
-    log(f"hooks installation: Claude Code {version} is the version that the rehearsal measured")
-
-
-def rehearsed(layout: Layout, plan: dict) -> bool:
-    """Step 8: a passing record names the plan and this program."""
-    return any(rec.get("plan_digest") == plan["_digest"] for rec in passing_rehearsals(layout))
-
-
-def write_backup(layout: Layout, plan: dict, evidence: dict) -> Backup:
-    """Step 8: a new backup, complete only at its last rename."""
-    os.makedirs(layout.backups, exist_ok=True)
-    backup_id = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    tmp = os.path.join(layout.backups, f".incomplete-{backup_id}")
-    os.mkdir(tmp, 0o700)
-    for sub in ("stage", "retained", "run", "evidence"):
-        os.mkdir(os.path.join(tmp, sub))
-    with open(os.path.join(tmp, "plan.json"), "wb") as f:
-        f.write(plan["_bytes"])
-    with open(os.path.join(tmp, "program.py"), "wb") as f:
-        f.write(PROGRAM_BYTES)
-    for step, results in evidence.items():
-        with open(os.path.join(tmp, "evidence", f"step-{step}.json"), "wb") as f:
-            f.write(dump_json(results))
-    hook(layout, "before-backup-rename")
-    final = os.path.join(layout.backups, backup_id)
-    renamex(tmp, final, RENAME_EXCL)
-    log(f"record: switch-begun in {backup_id}")
-    hook(layout, "after-backup-rename")
-    return Backup(final)
-
-
-def recheck_readers(layout: Layout, backup: Backup) -> dict:
-    """Inside the probes: read each version directory of step 7's evidence again.
-
-    "Resource lifetime" keeps each version that a live reader uses
-    registered and current until purge. A directory that is missing, holds
-    .orphaned_at or lost its registration counts as a failed probe.
-    """
-    registry = load_json_file(os.path.join(layout.home, ".claude/plugins/installed_plugins.json")) or {}
-    plugins = registry.get("plugins") if isinstance(registry.get("plugins"), dict) else {}
-    readers, problems = [], []
-    for result in gate_results(backup.evidence("7")):
-        for reader in (result or {}).get("readers") or []:
-            path = reader.get("path")
-            if not isinstance(path, str):
-                continue
-            registered = any(isinstance(e, dict) and e.get("installPath") == path
-                             for e in plugins.get(reader.get("plugin")) or [])
-            orphaned = os.path.lexists(os.path.join(path, ".orphaned_at"))
-            present = os.path.isdir(path)
-            readers.append({"plugin": reader.get("plugin"), "path": path, "present": present,
-                            "orphaned": orphaned, "registered": registered})
-            if not present:
-                problems.append(f"the version directory {path} of {reader.get('plugin')} is missing")
-            elif orphaned:
-                problems.append(f"the version directory {path} of {reader.get('plugin')} holds .orphaned_at")
-            elif not registered:
-                problems.append(f"the version directory {path} of {reader.get('plugin')} lost its registration")
-    return {"readers": readers, "problems": problems}
-
-
-def retained_items(layout: Layout, backup: Backup) -> list:
-    """Each retained byte set with its purge condition, for the receipt ("Purge")."""
-    plan = backup.plan
-    purge = list(PURGE_CONDITIONS)
-    items = []
-    for part in plan["parts"]:
-        if part["kind"] == "entry":
-            items.append({"item": "retained entry", "path": backup.retained_path(part["path"]),
-                          "original": part["path"], "identity": part["identity"], "condition": purge})
-    for r in kept_copy_records(layout):
-        items.append({"item": "kept copy", "path": r["_copy"], "of": r["path"], "condition": purge})
-    items.append({"item": "Grove's Codex snapshot store", "path": layout.path(CODEX_SNAPSHOT_STORE),
-                  "condition": purge})
-    superseded = sorted({c["key"][1] for p in plan["parts"] if p["kind"] == "file" and p["path"] == CLAUDE_SETTINGS
-                         for c in p["cells"] if len(c["key"]) == 2 and c["key"][0] == "enabledPlugins"
-                         and c["switched"] is False and c["earlier"] is True})
-    for pid in superseded:
-        items.append({"item": "superseded plugin registration", "plugin": pid, "condition": purge})
-    for market in sorted({pid.split("@", 1)[1] for pid in superseded if "@" in pid}):
-        items.append({"item": "earlier marketplace registration", "marketplace": market, "condition": purge})
-    staging = staging_of(plan)
-    after = ["this receipt is written"]
-    items.append({"item": "staging HOME", "path": staging["home"], "condition": after})
-    items.append({"item": "candidate keg", "path": staging["candidate_keg"], "condition": after})
-    return items
-
-
-def receipt_body(layout: Layout, backup: Backup, gates: dict, probes: list, mac_check: dict, cells: list,
-                 readers: dict) -> dict:
-    """The receipt: the last paragraph of "The switch inside finish"."""
-    plan = backup.plan
-
-    def result(step: str) -> dict:
-        found = [r for r in gate_results(backup.evidence(step)) if isinstance(r, dict)]
-        return found[0] if found else {}
-
-    step4, step5 = result("4"), result("5")
-    step6 = next((r for r in gates.get("6 again", []) if isinstance(r, dict)), None) or result("6")
-    formula_versions = step5.get("formulae") or {}
-    sources = {}
-    for sid, source in sorted(plan["accepted"]["sources"].items()):
-        resolved = (step6.get("sources") or {}).get(sid) or {}
-        sources[sid] = {"formula": source["formula"], "version": formula_versions.get(source["formula"]),
-                        "keg_path": resolved.get("originPath"), "resourceDigest": resolved.get("resourceDigest"),
-                        "snapshotRoot": resolved.get("snapshotRoot")}
-    return {
-        "activated": {
-            "grove": step4.get("grove"),
-            "ravel": {"path": step6.get("ravel_path"), "version": step6.get("ravel")},
-            "config_rhai_digest": path_digest(layout.path(RAVEL_CONFIG)),
-            "ravel_settings_digest": path_digest(layout.path(RAVEL_SETTINGS)),
-            "claude_settings_digest": path_digest(layout.path(CLAUDE_SETTINGS)),
-        },
-        "sources": sources,
-        "formula_versions": formula_versions,
-        "trials": {"reran": step4.get("reran") or [], "results": step4.get("trials") or []},
-        "plan_digest": plan["_digest"], "program_digest": backup.program_digest,
-        "mac_check": mac_check, "probes": probes, "cells": cells, "gates": gates,
-        "readers": {"step 7": result("7").get("readers") or [], "again": readers["readers"]},
-        "backup": backup.path,
-        "retained": retained_items(layout, backup),
-    }
-
-
-def cell_values(layout: Layout, plan: dict, backup: Backup) -> list:
-    return [part_status(layout, p, backup) for p in plan["parts"]]
-
-
-def all_switched(statuses: list) -> bool:
-    return all(s["status"] == "switched" for s in statuses)
-
-
-def apply_switch(layout: Layout, backup: Backup) -> None:
-    """Step 9: the parts in their order, in one write interval."""
-    plan = backup.plan
-    process_gate(layout, "step 9")
-    changed = set()
-    try:
-        for index, part in enumerate(plan["parts"]):
-            switch_part(layout, backup, index, part, changed)
-        statuses = cell_values(layout, plan, backup)
-        if not all_switched(statuses):
-            raise Conflict("a cell does not hold its switched value at the final reading")
-        if flagged_copies(layout):
-            raise Conflict("a kept copy is flagged at the final reading")
-    except Conflict as e:
-        log(f"conflict: {e}")
-        report_flagged(layout)
-        run_inverse(layout, backup, limit=changed)
-        raise Stop(f"the switch met a conflict and inverted its own parts: {e}")
-
-
-def gate_results(results: list) -> list:
-    return [r.get("result") for r in results]
-
-
-def continue_after_switch(layout: Layout, backup: Backup, resumed: bool, baseline=()) -> None:
-    """The active continuation: step 6 again, then the probes and steps 12 to 14.
-
-    A fresh run has just passed step 6, so it does not run it again.
-    """
-    plan = backup.plan
-    gates = {step: gate_results(backup.evidence(step)) for step in ("4", "5", "6", "7")}
-    if resumed:
-        changed = outside_changes(layout, plan) + list(baseline)
-        if changed:
-            failed_probe(layout, backup, "changed outside the switch set: " + ", ".join(changed))
-        results, failed = run_commands(layout, plan, plan["gates"]["6"], "6", admitted_of(backup.evidence("4")))
-        if failed:
-            failed_probe(layout, backup, "step 6 failed: " + ", ".join(f["name"] for f in failed))
-        gates["6 again"] = gate_results(results)
-    before = cell_values(layout, plan, backup)
-    probes, failed = run_commands(layout, plan, plan["probes"], "10")
-    if failed:
-        failed_probe(layout, backup, "probe failed: " + ", ".join(f["name"] for f in failed))
-    hook(layout, "readers-again")
-    readers = recheck_readers(layout, backup)
-    if readers["problems"]:
-        failed_probe(layout, backup, "the reader evidence of step 7 changed: " + "; ".join(readers["problems"]))
-    mac_check = run_command(layout, plan["mac_check"], "12", plan)
-    after = cell_values(layout, plan, backup)
-    if not all_switched(after) or canon(before) != canon(after):
-        failed_probe(layout, backup, "a cell changed while the probes ran")
-    if report_flagged(layout):
-        raise Stop("a kept copy is flagged at step 13")
-    backup.add_record(layout, "receipt", receipt_body(layout, backup, gates, probes, mac_check, after, readers))
-    step_14(layout, backup, baseline)
-
-
-def manual_has_receipt(layout: Layout, backup: Backup) -> bool:
-    try:
-        with open(layout.manual, encoding="utf-8") as f:
-            return f"<!-- owner-switch-receipt {backup.id} -->" in f.read()
-    except FileNotFoundError:
-        return False
-
-
-def step_14(layout: Layout, backup: Backup, baseline=()) -> None:
-    """Compare the entries outside the switch set, then copy the receipt."""
-    hook(layout, "step-14")
-    changed = outside_changes(layout, backup.plan) + list(baseline)
-    if changed:
-        failed_probe(layout, backup, "changed outside the switch set: " + ", ".join(changed))
-    receipt = backup.record_body("receipt")
-    # The manual stays append-only, so the receipt names each pending-activation record that it replaces.
-    pending = pending_records(layout)
-    replaces = ("It replaces the pending-activation records " + ", ".join(pending) + ".\n\n") if pending else ""
-    text = (f"\n<!-- owner-switch-receipt {backup.id} -->\n"
-            f"## Owner skill switch receipt {backup.id}\n\n"
-            "This receipt describes the layout only while `mac-check` reports the switch complete.\n\n"
-            + replaces +
-            "Before purge, run the program copy of this backup with `purge-check`.\n\n"
-            "```json\n" + json.dumps(receipt, indent=2, sort_keys=True) + "\n```\n")
-    append_manual(layout, text, "receipt")
-    log(f"receipt: copied into {layout.manual}")
-
-
-def reexec_copy(backup: Backup, args, command=("run",)) -> None:
-    """A continuation of an open backup runs the program copy in that backup."""
-    if backup.program_digest == PROGRAM_DIGEST:
-        return
-    if command[0] != "state":
-        log(f"continuation: running the program copy of {backup.id}")
-    argv = [sys.executable, "-I", backup.program, *command, "--plan", os.path.abspath(args.plan),
-            "--home", os.path.abspath(args.home)]
-    sys.stdout.flush()
-    os.execv(sys.executable, argv)
-
+# --- the baseline instrument and the manual ---------------------------------------
 
 def baseline_rows(layout: Layout, plan: dict) -> list:
     """Step 3: rerun the baseline instrument, and return the rows that count as changed entries."""
@@ -3295,149 +2145,6 @@ def baseline_rows(layout: Layout, plan: dict) -> list:
     return rows
 
 
-def run_switch(args) -> int:
-    prepared = load_plan(args.plan)
-    layout = Layout(args.home, prepared)
-    RUN_LOG.update(layout=layout, command="run", plan=prepared)
-    log(f"program: {PROGRAM_DIGEST}")
-    log(f"plan: {prepared['_digest']}")
-    hook(layout, "start")
-    process_gate(layout, "step 1")
-    step_3_preludes(layout, prepared)
-    applying = latest_backup(layout)
-    applying = applying.plan if applying and applying.is_open() else prepared
-    baseline = baseline_rows(layout, applying)
-    while True:
-        st = find_state(layout, prepared, baseline)
-        report_state(st)
-        flagged = report_flagged(layout)
-        backup = st["backup"]
-        if st["open"]:
-            reexec_copy(backup, args)
-        state = st["state"]
-        if state == "interrupted":
-            run_inverse(layout, backup)
-            continue
-        if state == "drifted":
-            raise Stop("the switch set is drifted; change nothing, and ask the owner")
-        if state == "changed":
-            raise Stop("the switch set differs from the prepared plan; stop for classification")
-        if state == "complete":
-            if not manual_has_receipt(layout, backup):
-                step_14(layout, backup, baseline)
-            log("result: complete")
-            return 0
-        if state == "active":
-            continue_after_switch(layout, backup, resumed=True, baseline=baseline)
-            log("result: complete")
-            return 0
-        break  # native
-    if latest_backup(layout):
-        _, failed = run_commands(layout, prepared, prepared["native_probe"], "3")
-        if failed:
-            raise Stop("the native probe failed: " + ", ".join(f["name"] for f in failed))
-    evidence, admitted = {}, {}
-    for step in ("4", "5", "6", "7"):
-        results, failed = run_commands(layout, prepared, prepared["gates"][step], step, admitted)
-        evidence[step] = results
-        if failed:
-            raise Stop(f"step {step} failed: " + ", ".join(f["name"] for f in failed))
-        if step == "4":
-            admitted = admitted_of(results)
-    if not rehearsed(layout, prepared):
-        raise Stop("no passing rehearsal record names the prepared plan and this program")
-    if flagged:
-        raise Stop("a kept copy is flagged; the owner merges it first")
-    # The receipt names each formula version, so step 5's evidence stays too.
-    backup = write_backup(layout, prepared, evidence)
-    apply_switch(layout, backup)
-    continue_after_switch(layout, backup, resumed=False)
-    log("result: complete")
-    return 0
-
-
-def dry_run(args) -> int:
-    prepared = load_plan(args.plan)
-    layout = Layout(args.home, prepared)
-    st = find_state(layout, prepared)
-    report_state(st)
-    report_flagged(layout)
-    plan = st["plan"]
-    if st["open"]:
-        log("preludes: none, because a run is open")
-    else:
-        ravel = read_file_cells(layout, {"path": RAVEL_SETTINGS, "cells": [{"key": ["skills"]}]})[0]
-        hooks = read_file_cells(layout, {"path": CLAUDE_SETTINGS, "cells": [{"key": HOOKS_KEY}]})[0]
-        log(f"preludes: the native settings read skills {show(ravel)} and write {show(OFF)} if it is absent")
-        log(f"preludes: the hooks installation reads {key_name(HOOKS_KEY)} {show(hooks)}, installs "
-            f"{HOOKS_PLUGIN} if `claude plugin list` lacks it, and writes false")
-        log(f"preludes: rehearsed program: {'yes' if passing_rehearsals(layout) else 'no'}")
-        log(f"step 3: baseline {plan['baseline']['name'] if plan.get('baseline') else '(none)'}")
-        for step in ("4", "5", "6", "7"):
-            names = [c["name"] for c in plan.get("gates", {}).get(step, [])]
-            log(f"step {step}: {', '.join(names) or '(no command)'}")
-    log("switch, in order:")
-    for i, part in enumerate(plan["parts"]):
-        if part["kind"] == "file":
-            for c in part["cells"]:
-                log(f"  part {i} {part['path']} {key_name(c['key'])}: {show(c['earlier'])} -> {show(c['switched'])}")
-        else:
-            log(f"  part {i} {part['path']}: move into the backup's retained tree")
-    log("inverse, in order:")
-    for i in reversed(range(len(plan["parts"]))):
-        part = plan["parts"][i]
-        if part["kind"] == "file":
-            for c in part["cells"]:
-                log(f"  part {i} {part['path']} {key_name(c['key'])}: {show(c['switched'])} -> {show(c['earlier'])}")
-        else:
-            log(f"  part {i} {part['path']}: move back, if the original path is absent")
-    log(f"rehearsed: {'yes' if rehearsed(layout, prepared) else 'no'}")
-    return 0
-
-
-def state_command(args) -> int:
-    prepared = load_plan(args.plan)
-    layout = Layout(args.home, prepared)
-    st = find_state(layout, prepared)
-    if st["open"]:
-        # The copy in the open backup reads the state that its continuation acts on.
-        reexec_copy(st["backup"], args, ("state", "--json") if args.json else ("state",))
-    flagged = flagged_copies(layout)
-    if args.json:
-        out = {
-            "state": st["state"], "open": st["open"], "records": st["records"],
-            "backup": st["backup"].path if st["backup"] else None,
-            "plan_digest": st["plan"]["_digest"], "prepared_differs": st["prepared_differs"],
-            "parts": st["parts"], "outside_changed": st["outside_changed"],
-            "flagged": [flagged_summary(r) for r in flagged],
-            "incomplete_backups": sorted(n for n in os.listdir(layout.backups) if n.startswith(".incomplete-"))
-            if os.path.isdir(layout.backups) else [],
-        }
-        print(json.dumps(out, indent=2, sort_keys=True))
-    else:
-        report_state(st)
-        report_flagged(layout)
-    return 0
-
-
-def all_cells(st: dict) -> list:
-    """Each cell and entry of a state, with its value and its status."""
-    out = []
-    for part, status in zip(st["plan"]["parts"], st["parts"]):
-        if part["kind"] == "file":
-            out += [{"path": part["path"], "key": c["key"], "value": c["value"], "status": c["status"]}
-                    for c in status["cells"]]
-        else:
-            out.append({"path": part["path"], "original": status["original"], "retained": status["retained"],
-                        "status": status["status"]})
-    return out
-
-
-def third_cells(st: dict) -> list:
-    """Each cell and entry of a state that holds neither its earlier nor its switched value."""
-    return [c for c in all_cells(st) if c["status"] == "third"]
-
-
 def append_manual(layout: Layout, text: str, what: str) -> None:
     """Append to the maintained manual. The manual stays append-only."""
     try:
@@ -3451,189 +2158,10 @@ def append_manual(layout: Layout, text: str, what: str) -> None:
         os.close(fd)
 
 
-def inverse_command(args) -> int:
-    """The owner's inverse: "Rollback", run by the program copy of the latest backup.
-
-    It runs the narrow process inspection. It resets each switched cell and
-    leaves each third value. It moves an entry back only onto an absent original
-    path, whatever the entry's change identity. Then it runs the native
-    probe and appends one line to the maintained manual.
-    """
-    prepared = load_plan(args.plan)
-    layout = Layout(args.home, prepared)
-    RUN_LOG.update(layout=layout, command="inverse", plan=prepared)
-    backup = latest_backup(layout)
-    if backup is None:
-        raise Stop("no complete backup exists, so no inverse can return to native delivery")
-    reexec_copy(backup, args, ("inverse",))
-    log(f"program: {PROGRAM_DIGEST}")
-    st = find_state(layout, prepared)
-    report_state(st)
-    report_flagged(layout)
-    if not st["open"]:
-        raise Stop(f"the run of {backup.id} is not open, so the inverse has no switched cell to reset")
-    run_inverse(layout, backup)
-    _, failed = run_commands(layout, backup.plan, backup.plan["native_probe"], "inverse")
-    after = find_state(layout, prepared)
-    report_state(after)
-    left = third_cells(after)
-    for cell in left:
-        log(f"third value left: {canon(cell)}")
-    line = {"backup": backup.id, "at": now(), "state": after["state"],
-            "native_probe": "failed: " + ", ".join(f["name"] for f in failed) if failed else "passed",
-            "third_values_left": left}
-    append_manual(layout, f"\n<!-- owner-switch-inverse {backup.id} --> The owner's inverse ran: "
-                          f"`{canon(line)}`\n", "line of the owner's inverse")
-    log(f"manual: the owner's inverse is recorded in {layout.manual}")
-    probe = ("; the native probe failed: " + ", ".join(f["name"] for f in failed)) if failed else ""
-    if after["state"] != "native":
-        raise Stop(f"the inverse ended in the {after['state']} state; stop for classification{probe}")
-    if failed:
-        raise Stop("the inverse ended in the native state" + probe)
-    log("result: native")
-    return 0
-
-
-def purge_command(args) -> int:
-    """Check the purge conditions that the program can read ("Purge").
-
-    It reads the `retained` list of each receipt, or the entry parts of a
-    backup that holds no receipt. It changes nothing.
-    """
-    prepared = load_plan(args.plan)
-    layout = Layout(args.home, prepared)
-    problems = []
-    st = find_state(layout, prepared)
-    if st["open"] and st["state"] != "complete":
-        # A complete switch keeps its run open. Any other open run still needs its backup for the inverse.
-        problems.append(f"the run of {st['backup'].id} is open in the {st['state']} state; the inverse "
-                        "still needs its backup")
-    for name in complete_backups(layout):
-        backup = Backup(os.path.join(layout.backups, name))
-        if "receipt" in backup.records():
-            items = backup.record_body("receipt").get("retained") or []
-        else:
-            items = [{"item": "retained entry", "path": backup.retained_path(p["path"]), "original": p["path"],
-                      "identity": p["identity"]} for p in backup.plan["parts"] if p["kind"] == "entry"]
-        for item in items:
-            if item.get("item") != "retained entry":
-                log(f"{name}: {item.get('item')} {item.get('path') or item.get('plugin') or item.get('marketplace')}")
-                continue
-            now_id = identity(item["path"])
-            if now_id is None:
-                log(f"{name}: retained entry {item['original']}: absent from the backup")
-            elif now_id != item["identity"]:
-                problems.append(f"the retained entry {item['path']} changed its identity since its move")
-            else:
-                log(f"{name}: retained entry {item['original']}: keeps its recorded change identity")
-    for r in flagged_copies(layout):
-        problems.append(f"the {'held' if r.get('kind') == 'held' else 'kept'} copy {r['_copy']} is flagged")
-    for condition in (PURGE_CONDITIONS[0], PURGE_CONDITIONS[1], PURGE_CONDITIONS[4]):
-        log(f"the owner confirms: {condition}")
-    for p in problems:
-        log(f"  purge condition fails: {p}")
-    if problems:
-        raise Stop("the purge conditions do not hold")
-    log("result: the conditions that the program reads hold")
-    return 0
-
-
-# --- the run log and the pending-activation record ----------------------------------
-
-RUN_LOG = {"layout": None, "command": None, "plan": None, "commands": []}
-
-
-def write_run_log(result: str, reason: str) -> None:
-    """Keep the evidence of a stopped or ended run for the pending-activation record."""
-    layout = RUN_LOG["layout"]
-    if layout is None:
-        return
-    folder = os.path.join(layout.state, "runs")
-    os.makedirs(folder, exist_ok=True)
-    body = {"command": RUN_LOG["command"], "result": result, "reason": reason, "at": now(),
-            "program_digest": PROGRAM_DIGEST, "plan_digest": (RUN_LOG["plan"] or {}).get("_digest"),
-            "commands": RUN_LOG["commands"]}
-    write_exclusive(os.path.join(folder, new_record_name(result) + ".json"), dump_json(body))
-
-
-def latest_run_log(layout: Layout):
-    folder = os.path.join(layout.state, "runs")
-    names = sorted(n for n in os.listdir(folder) if n.endswith(".json")) if os.path.isdir(folder) else []
-    return load_json_file(os.path.join(folder, names[-1])) if names else None
-
-
-def pending_records(layout: Layout) -> list:
-    try:
-        with open(layout.manual, encoding="utf-8") as f:
-            return re.findall(r"<!-- owner-switch-pending (\S+) -->", f.read())
-    except FileNotFoundError:
-        return []
-
-
-def pending_command(args) -> int:
-    """Items 2 and 3 after "The switch inside finish": the pending-activation record."""
-    prepared = load_plan(args.plan)
-    layout = Layout(args.home, prepared)
-    # The record's own readings run in HOME, with the environment of a plan's command.
-    env = command_env(layout, "pending")
-    os.environ.clear()
-    os.environ.update(env)
-    run = latest_run_log(layout) or {}
-    results = {c.get("name"): c.get("result") for c in run.get("commands") or [] if c.get("result")}
-    step4 = next((r for r in results.values() if r.get("step") == "4"), None)
-    if step4:
-        grove = dict(step4.get("grove") or {}, read="from step 4 of the run")
-        ravel = {"path": step4.get("ravel_path"), "version": step4.get("ravel"), "read": "from step 4 of the run"}
-    else:
-        try:
-            grove = dict(installed_grove(), read="by this record, because the run did not pass step 4")
-        except Stop as e:
-            grove = {"error": str(e), "read": "by this record, because the run did not pass step 4"}
-        prefix = tool(["brew", "--prefix"]).stdout.strip()
-        path = os.path.join(prefix, "bin", "ravel")
-        version = tool([path, "--version"]).stdout.strip() if os.path.exists(path) else None
-        ravel = {"path": path, "version": version, "read": "by this record, because the run did not pass step 4"}
-    status = tool(["mise", "-C", layout.home, "bootstrap", "packages", "status", "--json"], cwd=layout.home)
-    try:
-        doc = json.loads(status.stdout)
-    except ValueError:
-        doc = None
-    rows = {}
-    if isinstance(doc, dict) and isinstance(doc.get("brew"), dict):
-        rows = {r.get("package"): r for r in doc["brew"].get("packages") or [] if isinstance(r, dict)}
-    formulae = sorted({s.get("formula") for s in (prepared["accepted"].get("sources") or {}).values()
-                       if isinstance(s, dict)} - {None})
-    failed = [c for c in run.get("commands") or [] if c.get("exit") != 0]
-    st = find_state(layout, prepared)
-    body = {
-        "grove": dict(grove, release_commit=args.grove_commit or "not supplied"),
-        "ravel": ravel,
-        "formula_versions": {f: (rows.get(f) or {}).get("installed_version") for f in formulae},
-        "mise_status": {"exit": status.returncode, "output": (status.stdout + status.stderr)[-20000:]},
-        "run": {k: run.get(k) for k in ("command", "result", "reason", "at", "program_digest", "plan_digest")}
-        if run else "no run log exists",
-        "failed": [{k: c.get(k) for k in ("name", "exit", "output")} for c in failed],
-        "backups": [os.path.join(layout.backups, n) for n in complete_backups(layout)],
-        "state": st["state"],
-        "cells": all_cells(st) if st["state"] in ("drifted", "changed") else [],
-        "outside_changed": st["outside_changed"],
-        "flagged": [flagged_summary(r) for r in flagged_copies(layout)],
-    }
-    stamp = new_record_name("pending")
-    append_manual(layout, f"\n<!-- owner-switch-pending {stamp} -->\n"
-                          f"## Owner skill switch pending activation {stamp}\n\n"
-                          "The switch stopped or was inverted. The receipt of a later switch replaces this record.\n\n"
-                          "```json\n" + json.dumps(body, indent=2, sort_keys=True) + "\n```\n",
-                  "pending-activation record")
-    log(f"pending-activation record: {stamp} in {layout.manual}")
-    return 0
-
-
-# --- the serial switch and its restore ----------------------------------------
+# --- the switch and its restore ----------------------------------------------
 # docs/specs/owner-skill-delivery.md: "The switch inside finish", "The hooks
 # installation inside finish", "Claude Code's own writes", "Concurrent
-# writers", "Resuming the switch" and "Rollback". These entries use no
-# exchange, held link, kept copy, cell inverse or run record.
+# writers", "Resuming the switch" and "Rollback".
 
 ATTEMPT_SCHEMA = "owner-switch-attempt/1"
 BACKUP_SCHEMA = "owner-switch-backup/1"
@@ -3659,114 +2187,6 @@ SERIAL_PURGE = (
 
 class Unresolved(Exception):
     """Recovery is incomplete: the backup stays, and the owner resolves the named cause first."""
-
-
-def switch_section(plan: dict) -> dict:
-    """The serial switch's fields of a plan. Stop with each problem when a field is missing or wrong.
-
-    The serial switch reads `parts` for its deactivations and switched cells,
-    and ignores the recovery-only `earlier` values and entry identities.
-    """
-    sw = plan.get("switch")
-    if not isinstance(sw, dict):
-        raise Stop("the plan has no switch section, so the serial switch cannot run it")
-    problems = []
-
-    def path(where: str, rel) -> None:
-        why = plan_path_problem(rel)
-        if why:
-            problems.append(f"{where} {rel!r} {why}")
-
-    writes = sw.get("writes")
-    if not isinstance(writes, list) or not writes:
-        problems.append("switch.writes names no write")
-        writes = []
-    types = {}
-    for i, w in enumerate(writes):
-        if not isinstance(w, dict) or w.get("type") not in ("file", "entry"):
-            problems.append(f"switch.writes[{i}] is neither a file nor an entry")
-            continue
-        path(f"switch.writes[{i}]", w.get("path"))
-        if w.get("path") in types:
-            problems.append(f"switch.writes names {w.get('path')!r} twice")
-        types[w.get("path")] = w["type"]
-        original = w.get("original")
-        if not (same(original, {"absent": True}) or (isinstance(original, dict) and list(original) == ["identity"]
-                                                       and re.fullmatch(r"[0-9a-f]{64}", str(original["identity"])))):
-            problems.append(f"switch.writes[{i}] has no original: {{\"absent\": true}} or {{\"identity\": <digest>}}")
-    for part in plan.get("parts", []):
-        if types.get(part.get("path")) != part.get("kind"):
-            problems.append(f"switch.writes does not name the {part.get('kind')} {part.get('path')!r} of parts")
-    for rel in HOOK_FILES + (RAVEL_SETTINGS,):
-        if types.get(rel) != "file":
-            problems.append(f"switch.writes does not name the file {rel}")
-    restore = sw.get("restore")
-    if not isinstance(restore, list) or sorted(map(str, restore)) != sorted(map(str, types)):
-        problems.append("switch.restore must name each path of switch.writes once")
-    elif restore[0] != RAVEL_SETTINGS:
-        problems.append(f"switch.restore must restore {RAVEL_SETTINGS} first")
-    inventory = sw.get("inventory")
-    if not isinstance(inventory, dict) or sorted(inventory) != ["after", "before"]:
-        problems.append("switch.inventory must name the expected inventories before and after")
-    else:
-        for when in ("before", "after"):
-            items = inventory[when]
-            if not isinstance(items, list) or not items:
-                problems.append(f"switch.inventory.{when} names no entry")
-                continue
-            for i, item in enumerate(items):
-                if isinstance(item, dict) and isinstance(item.get("entries"), dict) and "root" in item:
-                    path(f"switch.inventory.{when}[{i}]", item["root"])
-                elif isinstance(item, dict) and "path" in item and "identity" in item:
-                    path(f"switch.inventory.{when}[{i}]", item["path"])
-                else:
-                    problems.append(f"switch.inventory.{when}[{i}] is neither a path with an identity "
-                                    "nor a root with entries")
-    inputs = sw.get("inputs")
-    if not isinstance(inputs, list) or not any(isinstance(r, dict) and r.get("path") == "$program" for r in inputs):
-        problems.append("switch.inputs must name the program as \"$program\"")
-        inputs = []
-    for i, row in enumerate(inputs):
-        if (not isinstance(row, dict) or not isinstance(row.get("role"), str)
-                or not (row.get("path") == "$program" or (isinstance(row.get("path"), str)
-                                                          and os.path.isabs(row["path"])))
-                or not re.fullmatch(r"[0-9a-f]{64}", str(row.get("digest")))):
-            problems.append(f"switch.inputs[{i}] needs a role, an absolute path or \"$program\", and a digest")
-    for name in ("assertions", "native_assertions"):
-        assertions = sw.get(name)
-        if not isinstance(assertions, list) or not assertions:
-            problems.append(f"switch.{name} names no delivery assertion")
-            assertions = []
-        for i, a in enumerate(assertions):
-            keyed = (isinstance(a, dict) and isinstance(a.get("key"), list) and a["key"]
-                     and all(isinstance(k, str) for k in a["key"])
-                     and ("value" in a) != ("values" in a)
-                     and (isinstance(a.get("values"), list) and a["values"] if "values" in a else True))
-            absent = isinstance(a, dict) and a.get("absent") is True and "key" not in a
-            if not (keyed or absent) or a.get("path") not in types:
-                problems.append(f"switch.{name}[{i}] needs a path of switch.writes, and a key with a value, "
-                                "a non-empty list of values, or \"absent\": true")
-    tools = sw.get("tools")
-    if not isinstance(tools, dict) or not isinstance(tools.get("claude"), str):
-        problems.append("switch.tools must name the held Claude Code version as \"claude\"")
-    for i, row in enumerate(sw.get("retained", [])):
-        if not isinstance(row, dict) or not isinstance(row.get("item"), str) or not isinstance(row.get("condition"),
-                                                                                                list):
-            problems.append(f"switch.retained[{i}] needs an item and a condition list")
-    if problems:
-        raise Stop("the plan's switch section is incomplete: " + "; ".join(problems))
-    return sw
-
-
-def contain_switch(layout: Layout, sw: dict) -> None:
-    """Stop unless each path of the switch section has its parent folder inside HOME."""
-    rels = [w["path"] for w in sw["writes"]]
-    for when in ("before", "after"):
-        rels += [i["root"] + "/child" if "root" in i else i["path"] for i in sw["inventory"][when]]
-    for rel in rels:
-        parent = os.path.realpath(os.path.dirname(layout.path(rel)))
-        if parent != layout.home and not parent.startswith(layout.home + os.sep):
-            raise Stop(f"the plan path {rel} leads outside HOME through {parent}")
 
 
 # --- identities of whole files and entries ------------------------------------------
@@ -3900,6 +2320,53 @@ def ravel_skills(layout: Layout):
     return strict_file(layout.path(RAVEL_SETTINGS)).get("skills", ABSENT)
 
 
+# --- the plan report ----------------------------------------------------------------
+
+def report_command(args) -> int:
+    """The read-only plan report ("The switch inside finish"): the write set, the current values and the commands.
+
+    It reads the plan, the files of its write set, its inventory roots and
+    its command inputs. It runs no command and changes nothing.
+    """
+    plan = load_plan(args.plan)
+    layout = Layout(args.home, plan)
+    log(f"program: {PROGRAM_DIGEST}")
+    log(f"plan: {plan['_path']} ({plan['_digest']})")
+    log(f"home: {layout.home}")
+    log("writes, in plan order:")
+    for w in plan["writes"]:
+        planned = "absent" if w["original"].get("absent") else w["original"]["identity"]
+        current = restore_identity(layout.path(w["path"]))
+        now_text = "its original" if current == planned else f"differs: {current}"
+        log(f"  {w['type']} {w['path']}: original {planned}; now {now_text}")
+        if w["type"] == "entry":
+            log("    the switch deactivates it")
+        for v in w.get("set", []):
+            log(f"    set {key_name(v['key'])}: now {show(read_key(layout, w['path'], v['key']))}, "
+                f"switched {show(v['value'])}")
+    log("restore order: " + ", ".join(plan["restore"]))
+    for when in ("before", "after"):
+        changed = inventory_changes(layout, plan["inventory"][when])
+        log(f"inventory {when}: " + ("matches" if not changed else "differs at " + ", ".join(changed)))
+    for name in ("native_assertions", "assertions"):
+        for a in assertion_results(layout, plan[name]):
+            what = key_name(a["key"]) if "key" in a else "absent"
+            log(f"{name}: {a['path']} {what}: {'holds' if a['holds'] else 'observed ' + show(a['observed'])}")
+    log("command inputs:")
+    for r in input_rows(plan):
+        state = "its planned digest" if r["digest"] == r["planned"] else f"differs: {r['digest'] or 'unreadable'}"
+        log(f"  {r['role']} {r['path']}: {state}")
+    log(f"held Claude Code: {plan['tools']['claude']}")
+    log("commands:")
+    named = [("3", [plan["baseline"]])] + [(s, plan["gates"][s]) for s in ("4", "5", "6", "7")]
+    named += [("7", plan["probes"]), ("8", [plan["mac_check"]]), ("restore", plan["native_probe"])]
+    for step, commands in named:
+        for c in commands:
+            log(f"  step {step} {c['name']}: {shlex.join(command_argv(c['argv']))}")
+    log("result: reported; nothing written")
+    return 0
+
+
 # --- the attempt note ---------------------------------------------------------------
 
 def file_digest(path: str):
@@ -3910,10 +2377,10 @@ def file_digest(path: str):
         return None
 
 
-def input_rows(sw: dict) -> list:
+def input_rows(plan: dict) -> list:
     """Each command input of the plan, with its planned and its current content digest."""
     rows = []
-    for row in sw["inputs"]:
+    for row in plan["inputs"]:
         path = PROGRAM_PATH if row["path"] == "$program" else row["path"]
         rows.append({"role": row["role"], "path": path, "planned": row["digest"], "digest": file_digest(path)})
     return rows
@@ -3935,14 +2402,14 @@ def under(path: str, roots: list) -> str:
     return ""
 
 
-def placement_problem(layout: Layout, sw: dict, path: str) -> str:
+def placement_problem(layout: Layout, plan: dict, path: str) -> str:
     """Why PATH may not hold an attempt note or a backup, or ""."""
     if ".grove" in os.path.realpath(path).split(os.sep):
         return "it lies inside a .grove folder"
     roots = [layout.path(r) for r in DISCOVERY_ROOTS]
     for when in ("before", "after"):
-        roots += [layout.path(i.get("root") or i["path"]) for i in sw["inventory"][when]]
-    roots += [layout.path(w["path"]) for w in sw["writes"]]
+        roots += [layout.path(i.get("root") or i["path"]) for i in plan["inventory"][when]]
+    roots += [layout.path(w["path"]) for w in plan["writes"]]
     root = under(path, roots)
     if root:
         return f"it lies inside the discovery, inventory or write path {root}"
@@ -3960,11 +2427,11 @@ def program_argv(*args: str) -> list:
     return [sys.executable, "-I", PROGRAM_PATH, *args]
 
 
-def write_note(layout: Layout, sw: dict, note: dict) -> str:
+def write_note(layout: Layout, plan: dict, note: dict) -> str:
     folder = os.path.join(layout.state, "attempts")
     path = os.path.join(folder, note["attempt"] + ".json")
     for p in (path, note["backup"]):
-        why = placement_problem(layout, sw, p)
+        why = placement_problem(layout, plan, p)
         if why:
             raise Stop(f"{p} cannot hold the attempt's records: {why}")
     os.makedirs(folder, 0o700, exist_ok=True)
@@ -3976,9 +2443,7 @@ def write_note(layout: Layout, sw: dict, note: dict) -> str:
 def attempt_command(args) -> int:
     """Preparation: write the immutable attempt note that names the switch and its restore."""
     plan = load_plan(args.plan)
-    sw = switch_section(plan)
     layout = Layout(args.home, plan)
-    contain_switch(layout, sw)
     attempt = new_attempt_id()
     backup = os.path.join(layout.state, "backups", attempt)
     note_path = os.path.join(layout.state, "attempts", attempt + ".json")
@@ -3986,7 +2451,7 @@ def attempt_command(args) -> int:
         "schema": ATTEMPT_SCHEMA, "kind": "switch", "attempt": attempt, "home": layout.home,
         "plan": {"path": plan["_path"], "digest": plan["_digest"]},
         "program": {"path": PROGRAM_PATH, "digest": PROGRAM_DIGEST},
-        "inputs": [{"role": r["role"], "path": r["path"], "digest": r["planned"]} for r in input_rows(sw)],
+        "inputs": [{"role": r["role"], "path": r["path"], "digest": r["planned"]} for r in input_rows(plan)],
         "tools": observed_tools(layout),
         "backup": backup,
         "switch": shlex.join(program_argv("switch", "--plan", plan["_path"], "--home", layout.home,
@@ -3996,7 +2461,7 @@ def attempt_command(args) -> int:
         "native_off": shlex.join(native_off_argv(layout.home)),
         "created": now(),
     }
-    path = write_note(layout, sw, note)
+    path = write_note(layout, plan, note)
     log(f"attempt note: {path}")
     log(f"switch: {note['switch']}")
     log(f"restore: {note['restore']}")
@@ -4023,7 +2488,7 @@ def load_note(path: str) -> dict:
 
 # --- the backup ---------------------------------------------------------------------
 
-def create_backup(layout: Layout, plan: dict, sw: dict, note: dict, evidence: dict) -> dict:
+def create_backup(layout: Layout, plan: dict, note: dict, evidence: dict) -> dict:
     """Step 4: one complete backup of the whole write set, verified before its publication.
 
     The backup holds data, never a program: each planned file and entry with
@@ -4044,7 +2509,7 @@ def create_backup(layout: Layout, plan: dict, sw: dict, note: dict, evidence: di
     os.mkdir(os.path.join(tmp, "data"))
     items = []
     try:
-        for i, w in enumerate(sw["writes"]):
+        for i, w in enumerate(plan["writes"]):
             hook(layout, f"backup:copy:{i}")
             src = layout.path(w["path"])
             nodes = nodes_of(src)
@@ -4103,7 +2568,7 @@ def load_backup(path: str) -> dict:
     plan = load_plan(os.path.join(path, "plan.json"))
     if plan["_digest"] != (manifest.get("plan") or {}).get("digest"):
         raise Stop(f"the plan in {path} is not the plan that its manifest names")
-    check_manifest(path, manifest, switch_section(plan))
+    check_manifest(path, manifest, plan)
     for item in manifest["items"]:
         copy = nodes_of(os.path.join(path, item["data"])) if item["data"] else None
         if canon(copy) != canon(item["nodes"]) or nodes_identity(copy) != item["identity"]:
@@ -4111,7 +2576,7 @@ def load_backup(path: str) -> dict:
     return dict(manifest, path=path, plan_doc=plan)
 
 
-def check_manifest(path: str, manifest: dict, sw: dict) -> None:
+def check_manifest(path: str, manifest: dict, plan: dict) -> None:
     """Stop unless the manifest's items are the plan's write set, in its order.
 
     Each item names its write by path and type, and its copy only as
@@ -4123,7 +2588,7 @@ def check_manifest(path: str, manifest: dict, sw: dict) -> None:
     no earlier record names.
     """
     items = manifest.get("items")
-    writes = sw["writes"]
+    writes = plan["writes"]
     if not isinstance(items, list) or len(items) != len(writes):
         raise Stop(f"the manifest of {path} does not name the plan's {len(writes)} writes")
     for i, (item, w) in enumerate(zip(items, writes)):
@@ -4138,7 +2603,7 @@ def check_manifest(path: str, manifest: dict, sw: dict) -> None:
                            f"original")
 
 
-# --- ordinary writes and the serial hooks commands ----------------------------------
+# --- ordinary writes and the hooks installation ------------------------------------
 
 def write_cells(layout: Layout, rel: str, cells: list) -> None:
     """One ordinary write: set CELLS in the current file, keep its other keys and its metadata, and reread it."""
@@ -4209,7 +2674,7 @@ def lost_metadata(layout: Layout) -> str:
     return ("the extended attribute " + ", ".join(others)) if others else ""
 
 
-def claude_serial(layout: Layout, args: list, label: str, allowed: list) -> None:
+def claude_command(layout: Layout, args: list, label: str, allowed: list) -> None:
     """Run one Claude Code command while the switch waits, then read the settings again."""
     hook(layout, f"hooks:before:{label}")
     lost = lost_metadata(layout)
@@ -4226,19 +2691,19 @@ def claude_serial(layout: Layout, args: list, label: str, allowed: list) -> None
                    f"{', '.join(key_name(k) for k in allowed)}")
 
 
-def serial_hooks(layout: Layout, expected: str) -> None:
-    """Step 5: register writing-hooks, install its plugin if absent, and disable it, with no held link."""
+def hooks_installation(layout: Layout, expected: str) -> None:
+    """Step 5: register writing-hooks, install its plugin if absent, and disable it."""
     state = hooks_state(layout, expected)
     if state["kind"] == "other":
         raise Stop(f"the hooks installation found that {state['reason']}")
     if state["kind"] == "absent":
         if not state["registered"]:
-            claude_serial(layout, ["plugin", "marketplace", "add", expected], "marketplace-add",
+            claude_command(layout, ["plugin", "marketplace", "add", expected], "marketplace-add",
                           [["extraKnownMarketplaces", HOOKS_MARKETPLACE]])
             state = hooks_state(layout, expected)
             if state["kind"] != "absent" or not state["registered"]:
                 raise Stop(f"after `claude plugin marketplace add`, {state['reason']}")
-        claude_serial(layout, ["plugin", "install", HOOKS_PLUGIN], "install", [HOOKS_KEY])
+        claude_command(layout, ["plugin", "install", HOOKS_PLUGIN], "install", [HOOKS_KEY])
         state = hooks_state(layout, expected)
     if state["kind"] == "enabled":
         write_cells(layout, CLAUDE_SETTINGS, [(HOOKS_KEY, False)])
@@ -4268,10 +2733,10 @@ def inventory_changes(layout: Layout, items: list) -> list:
     return changed
 
 
-def original_changes(layout: Layout, sw: dict) -> list:
+def original_changes(layout: Layout, plan: dict) -> list:
     """Each planned original that differs from the plan: content, metadata, link text or absence."""
     out = []
-    for w in sw["writes"]:
+    for w in plan["writes"]:
         wanted = "absent" if w["original"].get("absent") else w["original"]["identity"]
         if restore_identity(layout.path(w["path"])) != wanted:
             out.append(w["path"])
@@ -4392,7 +2857,7 @@ def manual_text(layout: Layout) -> str:
         return ""
 
 
-def preflight(layout: Layout, plan: dict, sw: dict, note: dict, args) -> dict:
+def preflight(layout: Layout, plan: dict, note: dict, args) -> dict:
     """Steps 1 to 3: no switch-set write happens here."""
     problems = []
     if note["kind"] != "switch":
@@ -4409,24 +2874,24 @@ def preflight(layout: Layout, plan: dict, sw: dict, note: dict, args) -> dict:
         problems.append(f"the backup {note['backup']} of this attempt exists: a new attempt needs a new note, "
                         f"and an earlier interrupted attempt needs its restore first")
     for p in (note["_path"], note["backup"]):
-        why = placement_problem(layout, sw, p)
+        why = placement_problem(layout, plan, p)
         if why:
             problems.append(f"{p}: {why}")
     if problems:
         raise Stop("the attempt note does not fit this switch: " + "; ".join(problems))
-    rows = input_rows(sw)
+    rows = input_rows(plan)
     differ = [f"{r['role']} {r['path']}" for r in rows if r["digest"] != r["planned"]]
     if differ:
         raise Stop("command inputs differ from the plan: " + ", ".join(differ))
     tools = observed_tools(layout)
-    if tools["claude"] != sw["tools"]["claude"] or tools["claude"] != (note.get("tools") or {}).get("claude"):
-        raise Stop(f"claude --version printed {tools['claude']!r}; the plan holds {sw['tools']['claude']!r} and "
+    if tools["claude"] != plan["tools"]["claude"] or tools["claude"] != (note.get("tools") or {}).get("claude"):
+        raise Stop(f"claude --version printed {tools['claude']!r}; the plan holds {plan['tools']['claude']!r} and "
                    f"the attempt note {(note.get('tools') or {}).get('claude')!r}")
     operator = process_gate(layout, "the switch")
-    changed = original_changes(layout, sw)
+    changed = original_changes(layout, plan)
     if changed:
         raise Stop("planned originals differ from the plan: " + ", ".join(changed))
-    changed = inventory_changes(layout, sw["inventory"]["before"])
+    changed = inventory_changes(layout, plan["inventory"]["before"])
     if changed:
         raise Stop("the inventory differs from the plan's expected inventory: " + ", ".join(changed))
     if not same(ravel_skills(layout), OFF):
@@ -4461,19 +2926,25 @@ def preflight(layout: Layout, plan: dict, sw: dict, note: dict, args) -> dict:
 
 
 def deactivations(plan: dict) -> list:
-    return [p["path"] for p in plan["parts"] if p["kind"] == "entry"]
+    return [w["path"] for w in plan["writes"] if w["type"] == "entry"]
 
 
 def switched_cells(plan: dict) -> list:
-    """The file parts' switched cells, in plan order, with the Ravel settings last."""
-    files = [p for p in plan["parts"] if p["kind"] == "file"]
-    files.sort(key=lambda p: p["path"] == RAVEL_SETTINGS)
-    return [(p["path"], [(c["key"], c["switched"]) for c in p["cells"]]) for p in files]
+    """The values that each file write sets, in plan order, with the Ravel settings last."""
+    files = [w for w in plan["writes"] if w["type"] == "file" and w.get("set")]
+    files.sort(key=lambda w: w["path"] == RAVEL_SETTINGS)
+    return [(w["path"], [(v["key"], v["value"]) for v in w["set"]]) for w in files]
 
 
-def final_comparison(layout: Layout, sw: dict, ctx: dict) -> dict:
-    assertions = assertion_results(layout, sw["assertions"])
-    inventory = inventory_changes(layout, sw["inventory"]["after"])
+def superseded_plugins(plan: dict) -> list:
+    """The plugins that the plan disables in settings.json."""
+    return sorted({v["key"][1] for w in plan["writes"] if w["path"] == CLAUDE_SETTINGS for v in w.get("set", [])
+                   if len(v["key"]) == 2 and v["key"][0] == "enabledPlugins" and v["value"] is False})
+
+
+def final_comparison(layout: Layout, plan: dict, ctx: dict) -> dict:
+    assertions = assertion_results(layout, plan["assertions"])
+    inventory = inventory_changes(layout, plan["inventory"]["after"])
     readers = recheck_reader_list(layout, gate_result(ctx["evidence"]["7"]).get("readers") or [])
     guidance = [g["path"] for g in ctx["guidance"] if file_digest(g["path"]) != g["digest"]]
     problems = assertion_problems(assertions)
@@ -4483,7 +2954,7 @@ def final_comparison(layout: Layout, sw: dict, ctx: dict) -> dict:
     return {"assertions": assertions, "inventory": inventory, "readers": readers, "problems": problems}
 
 
-def retained_resources(layout: Layout, plan: dict, sw: dict, note: dict, ctx: dict) -> list:
+def retained_resources(layout: Layout, plan: dict, note: dict, ctx: dict) -> list:
     purge = list(SERIAL_PURGE)
     items = [{"item": "backup", "path": note["backup"], "condition": purge},
              {"item": "attempt note", "path": note["_path"], "condition": purge}]
@@ -4491,9 +2962,7 @@ def retained_resources(layout: Layout, plan: dict, sw: dict, note: dict, ctx: di
         if isinstance(reader.get("path"), str):
             items.append({"item": "frozen cache version", "plugin": reader.get("plugin"), "path": reader["path"],
                           "condition": purge})
-    superseded = sorted({c["key"][1] for p in plan["parts"] if p["kind"] == "file" and p["path"] == CLAUDE_SETTINGS
-                         for c in p["cells"] if len(c["key"]) == 2 and c["key"][0] == "enabledPlugins"
-                         and c["switched"] is False})
+    superseded = superseded_plugins(plan)
     for pid in superseded:
         items.append({"item": "superseded plugin registration", "plugin": pid, "condition": purge})
     for market in sorted({pid.split("@", 1)[1] for pid in superseded if "@" in pid}):
@@ -4507,7 +2976,7 @@ def retained_resources(layout: Layout, plan: dict, sw: dict, note: dict, ctx: di
     after = ["this receipt is written"]
     items.append({"item": "staging HOME", "path": staging["home"], "condition": after})
     items.append({"item": "candidate keg", "path": staging["candidate_keg"], "condition": after})
-    items += [dict(row) for row in sw.get("retained", [])]
+    items += [dict(row) for row in plan.get("retained", [])]
     # The purge report compares these identities ("Purge"). A resource that
     # may go once this receipt is written needs none.
     for item in items:
@@ -4516,7 +2985,7 @@ def retained_resources(layout: Layout, plan: dict, sw: dict, note: dict, ctx: di
     return items
 
 
-def switch_receipt(layout: Layout, plan: dict, sw: dict, note: dict, ctx: dict, probes: list, mac: dict,
+def switch_receipt(layout: Layout, plan: dict, note: dict, ctx: dict, probes: list, mac: dict,
                    comparison: dict, identities: dict) -> dict:
     step4, step5, step6 = (gate_result(ctx["evidence"][s]) for s in ("4", "5", "6"))
     return {
@@ -4537,20 +3006,20 @@ def switch_receipt(layout: Layout, plan: dict, sw: dict, note: dict, ctx: dict, 
         "delivery_assertions": comparison["assertions"],
         "restore_identities": identities,
         "attempt_note": note["_path"], "backup": note["backup"], "restore_command": note["restore"],
-        "retained": retained_resources(layout, plan, sw, note, ctx),
+        "retained": retained_resources(layout, plan, note, ctx),
     }
 
 
-def apply_switch_serial(layout: Layout, plan: dict, sw: dict, note: dict, backup: dict, ctx: dict) -> dict:
+def apply_switch(layout: Layout, plan: dict, note: dict, backup: dict, ctx: dict) -> dict:
     """Steps 4 (its end) to 9, after the backup's publication."""
     backup_published(layout, backup)
     process_gate(layout, "the first switch write")
-    changed = original_changes(layout, sw)
+    changed = original_changes(layout, plan)
     if changed:
         raise Stop("planned originals changed after the backup: " + ", ".join(changed))
     if not same(ravel_skills(layout), OFF):
         raise Stop(f"{RAVEL_SETTINGS} lost the off value before the hooks installation")
-    serial_hooks(layout, ctx["marketplace"])
+    hooks_installation(layout, ctx["marketplace"])
     discard = os.path.join(layout.state, "discard", note["attempt"])
     for rel in deactivations(plan):
         hook(layout, f"deactivate:{rel}")
@@ -4571,11 +3040,11 @@ def apply_switch_serial(layout: Layout, plan: dict, sw: dict, note: dict, backup
     again, failed = run_commands(layout, plan, plan["gates"]["6"], "8", ctx["admitted"])
     if failed:
         raise Stop("the sources no longer resolve with their accepted digests")
-    comparison = final_comparison(layout, sw, ctx)
+    comparison = final_comparison(layout, plan, ctx)
     if comparison["problems"]:
         raise Stop("the final comparison failed: " + "; ".join(comparison["problems"]))
-    identities = {rel: restore_identity(layout.path(rel)) for rel in sw["restore"]}
-    receipt = switch_receipt(layout, plan, sw, note, ctx, probes, mac, comparison, identities)
+    identities = {rel: restore_identity(layout.path(rel)) for rel in plan["restore"]}
+    receipt = switch_receipt(layout, plan, note, ctx, probes, mac, comparison, identities)
     path = receipt_path(layout, note["attempt"])
     os.makedirs(os.path.dirname(path), 0o700, exist_ok=True)
     data = dump_json(receipt)
@@ -4593,8 +3062,8 @@ def apply_switch_serial(layout: Layout, plan: dict, sw: dict, note: dict, backup
         f"Restore, which refuses when any restore destination has changed since this switch:\n\n"
         f"```sh\n{note['restore']}\n```\n"), "success observation")
     hook(layout, "switch:final")
-    final = final_comparison(layout, sw, ctx)
-    drift = [rel for rel in sw["restore"] if restore_identity(layout.path(rel)) != identities[rel]]
+    final = final_comparison(layout, plan, ctx)
+    drift = [rel for rel in plan["restore"] if restore_identity(layout.path(rel)) != identities[rel]]
     if final["problems"] or drift:
         raise Stop("the final layout changed after the receipt: " + "; ".join(final["problems"] + drift))
     return receipt
@@ -4602,23 +3071,21 @@ def apply_switch_serial(layout: Layout, plan: dict, sw: dict, note: dict, backup
 
 def switch_command(args) -> int:
     plan = load_plan(args.plan)
-    sw = switch_section(plan)
     layout = Layout(args.home, plan)
-    contain_switch(layout, sw)
     note = load_note(args.attempt)
     log(f"program: {PROGRAM_DIGEST}")
     log(f"plan: {plan['_digest']}")
     log(f"attempt: {note['attempt']} ({note['_path']})")
     hook(layout, "switch:start")
     try:
-        ctx = preflight(layout, plan, sw, note, args)
-        backup = create_backup(layout, plan, sw, note, {s: ctx["evidence"][s] for s in ("4", "5", "6", "7")})
+        ctx = preflight(layout, plan, note, args)
+        backup = create_backup(layout, plan, note, {s: ctx["evidence"][s] for s in ("4", "5", "6", "7")})
     except Stop as e:
         log(f"stop: {e}")
         log("result: refused; no switch-set write happened, and native delivery stays")
         return EXIT_REFUSED
     try:
-        apply_switch_serial(layout, plan, sw, note, backup, ctx)
+        apply_switch(layout, plan, note, backup, ctx)
     except Unresolved as e:
         log(f"recovery incomplete: {e}")
         log(f"the backup {note['backup']} stays. After the owner resolves it, run: {note['restore']}")
@@ -4721,14 +3188,13 @@ def restore_from(layout: Layout, backup: dict, note: dict, reason: str, operator
     operator ("Resuming the switch").
     """
     plan = backup["plan_doc"]
-    sw = switch_section(plan)
     items = {item["path"]: item for item in backup["items"]}
     discard = os.path.join(layout.state, "discard", backup["attempt"])
-    remove_write_temps(layout, sw["restore"])
+    remove_write_temps(layout, plan["restore"])
     if os.path.isdir(discard):
         erase_tree(discard)
     failed = []
-    for rel in sw["restore"]:
+    for rel in plan["restore"]:
         try:
             restore_item(layout, backup, items[rel], discard)
             if rel == RAVEL_SETTINGS:
@@ -4736,7 +3202,7 @@ def restore_from(layout: Layout, backup: dict, note: dict, reason: str, operator
             log(f"restored: {rel}")
         except (Stop, Incomplete, OSError) as e:
             failed.append(f"{rel}: {e}")
-    for rel in sw["restore"]:
+    for rel in plan["restore"]:
         item = items[rel]
         try:
             ok = ravel_restored(layout, backup, item) if rel == RAVEL_SETTINGS else \
@@ -4812,14 +3278,14 @@ def append_restore_entries(layout: Layout, backup: dict, reason: str) -> int:
     return 0
 
 
-def restore_eligibility(layout: Layout, sw: dict, backup: dict, recovery) -> str:
+def restore_eligibility(layout: Layout, plan: dict, backup: dict, recovery) -> str:
     """Decide which restore runs: immediate, later, retry or done. A refusal writes nothing."""
     items = {item["path"]: item for item in backup["items"]}
     if recovery is not None:
         rbackup = recovery["backup_doc"]
         ritems = {item["path"]: item for item in rbackup["items"]}
         differ = []
-        for rel in sw["restore"]:
+        for rel in plan["restore"]:
             current = restore_identity(layout.path(rel))
             if current in (ritems[rel]["identity"], items[rel]["identity"]):
                 continue
@@ -4833,14 +3299,14 @@ def restore_eligibility(layout: Layout, sw: dict, backup: dict, recovery) -> str
     receipt = load_json_file(receipt_path(layout, backup["attempt"]))
     if receipt is not None:
         wanted = receipt.get("restore_identities") or {}
-        differ = [rel for rel in sw["restore"] if restore_identity(layout.path(rel)) != wanted.get(rel)]
+        differ = [rel for rel in plan["restore"] if restore_identity(layout.path(rel)) != wanted.get(rel)]
         if differ:
             raise Stop("these restore destinations differ from the receipt's post-switch identity, so a whole-file "
                        "restore would discard their changes; review them and prepare a revised native return: "
                        + ", ".join(differ))
         return "later"
     if os.path.lexists(restored_path(layout, backup["attempt"])):
-        differ = [rel for rel in sw["restore"]
+        differ = [rel for rel in plan["restore"]
                   if not (ravel_restored(layout, backup, items[rel]) if rel == RAVEL_SETTINGS
                           else restore_identity(layout.path(rel)) == items[rel]["identity"])]
         if differ:
@@ -4849,7 +3315,7 @@ def restore_eligibility(layout: Layout, sw: dict, backup: dict, recovery) -> str
     return "immediate"
 
 
-def recovery_backup(layout: Layout, sw: dict, backup: dict, note: dict) -> dict:
+def recovery_backup(layout: Layout, plan: dict, backup: dict, note: dict) -> dict:
     """Before an eligible later restore writes: keep the compared layout in a new recovery backup and its note."""
     plan = backup["plan_doc"]
     attempt = new_attempt_id()
@@ -4863,11 +3329,11 @@ def recovery_backup(layout: Layout, sw: dict, backup: dict, note: dict) -> dict:
                                            "--home", layout.home, "--recovery", rnote_path)),
         "created": now(),
     }
-    write_note(layout, sw, rnote)
+    write_note(layout, plan, rnote)
     rnote = load_note(rnote_path)
     log(f"recovery note: {rnote_path}")
     log(f"if this restore is interrupted, repeat under the same quiet interval: {rnote['restore']}")
-    backup_published(layout, create_backup(layout, plan, sw, rnote, {}))
+    backup_published(layout, create_backup(layout, plan, rnote, {}))
     return rnote
 
 
@@ -4878,9 +3344,7 @@ def restore_command(args) -> int:
         note = load_note(args.attempt)
         check_backup_note(backup, note, home)
         plan = backup["plan_doc"]
-        sw = switch_section(plan)
         layout = Layout(home, plan)
-        contain_switch(layout, sw)
         recovery = None
         if args.recovery:
             recovery = load_note(args.recovery)
@@ -4898,7 +3362,7 @@ def restore_command(args) -> int:
             if digest is None:
                 raise Stop(f"the operator's guidance {p} cannot be read")
             guidance.append({"path": os.path.abspath(p), "digest": digest})
-        mode = restore_eligibility(layout, sw, backup, recovery)
+        mode = restore_eligibility(layout, plan, backup, recovery)
         log(f"restore: {mode}")
         if mode == "done":
             # Only a manual entry that an earlier restore of this backup could not append remains.
@@ -4908,7 +3372,7 @@ def restore_command(args) -> int:
                 else f"result: the manual entry is still pending. Repeat: {args_command(args)}")
             return code
         if mode == "later":
-            recovery_backup(layout, sw, backup, note)
+            recovery_backup(layout, plan, backup, note)
     except Stop as e:
         log(f"stop: {e}")
         log("result: refused; restore wrote nothing")
@@ -4931,7 +3395,7 @@ def args_command(args) -> str:
 
 # --- status and the purge report ----------------------------------------------------
 # docs/specs/owner-skill-delivery.md, "Current health and restore eligibility" and
-# "Purge". Both entries read the serial records and the layout, and write nothing.
+# "Purge". Both entries read the switch's records and the layout, and write nothing.
 
 # Claude Code's documented reader markers in a cache version directory ("Resource lifetime").
 READER_MARKERS = ".in_use"
@@ -4974,8 +3438,8 @@ def json_names(folder: str, suffix: str = ".json") -> list:
         return []
 
 
-def serial_records(layout: Layout) -> dict:
-    """Every record of the serial switch in the state folder, and each record without its attempt note."""
+def switch_records(layout: Layout) -> dict:
+    """Every record of the switch in the state folder, and each record without its attempt note."""
     notes, recoveries, problems = {}, [], []
     for name in json_names(os.path.join(layout.state, "attempts")):
         try:
@@ -5057,19 +3521,19 @@ def source_problems(layout: Layout, expected: dict) -> list:
     return problems
 
 
-def switched_problems(layout: Layout, sw: dict, readers: list, sources: dict) -> list:
+def switched_problems(layout: Layout, plan: dict, readers: list, sources: dict) -> list:
     """Delivery health of a switched layout: assertions, inventory, reader evidence and sources."""
-    problems = assertion_problems(assertion_results(layout, sw["assertions"]))
+    problems = assertion_problems(assertion_results(layout, plan["assertions"]))
     problems += [f"the inventory differs from the switched inventory at {rel}"
-                 for rel in inventory_changes(layout, sw["inventory"]["after"])]
+                 for rel in inventory_changes(layout, plan["inventory"]["after"])]
     problems += recheck_reader_list(layout, readers)["problems"]
     return problems + source_problems(layout, sources)
 
 
-def native_problems(layout: Layout, sw: dict) -> list:
-    problems = assertion_problems(assertion_results(layout, sw["native_assertions"]))
+def native_problems(layout: Layout, plan: dict) -> list:
+    problems = assertion_problems(assertion_results(layout, plan["native_assertions"]))
     return problems + [f"the inventory differs from the native inventory at {rel}"
-                       for rel in inventory_changes(layout, sw["inventory"]["before"])]
+                       for rel in inventory_changes(layout, plan["inventory"]["before"])]
 
 
 def pending_manual(layout: Layout, attempt: str) -> bool:
@@ -5079,13 +3543,13 @@ def pending_manual(layout: Layout, attempt: str) -> bool:
             or (manual_marker(attempt, "switched") in text and manual_marker(attempt, "correction") not in text))
 
 
-def status_report(layout: Layout, plan: dict, sw: dict) -> dict:
+def status_report(layout: Layout, plan: dict) -> dict:
     """Delivery health, restore eligibility and pending manual entries ("Current health and restore eligibility").
 
     Health is native, switched, restore or review. A receipt names what to
     verify, and never stands for the current layout.
     """
-    records = serial_records(layout)
+    records = switch_records(layout)
     problems = list(records["problems"])
     restore = {"status": "none", "differing": [], "commands": []}
     pending = [{"attempt": a["attempt"], "command": a["note"]["restore"]} for a in records["attempts"]
@@ -5113,7 +3577,7 @@ def status_report(layout: Layout, plan: dict, sw: dict) -> dict:
             if backup["plan"]["digest"] != plan["_digest"]:
                 problems.append("the running attempt's plan is not the prepared plan")
             else:
-                problems += switched_problems(layout, sw, gate_result(backup["evidence"]["7"]).get("readers") or [],
+                problems += switched_problems(layout, plan, gate_result(backup["evidence"]["7"]).get("readers") or [],
                                               gate_result(backup["evidence"]["6"]).get("sources") or {})
         if not problems and not waiting:
             report["health"] = "switched"
@@ -5135,12 +3599,12 @@ def status_report(layout: Layout, plan: dict, sw: dict) -> dict:
         if (receipt.get("plan") or {}).get("digest") != plan["_digest"]:
             problems.append("the prepared plan is not the plan of the receipt, so its evidence is stale")
             return report
-        problems += switched_problems(layout, sw, (receipt.get("readers") or {}).get("recorded") or [],
+        problems += switched_problems(layout, plan, (receipt.get("readers") or {}).get("recorded") or [],
                                       receipt.get("sources") or {})
         if not problems:
             report["health"] = "switched"
         wanted = receipt.get("restore_identities") or {}
-        for rel in sw["restore"]:
+        for rel in plan["restore"]:
             try:
                 if restore_identity(layout.path(rel)) != wanted.get(rel):
                     restore["differing"].append(rel)
@@ -5154,7 +3618,7 @@ def status_report(layout: Layout, plan: dict, sw: dict) -> dict:
             restore["reason"] = str(e)
         restore["commands"] = [note["restore"]]
         return report
-    problems += native_problems(layout, sw)
+    problems += native_problems(layout, plan)
     if not problems:
         report["health"] = "native"
     return report
@@ -5162,17 +3626,15 @@ def status_report(layout: Layout, plan: dict, sw: dict) -> dict:
 
 def status_command(args) -> int:
     plan = load_plan(args.plan)
-    sw = switch_section(plan)
     layout = Layout(args.home, plan)
-    contain_switch(layout, sw)
     if args.json:
         # Only the JSON object reaches standard output; each log line of a resolution goes to standard error.
         with contextlib.redirect_stdout(sys.stderr):
-            report = status_report(layout, plan, sw)
+            report = status_report(layout, plan)
         out = dict(report, receipt=receipt_path(layout, report["attempt"]) if report["receipt"] else None)
         print(json.dumps(out, indent=2, sort_keys=True))
         return 0
-    report = status_report(layout, plan, sw)
+    report = status_report(layout, plan)
     log(f"health: {report['health']}" + (f" (attempt {report['attempt']})" if report["attempt"] else ""))
     for p in report["problems"]:
         log(f"  {p}")
@@ -5192,10 +3654,8 @@ def status_command(args) -> int:
 def purge_report_command(args) -> int:
     """Compare the retained identities of the valid receipt, and list the owner's conditions ("Purge")."""
     plan = load_plan(args.plan)
-    sw = switch_section(plan)
     layout = Layout(args.home, plan)
-    contain_switch(layout, sw)
-    report = status_report(layout, plan, sw)
+    report = status_report(layout, plan)
     blocks = []
     if report["health"] != "switched":
         blocks.append(f"the switch is not verified: its health is {report['health']}")
@@ -5231,20 +3691,9 @@ def purge_report_command(args) -> int:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("state", "run", "inverse", "merge", "purge-check", "pending"):
-        p = sub.add_parser(name)
-        p.add_argument("--plan", required=True)
-        p.add_argument("--home", default=account_home())
-        if name == "state":
-            p.add_argument("--json", action="store_true")
-        elif name == "run":
-            p.add_argument("--dry-run", action="store_true")
-        elif name == "merge":
-            p.add_argument("copy", help="the flagged kept copy, as `state` or a run reports it")
-            p.add_argument("--record-only", action="store_true",
-                           help="record a merge that the owner applied by hand")
-        elif name == "pending":
-            p.add_argument("--grove-commit", help="the release commit of the published Grove")
+    p = sub.add_parser("report")
+    p.add_argument("--plan", required=True)
+    p.add_argument("--home", default=account_home())
     p = sub.add_parser("native-off")
     p.add_argument("--home", default=account_home())
     p.add_argument("--print-command", action="store_true",
@@ -5298,35 +3747,17 @@ def main(argv=None) -> int:
         if args.command == "restore-identity":
             print(restore_identity(args.path))
             return 0
-        if args.command in ("attempt", "switch", "restore", "status", "purge-report"):
-            # These entries write no run log: an attempt note holds instructions, not progress.
-            try:
-                return {"attempt": attempt_command, "switch": switch_command, "restore": restore_command,
-                        "status": status_command, "purge-report": purge_report_command}[args.command](args)
-            except Stop as e:
-                log(f"stop: {e}")
-                log("result: refused; nothing written")
-                return EXIT_REFUSED
-        if args.command == "state":
-            return state_command(args)
-        if args.command == "merge":
-            return merge_command(args)
-        if args.command == "purge-check":
-            return purge_command(args)
-        if args.command == "pending":
-            return pending_command(args)
-        if args.command == "inverse":
-            code = inverse_command(args)
-        else:
-            if args.dry_run:
-                return dry_run(args)
-            code = run_switch(args)
-        write_run_log("ended", "")
-        return code
+        try:
+            return {"report": report_command, "attempt": attempt_command, "switch": switch_command,
+                    "restore": restore_command, "status": status_command,
+                    "purge-report": purge_report_command}[args.command](args)
+        except Stop as e:
+            log(f"stop: {e}")
+            log("result: refused; nothing written")
+            return EXIT_REFUSED
     except Stop as e:
         log(f"stop: {e}")
-        write_run_log("stop", str(e))
-        return 3
+        return EXIT_REFUSED
 
 
 if __name__ == "__main__":

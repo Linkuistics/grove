@@ -1,66 +1,80 @@
 {
   "plan": "docs/owner-cutover/switch-plan-draft.json",
-  "plan_digest": "2b8d3d67d0e51c75d35d3cff42a3c340398fc6d3734582b56aff3403b1ad50c1",
-  "program_digest": "ef92cf7434d02d2f1cd95dd75ab37c210049946c03eefc1ebdd473e69c25b51e",
+  "plan_digest": "33f97f5cb3f1bd412fb7a1b6234aacfa8f3f3dbbd5cf4f0f381c485a15d33772",
+  "program_digest": "d2806f928c0b4687d79861be5a65405aac1edc64bc86593c5a211eca83988097",
   "python": "3.15.1",
-  "entries_copied": 170,
-  "dry_run": {
+  "writes_copied": 158,
+  "inventory_entries_copied": 170,
+  "report": {
     "exit": 0,
-    "native": true,
-    "each_part_and_inverse": true,
-    "unrehearsed_reported": true
+    "each_write_listed": true,
+    "each_original_in_place": true,
+    "inventory_before_matches": true,
+    "native_assertions_hold": true
   },
   "controls": [
     {
       "control": "no-mac-check",
       "exit": 3,
       "passed": true,
-      "output": "stop: the plan is incomplete: mac_check is not a command with a name and an argv"
+      "output": "stop: the plan is incomplete: mac_check is not a command with a name and an argv\nresult: refused; nothing written"
     },
     {
-      "control": "absolute-part-path",
+      "control": "absolute-write-path",
       "exit": 3,
       "passed": true,
-      "output": "stop: the plan is incomplete: part 0 '/Users/antony/.claude/skills/grove' is not relative to HOME"
+      "output": "stop: the plan is incomplete: writes[0] '/Users/antony/.claude/skills/grove' is not relative to HOME; restore must name each path of writes once; assertions[8] needs a path of writes, and a key with a value, a non-empty list of values, or \"absent\": true\nresult: refused; nothing written"
     },
     {
       "control": "gate-4-missing",
       "exit": 3,
       "passed": true,
-      "output": "stop: the plan is incomplete: gates.4 does not run the program's gate of step 4"
+      "output": "stop: the plan is incomplete: gates.4 does not run the program's gate of step 4\nresult: refused; nothing written"
     },
     {
       "control": "process-patterns",
       "exit": 3,
       "passed": true,
-      "output": "stop: the plan is incomplete: the plan holds watch: the narrow process inspection is built in, and the owner's checklist replaces process, MCP and job patterns"
+      "output": "stop: the plan is incomplete: the plan holds watch, which schema owner-switch-plan/2 does not name; the narrow process inspection is built in, and the owner's checklist replaces process, MCP and job patterns\nresult: refused; nothing written"
+    },
+    {
+      "control": "earlier-value",
+      "exit": 3,
+      "passed": true,
+      "output": "stop: the plan is incomplete: writes[157].set is not a list of keys with values\nresult: refused; nothing written"
+    },
+    {
+      "control": "parts",
+      "exit": 3,
+      "passed": true,
+      "output": "stop: the plan is incomplete: the plan holds parts, which schema owner-switch-plan/2 does not name; the narrow process inspection is built in, and the owner's checklist replaces process, MCP and job patterns\nresult: refused; nothing written"
     },
     {
       "control": "changed-entry",
       "exit": 0,
       "passed": true,
-      "output": "state: changed\n  part 0 .claude/skills/grove: earlier\n  part 1 .claude/skills/terminal-browser: earlier\n  part 2 .codex/skills/authoring-conventions: earlier\n  part 3 .codex/skills/brainstorming: third\n  part 4 .codex/skills/cli-tool-design: earlier\n  part 5 .codex/skills/codebase-design: earlier\n  part 6 .codex/skills/coding-style-bash: earlier\n  part 7 .codex/skills/coding-style-elixir: earlier\n  part 8 .codex/skills/coding-style-python: earlier\n  part 9 .codex/skills/coding-style-rust: earlier\n  part 10 .codex/skills/coding-style-swift: earlier\n  part 11 .codex/skills/coding-style-typescrip"
+      "output": "  entry .codex/skills/brainstorming: original e2b1b6cbd525823e5f203d2c1c78b14f24eb973e525d39611a8786c088bdb617; now differs: 8cec1c6f2d4c7b7f169328851d62ea9dedf0796a991fe3c28bfdacc85ba27174"
     },
     {
-      "control": "new-outside-child",
+      "control": "new-inventory-child",
       "exit": 0,
       "passed": true,
-      "output": "state: changed\n  part 0 .claude/skills/grove: earlier\n  part 1 .claude/skills/terminal-browser: earlier\n  part 2 .codex/skills/authoring-conventions: earlier\n  part 3 .codex/skills/brainstorming: earlier\n  part 4 .codex/skills/cli-tool-design: earlier\n  part 5 .codex/skills/codebase-design: earlier\n  part 6 .codex/skills/coding-style-bash: earlier\n  part 7 .codex/skills/coding-style-elixir: earlier\n  part 8 .codex/skills/coding-style-python: earlier\n  part 9 .codex/skills/coding-style-rust: earlier\n  part 10 .codex/skills/coding-style-swift: earlier\n  part 11 .codex/skills/coding-style-typescr"
+      "output": "inventory before: differs at .agents/skills/new-native-skill"
     },
     {
       "control": "new-sibling-of-system",
       "exit": 0,
       "passed": true,
-      "output": "state: changed\n  part 0 .claude/skills/grove: earlier\n  part 1 .claude/skills/terminal-browser: earlier\n  part 2 .codex/skills/authoring-conventions: earlier\n  part 3 .codex/skills/brainstorming: earlier\n  part 4 .codex/skills/cli-tool-design: earlier\n  part 5 .codex/skills/codebase-design: earlier\n  part 6 .codex/skills/coding-style-bash: earlier\n  part 7 .codex/skills/coding-style-elixir: earlier\n  part 8 .codex/skills/coding-style-python: earlier\n  part 9 .codex/skills/coding-style-rust: earlier\n  part 10 .codex/skills/coding-style-swift: earlier\n  part 11 .codex/skills/coding-style-typescr"
+      "output": "inventory before: differs at .codex/skills/quint-lang"
     },
     {
       "control": "inside-platform-subtrees",
       "exit": 0,
       "passed": true,
-      "output": "state: native\n  part 0 .claude/skills/grove: earlier\n  part 1 .claude/skills/terminal-browser: earlier\n  part 2 .codex/skills/authoring-conventions: earlier\n  part 3 .codex/skills/brainstorming: earlier\n  part 4 .codex/skills/cli-tool-design: earlier\n  part 5 .codex/skills/codebase-design: earlier\n  part 6 .codex/skills/coding-style-bash: earlier\n  part 7 .codex/skills/coding-style-elixir: earlier\n  part 8 .codex/skills/coding-style-python: earlier\n  part 9 .codex/skills/coding-style-rust: earlier\n  part 10 .codex/skills/coding-style-swift: earlier\n  part 11 .codex/skills/coding-style-typescri"
+      "output": " resolve-disabled: /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3 -I .local/state/owner-switch/prepared/owner_switch_probes.py resolve --expect disabled\n  step restore claude-native: /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3 -I .local/state/owner-switch/prepared/owner_switch_probes.py session --harness claude --route native\n  step restore codex-native: /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3 -I .local/state/owner-switch/prepared/owner_switch_probes.py session --harness codex --route native\nresult: reported; nothing written"
     }
   ],
-  "process_patterns": [],
+  "fields_outside_the_schema": [],
   "installed_tools": {
     "claude": {
       "path": "~/.local/bin/claude",
@@ -86,11 +100,11 @@
   "processes": {
     "admitted": [
       {
-        "pid": 16390,
+        "pid": 8907,
         "tool": "Ravel"
       },
       {
-        "pid": 16397,
+        "pid": 8911,
         "tool": "Claude Code"
       },
       {

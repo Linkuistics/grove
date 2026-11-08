@@ -359,6 +359,10 @@ design's check needs the digest, because the configuration can change.
 
 ### Publication by atomic exchange
 
+Scope: owner-switch-contraction-k270 removed the program's only use of
+`RENAME_SWAP`, the exchange. The program still uses `RENAME_EXCL`. The
+measurement stays as history.
+
 On 2026-11-02, `owner-pack-checkouts-k86` called `renamex_np` through Python
 on macOS 27.0.1, on an APFS volume, in a scratch directory:
 
@@ -650,6 +654,12 @@ own them:
 
 ## Review corrections
 
+Scope: each correction below states the design at the time of its review.
+owner-switch-simplification-k260 replaced the continuation, the inverse and
+the pending-activation record with explicit restore, and
+owner-switch-contraction-k270 removed them from the program. The current
+rules are in the specification.
+
 The focused review `owner-ravel-skill-delivery-k41` found three instrument
 defects. Its integration `owner-ravel-skill-delivery-k48` repaired them and
 regenerated the baseline.
@@ -868,6 +878,14 @@ processes.
 
 ## Owner switch implementation review
 
+Scope: this section describes the switch program before
+owner-switch-contraction-k270. That leaf removed the old `run`, `inverse`,
+`merge`, `pending`, `state` and `purge-check` entries, with the exchange,
+held links, kept copies, cell inverses, rehearsal admission and the plan's
+parts. The observations stay as history. They are not evidence for the
+current program, which [Owner switch contraction](#owner-switch-contraction)
+describes.
+
 `owner-switch-program-k242` inspected producer commit `7d69e659`, from base `27723524`. These findings are pending integration triage; they are not repairs or new test results.
 
 ### F1 — P1: gates can read a plan other than the rehearsed plan
@@ -1057,6 +1075,14 @@ than an assumed later tool format.
 
 ## Owner switch review integration
 
+Scope: this section describes the switch program before
+owner-switch-contraction-k270. That leaf removed the old `run`, `inverse`,
+`merge`, `pending`, `state` and `purge-check` entries, with the exchange,
+held links, kept copies, cell inverses, rehearsal admission and the plan's
+parts. The observations stay as history. They are not evidence for the
+current program, which [Owner switch contraction](#owner-switch-contraction)
+describes.
+
 `owner-switch-program-k243` triaged the findings F1 to F9 above against the
 program at `7d69e659`. A reading of the source reproduced each finding. Each
 one is a real issue, and each repair stays inside the program, its rehearsal
@@ -1085,6 +1111,14 @@ repair. Each mutant failed its guarding control, and the positive control
 switch with the changed source, which is the case that F1 states.
 
 ## Owner switch entries
+
+Scope: this section describes the switch program before
+owner-switch-contraction-k270. That leaf removed the old `run`, `inverse`,
+`merge`, `pending`, `state` and `purge-check` entries, with the exchange,
+held links, kept copies, cell inverses, rehearsal admission and the plan's
+parts. The observations stay as history. They are not evidence for the
+current program, which [Owner switch contraction](#owner-switch-contraction)
+describes.
 
 `owner-switch-entries-k92` added four entries to the program, a switch row
 to the owner's `mac-check` and their rehearsal controls. The entries are the
@@ -1506,6 +1540,16 @@ the Ravel cut, rollout repeats the off-value control with the published
 
 ## Owner switch plan draft
 
+Scope: this section describes the switch program before
+owner-switch-contraction-k270. That leaf removed the old `run`, `inverse`,
+`merge`, `pending`, `state` and `purge-check` entries, with the exchange,
+held links, kept copies, cell inverses, rehearsal admission and the plan's
+parts. The observations stay as history. They are not evidence for the
+current program, which [Owner switch contraction](#owner-switch-contraction)
+describes.
+The draft files `switch-plan-parts.tsv` and `switch-plan-dry-run.txt`
+that this section names were replaced. The repository's history keeps them.
+
 `owner-switch-plan-draft-k247` drafted the real switch plan on 2026-11-07.
 Order 4 of the [cutover contract](specs/owner-skill-delivery.md#cutover-contract)
 calls it the residue plan. The draft is not in the real HOME. The real
@@ -1515,8 +1559,8 @@ before and after the work.
 | Artifact | Content |
 | --- | --- |
 | [`switch-plan-draft.json`](owner-cutover/switch-plan-draft.json) | The plan, schema `owner-switch-plan/1`, with every field of the format |
-| [`switch-plan-parts.tsv`](owner-cutover/switch-plan-parts.tsv) | Each part and cell, with its line in [the reference inventory](owner-skill-inventory-reference.tsv), its class and its disposition |
-| [`switch-plan-dry-run.txt`](owner-cutover/switch-plan-dry-run.txt) | The output of `run --dry-run` in the disposable HOME |
+| `switch-plan-parts.tsv` | Each part and cell, with its line in [the reference inventory](owner-skill-inventory-reference.tsv), its class and its disposition |
+| `switch-plan-dry-run.txt` | The output of `run --dry-run` in the disposable HOME |
 | [`switch-plan-processes.txt`](owner-cutover/switch-plan-processes.txt) | The real process tree and job listing against the plan's patterns |
 | [`switch-plan-check.json`](owner-cutover/switch-plan-check.json) | The record of the check, with the result of each control |
 
@@ -1711,6 +1755,14 @@ owner-switch-rehearsal-k255 measures them on the completed plan.
 
 ## Owner switch plan draft review
 
+Scope: this section describes the switch program before
+owner-switch-contraction-k270. That leaf removed the old `run`, `inverse`,
+`merge`, `pending`, `state` and `purge-check` entries, with the exchange,
+held links, kept copies, cell inverses, rehearsal admission and the plan's
+parts. The observations stay as history. They are not evidence for the
+current program, which [Owner switch contraction](#owner-switch-contraction)
+describes.
+
 `owner-switch-plan-draft-k258` inspected producer commit
 `9490761a9099b656630d0dd05c49c9721fa3ec8b` against the owner design. The
 findings below describe counterexamples from the source. They are not
@@ -1873,6 +1925,14 @@ review. Integration owns fixes and executable verification of the cases.
 <!-- tc: on -->
 
 ## Owner switch plan draft integration
+
+Scope: this section describes the switch program before
+owner-switch-contraction-k270. That leaf removed the old `run`, `inverse`,
+`merge`, `pending`, `state` and `purge-check` entries, with the exchange,
+held links, kept copies, cell inverses, rehearsal admission and the plan's
+parts. The observations stay as history. They are not evidence for the
+current program, which [Owner switch contraction](#owner-switch-contraction)
+describes.
 
 `owner-switch-plan-draft-k259` triaged the five findings of the review above
 on 2026-11-08. It verified each finding against the source, and each was
@@ -2471,6 +2531,12 @@ requires the model.
 
 ## Owner switch native-off
 
+Scope: the suite counts in this section include controls of the old `run`,
+which owner-switch-contraction-k270 removed with that entry. The
+observations stay as history. [Owner switch
+contraction](#owner-switch-contraction) holds the result of the current
+suite.
+
 `owner-switch-native-off-k266` added the entry `native-off` to
 `scripts/owner_switch.py` on 2026-11-08. The section
 [The native settings inside finish](specs/owner-skill-delivery.md#the-native-settings-inside-finish)
@@ -2585,6 +2651,12 @@ edit. The control logic did not change after that.
   owns the narrow recogniser of the four tools.
 
 ## Owner switch process inspection
+
+Scope: the suite counts in this section include controls of the old `run`,
+which owner-switch-contraction-k270 removed with that entry. The
+observations stay as history. [Owner switch
+contraction](#owner-switch-contraction) holds the result of the current
+suite.
 
 `owner-switch-process-inspection-k267` replaced the switch program's process
 and job patterns with the narrow recogniser on 2026-11-08. The section
@@ -2715,6 +2787,14 @@ the program signalled none of them.
 
 ### The draft check
 
+Scope: this section describes the switch program before
+owner-switch-contraction-k270. That leaf removed the old `run`, `inverse`,
+`merge`, `pending`, `state` and `purge-check` entries, with the exchange,
+held links, kept copies, cell inverses, rehearsal admission and the plan's
+parts. The observations stay as history. They are not evidence for the
+current program, which [Owner switch contraction](#owner-switch-contraction)
+describes.
+
 `task owner:switch-plan:draft` regenerated the draft from the real HOME. The
 draft lost `session`, `watch` and `jobs`. It also took the root manifests of
 `.claude/skills` and `.codex/skills` that owner-inventory-exceptions-k264
@@ -2725,7 +2805,7 @@ not change.
 eight controls passed, and the draft held no process pattern.
 [`switch-plan-check.json`](owner-cutover/switch-plan-check.json),
 [`switch-plan-processes.txt`](owner-cutover/switch-plan-processes.txt) and
-[`switch-plan-dry-run.txt`](owner-cutover/switch-plan-dry-run.txt) now hold
+`switch-plan-dry-run.txt` now hold
 this check's results. The listing names the installed path and canonical
 path of each tool executable. It then names the admitted ancestors, the
 other tool processes and the processes that need review.
@@ -2795,6 +2875,12 @@ They cannot establish these duties of
   probes, belong to owner-switch-probes-k257.
 
 ## Owner switch serial restore
+
+Scope: the suite counts in this section include controls of the old `run`,
+which owner-switch-contraction-k270 removed with that entry. The
+observations stay as history. [Owner switch
+contraction](#owner-switch-contraction) holds the result of the current
+suite.
 
 `owner-switch-serial-restore-k272` added the serial switch to
 `scripts/owner_switch.py` on 2026-11-08. The entries are `attempt`,
@@ -2891,6 +2977,12 @@ only narrows what two controls accept.
   name. The run above began after the correction.
 
 ## Owner switch restore controls
+
+Scope: the suite counts in this section include controls of the old `run`,
+which owner-switch-contraction-k270 removed with that entry. The
+observations stay as history. [Owner switch
+contraction](#owner-switch-contraction) holds the result of the current
+suite.
 
 `owner-switch-restore-controls-k273` added 19 serial controls to
 `scripts/owner_switch_rehearsal.py` on 2026-11-08. They cover the cases of
@@ -3005,6 +3097,12 @@ with the digest above. Each of the 24 mutants made its control fail. Two failed 
   establishes them.
 
 ## Owner switch status
+
+Scope: the suite counts in this section include controls of the old `run`,
+which owner-switch-contraction-k270 removed with that entry. The
+observations stay as history. [Owner switch
+contraction](#owner-switch-contraction) holds the result of the current
+suite.
 
 `owner-switch-status-k269` moved the switch area of the owner's `mac-check`
 and the purge report to the serial switch on 2026-11-08. The specification's
@@ -3138,3 +3236,165 @@ fail, each by the behaviour that the control guards.
   that note.
 - The real `mac-check` reports that the switch is not prepared, because the
   real HOME has no prepared plan.
+
+## Owner switch contraction
+
+`owner-switch-contraction-k270` removed the old switch machinery from
+`scripts/owner_switch.py` on 2026-11-08, and it shrank the plan format to
+the simplified design. The sections
+[The switch inside finish](specs/owner-skill-delivery.md#the-switch-inside-finish),
+[The rehearsed plan](specs/owner-skill-delivery.md#the-rehearsed-plan) and
+[Rollback](specs/owner-skill-delivery.md#rollback) own the rules. The module
+docstring states each entry and the plan format.
+
+### The real HOME before the change
+
+`~/.local/state/owner-switch` did not exist, so the real HOME held no
+prepared plan, no prepared program and no backup. No backup of an earlier
+format therefore needs a reader, and the program reads only the new format.
+The real `mac-check --only "Owner skill switch"` reported that the switch is
+not prepared, before and after the change.
+
+### The program
+
+The program now holds these entries: `report`, `native-off`, `attempt`,
+`switch`, `restore`, `status`, `purge-report`, `processes`, `gate`,
+`identity`, `digest` and `restore-identity`. The removed code covers the old
+`run`, `run --dry-run`, `inverse`, `merge`, `pending`, `state` and
+`purge-check` entries. It also covers the exchange, kept and flagged copies,
+held links, the cell inverse and pending-activation records. The removal
+also took run logs, partial continuations, program copies in backups,
+run-state detection and rehearsal admission. The program shrank from 5,333 lines to 3,764. The fixture suite shrank from
+4,584 lines to 3,280.
+
+`report` is the read-only plan report. It lists each write with its planned
+original and its current restore identity, and each value that the switch
+sets with its current value. It also compares both inventories, evaluates
+both lists of assertions, compares each command input with its digest and
+lists each command. It runs no command and writes nothing.
+
+### The plan format
+
+The schema is now `owner-switch-plan/2`, and its fields are top-level. The
+`switch` section of the serial restore, `parts` and `outside` are gone.
+
+Each item of `writes` states its action. The switch deactivates each entry, and a
+file can hold `set`, the values that the switch writes. No item holds an earlier
+value or an entry identity. `inventory` replaces `outside`, with the parts
+included before the switch. The loader refuses each field outside the
+schema. A plan therefore cannot hold a process, MCP or job pattern, a
+rehearsal token or a recovery field.
+
+### The regenerated draft
+
+`task owner:switch-plan:draft` wrote the draft from the real HOME, reading
+only. The draft runs no tool. It reads Claude Code's held version and the
+original driver's Ravel keg from the canonical paths of the installed
+executables.
+
+The draft holds 154 entry writes and 4 file writes, 8 inventory
+items and 4 command inputs. A prepared input that does not exist yet carries
+the digest of the repository file that preparation copies. The probe
+program has no source yet, so the inputs do not name it until
+owner-switch-probes-k257 supplies it. The draft's `mac_check` names
+`mac-check --only "Owner skill switch"`, and its native Ravel assertion
+accepts the off value or an absent key.
+
+`task owner:switch-plan:check` passed. In the disposable HOME, the report
+listed each write at its original, the inventory before matched and the
+native assertions held. Ten controls passed:
+
+| Control | Result |
+| --- | --- |
+| `no-mac-check`, `absolute-write-path`, `gate-4-missing` | The loader refused the plan with exit 3. |
+| `process-patterns`, `parts` | The loader refused a field outside the schema. |
+| `earlier-value` | The loader refused a `set` item with an earlier value. |
+| `changed-entry` | The report showed the changed Codex entry as "differs". |
+| `new-inventory-child`, `new-sibling-of-system` | The report showed the inventory difference. |
+| `inside-platform-subtrees` | Changes inside `synced` and `.system` left the inventory matching. |
+
+| File | SHA-256 |
+| --- | --- |
+| [`switch-plan-draft.json`](owner-cutover/switch-plan-draft.json) | `33f97f5cb3f1bd412fb7a1b6234aacfa8f3f3dbbd5cf4f0f381c485a15d33772` |
+| [`switch-plan-writes.tsv`](owner-cutover/switch-plan-writes.tsv) | `59c48d8b7fb66766ee1fd1d6ca06d9f1f9998a21b1ba613bebf80ec004324c8a` |
+| [`switch-plan-report.txt`](owner-cutover/switch-plan-report.txt) | `4ae0ac8ced952d96a960562022ce0e00b601e46242226aefdee87cdbb1a39645` |
+| [`switch-plan-check.json`](owner-cutover/switch-plan-check.json) | `6523b9c4d2cdcf55539e857baf5e3efb30aefb1554e8735501caead881f7492e` |
+| [`switch-plan-processes.txt`](owner-cutover/switch-plan-processes.txt) | `390d0c43875e92400ca0fd17499981293a616c4d2b3fc2f78510fd8d16ceaf8f` |
+| `scripts/owner_switch.py` | `d2806f928c0b4687d79861be5a65405aac1edc64bc86593c5a211eca83988097` |
+| `docs/evaluations/owner-skill-delivery/switch_plan_draft.py` | `01eb80330b6aa127f87dab0a480e04f6a8f228f1e54593eb24e5c844b1b463c8` |
+
+### A write to the real HOME
+
+The first run of the new check chose a Codex entry that is an absolute link
+into the real `~/.agents/.grove`. Its `changed-entry` control appended one
+newline through that link to a real snapshot file. The control then wrote
+the saved bytes back. Afterwards the change identity of `~/.agents/.grove`
+was `b14c7debee5d62b8446a505993f23cc23d140394e3f0f8ab60445f5f4b581781`,
+which is the value of the earlier draft. The content is therefore unchanged,
+but the file's modification time changed.
+
+The control now chooses only a
+real folder inside the disposable HOME, and it stops when the file leads
+outside it. The second run left that modification time unchanged.
+
+### The fixture suite
+
+The suite lost the controls of each removed mechanism. These are the
+exchange, held links, kept copies, merge, the inverse and pending records,
+with run state, the preludes and rehearsal admission. It also lost its rerun of
+`settings-writes.sh`. That rerun produced only the admission record, and its
+interval measured the race of the held link.
+
+The gate, baseline, plan,
+receipt and process controls that ran the old `run` now run `switch`. New
+controls cover each removed plan field, a source that changes during the
+probes and the order of step 6's writes. The native-off control after a
+stopped switch now uses the switch's refusal without the off value.
+
+`task owner:switch:rehearse` passed all 142 controls on Python 3.15.1 and
+macOS 27.0.1. The controls took 6.4 minutes. The earlier suite had 315
+controls. These subjects had the same SHA-256 digests before and after the
+run:
+
+| Subject | SHA-256 |
+| --- | --- |
+| `scripts/owner_switch.py` | `d2806f928c0b4687d79861be5a65405aac1edc64bc86593c5a211eca83988097` |
+| `scripts/owner_switch_rehearsal.py` | `1174b49a9891677d3b2b3ad532317f369845297d5f4fe9d0e62376bf3d243a50` |
+| `~/.local/lib/machine-config/check.py` | `5c7a3bd43c08e43e02859c6c0c22edcb59e0bf0b38dcbe7b040784be247e9201` |
+| `~/.local/bin/mac-check` | `b6738bfa2b04b21742a4693e9d4d5e86c9f69d56ccd8c73d36a484d6ade0a5e8` |
+
+### The search for removed entries
+
+A search for the dispatch of `run`, `inverse`, `merge`, `pending`, `state`
+and `purge-check`, and for their command functions, found nothing in the
+program, the suite or the draft generator. The same search found 19 lines in
+the previous program, and a mutated pattern found none there. A search of the
+documents covered the entry names, the mechanisms and the old plan schema.
+It found them only in sections that state their scope as history. The two
+matches in the specification state what the design omits.
+
+### Mutation controls
+
+A scratch copy of the program received one mutation at a time. Each mutant
+ran only the controls named below.
+
+| Mutation | Control that failed, and why |
+| --- | --- |
+| The loader accepts fields outside the schema | `plan-incomplete` and `plan-process-patterns` admitted `parts` and `session`. |
+| An entry write may hold `set` | `plan-incomplete` admitted the entry with values. |
+| `set` items may hold more keys | `plan-incomplete` admitted an earlier value. |
+| `restore` need not start with the Ravel settings | `plan-incomplete` admitted the reversed order. |
+| The switch deactivates no entry | `serial-switch-and-later-restore` exited 5, because the final comparison found the entries. |
+| The receipt retains no superseded plugin registration | `receipt-evidence` lacked the retained registrations. |
+| The report always shows an original in place | The draft check's `changed-entry` needle "now differs" did not match. This mutant ran against the check's disposable HOME directly. |
+| Step 6 writes the Ravel settings first | No control failed at first. `serial-switch-and-later-restore` now checks the order of the writes, and it fails for this mutant. |
+
+### Limits
+
+- The draft's inputs do not name the probe program, because it has no
+  source yet. owner-switch-plan-k254 completes the inputs.
+- The draft's inputs name the repository digest of `inventory.py` at its
+  prepared path. The switch refuses until preparation copies that file.
+- The fixture plan is not the real plan. The dry run of
+  owner-switch-dry-run-k271 executes the real plan in a disposable copy of
+  HOME.

@@ -426,19 +426,19 @@ tasks:
 
   # The owner's real switch plan draft in docs/owner-cutover ("Owner switch
   # plan draft" of docs/owner-skill-delivery-evidence.md). The draft task
-  # reads the real HOME and the reference inventory, and writes the plan and
-  # its part table. The check task builds a disposable HOME from the draft in
-  # the new directory OUT, runs the program's loader, `run --dry-run` and
-  # five controls, and lists the real process tree against the plan's
-  # patterns. Neither changes the real HOME. For example:
+  # reads the real HOME and the reference inventory, runs no tool, and writes
+  # the plan and its write table. The check task builds a disposable HOME
+  # from the draft in the new directory OUT, runs the program's loader,
+  # `report` and ten controls, and lists the real process tree through the
+  # narrow process inspection. Neither changes the real HOME. For example:
   #   task owner:switch-plan:check OUT="$SCRATCH/switch-plan"
   owner:switch-plan:draft:
-    desc: Write docs/owner-cutover/switch-plan-draft.json and its part table from the real HOME, reading only
+    desc: Write docs/owner-cutover/switch-plan-draft.json and its write table from the real HOME, reading only
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/switch_plan_draft.py draft
 
   owner:switch-plan:check:
-    desc: Admit the switch plan draft and dry-run it in a disposable HOME in OUT, with its controls and the process listing, and write OUT/record.json
+    desc: Admit the switch plan draft and report it in a disposable HOME in OUT, with its controls and the process listing, and write OUT/record.json
     requires:
       vars: [OUT]
     cmds:
@@ -458,21 +458,18 @@ tasks:
     cmds:
       - bash scripts/candidate-keg.sh "{{.COMMIT}}" "{{.OUT}}" "{{.RAVEL_2_0_PREFIX}}" {{if .ACCEPTED}}"{{.ACCEPTED}}"{{end}}
 
-  # The owner switch program ("The switch inside finish" and "The rehearsed
-  # plan" of docs/specs/owner-skill-delivery.md). OUT is a new directory
-  # outside every working copy. ONLY limits the controls to the names that
-  # match a regular expression, and the record is then partial.
-  # Each rehearsal also reruns settings-writes.sh with the installed claude,
-  # and the record names its version. The rerun reads the WritingSkills
-  # checkout beside this one and takes several minutes. SKIP_SETTINGS_WRITES=1
-  # leaves it out, and the record is then partial. For example:
+  # The owner switch program's fixture suite ("Test seams" of
+  # docs/specs/owner-skill-delivery.md). OUT is a new directory outside every
+  # working copy. ONLY limits the controls to the names that match a regular
+  # expression, and the record is then partial. No program reads the record.
+  # For example:
   #   task owner:switch:rehearse OUT="$SCRATCH/rehearsal"
   owner:switch:rehearse:
-    desc: Rehearse scripts/owner_switch.py on a fixture plan in disposable layouts, and write OUT/record.json with the plan, the program and each control's result
+    desc: Run the fixture controls of scripts/owner_switch.py in disposable layouts, and write OUT/record.json with the plan, the program and each control's result
     requires:
       vars: [OUT]
     cmds:
-      - python3 -I scripts/owner_switch_rehearsal.py rehearse --out "{{.OUT}}" {{if .ONLY}}--only "{{.ONLY}}"{{end}} {{if .SKIP_SETTINGS_WRITES}}--skip-settings-writes{{end}}
+      - python3 -I scripts/owner_switch_rehearsal.py rehearse --out "{{.OUT}}" {{if .ONLY}}--only "{{.ONLY}}"{{end}}
 
   release:patch:
     desc: Publish and install the next patch release

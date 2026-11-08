@@ -1,53 +1,61 @@
 """Draft the owner's real switch plan, and check it in a disposable layout.
 
-The plan format is schema "owner-switch-plan/1" in the docstring of
+The plan format is schema "owner-switch-plan/2" in the docstring of
 scripts/owner_switch.py. docs/specs/owner-skill-delivery.md owns each
 disposition: "Classes and dispositions", "Native residue", "Name collisions
-and stale copies", "The switch inside finish", "Concurrent writers" and
-"Rollback". "Owner switch plan draft" of docs/owner-skill-delivery-evidence.md
-states each choice of this draft.
+and stale copies", "The switch inside finish", "Concurrent writers", "The
+rehearsed plan", "Rollback" and "Current health and restore eligibility".
+"Owner switch plan draft" of docs/owner-skill-delivery-evidence.md states
+each choice of this draft.
 
     python3 -I switch_plan_draft.py draft
     python3 -I switch_plan_draft.py check --out OUT
 
-`draft` reads the real HOME and changes nothing there. It classifies each
-child of the five discovery roots by its row in
-docs/owner-skill-inventory-reference.tsv. A child whose class is owner-pack,
-third-party-pack, stale-copy or dangling, with a disposition that starts with
-"deactivate", becomes an entry part. Each other child must have a row with a
-kept class, or be a container whose children have such rows. A child without
-a row stops the draft. Each entry carries the change identity that
-`owner_switch.py identity` prints. The accepted sources come from the table
-"The ten Ravel sources" of docs/repository-moves-record.md, and they are
-provisional. The script writes docs/owner-cutover/switch-plan-draft.json and
-the part table docs/owner-cutover/switch-plan-parts.tsv.
+`draft` reads the real HOME and changes nothing there. It runs no harness and
+no tool, and it reads Claude Code's version from the path of its installed
+executable. It classifies each child of the five discovery roots by its row
+in docs/owner-skill-inventory-reference.tsv. A child whose class is
+owner-pack, third-party-pack, stale-copy or dangling, with a disposition that
+starts with "deactivate", becomes an entry write. Each other child must have
+a row with a kept class, or be a container whose children have such rows. A
+child without a row stops the draft. Each write carries the restore identity
+of its original, or its absence, as `owner_switch.py restore-identity`
+prints it. Each inventory item carries the change identity that
+`owner_switch.py identity` prints. Each command input carries the digest of
+its content. A prepared input that does not exist yet carries the digest of
+the repository file that preparation copies there. The accepted sources come
+from the table "The ten Ravel sources" of docs/repository-moves-record.md,
+and they are provisional. The script writes
+docs/owner-cutover/switch-plan-draft.json and the write table
+docs/owner-cutover/switch-plan-writes.tsv.
 
 `check` builds a disposable HOME in OUT/home from the draft. It copies each
-entry that a part or an `outside` item names from the real HOME, and stops
-unless each copy has the draft's change identity. It writes both settings
-files with each cell at its earlier value. It then runs the program's loader
-and `run --dry-run`, seven controls that must fail, and one control that must
-pass: a change inside .claude/skills/synced and .codex/skills/.system. It
-stops unless the draft holds no process, MCP or job pattern ("session",
-"watch" or "jobs"). Last, it records the installed path and canonical path of
-each executable of the four tools, and it runs the program's narrow process
-inspection on the real process table. OUT holds record.json, dry-run.txt and
-processes.txt. OUT must not exist. The real HOME, launchd and the process
-table are read only.
+write with the program's own metadata copy, and each inventory entry, from
+the real HOME. It stops unless each copy has the draft's identity. It then
+runs the program's loader and `report`, six plan controls that must be
+refused, three layout changes that the report must show, and one change that
+it must not show: a change inside .claude/skills/synced and
+.codex/skills/.system. Last, it records the installed path and canonical
+path of each executable of the four tools, and it runs the program's narrow
+process inspection on the real process table. OUT holds record.json,
+report.txt and processes.txt. OUT must not exist. The real HOME, launchd and
+the process table are read only.
 """
 
 import argparse, copy, hashlib, importlib.util, json, os, re, shutil, subprocess, sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 PROGRAM = os.path.join(ROOT, "scripts", "owner_switch.py")
+INVENTORY_SCRIPT = os.path.join(ROOT, "docs", "evaluations", "owner-skill-delivery", "inventory.py")
+PROBES_SOURCE = os.path.join(ROOT, "scripts", "owner_switch_probes.py")
 DRAFTS = os.path.join(ROOT, "docs", "owner-cutover")
 PLAN_OUT = os.path.join(DRAFTS, "switch-plan-draft.json")
-TABLE_OUT = os.path.join(DRAFTS, "switch-plan-parts.tsv")
+TABLE_OUT = os.path.join(DRAFTS, "switch-plan-writes.tsv")
 INVENTORY = os.path.join(ROOT, "docs", "owner-skill-inventory-reference.tsv")
 MOVES_RECORD = os.path.join(ROOT, "docs", "repository-moves-record.md")
 HOME = os.path.realpath(os.path.expanduser("~"))
 
-# The five discovery roots whose superseded children the switch moves.
+# The five discovery roots whose superseded children the switch deactivates.
 ROOTS = (".claude/skills", ".codex/skills", ".agents/skills", ".pi/agent/skills", ".pi/agent/extensions")
 MOVED_CLASSES = ("owner-pack", "third-party-pack", "stale-copy", "dangling")
 KEPT_CLASSES = ("tool-managed", "platform-managed")
@@ -58,24 +66,28 @@ STATE = ".local/state/owner-switch"
 PREPARED = STATE + "/prepared"
 MANUAL = "Library/Mobile Documents/iCloud~md~obsidian/Documents/Brain/Configuration/AI Dev Tooling.md"
 CLAUDE_SETTINGS = ".claude/settings.json"
+KNOWN_MARKETPLACES = ".claude/plugins/known_marketplaces.json"
+INSTALLED_PLUGINS = ".claude/plugins/installed_plugins.json"
 RAVEL_SETTINGS = ".config/ravel/settings.json"
+ABSENT = {"$absent": True}
 
 # "Classes and dispositions" and "Native residue": the plugins that the switch
 # disables, and the two skill-free plugins that it enables.
 DISABLED = ("grove@linkuistics", "linkuistics@linkuistics", "testanyware@linkuistics",
             "superpowers@claude-plugins-official", "quint-llm-kit@quint-llm-kit")
-# The hooks prelude installs the first disabled. owner-pack-checkouts-k93
-# installs the second disabled. Both are false before step 9.
+# The hooks installation installs the first disabled. owner-pack-checkouts-k93
+# installs the second disabled. The switch enables both at step 6.
 ENABLED = ("technical-communication-hooks@writing-hooks", "guardrail@personal")
 
-# "outside": native residue that must stay unchanged. "Concurrent writers"
-# compares each ordinary child of both native roots. A probe session can
-# rewrite .claude/skills/synced and .codex/skills/.system, so their entries
-# name neither container, and the program skips exactly those two. No plugin
-# version directory, because each session writes .in_use/<pid> there.
-OUTSIDE_PATHS = (".agents/.grove",)
-OUTSIDE_ROOTS = (".claude/skills", ".codex/skills", ".agents/skills", ".pi/agent/skills", ".pi/agent/extensions",
-                 ".claude/agents", ".codex/agents")
+# The inventory: native residue that must stay unchanged, and each ordinary
+# child of the discovery roots. "Concurrent writers" compares each ordinary
+# child of both native roots. A probe session can rewrite
+# .claude/skills/synced and .codex/skills/.system, so no item names either
+# container, and the program skips exactly those two. The agent folders are
+# the D3 roots of owner-inventory-exceptions-k264. No plugin version
+# directory, because each session writes .in_use/<pid> there.
+INVENTORY_PATHS = (".agents/.grove",)
+INVENTORY_ROOTS = ROOTS + (".claude/agents", ".codex/agents")
 
 PROBES_PROGRAM = PREPARED + "/owner_switch_probes.py"
 
@@ -91,7 +103,9 @@ NATIVE_PROBE = [probe("resolve-disabled", "resolve", "--expect", "disabled"),
                 probe("claude-native", "session", "--harness", "claude", "--route", "native"),
                 probe("codex-native", "session", "--harness", "codex", "--route", "native")]
 BASELINE = {"name": "inventory", "argv": ["$python", "-I", PREPARED + "/inventory.py"]}
-MAC_CHECK = {"name": "mac-check", "argv": [".local/bin/mac-check"]}
+# Step 8 needs exit 0 from the switch's area: the full mac-check exits 10 for
+# an unrelated manual review (owner-switch-status-k269).
+MAC_CHECK = {"name": "mac-check", "argv": [".local/bin/mac-check", "--only", "Owner skill switch"]}
 GATES = {"4": [{"name": "grove-release", "argv": ["$python", "-I", "$program", "gate", "4"]}],
          "5": [{"name": "skill-formulae", "argv": ["$python", "-I", "$program", "gate", "5"]}],
          "6": [{"name": "resolved-sources", "argv": ["$python", "-I", "$program", "gate", "6"]}],
@@ -119,12 +133,29 @@ def load_program():
     return module
 
 
-def identity(path):
-    out = subprocess.run([sys.executable, "-I", PROGRAM, "identity", path],
+def program_line(command, path):
+    out = subprocess.run([sys.executable, "-I", PROGRAM, command, path],
                          capture_output=True, text=True, check=True).stdout.strip()
-    if not re.fullmatch(r"[0-9a-f]{64}", out):
-        sys.exit(f"stop: {path} has no change identity ({out})")
+    if not (out == "absent" or re.fullmatch(r"[0-9a-f]{64}", out)):
+        sys.exit(f"stop: {path} has no {command} ({out})")
     return out
+
+
+def identity(path):
+    out = program_line("identity", path)
+    if out == "absent":
+        sys.exit(f"stop: {path} is absent")
+    return out
+
+
+def original(rel):
+    found = program_line("restore-identity", os.path.join(HOME, rel))
+    return {"absent": True} if found == "absent" else {"identity": found}
+
+
+def file_digest(path):
+    with open(path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
 
 
 def inventory_rows():
@@ -170,9 +201,49 @@ def switched_skills():
     return off, switched
 
 
-def draft(_args):
-    rows = inventory_rows()
-    parts, table, kept = [], [], {}
+def held_claude():
+    """The installed Claude Code version, from the canonical path of its executable, as `claude --version` prints it."""
+    path = shutil.which("claude")
+    real = os.path.realpath(path) if path else ""
+    parts = real.split("/")
+    if len(parts) < 3 or parts[-2] != "versions" or parts[-3] != "claude":
+        sys.exit(f"stop: the installed claude {path} is not a versioned Claude Code executable ({real})")
+    return f"{parts[-1]} (Claude Code)"
+
+
+def original_ravel():
+    """The keg of the installed Ravel, which the running driver uses until it ends."""
+    path = shutil.which("ravel")
+    real = os.path.realpath(path) if path else ""
+    keg = os.path.dirname(os.path.dirname(real))
+    if not re.search(r"/Cellar/ravel/[^/]+$", keg):
+        sys.exit(f"stop: the installed ravel {path} is not in a Homebrew keg ({real})")
+    return keg
+
+
+def inputs():
+    """Each file that a command runs or reads, by content.
+
+    A prepared file that preparation copies from the repository carries the
+    digest of its repository source until owner-switch-plan-k254 copies it.
+    The probe program has no source yet; owner-switch-probes-k257 supplies it.
+    """
+    mac_check = os.path.join(HOME, ".local/bin/mac-check")
+    rows = [{"role": "program", "path": "$program", "digest": file_digest(PROGRAM)},
+            {"role": "baseline instrument", "path": os.path.join(HOME, PREPARED, "inventory.py"),
+             "digest": file_digest(INVENTORY_SCRIPT)},
+            {"role": "mac-check command", "path": mac_check, "digest": file_digest(mac_check)},
+            {"role": "mac-check helper", "path": os.path.join(HOME, ".local/lib/machine-config/check.py"),
+             "digest": file_digest(os.path.join(HOME, ".local/lib/machine-config/check.py"))}]
+    if os.path.exists(PROBES_SOURCE):
+        rows.append({"role": "probe program", "path": os.path.join(HOME, PROBES_PROGRAM),
+                     "digest": file_digest(PROBES_SOURCE)})
+    return rows
+
+
+def classify(rows):
+    """The entry writes of the five roots, the kept children and their table rows."""
+    entries, table, kept = [], [], {}
     for root in ROOTS:
         for name in sorted(os.listdir(os.path.join(HOME, root))):
             rel = f"{root}/{name}"
@@ -188,51 +259,100 @@ def draft(_args):
                 sys.exit(f"stop: {rel} has {len(found)} inventory rows; classify it before drafting")
             row = found[0]
             if row["class"] in MOVED_CLASSES and row["disposition"].startswith("deactivate"):
-                ident = identity(os.path.join(HOME, rel))
-                parts.append({"kind": "entry", "path": rel, "identity": ident})
-                table.append([len(parts) - 1, "entry", rel, "", "", "", ident, row["line"], row["class"],
+                write = {"path": rel, "type": "entry", "original": original(rel)}
+                entries.append(write)
+                table.append([rel, "entry", show_original(write), "", "", row["line"], row["class"],
                               row["disposition"]])
             elif row["class"] in KEPT_CLASSES:
                 kept[rel] = row["class"]
             else:
                 sys.exit(f"stop: {rel} has class {row['class']}, disposition {row['disposition']}")
+    return entries, table, kept
+
+
+def show_original(write):
+    return "absent" if write["original"].get("absent") else write["original"]["identity"]
+
+
+def settings_values(rows):
+    """The values that the switch sets in settings.json, with their table sources."""
     plugin_rows = {r["entry"]: r for rs in rows.values() for r in rs if r["form"].startswith("plugin v")}
-    cells = []
+    values = []
     for pid in DISABLED:
         row = plugin_rows[pid]
         if "enabled=True" not in row["form"] or not row["disposition"].startswith("disable"):
             sys.exit(f"stop: the inventory row of {pid} is not an enabled plugin that the switch disables")
-        cells.append(({"key": ["enabledPlugins", pid], "earlier": True, "switched": False}, row))
+        values.append(({"key": ["enabledPlugins", pid], "value": False}, (row["line"], row["class"],
+                                                                          row["disposition"])))
     for pid in ENABLED:
-        cells.append(({"key": ["enabledPlugins", pid], "earlier": False, "switched": True}, None))
-    parts.append({"kind": "file", "path": CLAUDE_SETTINGS, "cells": [c for c, _ in cells]})
-    for cell, row in cells:
-        source = (row["line"], row["class"], row["disposition"]) if row else (
-            "", "native residue", "installed disabled before step 9; enabled by the switch")
-        table.append([len(parts) - 1, "cell", CLAUDE_SETTINGS, ".".join(cell["key"]), json.dumps(cell["earlier"]),
-                      json.dumps(cell["switched"]), "", *source])
-    off, switched = switched_skills()
-    parts.append({"kind": "file", "path": RAVEL_SETTINGS,
-                  "cells": [{"key": ["skills"], "earlier": off, "switched": switched}]})
-    table.append([len(parts) - 1, "cell", RAVEL_SETTINGS, "skills", "settings-off.json",
-                  "settings-switched.json", "", "", "Ravel settings",
-                  "the native settings write the off value in step 3; the switch writes the switched value"])
-    outside = []
-    for rel in OUTSIDE_PATHS:
-        outside.append({"path": rel, "identity": identity(os.path.join(HOME, rel))})
-    moved = {p["path"] for p in parts}
-    for root in OUTSIDE_ROOTS:
-        entries = {}
+        values.append(({"key": ["enabledPlugins", pid], "value": True},
+                       ("", "native residue", "installed disabled before the switch; enabled at step 6")))
+    return values
+
+
+def inventory(entries):
+    """The expected inventories before and after the switch. The deactivated entries leave the roots."""
+    gone = {w["path"] for w in entries}
+    before, after = [], []
+    for rel in INVENTORY_PATHS:
+        item = {"path": rel, "identity": identity(os.path.join(HOME, rel))}
+        before.append(item)
+        after.append(item)
+    for root in INVENTORY_ROOTS:
+        children = {}
         for name in sorted(os.listdir(os.path.join(HOME, root))):
-            if f"{root}/{name}" not in moved and f"{root}/{name}" not in CONTAINERS:
-                entries[name] = identity(os.path.join(HOME, root, name))
-        outside.append({"root": root, "entries": entries})
+            if f"{root}/{name}" not in CONTAINERS:
+                children[name] = identity(os.path.join(HOME, root, name))
+        before.append({"root": root, "entries": children})
+        after.append({"root": root, "entries": {n: i for n, i in children.items() if f"{root}/{n}" not in gone}})
+    return {"before": before, "after": after}
+
+
+def draft(_args):
+    rows = inventory_rows()
+    entries, table, kept = classify(rows)
+    settings = settings_values(rows)
+    off, switched = switched_skills()
+    files = [
+        {"path": CLAUDE_SETTINGS, "type": "file", "original": original(CLAUDE_SETTINGS),
+         "set": [v for v, _ in settings]},
+        {"path": KNOWN_MARKETPLACES, "type": "file", "original": original(KNOWN_MARKETPLACES)},
+        {"path": INSTALLED_PLUGINS, "type": "file", "original": original(INSTALLED_PLUGINS)},
+        {"path": RAVEL_SETTINGS, "type": "file", "original": original(RAVEL_SETTINGS),
+         "set": [{"key": ["skills"], "value": switched}]},
+    ]
+    for value, source in settings:
+        table.append([CLAUDE_SETTINGS, "file", show_original(files[0]), ".".join(value["key"]),
+                      json.dumps(value["value"]), *source])
+    for w in files[1:3]:
+        table.append([w["path"], "file", show_original(w), "", "", "", "Claude Code registry",
+                      "written by the hooks installation's commands"])
+    table.append([RAVEL_SETTINGS, "file", show_original(files[3]), "skills", "settings-switched.json", "",
+                  "Ravel settings", "native-off writes the off value before the switch; the switch writes the "
+                                    "switched value last"])
+    writes = entries + files
+    restore = [RAVEL_SETTINGS, KNOWN_MARKETPLACES, INSTALLED_PLUGINS, CLAUDE_SETTINGS] + [w["path"] for w in entries]
+    assertions = [{"path": RAVEL_SETTINGS, "key": ["skills"], "value": switched}]
+    assertions += [{"path": CLAUDE_SETTINGS, "key": v["key"], "value": v["value"]} for v, _ in settings]
+    assertions += [{"path": w["path"], "absent": True} for w in entries]
+    # Before promotion, the real Ravel settings may lack "skills" (owner-switch-status-k269).
+    native = [{"path": RAVEL_SETTINGS, "key": ["skills"], "values": [off, ABSENT]}]
+    native += [{"path": CLAUDE_SETTINGS, "key": ["enabledPlugins", pid], "value": True} for pid in DISABLED]
+    native += [{"path": CLAUDE_SETTINGS, "key": ["enabledPlugins", pid], "values": [False, ABSENT]}
+               for pid in ENABLED]
     plan = {
-        "schema": "owner-switch-plan/1",
+        "schema": "owner-switch-plan/2",
         "state": STATE,
         "manual": MANUAL,
-        "parts": parts,
-        "outside": outside,
+        "writes": writes,
+        "restore": restore,
+        "inventory": inventory(entries),
+        "inputs": inputs(),
+        "assertions": assertions,
+        "native_assertions": native,
+        "tools": {"claude": held_claude()},
+        "retained": [{"item": "the original driver's Ravel keg", "path": original_ravel(),
+                      "condition": ["its last driver ends"]}],
         "baseline": BASELINE,
         "gates": GATES,
         "accepted": {
@@ -250,11 +370,13 @@ def draft(_args):
         json.dump(plan, f, indent=2, ensure_ascii=False)
         f.write("\n")
     with open(TABLE_OUT, "w") as f:
-        f.write("part\tkind\tpath\tcell\tearlier\tswitched\tidentity\tinventory_line\tclass\tdisposition\n")
+        f.write("path\ttype\toriginal\tkey\tswitched\tinventory_line\tclass\tdisposition\n")
         for row in table:
             f.write("\t".join(str(x) for x in row) + "\n")
-    entries = sum(1 for p in parts if p["kind"] == "entry")
-    print(f"draft: {entries} entry parts, {len(parts) - entries} file parts, {len(outside)} outside items")
+    print(f"draft: {len(entries)} entry writes, {len(files)} file writes, "
+          f"{len(plan['inventory']['before'])} inventory items, {len(plan['inputs'])} command inputs")
+    if not os.path.exists(PROBES_SOURCE):
+        print("draft: the probe program has no source yet, so the inputs do not name it")
     print(f"draft: kept in the roots: {', '.join(sorted(kept))}")
     print(f"wrote {os.path.relpath(PLAN_OUT, ROOT)} and {os.path.relpath(TABLE_OUT, ROOT)}")
     return 0
@@ -273,41 +395,40 @@ def copy_entry(rel, home):
         shutil.copy2(src, dst)
 
 
-def build_layout(plan, home):
-    """A disposable HOME that holds each named entry, and each cell at its earlier value."""
-    wanted = [(p["path"], p["identity"]) for p in plan["parts"] if p["kind"] == "entry"]
-    for item in plan["outside"]:
+def build_layout(module, plan, home):
+    """A disposable HOME that holds each write with its metadata, and each inventory entry."""
+    drift = []
+    for w in plan["writes"]:
+        src, dst = os.path.join(HOME, w["path"]), os.path.join(home, w["path"])
+        if w["original"].get("absent"):
+            if os.path.lexists(src):
+                drift.append(w["path"])
+            continue
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        module.copy_tree(src, dst)
+        if module.restore_identity(dst) != w["original"]["identity"]:
+            drift.append(w["path"])
+    written = {w["path"] for w in plan["writes"]}
+    copied = 0
+    for item in plan["inventory"]["before"]:
         if "root" in item:
             os.makedirs(os.path.join(home, item["root"]), exist_ok=True)
-            wanted += [(f"{item['root']}/{n}", i) for n, i in item["entries"].items()]
+            wanted = [(f"{item['root']}/{n}", i) for n, i in item["entries"].items()]
         else:
-            wanted.append((item["path"], item["identity"]))
-    drift = []
-    for rel, ident in wanted:
-        copy_entry(rel, home)
-        if identity(os.path.join(home, rel)) != ident:
-            drift.append(rel)
+            wanted = [(item["path"], item["identity"])]
+        for rel, ident in wanted:
+            if rel not in written:
+                copy_entry(rel, home)
+            copied += 1
+            if identity(os.path.join(home, rel)) != ident:
+                drift.append(rel)
     if drift:
         sys.exit("stop: the real HOME changed since the draft: " + ", ".join(drift))
-    for part in plan["parts"]:
-        if part["kind"] != "file":
-            continue
-        body = {}
-        for cell in part["cells"]:
-            node = body
-            for k in cell["key"][:-1]:
-                node = node.setdefault(k, {})
-            node[cell["key"][-1]] = cell["earlier"]
-        path = os.path.join(home, part["path"])
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w") as f:
-            json.dump(body, f, indent=2)
-            f.write("\n")
     manual = os.path.join(home, plan["manual"])
     os.makedirs(os.path.dirname(manual), exist_ok=True)
     with open(manual, "w") as f:
         f.write("# AI Dev Tooling\n")
-    return len(wanted)
+    return len(plan["writes"]), copied
 
 
 def program(*args):
@@ -323,7 +444,7 @@ def write_plan(plan, path):
 
 
 def controls(plan, out, home):
-    """A broken draft must not be admitted, and a changed layout is not native, except inside a platform subtree."""
+    """A broken draft must not be admitted, and the report must show a changed layout, except inside a platform subtree."""
     folder = os.path.join(out, "controls")
     os.makedirs(folder)
     results = []
@@ -331,56 +452,69 @@ def controls(plan, out, home):
     def refused(name, mutate, needle):
         bad = copy.deepcopy(plan)
         mutate(bad)
-        code, text = program("run", "--dry-run", "--plan", write_plan(bad, os.path.join(folder, name + ".json")),
+        code, text = program("report", "--plan", write_plan(bad, os.path.join(folder, name + ".json")),
                              "--home", home)
         ok = code == 3 and needle in text
         results.append({"control": name, "exit": code, "passed": ok, "output": text.strip()[-600:]})
 
+    def earlier(p):
+        p["writes"][-1]["set"][0]["earlier"] = {"schemaVersion": 1, "sources": []}
+
     refused("no-mac-check", lambda p: p.pop("mac_check"), "mac_check is not a command")
-    refused("absolute-part-path", lambda p: p["parts"][0].update(path=os.path.join(HOME, p["parts"][0]["path"])),
+    refused("absolute-write-path", lambda p: p["writes"][0].update(path=os.path.join(HOME, p["writes"][0]["path"])),
             "is not relative to HOME")
     refused("gate-4-missing", lambda p: p["gates"].update({"4": [MAC_CHECK]}),
             "does not run the program's gate of step 4")
-    refused("process-patterns", lambda p: p.update(watch=[r"^(\S*/)?codex(\s|$)"]),
-            "the plan holds watch")
+    refused("process-patterns", lambda p: p.update(watch=[r"^(\S*/)?codex(\s|$)"]), "the plan holds watch")
+    refused("earlier-value", earlier, ".set is not a list of keys with values")
+    refused("parts", lambda p: p.update(parts=[]), "the plan holds parts")
 
-    def changed(name, act, undo):
+    def shown(name, act, undo, needle):
         act()
         try:
-            code, text = program("run", "--dry-run", "--plan", PLAN_OUT, "--home", home)
+            code, text = program("report", "--plan", PLAN_OUT, "--home", home)
         finally:
             undo()
-        ok = code == 0 and "state: changed" in text
-        results.append({"control": name, "exit": code, "passed": ok, "output": text.strip()[:600]})
+        lines = [line for line in text.splitlines() if re.search(needle, line)]
+        ok = code == 0 and bool(lines)
+        results.append({"control": name, "exit": code, "passed": ok, "output": "\n".join(lines)[-600:]})
 
-    stale = os.path.join(home, ".codex/skills/brainstorming/SKILL.md")
-    original = open(stale, "rb").read()
+    # Only a real folder inside the disposable HOME: many entries are links into the real HOME, and the
+    # control must never write through one.
+    entry = next(w["path"] for w in plan["writes"] if w["type"] == "entry" and w["path"].startswith(".codex/skills/")
+                 and not os.path.islink(os.path.join(home, w["path"])) and os.path.isdir(os.path.join(home, w["path"])))
+    skill = os.path.join(home, entry, "SKILL.md")
+    if os.path.islink(skill) or not os.path.realpath(skill).startswith(os.path.realpath(home) + os.sep):
+        sys.exit(f"stop: {skill} leads outside the disposable HOME")
+    saved = open(skill, "rb").read()
 
-    def restore():
-        with open(stale, "wb") as f:
-            f.write(original)
+    def put_back():
+        with open(skill, "wb") as f:
+            f.write(saved)
 
     def touch():
-        with open(stale, "ab") as f:
+        with open(skill, "ab") as f:
             f.write(b"\n")
 
-    changed("changed-entry", touch, restore)
+    shown("changed-entry", touch, put_back, rf"^  entry {re.escape(entry)}: original \S+; now differs: ")
     extra = os.path.join(home, ".agents/skills/new-native-skill")
-    changed("new-outside-child", lambda: os.makedirs(extra), lambda: os.rmdir(extra))
+    shown("new-inventory-child", lambda: os.makedirs(extra), lambda: os.rmdir(extra),
+          r"^inventory before: differs at .*\.agents/skills/new-native-skill")
     sibling = os.path.join(home, ".codex/skills/quint-lang")
-    changed("new-sibling-of-system", lambda: os.makedirs(sibling), lambda: os.rmdir(sibling))
+    shown("new-sibling-of-system", lambda: os.makedirs(sibling), lambda: os.rmdir(sibling),
+          r"^inventory before: differs at .*\.codex/skills/quint-lang")
 
-    # A change confined to the two platform subtrees leaves the layout native.
+    # A change confined to the two platform subtrees leaves the inventory as expected.
     inside = [os.path.join(home, ".claude/skills/synced"), os.path.join(home, ".codex/skills/.system")]
     for d in inside:
         os.makedirs(os.path.join(d, "probe-skill"))
     try:
-        code, text = program("run", "--dry-run", "--plan", PLAN_OUT, "--home", home)
+        code, text = program("report", "--plan", PLAN_OUT, "--home", home)
     finally:
         for d in inside:
-            shutil.rmtree(d)
-    results.append({"control": "inside-platform-subtrees", "exit": code, "passed": code == 0 and "state: native" in text,
-                    "output": text.strip()[:600]})
+            shutil.rmtree(os.path.join(d, "probe-skill"))
+    results.append({"control": "inside-platform-subtrees", "exit": code,
+                    "passed": code == 0 and "inventory before: matches" in text, "output": text.strip()[-600:]})
     return results
 
 
@@ -431,40 +565,43 @@ def check(args):
     raw = open(PLAN_OUT, "rb").read()
     plan = json.loads(raw)
     admitted = module.load_plan(PLAN_OUT)
-    module.drafted_settings(admitted)
     home = os.path.join(out, "home")
     os.makedirs(home)
-    copied = build_layout(plan, home)
+    writes, copied = build_layout(module, plan, home)
     module.Layout(home, admitted)
-    code, text = program("run", "--dry-run", "--plan", PLAN_OUT, "--home", home)
-    with open(os.path.join(out, "dry-run.txt"), "w") as f:
+    code, text = program("report", "--plan", PLAN_OUT, "--home", home)
+    with open(os.path.join(out, "report.txt"), "w") as f:
         f.write(text.replace(out, "<OUT>"))
-    switch_section = text.split("switch, in order:", 1)[-1].split("inverse, in order:", 1)[0]
-    inverse_section = text.split("inverse, in order:", 1)[-1]
-    listed = all(f"part {i} {p['path']}" in switch_section and f"part {i} {p['path']}" in inverse_section
-                 for i, p in enumerate(plan["parts"]))
-    dry = {"exit": code, "native": "state: native" in text, "each_part_and_inverse": listed,
-           "unrehearsed_reported": "rehearsed: no" in text}
+    listed = all(f"{w['type']} {w['path']}: original" in text for w in plan["writes"])
+    originals = all(f"{w['type']} {w['path']}: original {show_original(w)}; now its original" in text
+                    for w in plan["writes"])
+    native = [line for line in text.splitlines() if line.startswith("native_assertions: ")]
+    report = {"exit": code, "each_write_listed": listed, "each_original_in_place": originals,
+              "inventory_before_matches": "inventory before: matches" in text,
+              "native_assertions_hold": bool(native) and all(line.endswith(": holds") for line in native)}
     results = controls(plan, out, home)
-    patterns = [name for name in module.REMOVED_PLAN_FIELDS if name in plan]
+    removed = [k for k in plan if k not in module.PLAN_FIELDS]
     tools, listing, text = process_listing(module)
     with open(os.path.join(out, "processes.txt"), "w") as f:
         f.write(text)
     record = {
         "plan": os.path.relpath(PLAN_OUT, ROOT), "plan_digest": hashlib.sha256(raw).hexdigest(),
         "program_digest": module.PROGRAM_DIGEST, "python": sys.version.split()[0],
-        "entries_copied": copied, "dry_run": dry, "controls": results, "process_patterns": patterns,
-        "installed_tools": tools, "processes": listing,
+        "writes_copied": writes, "inventory_entries_copied": copied, "report": report, "controls": results,
+        "fields_outside_the_schema": removed, "installed_tools": tools, "processes": listing,
     }
     with open(os.path.join(out, "record.json"), "w") as f:
         f.write(json.dumps(record, indent=2).replace(out, "<OUT>"))
         f.write("\n")
-    passed = code == 0 and dry["native"] and listed and all(r["passed"] for r in results) and not patterns
+    passed = (code == 0 and all(v for k, v in report.items() if k != "exit")
+              and all(r["passed"] for r in results) and not removed)
     print(f"plan {record['plan_digest']}, program {record['program_digest']}")
-    print(f"dry run: exit {code}, native {dry['native']}, each part and its inverse listed {listed}")
+    print(f"report: exit {code}, each write listed {listed}, each original in place {originals}, "
+          f"inventory before matches {report['inventory_before_matches']}, "
+          f"native assertions hold {report['native_assertions_hold']}")
     for r in results:
         print(f"control {r['control']}: {'passed' if r['passed'] else 'FAILED'} (exit {r['exit']})")
-    print(f"process patterns in the draft: {', '.join(patterns) or 'none'}")
+    print(f"fields outside the schema: {', '.join(removed) or 'none'}")
     print(f"processes: {len(listing['admitted'])} admitted ancestors, {listing['other']} other tool processes, "
           f"{listing['review']} that need review")
     print("result: " + ("passed" if passed else "FAILED"))

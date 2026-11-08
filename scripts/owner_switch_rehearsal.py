@@ -1,41 +1,30 @@
 #!/usr/bin/env python3
 """Rehearse the owner switch program on a fixture plan in disposable layouts.
 
-docs/specs/owner-skill-delivery.md, "The rehearsed plan" and "Test seams",
-owns the controls. Each control builds a new disposable HOME under OUT, runs
-scripts/owner_switch.py under a fixture harness process, and checks the
-layout, the run record and the program's output. A hook acts at the
-program's named points: it crashes the program, writes as another program,
-holds a descriptor or launches a process. The real HOME is never changed,
-and the rehearsal reads only its `mac-check` command and that command's
-folder.
+docs/specs/owner-skill-delivery.md, "Test seams", owns the controls. Each
+control builds a new disposable HOME under OUT, runs scripts/owner_switch.py
+under a fixture harness process, and checks the layout, the program's records
+and its output. A hook acts at the program's named points: it crashes the
+program, makes it fail, writes as another program or launches a process. The
+real HOME is never changed, and the rehearsal reads only its `mac-check`
+command and that command's folder. The dry run of the real plan in a
+disposable copy of HOME is another instrument ("The rehearsed plan").
 
 Usage:
     python3 -I owner_switch_rehearsal.py rehearse --out OUT [--program PATH] [--only REGEX]
-                                                  [--skip-settings-writes]
+                                                  [--mac-check PATH]
 
 The record OUT/record.json names the digests of the plan and the program and
 the result of each control. For each run of a control, it counts the Claude
-Code commands that the run ran. It is a passing rehearsal record of the
-program only when every control passed and the rerun of settings-writes.sh
-passed. OUT/plan.json is the fixture plan.
+Code commands that the run ran. No program reads the record: the switch
+consumes prepared values, not a passing record. OUT/plan.json is the fixture
+plan.
 
 Each run finds stub `claude` and `brew` commands first on PATH. The stub
 `claude` keeps its plugin state in the disposable HOME, and it writes
 settings.json as Claude Code 2.1.319 does: one read, then a new file renamed
 onto the path. The point "stub:<command>:read" lies between that read and
 the rename.
-
-Each rehearsal also reruns
-docs/evaluations/hooks-installation-writes/settings-writes.sh with the real
-`claude` on PATH, in OUT/settings-writes. The record names that Claude Code
-version, and the program's hooks installation runs a Claude Code command only
-with a version that a passing record names. --skip-settings-writes leaves the
-rerun out, and the record is then partial. The rerun passes when `marketplace add` and `plugin install`
-each rename one file onto the path, and when each command's measured
-interval meets the evidence's range of 30 to 38 ms. The interval of a
-command lies between the largest lead at which a race lost the outside write
-and the smallest lead at which the live file kept it.
 
 The fixture plan names the program's own gates of steps 4 to 7. Each run
 therefore finds a fixture Homebrew prefix in the case: five kegs with the ten
@@ -49,18 +38,39 @@ also sets CLAUDE_CONFIG_DIR and CODEX_HOME. Each fixture command fails when
 its environment selects another subject than its HOME. A staging trial fails
 unless HOME is the plan's staging HOME and CODEX_HOME is its .codex tree.
 
-The controls cover the switch, the inverse, detection, interruptions,
-entries, step 14, the processes, the rehearsal condition, the preludes of
-step 3, its baseline rows and the gates with their source controls. They
-also cover the owner's inverse, the merge entry, the purge check and the
-pending-activation record.
-The native-off controls run `native-off` without a plan or a switch backup.
-They cover an absent file, an absent key with its metadata, an existing off
-value and each refused form. They cover another Ravel process, a process
-titled ravel, a Ravel ancestor, other tools' processes, which do not stop
-it, a stop of the switch before its backup and --print-command. They
-also cover a failed creation, a failed rename and a crash at each named
-point. A reader polls the file during repeated publications.
+Each case starts before the hooks installation and computes the plan fields
+that depend on its HOME, because installed_plugins.json names absolute paths:
+the write set with its originals, the inventories, the command inputs, the
+assertions and the restore order.
+
+The switch controls run `attempt`, `switch` and `restore`. They cover the full
+switch with a later restore through the note's literal command and its
+recovery backup, and a stop before the backup's publication. They also cover
+an attempt mismatch, a later restore that drift refuses, and refusals before
+any write. A caught failure or a crash at each named point completes them.
+The hook action "fail" makes the hook exit 1, so the program meets a caught
+failure at that point. Further switch controls cover ACLs and attributes
+through backup and restore, failed reads and changed copies before
+publication, and changed backup records. They cover interrupted and failed
+restores, the off-value exception, an interrupted later restore and the
+owner's restore after finish. They also cover Claude Code command failures,
+an unwritable manual, a live probe-owned service and changes during the
+probes. The hook action "append-glob" changes each file that a pattern names.
+The fixture flag "probe_owned" makes the switched probe leave a service
+running. The off-value controls make their backup through the program's own
+`create_backup`, because the switch refuses without the off value.
+
+The gate controls run the switch with the evidence of steps 4 to 7 and the
+baseline of step 3. They cover an eleventh source, a one-byte change of a
+source outside and inside Grove's keg with its staging trials, a failed or
+missing trial, a missing staging HOME and a source that changes during the
+probes. They cover Grove's tap, link and version, the skill formulae, the
+reader evidence before and during the probes, and the baseline's anomaly
+rows. The plan controls cover a plan changed after its admission, paths that
+leave HOME, each missing field or check, each removed field and each process,
+MCP or job pattern, and a held Claude Code version that differs. The receipt
+control reads the activated configuration, the sources, the readers and the
+retained resources.
 
 The process controls cover the narrow process inspection. One control passes
 each measured and constructed launch form through the program's recognise().
@@ -71,45 +81,36 @@ and a wrapper script. They cover native and versioned executables, Node
 launchers, reparented Codex daemons, unrelated arguments, review forms, a
 deleted executable, exact ancestors, a descendant harness, a caffeinate
 child, an MCP server and its tool child, and probe-owned records with a
-changed creation time or executable. Each control checks that the fixture
-processes still run, because the program signals none.
-OWNER_SWITCH_REHEARSAL_SCOPE limits recognition to that folder in every run,
-because the machine's own tool processes share the process table. The
-persistence control fails unless OUT is on the volume of
-the account's HOME. The control of the accepted 2.0 build needs its darwin
-archive in target/ravel-archives-2.0, and the digest of
-scripts/harness-trials/builds.json.
-The serial controls run `attempt`, `switch` and `restore` on a HOME before
-the hooks installation. Each case computes the plan's "switch" section for
-its own HOME, because installed_plugins.json names absolute paths. They
-cover the full switch with a later restore through the note's literal
-command and its recovery backup, and a stop before the backup's
-publication. They also cover an attempt mismatch, a later restore that
-drift refuses, and refusals before any write. A caught failure or a crash
-at each named point completes them. The hook action "fail" makes the hook
-exit 1, so the program meets a caught failure at that point.
-Further serial controls cover ACLs and attributes through backup and
-restore, failed reads and changed copies before publication, and changed
-backup records. They cover interrupted and failed restores, the off-value
-exception, an interrupted later restore and the owner's restore after
-finish. They also cover Claude Code command failures, an unwritable
-manual, a live probe-owned service and changes during the probes. The
-hook action "append-glob" changes each file that a pattern names. The
-fixture flag "probe_owned" makes the switched probe leave a service
-running. The off-value controls make their backup through the program's
-own `create_backup`, because the switch refuses without the off value.
+changed creation time or executable. Through the switch, a tool or a
+descendant harness before the switch refuses it, and one that starts after
+the backup leaves recovery incomplete until the owner ends it and restores.
+Each control checks that the fixture processes still run, because the
+program signals none. OWNER_SWITCH_REHEARSAL_SCOPE limits recognition to that
+folder in every run, because the machine's own tool processes share the
+process table.
+
+The native-off controls run `native-off` without a plan or a switch backup.
+They cover an absent file, an absent key with its metadata, an existing off
+value and each refused form. They cover another Ravel process, a process
+titled ravel, a Ravel ancestor, other tools' processes, which do not stop
+it, a refusal of the switch before its backup and --print-command. They
+also cover a failed creation, a failed rename and a crash at each named
+point. A reader polls the file during repeated publications. The
+persistence control fails unless OUT is on the volume of the account's HOME.
+The control of the accepted 2.0 build needs its darwin archive in
+target/ravel-archives-2.0, and the digest of scripts/harness-trials/builds.json.
+
 The status controls run the real `mac-check` command for the switch's
 area, with HOME set to the case's HOME. That HOME links the checker's folder
-and holds copies of the case's serial plan and the program in
-<state>/prepared, and the stub `brew` comes first on PATH. That command file
-is the only file of the account's HOME that the rehearsal reads. They cover
-an unprepared switch, native and partial layouts, and unrelated edits after
-success that make restore ineligible. They also cover a changed setting,
-entry, source or reader after success, a stale receipt, a crash before the
-receipt, step 8's `mac-check` during the switch, a pending manual entry and
-an interrupted later restore. The purge controls cover a clean report with
-a reader marker, a changed cache version and registration, and an
-unverified switch.
+and holds copies of the case's plan and the program in <state>/prepared, and
+the stub `brew` comes first on PATH. That command file is the only file of
+the account's HOME that the rehearsal reads. They cover an unprepared switch,
+native and partial layouts, and unrelated edits after success that make
+restore ineligible. They also cover a changed setting, entry, source or
+reader after success, a stale receipt, a crash before the receipt, step 8's
+`mac-check` during the switch, a pending manual entry and an interrupted
+later restore. The purge controls cover a clean report with a reader marker,
+a changed cache version and registration, and an unverified switch.
 """
 from __future__ import annotations
 
@@ -252,7 +253,7 @@ def source_digest(path: str) -> str:
 
 def build_home(home: str, marketplace: str, ravel: str = "off", hooks: str = "disabled") -> None:
     """The fixture HOME. ravel is off, absent-key or absent-file; hooks is
-    disabled, enabled or absent. The defaults are the layout after the preludes."""
+    disabled, enabled or absent. The defaults are the layout after native-off and the hooks installation."""
     settings = {"enabledPlugins": {"grove@linkuistics": True, "context7@claude-plugins-official": True},
                 "theme": "dark"}
     if hooks != "absent":
@@ -293,20 +294,21 @@ def gate_command(step: str, name: str) -> dict:
 
 KNOWN_MARKETPLACES = ".claude/plugins/known_marketplaces.json"
 INSTALLED_PLUGINS = ".claude/plugins/installed_plugins.json"
-# The serial switch's write set and its restore order: the Ravel settings first.
-SERIAL_WRITES = ((".claude/skills/grove", "entry"), (".codex/skills/grove", "entry"),
-                 (".claude/settings.json", "file"), (KNOWN_MARKETPLACES, "file"), (INSTALLED_PLUGINS, "file"),
-                 (".config/ravel/settings.json", "file"))
-SERIAL_RESTORE = (".config/ravel/settings.json", KNOWN_MARKETPLACES, INSTALLED_PLUGINS, ".claude/settings.json",
+# The switch's write set, with the values that it sets, and its restore order: the Ravel settings first.
+SWITCH_WRITES = ((".claude/skills/grove", "entry", None), (".codex/skills/grove", "entry", None),
+                 (".claude/settings.json", "file", [{"key": SUPERSEDED_PLUGIN, "value": False},
+                                                    {"key": HOOKS_PLUGIN, "value": True}]),
+                 (KNOWN_MARKETPLACES, "file", None), (INSTALLED_PLUGINS, "file", None),
+                 (".config/ravel/settings.json", "file", [{"key": ["skills"], "value": SWITCHED}]))
+SWITCH_RESTORE = (".config/ravel/settings.json", KNOWN_MARKETPLACES, INSTALLED_PLUGINS, ".claude/settings.json",
                   ".claude/skills/grove", ".codex/skills/grove")
 
 
-def switch_fields(program: str, home: str) -> dict:
-    """The plan's switch section for HOME: the whole write set with its originals, the expected
+def home_fields(program: str, home: str) -> dict:
+    """The plan fields that depend on HOME: the whole write set with its originals, the expected
     inventories, the command inputs by content, the delivery assertions and the restore order.
 
-    The originals and the inventories depend on HOME, because installed_plugins.json names
-    absolute paths, so each case of the serial switch computes its own section.
+    installed_plugins.json names absolute paths, so each case computes these fields for its own HOME.
     """
     def program_line(command: str, rel: str) -> str:
         return subprocess.run([PY, "-I", program, command, os.path.join(home, rel)],
@@ -320,9 +322,15 @@ def switch_fields(program: str, home: str) -> dict:
         names = sorted(n for n in os.listdir(os.path.join(home, rel)) if n not in drop)
         return {"root": rel, "entries": {n: program_line("identity", f"{rel}/{n}") for n in names}}
 
+    def write_of(rel: str, kind: str, values) -> dict:
+        w = {"path": rel, "type": kind, "original": original(rel)}
+        if values:
+            w["set"] = values
+        return w
+
     return {
-        "writes": [{"path": rel, "type": kind, "original": original(rel)} for rel, kind in SERIAL_WRITES],
-        "restore": list(SERIAL_RESTORE),
+        "writes": [write_of(rel, kind, values) for rel, kind, values in SWITCH_WRITES],
+        "restore": list(SWITCH_RESTORE),
         "inventory": {"before": [root(".claude/skills"), root(".codex/skills")],
                       "after": [root(".claude/skills", ["grove"]), root(".codex/skills", ["grove"])]},
         "inputs": [{"role": "program", "path": "$program", "digest": digest_file(program)},
@@ -348,6 +356,7 @@ def switch_fields(program: str, home: str) -> dict:
 
 
 def build_plan(program: str, out: str) -> str:
+    """The fixture plan, with the fields of a HOME before the hooks installation, as each case starts."""
     # The retained staging HOME, with its own .codex tree, and the candidate keg.
     os.makedirs(os.path.join(out, "staging-home", ".codex"), exist_ok=True)
     os.makedirs(os.path.join(out, "candidate-keg"), exist_ok=True)
@@ -356,35 +365,15 @@ def build_plan(program: str, out: str) -> str:
     for folder in (probe, prefix):
         if os.path.exists(folder):
             shutil.rmtree(folder)
-    build_home(probe, build_prefix(prefix))
+    build_home(probe, build_prefix(prefix), hooks="absent")
     sources = {sid: {"formula": f"linkuistics/taps/{name}",
                      "resourceDigest": source_digest(os.path.join(prefix, "share/ravel/skills", sid))}
                for name, (_, ids) in KEGS.items() for sid in ids}
-
-    def ident(rel):
-        return subprocess.run([PY, "-I", program, "identity", os.path.join(probe, rel)],
-                              capture_output=True, text=True, check=True).stdout.strip()
-
     plan = {
-        "schema": "owner-switch-plan/1",
+        "schema": "owner-switch-plan/2",
         "state": STATE,
         "manual": MANUAL,
-        "parts": [
-            {"kind": "entry", "path": ".claude/skills/grove", "identity": ident(".claude/skills/grove")},
-            {"kind": "entry", "path": ".codex/skills/grove", "identity": ident(".codex/skills/grove")},
-            {"kind": "file", "path": ".claude/settings.json", "cells": [
-                {"key": SUPERSEDED_PLUGIN, "earlier": True, "switched": False},
-                {"key": HOOKS_PLUGIN, "earlier": False, "switched": True},
-            ]},
-            {"kind": "file", "path": ".config/ravel/settings.json", "cells": [
-                {"key": ["skills"], "earlier": OFF, "switched": SWITCHED},
-            ]},
-        ],
-        "outside": [
-            {"root": ".codex/skills", "entries": {"codebase-memory": ident(".codex/skills/codebase-memory")}},
-            {"root": ".claude/skills", "entries": {}},
-            {"path": ".claude/plugins/cache/writing-hooks", "identity": ident(".claude/plugins/cache/writing-hooks")},
-        ],
+        **home_fields(program, probe),
         "baseline": {"name": "baseline", "argv": fixture_command("baseline")},
         "gates": {"4": [gate_command("4", "grove-release")], "5": [gate_command("5", "skill-formulae")],
                   "6": [gate_command("6", "resolved-sources")], "7": [gate_command("7", "reader-evidence")]},
@@ -398,13 +387,6 @@ def build_plan(program: str, out: str) -> str:
         "native_probe": [{"name": "probe-native", "argv": fixture_command("probe-native")}],
         "mac_check": {"name": "mac-check", "argv": fixture_command("mac-check")},
     }
-    # The serial switch starts before the hooks installation, so its fixture HOME lacks the plugin.
-    serial = os.path.join(out, "plan-home-serial")
-    if os.path.exists(serial):
-        shutil.rmtree(serial)
-    build_home(serial, os.path.join(prefix, "opt/grove"), hooks="absent")
-    plan["switch"] = switch_fields(program, serial)
-    shutil.rmtree(serial)
     shutil.rmtree(probe)
     shutil.rmtree(prefix)
     path = os.path.join(out, "plan.json")
@@ -414,7 +396,7 @@ def build_plan(program: str, out: str) -> str:
     return path
 
 
-# --- fixture commands, the hook, the holder and the harness ----------------------
+# --- fixture commands, the hook and the harness ----------------------------------
 
 def case_root() -> str:
     return os.path.dirname(os.environ["OWNER_SWITCH_HOME"])
@@ -570,8 +552,6 @@ def cmd_hook(point: str) -> int:
             subprocess.run(["/usr/bin/xattr", "-w", "user.fault", "1", path], check=True)
         elif do == "acl":
             subprocess.run(["/bin/chmod", "+a", "everyone allow read", path], check=True)
-        elif do == "create":
-            os.makedirs(path, exist_ok=True)
         elif do == "touch":
             write(path, action.get("text", ""))
         elif do == "append-glob":
@@ -579,12 +559,6 @@ def cmd_hook(point: str) -> int:
             for p in glob.glob(path):
                 with open(p, "a") as f:
                     f.write("changed\n")
-        elif do == "modify-entry":
-            with open(os.path.join(path, "SKILL.md"), "a") as f:
-                f.write("changed\n")
-        elif do == "retarget":
-            os.remove(path)
-            os.symlink("/elsewhere", path)
         elif do == "spawn-tool":
             # A tool process outside the session, which the hook leaves behind.
             p = subprocess.Popen(action["argv"], executable=action.get("executable"),
@@ -597,41 +571,11 @@ def cmd_hook(point: str) -> int:
             save(request + ".tmp", action["argv"])
             os.rename(request + ".tmp", request)
             wait_for(request + ".ack")
-        elif do == "open-fd":
-            slot = os.path.join(root, f"slot-{action['slot']}")
-            p = subprocess.Popen([PY, "-I", SELF, "holder", path, slot], start_new_session=True,
-                                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                                 stderr=subprocess.DEVNULL)
-            record_pid(root, p.pid)
-            wait_for(slot + ".ready")
-        elif do == "fd-write":
-            fd_write(os.path.join(root, f"slot-{action['slot']}"), action["key"], action.get("value"))
+        elif do == "eleventh-source":
+            add_eleventh_source(os.path.join(root, "prefix"))
         else:
             raise SystemExit(f"unknown action {do}")
     return 99 if crash else (1 if failing else 0)
-
-
-def fd_write(slot: str, key: list, value) -> None:
-    save(slot + ".go.tmp", {"key": key, "value": value})
-    os.rename(slot + ".go.tmp", slot + ".go")
-    wait_for(slot + ".done")
-
-
-def cmd_holder(path: str, slot: str) -> int:
-    """Hold a descriptor opened now, and write through it when asked."""
-    fd = os.open(path, os.O_RDWR)
-    open(slot + ".ready", "w").close()
-    wait_for(slot + ".go", 600)
-    request = load(slot + ".go", {})
-    size = os.fstat(fd).st_size
-    obj = json.loads(os.pread(fd, size, 0).decode())
-    set_key(obj, request["key"], request["value"])
-    data = (json.dumps(obj, indent=2) + "\n").encode()
-    os.ftruncate(fd, 0)
-    os.pwrite(fd, data, 0)
-    os.close(fd)
-    open(slot + ".done", "w").close()
-    return 0
 
 
 def cmd_stub_brew(argv: list) -> int:
@@ -853,7 +797,7 @@ def clean_env() -> dict:
 
 
 class Case:
-    def __init__(self, rehearsal, name: str, control=None, rehearsed=True, ravel="off", hooks="disabled"):
+    def __init__(self, rehearsal, name: str, control=None, ravel="off", hooks="disabled"):
         self.r = rehearsal
         self.name = name
         self.root = os.path.join(rehearsal.out, "cases", name)
@@ -863,8 +807,6 @@ class Case:
         self.marketplace = build_prefix(os.path.join(self.root, "prefix"))
         build_home(self.home, self.marketplace, ravel, hooks)
         self.set_control(control or {})
-        if rehearsed:
-            self.rehearse_record(rehearsal.plan_digest, rehearsal.program_digest)
         self.outputs = []
         self.runs = []
 
@@ -879,15 +821,6 @@ class Case:
         """The Claude Code commands of one run, counted by kind."""
         return self.runs[run]["claude"]
 
-    def rehearse_record(self, plan_digest: str, program_digest: str, settings_writes: bool = True) -> None:
-        folder = os.path.join(self.home, STATE, "rehearsals")
-        os.makedirs(folder, exist_ok=True)
-        record = {"schema": "owner-switch-rehearsal/1", "passed": True,
-                  "plan_digest": plan_digest, "program_digest": program_digest}
-        if settings_writes:
-            record["settings_writes"] = {"passed": True, "claude_version": FIXTURE_CLAUDE}
-        save(os.path.join(folder, f"fixture-{plan_digest[:8]}-{program_digest[:8]}.json"), record)
-
     def set_control(self, control: dict) -> None:
         save(os.path.join(self.root, "control.json"), control)
         for name in ("fired.json", "failed.json"):
@@ -895,55 +828,30 @@ class Case:
             if os.path.exists(p):
                 os.remove(p)
 
-    def run(self, program=None, plan=None, dry=False, env=None, via=None) -> tuple:
-        """Run the switch under the fixture harness process. VIA names launchers that become its ancestors."""
-        args = [PY, "-I", program or self.r.program, "run", "--plan", plan or self.r.plan, "--home", self.home]
-        if dry:
-            args.append("--dry-run")
-        # A Claude Code location variable or CODEX_HOME in the environment
-        # must not reach a command: each fixture command and the stub refuse
-        # it, and so does a staging launch.
-        env = dict(clean_env(), OWNER_SWITCH_REHEARSAL_HOOK=self.r.hook,
-                   PATH=self.r.stubs + os.pathsep + os.environ.get("PATH", ""),
-                   CLAUDE_CONFIG_DIR=os.path.join(self.root, "elsewhere"),
-                   CODEX_HOME=os.path.join(self.root, "elsewhere", ".codex"),
-                   # The stub ravel refuses every RAVEL_* name, so no resolution may inherit it.
-                   RAVEL_SKILL_DIRECTORIES=os.path.join(self.root, "elsewhere"),
-                   # The inspection recognises only the fixture executables, which need PYTHONHOME.
-                   OWNER_SWITCH_REHEARSAL_SCOPE=self.r.fixture_bin, PYTHONHOME=sys.base_prefix, **(env or {}))
-        before = len(self.claude_calls())
-        result = subprocess.run([PY, "-I", SELF, "harness", HARNESS_MARK, self.root, "--"] + (via or []) + args,
-                                env=env, capture_output=True, text=True, timeout=300)
-        out = result.stdout + result.stderr
-        self.outputs.append(out)
-        counts = {}
-        for call in self.claude_calls()[before:]:
-            words = call.split()
-            kind = " ".join(words[:3] if words[1:2] == ["marketplace"] else words[:2])
-            counts[kind] = counts.get(kind, 0) + 1
-        self.runs.append({"exit": result.returncode, "claude": counts})
-        with open(os.path.join(self.root, "runs.log"), "a") as f:
-            f.write(f"$ run (exit {result.returncode})\n{out}\n")
-        return result.returncode, out
-
     def serial_plan(self, mutate=None) -> str:
-        """The fixture plan with the switch section of this case's HOME, as `self.serial`."""
+        """The fixture plan with the fields of this case's HOME, as `self.serial`."""
         plan = load(self.r.plan, {})
-        plan["switch"] = switch_fields(self.r.program, self.home)
+        plan.update(home_fields(self.r.program, self.home))
         if mutate:
             mutate(plan)
         self.serial = os.path.join(self.root, "serial-plan.json")
         save_json(self.serial, plan)
         return self.serial
 
-    def invoke(self, argv: list, via=None) -> tuple:
-        """Run ARGV under the fixture harness process, with the hook, the stubs and the fixture scope."""
+    def invoke(self, argv: list, via=None, env=None) -> tuple:
+        """Run ARGV under the fixture harness process, with the hook, the stubs and the fixture scope.
+
+        A Claude Code location variable, CODEX_HOME and a RAVEL_* name in the
+        environment must not reach a command: each fixture command and the
+        stub refuse them, and so does a staging launch. VIA names launchers
+        that become ancestors of ARGV.
+        """
         env = dict(clean_env(), OWNER_SWITCH_REHEARSAL_HOOK=self.r.hook,
                    PATH=self.r.stubs + os.pathsep + os.environ.get("PATH", ""),
                    CLAUDE_CONFIG_DIR=os.path.join(self.root, "elsewhere"),
                    CODEX_HOME=os.path.join(self.root, "elsewhere", ".codex"),
                    RAVEL_SKILL_DIRECTORIES=os.path.join(self.root, "elsewhere"),
-                   OWNER_SWITCH_REHEARSAL_SCOPE=self.r.fixture_bin, PYTHONHOME=sys.base_prefix)
+                   OWNER_SWITCH_REHEARSAL_SCOPE=self.r.fixture_bin, PYTHONHOME=sys.base_prefix, **(env or {}))
         before = len(self.claude_calls())
         result = subprocess.run([PY, "-I", SELF, "harness", HARNESS_MARK, self.root, "--"] + (via or []) + argv,
                                 env=env, capture_output=True, text=True, timeout=300)
@@ -966,9 +874,9 @@ class Case:
         path = re.search(r"^attempt note: (.+)$", out, re.M).group(1)
         return dict(load(path, {}), _path=path)
 
-    def switch(self, note: dict, via=None) -> tuple:
-        return self.invoke([PY, "-I", self.r.program, "switch", "--plan", self.serial, "--home", self.home,
-                            "--attempt", note["_path"]], via=via)
+    def switch(self, note: dict, via=None, env=None, plan=None) -> tuple:
+        return self.invoke([PY, "-I", self.r.program, "switch", "--plan", plan or self.serial, "--home", self.home,
+                            "--attempt", note["_path"]], via=via, env=env)
 
     def restore(self, backup: str, note: dict, home=None, extra=(), via=None) -> tuple:
         return self.invoke([PY, "-I", self.r.program, "restore", "--backup", backup, "--attempt", note["_path"],
@@ -1009,23 +917,6 @@ class Case:
             f.write(f"$ processes {' '.join(extra)} (exit {result.returncode})\n{out}\n")
         return result.returncode, out
 
-    def entry(self, command: str, *extra: str, program=None) -> tuple:
-        """Run one of the owner's entries under the fixture harness process."""
-        args = [PY, "-I", program or self.r.program, command, "--plan", self.r.plan, "--home", self.home,
-                *extra]
-        env = dict(clean_env(), PATH=self.r.stubs + os.pathsep + os.environ.get("PATH", ""),
-                   CLAUDE_CONFIG_DIR=os.path.join(self.root, "elsewhere"),
-                   CODEX_HOME=os.path.join(self.root, "elsewhere", ".codex"),
-                   RAVEL_SKILL_DIRECTORIES=os.path.join(self.root, "elsewhere"),
-                   OWNER_SWITCH_REHEARSAL_SCOPE=self.r.fixture_bin, PYTHONHOME=sys.base_prefix)
-        result = subprocess.run([PY, "-I", SELF, "harness", HARNESS_MARK, self.root, "--"] + args,
-                                env=env, capture_output=True, text=True, timeout=300)
-        out = result.stdout + result.stderr
-        self.outputs.append(out)
-        with open(os.path.join(self.root, "runs.log"), "a") as f:
-            f.write(f"$ {command} {' '.join(extra)} (exit {result.returncode})\n{out}\n")
-        return result.returncode, out
-
     def link_checker(self) -> None:
         lib = os.path.join(self.home, ".local/lib/machine-config")
         if not os.path.lexists(lib):
@@ -1062,28 +953,16 @@ class Case:
         with open(os.path.join(self.home, MANUAL)) as f:
             return f.read()
 
-    def state(self) -> dict:
-        result = subprocess.run([PY, "-I", self.r.program, "state", "--json", "--plan", self.r.plan,
-                                 "--home", self.home], capture_output=True, text=True, env=clean_env())
-        if result.returncode != 0:
-            raise AssertionError(f"state failed: {result.stdout}{result.stderr}")
-        return json.loads(result.stdout)
-
     def json(self, rel: str) -> dict:
         return load(os.path.join(self.home, rel), None)
 
-    def receipts(self) -> int:
-        with open(os.path.join(self.home, MANUAL)) as f:
-            return f.read().count("<!-- owner-switch-receipt ")
-
     def snapshot(self) -> dict:
-        """Every entry of the HOME, except the run logs and the owner's prepared copies.
+        """Every entry of the HOME, except the owner's prepared copies and the checker's folder.
 
-        A stopped run writes its run log, and `mac-check` reads the prepared
-        copies. Neither is part of the layout that a stop leaves unchanged.
+        `mac-check` reads both. Neither is part of the layout that a refusal leaves unchanged.
         """
         out = {}
-        skip = (os.path.join(STATE, "runs"), os.path.join(STATE, "prepared"), ".local/lib")
+        skip = (os.path.join(STATE, "prepared"), ".local/lib")
         for folder, dirs, files in os.walk(self.home):
             for name in sorted(dirs + files):
                 p = os.path.join(folder, name)
@@ -1091,7 +970,7 @@ class Case:
                 if any(rel == s or rel.startswith(s + "/") for s in skip):
                     continue
                 if os.path.isdir(p) and not os.path.islink(p) and any(s.startswith(rel + "/") for s in skip):
-                    # A folder above a skipped path, which a run log can create.
+                    # A folder above a skipped path.
                     continue
                 if os.path.islink(p):
                     out[rel] = "link:" + os.readlink(p)
@@ -1134,14 +1013,6 @@ def expect_exit(got: tuple, code: int, text: str = "") -> str:
     if text:
         expect(re.search(text, out) is not None, f"expected {text!r} in output: {out[-1500:]}")
     return out
-
-
-def run_to_complete(case: Case) -> None:
-    expect_exit(case.run(), 0, "result: complete")
-    st = case.state()
-    expect(st["state"] == "complete", f"expected complete, got {st['state']}")
-    expect(case.receipts() == 1, f"expected one receipt in the manual, got {case.receipts()}")
-    expect(not st["flagged"], f"unexpected flagged copies {st['flagged']}")
 
 
 class Rehearsal:
@@ -1228,315 +1099,6 @@ def program_module(path: str):
 
 SETTINGS = ".claude/settings.json"
 RAVEL = ".config/ravel/settings.json"
-
-
-def c_dry_run(case):
-    before = case.snapshot()
-    out = expect_exit(case.run(dry=True), 0, "switch, in order")
-    expect("inverse, in order" in out and "rehearsed: yes" in out, "the dry run omits the inverse")
-    expect(case.snapshot() == before, "the dry run changed the layout")
-    expect(case.points() == [], "the dry run reached a hook point")
-
-
-def c_switch(case):
-    path = os.path.join(case.home, SETTINGS)
-    os.chmod(path, 0o640)
-    subprocess.run(["/usr/bin/xattr", "-w", "user.owner", "kept", path], check=True)
-    subprocess.run(["/bin/chmod", "+a", "everyone allow read", path], check=True)
-    run_to_complete(case)
-    acl = subprocess.run(["/bin/ls", "-le", path], capture_output=True, text=True).stdout
-    expect("everyone allow read" in acl, "the published file lost its ACL")
-    expect(oct(os.stat(path).st_mode & 0o777) == "0o640", "the published file lost its mode")
-    xattr = subprocess.run(["/usr/bin/xattr", "-p", "user.owner", path], capture_output=True, text=True)
-    expect(xattr.stdout.strip() == "kept", "the published file lost its extended attribute")
-    expect(case.json(SETTINGS)["theme"] == "dark", "the switch lost another key")
-    before = case.snapshot()
-    expect_exit(case.run(), 0, "state: complete")
-    expect(case.snapshot() == before and case.receipts() == 1, "a complete run changed the layout")
-
-
-def c_no_rehearsal(case):
-    expect_exit(case.run(), 3, "no passing rehearsal record")
-    st = case.state()
-    expect(st["state"] == "native" and st["backup"] is None, "step 8 wrote a backup without a rehearsal")
-
-
-def c_changed_program(case):
-    other = os.path.join(case.root, "program-changed.py")
-    with open(case.r.program) as f, open(other, "w") as g:
-        g.write(f.read() + "\n# changed\n")
-    expect_exit(case.run(program=other), 3, "no passing rehearsal record")
-    expect(case.state()["backup"] is None, "a changed program wrote a backup")
-
-
-def c_changed_plan(case):
-    plan = load(case.r.plan, {})
-    plan["manual"] = "notes/other.md"
-    other = os.path.join(case.root, "plan-changed.json")
-    save(other, plan)
-    expect_exit(case.run(plan=other), 3, "no passing rehearsal record")
-
-
-def c_continuation_copy(case):
-    case.set_control({"actions": [{"point": "switch-after-part:1", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    other = os.path.join(case.root, "program-changed.py")
-    with open(case.r.program) as f, open(other, "w") as g:
-        g.write(f.read() + "\n# changed\n")
-    out = expect_exit(case.run(program=other), 0, "continuation: running the program copy")
-    expect(f"program: {case.r.program_digest}" in out, "the continuation did not run the backup's copy")
-
-
-def crash_then_complete(point: str):
-    def fn(case):
-        case.set_control({"actions": [{"point": point, "do": "crash"}]})
-        expect_exit(case.run(), 99)
-        middle = case.state()
-        if point == "before-backup-rename":
-            expect(middle["incomplete_backups"], "no incomplete backup after a crash before its rename")
-            expect(middle["backup"] is None, "an incomplete backup counted as complete")
-        run_to_complete(case)
-        return f"after the crash: {middle['state']}"
-    return fn
-
-
-def inverse_crash_then_complete(point: str):
-    def fn(case):
-        case.set_control({"fail": {"probe-switched": 1}, "actions": [{"point": point, "do": "crash"}]})
-        expect_exit(case.run(), 99)
-        middle = case.state()
-        run_to_complete(case)
-        return f"after the crash: {middle['state']}"
-    return fn
-
-
-def c_probe_fails(case):
-    case.set_control({"fail": {"probe-switched": 1}})
-    expect_exit(case.run(), 3, "the native probe passed")
-    st = case.state()
-    expect(st["state"] == "native" and st["records"][-1] == "inverse-ended", f"unexpected {st['state']}")
-    expect(case.receipts() == 0, "a failed probe copied a receipt")
-    run_to_complete(case)
-
-
-def erasable(rel: str) -> str:
-    """A key outside the plan's cells that the fixture file holds."""
-    return "theme" if rel == SETTINGS else "policy"
-
-
-def write_before_exchange(rel: str, index: int, do: str, phase: str = "switch"):
-    def fn(case):
-        action = {"point": f"{phase}-before-exchange:{index}", "do": do, "path": rel,
-                  "key": [erasable(rel)] if do == "erase-key" else ["fault"], "value": 1}
-        control = {"actions": [action]}
-        if phase == "inverse":
-            control["fail"] = {"probe-switched": 1}
-        case.set_control(control)
-        expect_exit(case.run(), 3)
-        st = case.state()
-        expect(st["flagged"], "the outside write left no flagged kept copy")
-        live = case.json(rel)
-        if do == "erase-key":
-            expect(erasable(rel) in live, "the outside erasure before the exchange reached the live file")
-        else:
-            expect("fault" not in live, "the outside write before the exchange is in the live file")
-        out = expect_exit(case.run(), 3, "flagged")
-        expect("a kept copy is flagged" in out, "step 8 did not stop while a copy is flagged")
-        return f"state {case.state()['state']}"
-    return fn
-
-
-def write_after_exchange(rel: str, index: int, phase: str = "switch"):
-    def fn(case):
-        control = {"actions": [{"point": f"{phase}-after-part:{index}", "do": "write-key", "path": rel,
-                                "key": ["fault"], "value": 1}]}
-        if phase == "inverse":
-            control["fail"] = {"probe-switched": 1}
-        case.set_control(control)
-        got = case.run()
-        expect(case.json(rel).get("fault") == 1, "the write after the exchange is not in the live file")
-        expect(not case.state()["flagged"], "a write after the exchange flagged a copy")
-        if phase == "switch":
-            expect(got[0] == 0, f"the switch did not complete: {got[1][-800:]}")
-    return fn
-
-
-def descriptor_write(rel: str, index: int, when: str):
-    def fn(case):
-        actions = [{"point": f"switch-read:{index}", "do": "open-fd", "path": rel, "slot": "a"}]
-        if when == "inside":
-            actions.append({"point": f"switch-after-part:{index}", "do": "fd-write", "slot": "a",
-                            "key": ["fault"], "value": 1})
-        case.set_control({"actions": actions})
-        got = case.run()
-        if when == "inside":
-            expect(got[0] == 3 and "conflict" in got[1], "a descriptor write did not stop the switch")
-        else:
-            expect(got[0] == 0, f"the switch did not complete: {got[1][-800:]}")
-            fd_write(os.path.join(case.root, "slot-a"), ["fault"], 1)
-        st = case.state()
-        expect(st["flagged"], "the descriptor write left no flagged copy")
-        expect("fault" not in case.json(rel), "the descriptor write reached the live file")
-        out = case.run()[1]
-        expect("flagged: kept copy" in out, "a later run did not report the flagged copy")
-    return fn
-
-
-def metadata_change(do: str):
-    def fn(case):
-        case.set_control({"actions": [{"point": "switch-read:2", "do": do, "path": SETTINGS, "mode": "600"}]})
-        expect_exit(case.run(), 3, "conflict")
-        expect(case.state()["flagged"], "a metadata change left no flagged copy")
-    return fn
-
-
-def c_acl_denies_exchange(case):
-    path = os.path.join(case.home, SETTINGS)
-    subprocess.run(["/bin/chmod", "+a", "everyone deny delete", path], check=True)
-    with open(path, "rb") as f:
-        before = f.read()
-    expect_exit(case.run(), 3, "exchange failed")
-    st = case.state()
-    expect(st["state"] == "native" and st["records"][-1] == "inverse-ended", f"unexpected {st['state']}")
-    with open(path, "rb") as f:
-        expect(f.read() == before, "a refused exchange changed the file")
-
-
-def c_third_before(case):
-    write_in_place(os.path.join(case.home, SETTINGS), SUPERSEDED_PLUGIN, "other")
-    expect_exit(case.run(), 3, "classification")
-    expect(case.state()["state"] == "changed", "a third value did not read as changed")
-
-
-def c_third_after_receipt(case):
-    run_to_complete(case)
-    write_in_place(os.path.join(case.home, RAVEL), ["skills"], {"other": True})
-    before = case.snapshot()
-    expect_exit(case.run(), 3, "drifted")
-    expect(case.state()["state"] == "drifted" and case.snapshot() == before, "a drifted run changed the layout")
-
-
-def c_third_before_receipt(case):
-    case.set_control({"actions": [{"point": "before-record:receipt", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    write_in_place(os.path.join(case.home, RAVEL), ["skills"], {"other": True})
-    expect_exit(case.run(), 3, "drifted")
-
-
-def c_switched_while_open(case):
-    case.set_control({"actions": [{"point": "switch-after-part:1", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    path = os.path.join(case.home, SETTINGS)
-    write_in_place(path, SUPERSEDED_PLUGIN, False)
-    write_in_place(path, HOOKS_PLUGIN, True)
-    out = expect_exit(case.run(), 0, "result: complete")
-    first = out.split("record: inverse-ended")[0]
-    expect("replaced: part 2 .claude/settings.json enabledPlugins.grove@linkuistics: false -> true" in first,
-           "the resumed inverse did not list the switched value that it reset")
-
-
-def c_switched_after_inverse(case):
-    case.set_control({"fail": {"probe-switched": 1}})
-    expect_exit(case.run(), 3)
-    write_in_place(os.path.join(case.home, RAVEL), ["skills"], SWITCHED)
-    expect_exit(case.run(), 3, "classification")
-
-
-def entry_change(do: str, rel: str, when: str):
-    def fn(case):
-        if when == "before":
-            case.set_control({"actions": [{"point": "start", "do": do, "path": rel}]})
-            expect_exit(case.run(), 3, "classification")
-            expect(case.state()["state"] == "changed", "a changed entry did not read as changed")
-            return
-        run_to_complete(case)
-        backup = case.state()["backup"]
-        target = os.path.join(backup, "retained", rel) if do != "create" else os.path.join(case.home, rel)
-        if do == "modify-entry":
-            with open(os.path.join(target, "SKILL.md"), "a") as f:
-                f.write("changed\n")
-        elif do == "retarget":
-            os.remove(target)
-            os.symlink("/elsewhere", target)
-        else:
-            os.makedirs(target)
-        expect_exit(case.run(), 3, "drifted")
-    return fn
-
-
-def c_occupied_after_read(case):
-    case.set_control({"fail": {"probe-switched": 1},
-                      "actions": [{"point": "inverse-read:1", "do": "create", "path": ".codex/skills/grove"}]})
-    expect_exit(case.run(), 3, "move back failed")
-    st = case.state()
-    expect(os.path.isdir(os.path.join(case.home, ".codex/skills/grove")), "the occupying entry moved")
-    expect(os.path.lexists(os.path.join(st["backup"], "retained/.codex/skills/grove")),
-           "the retained entry moved")
-    expect(st["state"] == "drifted", f"expected drifted, got {st['state']}")
-
-
-def c_step14_resume(case):
-    case.set_control({"actions": [{"point": "step-14", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    expect(case.state()["state"] == "complete" and case.receipts() == 0, "the crash point is not before step 14")
-    run_to_complete(case)
-
-
-def c_outside_inside_run(case):
-    case.set_control({"actions": [{"point": "after-record:receipt", "do": "create",
-                                   "path": ".codex/skills/new-entry"}]})
-    expect_exit(case.run(), 3, "changed outside the switch set")
-    st = case.state()
-    expect(case.receipts() == 0 and st["records"][-1] == "inverse-ended", "a changed outside entry was accepted")
-
-
-def c_outside_after_stop(case):
-    case.set_control({"actions": [{"point": "step-14", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    os.makedirs(os.path.join(case.home, ".claude/skills/new-entry"))
-    expect_exit(case.run(), 3, "changed outside the switch set")
-    expect(case.receipts() == 0, "the complete continuation copied a receipt with a changed outside entry")
-
-
-def c_outside_platform_subtree(case):
-    """A probe's change inside each platform subtree passes. outside-entry-inside-run fails a sibling."""
-    case.set_control({"actions": [
-        {"point": "after-record:receipt", "do": "create", "path": ".claude/skills/synced/account-1/docs"},
-        {"point": "after-record:receipt", "do": "create", "path": ".codex/skills/.system/imagegen"}]})
-    run_to_complete(case)
-
-
-def c_outside_platform_link(case):
-    """A link in place of a platform subtree is compared like any other child."""
-    case.set_control({"actions": [{"point": "step-14", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    os.makedirs(os.path.join(case.home, ".elsewhere/account-1/grove"))
-    os.symlink("../../.elsewhere", os.path.join(case.home, ".claude/skills/synced"))
-    expect_exit(case.run(), 3, "changed outside the switch set: .claude/skills/synced")
-    expect(case.receipts() == 0, "the complete continuation copied a receipt with a link in place of synced")
-
-
-def c_cell_after_receipt_no_copy(case):
-    case.set_control({"actions": [{"point": "step-14", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    write_in_place(os.path.join(case.home, SETTINGS), SUPERSEDED_PLUGIN, True)
-    expect_exit(case.run(), 3, "drifted")
-    expect(case.receipts() == 0, "a run copied a receipt for a layout that is not switched")
-
-
-def interval_closed(do: str, argv=None):
-    def fn(case):
-        action = {"point": "gate:step 9", "do": do}
-        if argv:
-            action["argv"] = argv
-        case.set_control({"actions": [action]})
-        expect_exit(case.run(), 3, "before step 9")
-        st = case.state()
-        expect(all(p["status"] == "earlier" for p in st["parts"]), "a part changed inside a closed interval")
-        case.kill()
-        run_to_complete(case)
-        return f"after the stop: {st['state']}"
-    return fn
 
 
 # --- the narrow process inspection ---------------------------------------------
@@ -1899,68 +1461,6 @@ def c_processes_probe_owned(case):
     return "only an exact PID, creation time, executable and HOME admit a probe-owned process"
 
 
-def c_tool_before_run(case):
-    pid = sleeper(case, "codex", "app-server", "daemon", "pid-update-loop", reparent=True)
-    before = case.snapshot()
-    out = expect_exit(case.run(), 3, "remains before step 1")
-    expect_reported(out, pid, "remaining", "Codex", "app-server daemon")
-    expect(case.snapshot() == before, "a refused step 1 changed the layout")
-    expect_alive([pid])
-
-
-def session_tool(spec: dict, text: str):
-    """A process of the fixture harness's session stops step 1 when it is one of the tools."""
-    def fn(case):
-        case.set_control({"session": [spec]})
-        time.sleep(0.3)
-        expect_exit(case.run(), 3, text)
-        expect(case.state()["backup"] is None, "a session tool did not stop step 1")
-    return fn
-
-
-def session_allowed(argv):
-    """A process of the session that is none of the tools needs no exemption."""
-    def fn(case):
-        case.set_control({"session": [[fixture(case, a) if a in FIXTURE_NAMES else a for a in argv]]})
-        time.sleep(0.3)
-        run_to_complete(case)
-    return fn
-
-
-def c_mcp_server_tool_child(case):
-    """No descendant exemption: a tool under an MCP server of the session stops step 1."""
-    server = fixture(case, "lib/server-with-child.js")
-    ready = os.path.join(case.root, "server-ready")
-    write(server, child(case, "codex") + f"open({ready!r}, 'w').close(); " + SLEEP + "\n")
-    case.set_control({"session": [[fixture(case, "node"), server]]})
-    # The harness starts the server beside the program, so the program waits for its child.
-    wait = (f"import os, subprocess, sys, time\nfor _ in range(200):\n    if os.path.exists({ready!r}): break\n"
-            "    time.sleep(0.05)\nsys.exit(subprocess.run(sys.argv[1:]).returncode)")
-    out = expect_exit(case.run(via=[PY, "-I", "-c", wait]), 3, "remains before step 1")
-    expect(re.search(r"remaining process \d+ \(parent \d+\) Codex", out) is not None, f"no Codex child: {out}")
-
-
-def c_finish_ancestors(case):
-    """The switch admits its exact Ravel driver and Claude Code harness ancestors."""
-    via = relay(case, "ravel") + relay(case, "share/claude/versions/2.1.319")
-    expect_exit(case.run(via=via), 0, "result: complete")
-    out = case.outputs[-1]
-    expect(re.search(r"admitted ancestor process \d+ .*Ravel", out) is not None, "no admitted Ravel ancestor")
-
-
-def c_plan_process_patterns(case):
-    """The plan holds no process, MCP or job pattern."""
-    old = {"session": {"harness": ["claude"], "mcp": []}, "watch": ["codex"],
-           "jobs": {"argv": ["/bin/launchctl", "list"], "patterns": ["mise"]}}
-    plans = {name: plan_copy(case, f"plan-{name}.json", lambda p, n=name: p.__setitem__(n, old[n]))
-             for name in old}
-    before = case.snapshot()
-    for name, other in plans.items():
-        expect_exit(case.run(plan=other), 3, f"the plan holds {name}: the narrow process inspection is built in")
-    expect(case.snapshot() == before, "a plan with patterns changed the layout")
-    return ", ".join(plans)
-
-
 def c_native_off_other_tool(case):
     """native-off refuses only another Ravel driver."""
     sleeper(case, "codex")
@@ -1979,10 +1479,7 @@ def c_native_off_ravel_title(case):
     expect(case.snapshot() == before, "native-off wrote beside a process titled ravel")
 
 
-def process_controls(r) -> list:
-    codex_child = {"argv": [os.path.join(r.fixture_bin, "codex"), "-c", SLEEP], "executable": None}
-    claude_child = {"argv": ["claude", "-c", SLEEP],
-                    "executable": os.path.join(r.fixture_bin, "share/claude/versions/2.1.319")}
+def process_controls() -> list:
     return [
         ("recognition-forms", c_recognition_forms, {}),
         ("processes-native", c_processes_native, {}),
@@ -1997,306 +1494,10 @@ def process_controls(r) -> list:
         ("processes-ancestors", c_processes_ancestors, {}),
         ("processes-descendant-harness", c_processes_descendant, {}),
         ("processes-probe-owned", c_processes_probe_owned, {}),
-        ("tool-before-run", c_tool_before_run, {}),
-        ("tool-later", interval_closed("spawn-tool", [os.path.join(r.fixture_bin, "grove"), "-c", SLEEP]), {}),
-        ("descendant-harness-before-run", session_tool(claude_child, r"remaining process \d+ .*Claude Code"), {}),
-        ("descendant-harness-later", interval_closed("spawn-in-session", codex_child), {}),
-        ("background-child-allowed", session_allowed(["/bin/sleep", "120"]), {}),
-        ("caffeinate-child-allowed", session_allowed(["caffeinate", "-c", SLEEP]), {}),
-        ("mcp-server-allowed", session_allowed(["node", os.path.join(r.fixture_bin, "lib/other-server.js")]), {}),
-        ("mcp-server-tool-child", c_mcp_server_tool_child, {}),
-        ("finish-ancestors-allowed", c_finish_ancestors, {}),
-        ("plan-process-patterns", c_plan_process_patterns, {}),
     ]
 
 
-def c_prepared_differs(case):
-    case.set_control({"actions": [{"point": "switch-after-part:1", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    plan = load(case.r.plan, {})
-    # The prepared plan lacks the Claude Code settings part. It keeps the Ravel
-    # settings part, because steps 4 and 6 draft the real settings from it.
-    plan["parts"] = [plan["parts"][0], plan["parts"][1], plan["parts"][3]]
-    other = os.path.join(case.root, "plan-changed.json")
-    save(other, plan)
-    out = expect_exit(case.run(plan=other), 3, "the prepared plan differs from the open run's plan")
-    expect("record: inverse-ended" in out, "the open run's plan did not apply to its inverse")
-    expect("no passing rehearsal record" in out, "the unrehearsed prepared plan passed step 8")
-
-
-# --- the preludes of step 3 -------------------------------------------------------
-
-def settings_folder(case) -> str:
-    return os.path.join(case.home, STATE, "settings")
-
-
-def settings_records(case) -> list:
-    folder = settings_folder(case)
-    if not os.path.isdir(folder):
-        return []
-    out = []
-    for name in sorted(os.listdir(folder)):
-        body = load(os.path.join(folder, name, "record.json"), None) if not name.startswith(".") else None
-        if body is not None:
-            body["_copy"] = os.path.join(folder, name, "copy")
-            out.append(body)
-    return out
-
-
-def skills_cell(case):
-    body = case.json(RAVEL)
-    if body is None:
-        return "absent-file"
-    return body.get("skills", "absent-key")
-
-
-def expect_installs(case, run: int, add: int, install: int) -> None:
-    got = case.commands(run)
-    expect(got.get("plugin marketplace add", 0) == add and got.get("plugin install", 0) == install,
-           f"run {run} ran {got}, not {add} registration and {install} installation")
-
-
-def expect_flag_holds(case, text: str = "flagged: ") -> None:
-    """The copy stays flagged: the state reports it, and the next run reports it and stops at step 8."""
-    st = case.state()
-    expect(st["flagged"], "no copy is flagged")
-    expect(st["backup"] is None, "a backup exists before the flagged copy was checked")
-    out = expect_exit(case.run(), 3, "a kept copy is flagged")
-    expect(text in out, f"the next run did not report the flagged copy: {out[-800:]}")
-    expect(case.state()["backup"] is None, "step 8 wrote a backup while a copy is flagged")
-
-
-def c_native_full(case):
-    before = skills_cell(case)
-    out = expect_exit(case.run(), 0, "result: complete")
-    expect("replaced: .config/ravel/settings.json skills: (absent" in out, "the native settings listed no replaced value")
-    records = [r for r in settings_records(case) if r["label"] == "native"]
-    if before == "absent-file":
-        expect(not records, "the creation of an absent file wrote a settings record")
-    else:
-        expect(len(records) == 1, f"expected one settings record, got {len(records)}")
-        expect(case.json(RAVEL)["policy"] == "config.rhai", "the native settings lost another key")
-    st = case.state()
-    expect(st["state"] == "complete" and not st["flagged"], f"unexpected {st['state']} {st['flagged']}")
-    return f"from {before}"
-
-
-def prelude_crash(point: str):
-    def fn(case):
-        case.set_control({"actions": [{"point": point, "do": "crash"}]})
-        expect_exit(case.run(), 99)
-        middle = skills_cell(case)
-        expect(middle in ("absent-file", "absent-key", OFF), f"the crash left skills {middle}")
-        out = expect_exit(case.run(), 0, "result: complete")
-        expect("state: native" in out, "the next run did not reach the native state")
-        expect(not case.state()["flagged"], "a crash flagged a copy")
-        return f"after the crash: skills {middle}, hooks {case.json(SETTINGS)['enabledPlugins'].get(HOOKS_ID, 'absent')}"
-    return fn
-
-
-def c_native_write_before_exchange(case):
-    case.set_control({"actions": [{"point": "native-read", "do": "write-key", "path": RAVEL,
-                                   "key": ["fault"], "value": 1}]})
-    expect_exit(case.run(), 3, "it is flagged")
-    expect("fault" not in case.json(RAVEL), "the outside write before the exchange is in the live file")
-    expect_flag_holds(case, "flagged: kept copy")
-
-
-def c_native_write_then_crash(case):
-    case.set_control({"actions": [{"point": "native-read", "do": "write-key", "path": RAVEL,
-                                   "key": ["fault"], "value": 1},
-                                  {"point": "native-exchanged", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    expect_flag_holds(case, "flagged: kept copy")
-
-
-def c_native_descriptor(case):
-    case.set_control({"actions": [{"point": "native-read", "do": "open-fd", "path": RAVEL, "slot": "a"},
-                                  {"point": "native-compared", "do": "fd-write", "slot": "a",
-                                   "key": ["fault"], "value": 1}]})
-    expect_exit(case.run(), 3, "a kept copy is flagged")
-    expect("fault" not in case.json(RAVEL), "the descriptor write reached the live file")
-    expect_flag_holds(case, "flagged: kept copy")
-
-
-def c_native_third(case):
-    write_in_place(os.path.join(case.home, RAVEL), ["skills"], {"other": True})
-    before = case.snapshot()
-    out = expect_exit(case.run(), 3, "classification")
-    expect("state: changed" in out and case.state()["state"] == "changed", "a third skills value did not read as changed")
-    expect(case.snapshot() == before, "the native settings changed a third value")
-    write_in_place(os.path.join(case.home, RAVEL), ["skills"], OFF)
-    out = expect_exit(case.run(), 0, "result: complete")
-    expect("state: native" in out, "the restored off value did not read as native")
-
-
-def c_native_erased_after_inverse(case):
-    case.set_control({"fail": {"probe-switched": 1}})
-    expect_exit(case.run(), 3, "the native probe passed")
-    write_in_place(os.path.join(case.home, RAVEL), ["skills"], None)
-    out = expect_exit(case.run(), 0, "result: complete")
-    expect("replaced: .config/ravel/settings.json skills: (absent) -> " in out, "the replaced value was not listed")
-    expect("state: native" in out, "the next run did not find the native state")
-
-
-def prelude_writer(point: str, interval: str):
-    def fn(case):
-        case.set_control({"actions": [{"point": point, "do": "spawn-tool",
-                                       "argv": [fixture(case, "codex"), "-c", SLEEP]}]})
-        before = case.snapshot()
-        expect_exit(case.run(), 3, f"before {interval}")
-        expect(case.snapshot() == before, f"a write ran inside the closed interval of {interval}")
-        case.kill()
-        run_to_complete(case)
-    return fn
-
-
-def c_hooks_full(case):
-    run_to_complete(case)
-    expect_installs(case, 0, 1, 1)
-    held = [r for r in settings_records(case) if r["kind"] == "held"]
-    expect(sorted(r["label"] for r in held) == ["install", "marketplace-add"], f"held records {held}")
-    expect(all(os.path.exists(r["_copy"]) for r in held), "a held copy of a command is gone")
-    expect(len([r for r in settings_records(case) if r["label"] == "hooks-disable"]) == 1,
-           "the disabling wrote no settings record")
-    return f"commands {case.commands(0)}"
-
-
-def c_hooks_after_registration(case):
-    case.set_control({"actions": [{"point": "hooks-before-held:install", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    expect_installs(case, 0, 1, 0)
-    out = expect_exit(case.run(), 0, "result: complete")
-    expect("state: native" in out, "the next run did not reach the native state")
-    expect_installs(case, 1, 0, 1)
-
-
-def c_hooks_held_crash(label: str):
-    def fn(case):
-        case.set_control({"actions": [{"point": f"hooks-held:{label}", "do": "crash"}]})
-        expect_exit(case.run(), 99)
-        expect_installs(case, 0, 1 if label == "install" else 0, 0)
-        out = expect_exit(case.run(), 0, "result: complete")
-        expect("erased: held link" in out, "the next run did not erase the held link")
-        expect("state: native" in out, "the next run did not reach the native state")
-        expect_installs(case, 1, 0 if label == "install" else 1, 1)
-        expect(not case.state()["flagged"], "an erased held link left a flagged copy")
-    return fn
-
-
-def c_hooks_write_in_interval(case):
-    case.set_control({"actions": [{"point": "stub:install:read", "do": "write-key", "path": SETTINGS,
-                                   "key": ["fault"], "value": 1}]})
-    expect_exit(case.run(), 3, "differs from its record; it is flagged")
-    expect("fault" not in case.json(SETTINGS), "the write inside the interval is in the live file")
-    expect_flag_holds(case, "flagged: held copy")
-
-
-def c_hooks_descriptor(case):
-    case.set_control({"actions": [{"point": "hooks-held:install", "do": "open-fd", "path": SETTINGS, "slot": "a"},
-                                  {"point": "hooks-compared:install", "do": "fd-write", "slot": "a",
-                                   "key": ["fault"], "value": 1}]})
-    expect_exit(case.run(), 3, "a kept copy is flagged")
-    expect("fault" not in case.json(SETTINGS), "the descriptor write reached the live file")
-    expect_flag_holds(case, "flagged: held copy")
-
-
-def c_hooks_third_before_held(case):
-    case.set_control({"actions": [{"point": "hooks-before-held:marketplace-add", "do": "write-key",
-                                   "path": SETTINGS, "key": HOOKS_PLUGIN, "value": "other"}]})
-    expect_exit(case.run(), 3, "classification")
-    expect_installs(case, 0, 0, 0)
-
-
-def hooks_metadata(do: str, when: str):
-    def fn(case):
-        path = os.path.join(case.home, SETTINGS)
-        if when == "initial":
-            if do == "xattr":
-                subprocess.run(["/usr/bin/xattr", "-w", "user.fault", "1", path], check=True)
-            else:
-                subprocess.run(["/bin/chmod", "+a", "everyone allow read", path], check=True)
-        else:
-            point = "hooks-before-held:marketplace-add" if when == "before-held" else "hooks-held:install"
-            case.set_control({"actions": [{"point": point, "do": do, "path": SETTINGS}]})
-        if when == "after-reading":
-            expect_exit(case.run(), 3, "differs from its record; it is flagged")
-            expect_flag_holds(case, "flagged: held copy")
-            return
-        expect_exit(case.run(), 3, "would drop")
-        expect_installs(case, 0, 0, 0)
-    return fn
-
-
-def c_hooks_in_place(case):
-    case.set_control({"stub_in_place": ["install"]})
-    expect_exit(case.run(), 3, "replaced no inode")
-    case.set_control({})
-    out = expect_exit(case.run(), 0, "result: complete")
-    expect("erased: held link" in out, "the next run did not erase the held link")
-    expect_installs(case, 1, 0, 0)
-
-
-def c_hooks_command_fails(case):
-    case.set_control({"fail": {"claude-install": 1}})
-    expect_exit(case.run(), 3, "failed")
-    expect(case.json(SETTINGS)["enabledPlugins"].get(HOOKS_ID) is None, "a failed command changed the cell")
-    run_to_complete(case)
-    expect_installs(case, 1, 0, 1)
-
-
-def hooks_disable_fault(do: str, when: str):
-    def fn(case):
-        if do == "descriptor":
-            actions = [{"point": "hooks-disable-read", "do": "open-fd", "path": SETTINGS, "slot": "a"},
-                       {"point": "hooks-disable-compared", "do": "fd-write", "slot": "a",
-                        "key": ["fault"], "value": 1}]
-        else:
-            point = "hooks-disable-read" if when == "before" else "hooks-disable-compared"
-            actions = [{"point": point, "do": do, "path": SETTINGS,
-                        "key": ["theme"] if do == "erase-key" else ["fault"], "value": 1}]
-        case.set_control({"actions": actions})
-        got = case.run()
-        if when == "after":
-            expect(got[0] == 0, f"the switch did not complete: {got[1][-800:]}")
-            expect(case.json(SETTINGS).get("fault") == 1, "the write after the exchange is not in the live file")
-            expect(not case.state()["flagged"], "a write after the exchange flagged a copy")
-            return
-        expect(got[0] == 3, f"expected a stop: {got[1][-800:]}")
-        live = case.json(SETTINGS)
-        expect("fault" not in live and "theme" in live, "the outside write reached the live file")
-        expect_flag_holds(case, "flagged: kept copy")
-    return fn
-
-
-def open_run_no_prelude(point: str, state: str):
-    def fn(case):
-        case.set_control({"actions": [{"point": point, "do": "crash"}]})
-        expect_exit(case.run(), 99)
-        expect(case.state()["state"] == state, f"the crash did not leave the {state} state")
-        mark = len(case.points())
-        out = expect_exit(case.run(), 0, "result: complete")
-        expect("no prelude runs" in out, "the next run did not say that no prelude runs")
-        expect(not [p for p in case.points()[mark:] if p.startswith("prelude:")], "a prelude ran while a run was open")
-        expect(case.commands(1) == {}, f"the next run ran Claude Code commands {case.commands(1)}")
-    return fn
-
-
-def c_prelude_unrehearsed(case):
-    before = case.snapshot()
-    expect_exit(case.run(), 3, "so no prelude runs")
-    expect(case.snapshot() == before, "an unrehearsed program changed the layout")
-    expect(case.commands(0) == {}, f"an unrehearsed program ran {case.commands(0)}")
-
-
-def c_prelude_other_plan(case):
-    case.rehearse_record("0" * 64, case.r.program_digest)
-    out = expect_exit(case.run(), 3, "no passing rehearsal record names the prepared plan")
-    expect(skills_cell(case) == OFF, "a record that names the program did not admit the preludes")
-    expect("replaced: .config/ravel/settings.json" in out, "the native settings did not run")
-
-
-# --- the gates of steps 4 to 7, and the baseline of step 3 ----------------------------
+# --- the fixture sources and trials ---------------------------------------------------
 
 def keg_source(case, sid: str) -> str:
     return os.path.realpath(os.path.join(case.root, "prefix/share/ravel/skills", sid))
@@ -2313,7 +1514,10 @@ def one_byte(case, sid: str) -> None:
 
 
 def eleventh_source(case) -> None:
-    prefix = os.path.join(case.root, "prefix")
+    add_eleventh_source(os.path.join(case.root, "prefix"))
+
+
+def add_eleventh_source(prefix: str) -> None:
     rel = "Cellar/extra/9/share/ravel/skills/eleventh"
     write(os.path.join(prefix, rel, "skills/eleventh/SKILL.md"), "---\nname: eleventh\n---\n")
     os.symlink(f"../../../{rel}", os.path.join(prefix, "share/ravel/skills/eleventh"))
@@ -2327,888 +1531,14 @@ def trials(case) -> list:
         return []
 
 
-def backup_evidence(case, step: str) -> list:
-    backup = case.state()["backup"]
-    return load(os.path.join(backup, "evidence", f"step-{step}.json"), [])
-
-
-def expect_gate_stop(case, text: str, **run) -> str:
-    out = expect_exit(case.run(**run), 3, text)
-    st = case.state()
-    expect(st["state"] == "native" and st["backup"] is None, f"a stopped gate left {st['state']}, {st['backup']}")
-    expect("before-backup-rename" not in case.points(), "a stopped gate reached step 8")
-    return out
-
-
-def c_gates_evidence(case):
-    out = expect_exit(case.run(), 0, "result: complete")
-    expect("compare with finish's own skill listing: claude | built-in | debug" in out,
-           "step 3 did not print the built-in row for finish's listing")
-    four = backup_evidence(case, "4")[0]["result"]
-    expect(four["admitted"] == {"grove_version": "1", "digests": {}} and four["reran"] == [],
-           f"step 4 admitted {four.get('admitted')}")
-    six = backup_evidence(case, "6")[0]["result"]
-    expect(sorted(six["sources"]) == sorted(load(case.r.plan, {})["accepted"]["sources"]), "step 6 kept other sources")
-    readers = {r["plugin"]: r for r in backup_evidence(case, "7")[0]["result"]["readers"]}
-    expect(sorted(readers) == sorted(READERS) and not any(r["orphaned"] for r in readers.values()),
-           f"step 7 recorded {sorted(readers)}")
-    expect(readers["grove@linkuistics"]["path"] == os.path.join(case.home, READERS["grove@linkuistics"]),
-           "step 7 did not name the registered version directory")
-    receipt = [n for n in os.listdir(os.path.join(case.state()["backup"], "run")) if n.endswith("-receipt.json")]
-    body = load(os.path.join(case.state()["backup"], "run", receipt[0]), {})
-    expect(sorted(body.get("gates", {})) == ["4", "5", "6", "7"],
-           f"the receipt lacks the gates: {sorted(body.get('gates', {}))}")
-    expect(trials(case) == [], f"step 4 ran trials {trials(case)} with each digest accepted")
-
-
-def c_eleventh_source(case):
-    eleventh_source(case)
-    expect_gate_stop(case, "step 6: the resolved sources are not the accepted ten: extra eleventh")
-
-
-def c_one_byte_other(case):
-    one_byte(case, "superpowers")
-    expect_gate_stop(case, "step 6: superpowers gives [0-9a-f]{64}, not its accepted")
-    expect(trials(case) == [], "a source outside Grove's keg made step 4 rerun trials")
-
-
-def c_one_byte_grove(case):
-    one_byte(case, "design")
-    digest = source_digest(keg_source(case, "design"))
-    out = expect_exit(case.run(), 0, "the staging trials of design must run again")
-    expect(trials(case) == ["design"], f"step 4 ran the trials {trials(case)}, not those of design")
-    four = backup_evidence(case, "4")[0]["result"]
-    expect(four["reran"] == ["design"] and four["admitted"]["digests"] == {"design": digest},
-           f"step 4 admitted {four['admitted']}")
-    expect("result: complete" in out and case.receipts() == 1, "the switch did not complete with the rerun digest")
-    expect_exit(case.run(), 0, "state: complete")
-    expect(trials(case) == ["design"], "a complete run ran the trials again")
-
-
-def c_one_byte_grove_resumed(case):
-    one_byte(case, "design")
-    case.set_control({"actions": [{"point": "switch-after-part:3", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    expect(case.state()["state"] == "active", "the crash did not leave the active state")
-    out = expect_exit(case.run(), 0, "result: complete")
-    expect("command resolved-sources (step 6): exit 0" in out, "the active continuation did not rerun step 6")
-    expect(trials(case) == ["design"], f"the continuation ran trials again: {trials(case)}")
-
-
-def c_trial_fails(case):
-    one_byte(case, "design")
-    case.set_control({"fail": {"trial": 1}})
-    expect_gate_stop(case, "step 4: the staging trial trial-design of design failed")
-
-
-def c_no_trial(case):
-    one_byte(case, "writing")
-    plan = load(case.r.plan, {})
-    del plan["accepted"]["trials"]["writing"]
-    other = os.path.join(case.root, "plan-no-trial.json")
-    save(other, plan)
-    expect_gate_stop(case, "step 4: the plan names no staging trial for writing", plan=other)
-
-
-def c_tap_newer(case):
-    case.set_control({"tap_grove": "2"})
-    expect_gate_stop(case, "the tap's current version 2 is not installed")
-
-
-def c_linked_older(case):
-    """The tap's current version 2 is installed, and Homebrew still links version 1."""
-    prefix = os.path.join(case.root, "prefix")
-    shutil.copytree(os.path.join(prefix, "Cellar/grove/1"), os.path.join(prefix, "Cellar/grove/2"), symlinks=True)
-    case.set_control({"tap_grove": "2"})
-    expect_gate_stop(case, "the linked keg is 1, not the tap's current version 2")
-
-
-def c_opt_elsewhere(case):
-    prefix = os.path.join(case.root, "prefix")
-    shutil.copytree(os.path.join(prefix, "Cellar/grove/1"), os.path.join(prefix, "Cellar/grove/0"), symlinks=True)
-    os.remove(os.path.join(prefix, "opt/grove"))
-    os.symlink("../Cellar/grove/0", os.path.join(prefix, "opt/grove"))
-    expect_gate_stop(case, "opt/grove reaches .*Cellar/grove/0, not the keg")
-
-
-def c_grove_version(case):
-    write_script(os.path.join(case.root, "prefix/Cellar/grove/1/bin/grove"), "#!/bin/sh\necho 'grove 0'\n")
-    expect_gate_stop(case, "printed 'grove 0', not 'grove 1'")
-
-
-def c_formula(override: dict, text: str):
-    def fn(case):
-        case.set_control({"mise": override})
-        expect_gate_stop(case, text)
-    return fn
-
-
-def c_reader_orphaned(case):
-    write(os.path.join(case.home, READERS["grove@linkuistics"], ".orphaned_at"), "1792928060164")
-    expect_gate_stop(case, "step 7: the version directory .* of grove@linkuistics holds .orphaned_at")
-
-
-def c_reader_missing(case):
-    shutil.rmtree(os.path.join(case.home, READERS["context7@claude-plugins-official"]))
-    expect_gate_stop(case, "step 7: the version directory .* of context7@claude-plugins-official is missing")
-
-
-def c_reader_unregistered(case):
-    old = os.path.join(case.home, ".claude/plugins/cache/linkuistics/grove/99999999")
-    write(os.path.join(old, "skills/grove-finish/SKILL.md"), "---\nname: grove-finish\n---\n")
-    expect_gate_stop(case, "which finish read, has no registration", env={"OWNER_SWITCH_READERS": old})
-
-
-def c_reader_named(case):
-    read = os.path.join(case.home, READERS["grove@linkuistics"], ".claude-plugin")
-    expect_exit(case.run(env={"OWNER_SWITCH_READERS": read}), 0, "result: complete")
-    named = [r for r in backup_evidence(case, "7")[0]["result"]["readers"] if r["reason"] == "read"]
-    expect(len(named) == 1 and named[0]["read"] == read and named[0]["plugin"] == "grove@linkuistics",
-           f"step 7 did not record the directory that finish read: {named}")
-
-
-def c_step6_active(case):
-    case.set_control({"actions": [{"point": "switch-after-part:3", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    eleventh_source(case)
-    expect_exit(case.run(), 3, "failed probe \\(step 6 failed: resolved-sources\\)")
-    st = case.state()
-    expect(st["state"] == "native" and st["records"][-1] == "inverse-ended", f"step 6 left {st['state']}")
-    expect(case.receipts() == 0, "a failed step 6 copied a receipt")
-
-
-BASELINE_ROW = "control\t~/scratch\tunknown\tskill\tunknown\t0123456789abcdef\t1\tunknown\t-\t-\tUNCLASSIFIED"
-
-
-def c_baseline_native(case):
-    case.set_control({"baseline_rows": [BASELINE_ROW]})
-    out = expect_gate_stop(case, "the switch set differs from the prepared plan; stop for classification")
-    expect("changed outside the switch set: baseline row: control | ~/scratch" in out,
-           "step 3 did not report the baseline row")
-
-
-def c_baseline_active(case):
-    case.set_control({"actions": [{"point": "switch-after-part:3", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    case.set_control({"baseline_rows": [BASELINE_ROW.replace("UNCLASSIFIED", "NEEDS-REVIEW")]})
-    mark = len(case.points())
-    expect_exit(case.run(), 3, "failed probe \\(changed outside the switch set: baseline row")
-    st = case.state()
-    expect(st["records"][-1] == "inverse-ended" and case.receipts() == 0, "an anomaly row did not fail the probe")
-    expect("command:probe-switched" not in case.points()[mark:], "the probes ran on a layout with an anomaly row")
-
-
-def c_baseline_fails(case):
-    case.set_control({"fail": {"baseline": 1}})
-    expect_gate_stop(case, "the baseline instrument baseline failed")
-
-
-# --- the controls of owner-switch-program-k243 ------------------------------------
-
-def plan_copy(case, name: str, mutate=None, record: bool = True) -> str:
-    """A copy of the fixture plan, changed by mutate, with a passing record when record is set."""
-    plan = load(case.r.plan, {})
-    if mutate:
-        mutate(plan)
-    other = os.path.join(case.root, name)
-    save(other, plan)
-    if record:
-        case.rehearse_record(digest_file(other), case.r.program_digest)
-    return other
-
-
-def receipt_of(case) -> dict:
-    run = os.path.join(case.state()["backup"], "run")
-    return load(os.path.join(run, next(n for n in os.listdir(run) if n.endswith("-receipt.json"))), {})
-
-
-def c_plan_changed_after_load(case):
-    """F1: a gate reads the plan again by its path, after the program admitted its bytes."""
-    copy = os.path.join(case.root, "plan.json")
-    shutil.copyfile(case.r.plan, copy)
-    one_byte(case, "superpowers")
-    changed = source_digest(keg_source(case, "superpowers"))
-    case.set_control({"actions": [{"point": "command:grove-release", "do": "write-key", "path": copy,
-                                   "key": ["accepted", "sources", "superpowers", "resourceDigest"],
-                                   "value": changed}]})
-    expect_gate_stop(case, "is not the plan that the program admitted", plan=copy)
-
-
-def c_plan_paths_escape(case):
-    """F4: a plan path that is absolute, holds .. or crosses a linked folder stops before any step."""
-    outside = os.path.join(case.root, "outside")
-    write(os.path.join(outside, "grove/SKILL.md"), "---\nname: grove\n---\nOutside HOME.\n")
-    os.symlink(outside, os.path.join(case.home, ".claude/linked"))
-    ident = subprocess.run([PY, "-I", case.r.program, "identity", os.path.join(outside, "grove")],
-                           capture_output=True, text=True, check=True).stdout.strip()
-    variants = {"absolute": os.path.join(outside, "grove"), "dotdot": "../outside/grove",
-                "linked": ".claude/linked/grove"}
-    for label, rel in variants.items():
-        def mutate(plan, rel=rel):
-            plan["parts"][0] = {"kind": "entry", "path": rel, "identity": ident}
-        other = plan_copy(case, f"plan-{label}.json", mutate)
-        expect_exit(case.run(plan=other), 3, "is not relative to HOME|without \\.\\.|leads outside HOME")
-        expect(os.path.isfile(os.path.join(outside, "grove/SKILL.md")), f"the {label} path moved an entry outside HOME")
-        expect(case.state()["backup"] is None, f"the {label} path wrote a backup")
-    return ", ".join(variants)
-
-
-def c_plan_incomplete(case):
-    """F5: a rehearsed plan without a check that a step needs stops before any step."""
-    def gate_4_other(plan):
-        plan["gates"]["4"] = [{"name": "grove-release", "argv": fixture_command("probe-native")}]
-    mutations = {
-        "gates-empty": lambda p: p.__setitem__("gates", {}),
-        "gate-4-other": gate_4_other,
-        "gate-7-empty": lambda p: p["gates"].__setitem__("7", []),
-        "probes-empty": lambda p: p.__setitem__("probes", []),
-        "native-probe-missing": lambda p: p.pop("native_probe"),
-        "mac-check-missing": lambda p: p.pop("mac_check"),
-        "baseline-missing": lambda p: p.pop("baseline"),
-        "outside-empty": lambda p: p.__setitem__("outside", []),
-        "staging-missing": lambda p: p["accepted"].pop("staging"),
-    }
-    plans = {label: plan_copy(case, f"plan-{label}.json", mutate) for label, mutate in mutations.items()}
-    before = case.snapshot()
-    for label, other in plans.items():
-        expect_exit(case.run(plan=other), 3, "the plan is incomplete")
-    expect(case.snapshot() == before, "an incomplete plan changed the layout")
-    expect(case.points() == [], f"an incomplete plan reached a hook point: {case.points()[:5]}")
-    return ", ".join(mutations)
-
-
-def c_staging_missing(case):
-    """F6: step 4 stops when the retained staging HOME is missing."""
-    one_byte(case, "design")
-
-    def mutate(plan):
-        plan["accepted"]["staging"]["home"] = os.path.join(case.root, "no-staging-home")
-    other = plan_copy(case, "plan-no-staging.json", mutate, record=False)
-    expect_gate_stop(case, "the retained staging HOME .* is missing", plan=other)
-    expect(trials(case) == [], f"step 4 ran trials {trials(case)} without the staging HOME")
-
-
-def c_reader_orphaned_in_probes(case):
-    """F7: an orphan marker after step 7 counts as a failed probe."""
-    marker = os.path.join(READERS["grove@linkuistics"], ".orphaned_at")
-    case.set_control({"actions": [{"point": "command:probe-switched", "do": "touch", "path": marker,
-                                   "text": "1792928060164"}]})
-    expect_exit(case.run(), 3, "failed probe \\(the reader evidence of step 7 changed: .* holds .orphaned_at")
-    st = case.state()
-    expect(st["state"] == "native" and st["records"][-1] == "inverse-ended", f"a changed reader left {st['state']}")
-    expect(case.receipts() == 0, "a changed reader copied a receipt")
-
-
-def c_reader_moved_before_continuation(case):
-    """F7: an update between an active interruption and its continuation counts as a failed probe."""
-    case.set_control({"actions": [{"point": "switch-after-part:3", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    registry = os.path.join(case.home, ".claude/plugins/installed_plugins.json")
-    body = load(registry, {})
-    newer = os.path.join(case.home, ".claude/plugins/cache/linkuistics/grove/ffffffff")
-    write(os.path.join(newer, ".claude-plugin/plugin.json"), "{}\n")
-    body["plugins"]["grove@linkuistics"][0]["installPath"] = newer
-    save_json(registry, body)
-    expect_exit(case.run(), 3, "failed probe \\(the reader evidence of step 7 changed: .* lost its registration")
-    st = case.state()
-    expect(st["state"] == "native" and case.receipts() == 0, f"a moved registration left {st['state']}")
-
-
-def c_receipt_evidence(case):
-    """F8: the receipt holds the activated configuration and each retained byte set."""
-    expect_exit(case.run(), 0, "result: complete")
-    body = receipt_of(case)
-    act = body.get("activated", {})
-
-    def digest(rel):
-        return subprocess.run([PY, "-I", case.r.program, "digest", os.path.join(case.home, rel)],
-                              capture_output=True, text=True, check=True).stdout.strip()
-    expect(act.get("config_rhai_digest") == digest(".config/ravel/config.rhai"), f"config.rhai: {act}")
-    expect(act.get("ravel_settings_digest") == digest(RAVEL), "the receipt lacks the Ravel settings digest")
-    expect(act.get("ravel") == {"path": os.path.join(case.root, "prefix/bin/ravel"),
-                                "version": "ravel 2.0.0 (fixture)"}, f"the receipt names Ravel {act.get('ravel')}")
-    expect((act.get("grove") or {}).get("version") == "1", f"the receipt names Grove {act.get('grove')}")
-    sources = body.get("sources", {})
-    expect(len(sources) == 10, f"the receipt names {len(sources)} sources")
-    for name, (version, ids) in KEGS.items():
-        for sid in ids:
-            got = sources.get(sid, {})
-            expect(got.get("version") == version and got.get("keg_path") == keg_source(case, sid)
-                   and got.get("resourceDigest") == source_digest(keg_source(case, sid)) and got.get("snapshotRoot"),
-                   f"the receipt's source {sid} is {got}")
-    expect(body.get("trials") == {"reran": [], "results": []}, f"the receipt's trials are {body.get('trials')}")
-    expect(body.get("backup") == case.state()["backup"], "the receipt does not name its backup")
-    items = body.get("retained", [])
-    kinds = sorted({i["item"] for i in items})
-    expect(kinds == sorted(["retained entry", "kept copy", "Grove's Codex snapshot store",
-                            "superseded plugin registration", "earlier marketplace registration",
-                            "staging HOME", "candidate keg"]), f"the receipt retains {kinds}")
-    expect(len([i for i in items if i["item"] == "retained entry"]) == 2, "the receipt lacks a retained entry")
-    expect(len([i for i in items if i["item"] == "kept copy"]) == 2, "the receipt lacks a kept copy")
-    expect(all(len(i["condition"]) == 5 for i in items if i["item"] not in ("staging HOME", "candidate keg")),
-           "a purge item lacks its five conditions")
-    expect([i.get("plugin") for i in items if i["item"] == "superseded plugin registration"] == ["grove@linkuistics"],
-           "the receipt names another superseded plugin")
-    again = body.get("readers", {}).get("again", [])
-    expect(len(again) == 2 and all(r["present"] and r["registered"] and not r["orphaned"] for r in again),
-           f"the receipt's second reading of the readers is {again}")
-    with open(os.path.join(case.home, MANUAL)) as f:
-        expect('"config_rhai_digest"' in f.read(), "the manual's receipt lacks the activated configuration")
-
-
-def c_rehearsal_without_rerun(case):
-    """F9: a record without a passing rerun of settings-writes.sh admits no prelude."""
-    case.rehearse_record(case.r.plan_digest, case.r.program_digest, settings_writes=False)
-    before = case.snapshot()
-    expect_exit(case.run(), 3, "so no prelude runs")
-    expect(case.snapshot() == before, "a record without the rerun admitted a prelude")
-    expect(case.commands(0) == {}, f"a record without the rerun ran {case.commands(0)}")
-
-
-def c_claude_version_differs(case):
-    """F9: the hooks installation runs no Claude Code command with an unmeasured version."""
-    case.set_control({"claude_version": "2.2.0 (Claude Code)"})
-    expect_exit(case.run(), 3, "no passing rehearsal record measured the writes of that version")
-    calls = case.commands(0)
-    expect(not any(k.startswith("plugin install") or k.startswith("plugin marketplace add") for k in calls),
-           f"an unmeasured version ran {calls}")
-
-
-def review_controls() -> list:
-    no_hooks, no_key = {"hooks": "absent"}, {"ravel": "absent-key"}
-    return [
-        ("plan-changed-after-load", c_plan_changed_after_load, {}),
-        ("plan-paths-escape", c_plan_paths_escape, {}),
-        ("plan-incomplete", c_plan_incomplete, {}),
-        ("staging-home-missing", c_staging_missing, {}),
-        ("reader-orphaned-in-probes", c_reader_orphaned_in_probes, {}),
-        ("reader-moved-before-continuation", c_reader_moved_before_continuation, {}),
-        ("receipt-evidence", c_receipt_evidence, {}),
-        ("rehearsal-without-settings-writes", c_rehearsal_without_rerun, dict(no_key, rehearsed=False, **no_hooks)),
-        ("claude-version-differs", c_claude_version_differs, no_hooks),
-    ]
-
-
-def gate_controls() -> list:
-    return [
-        ("gates-evidence", c_gates_evidence, {}),
-        ("source-eleventh-stops-step-6", c_eleventh_source, {}),
-        ("source-one-byte-stops-step-6", c_one_byte_other, {}),
-        ("source-one-byte-grove-reruns-trials", c_one_byte_grove, {}),
-        ("source-one-byte-grove-resumed", c_one_byte_grove_resumed, {}),
-        ("source-grove-trial-fails", c_trial_fails, {}),
-        ("source-grove-no-trial", c_no_trial, {}),
-        ("grove-tap-newer", c_tap_newer, {}),
-        ("grove-linked-older", c_linked_older, {}),
-        ("grove-opt-elsewhere", c_opt_elsewhere, {}),
-        ("grove-version-differs", c_grove_version, {}),
-        ("formula-missing", c_formula({"linkuistics/taps/personal": {"state": "missing"}},
-                                      "step 5: linkuistics/taps/personal is missing, not installed"), {}),
-        ("formula-undeclared", c_formula({"linkuistics/taps/testanyware": None},
-                                         "step 5: linkuistics/taps/testanyware is not declared"), {}),
-        ("formula-version", c_formula({"linkuistics/taps/superpowers": {"installed_version": "9"}},
-                                      "step 5: linkuistics/taps/superpowers is at 9, not its accepted version 4"), {}),
-        ("reader-orphaned", c_reader_orphaned, {}),
-        ("reader-missing", c_reader_missing, {}),
-        ("reader-named-unregistered", c_reader_unregistered, {}),
-        ("reader-named", c_reader_named, {}),
-        ("step-6-active-eleventh", c_step6_active, {}),
-        ("baseline-anomaly-native", c_baseline_native, {}),
-        ("baseline-anomaly-active", c_baseline_active, {}),
-        ("baseline-fails", c_baseline_fails, {}),
-    ]
-
-
-def all_controls(r: Rehearsal) -> list:
-    parts = load(r.plan, {})["parts"]
-    files = [i for i, p in enumerate(parts) if p["kind"] == "file"]
-    controls = [
-        ("dry-run", c_dry_run, {}),
-        ("switch", c_switch, {}),
-        ("rehearsal-missing", c_no_rehearsal, {"rehearsed": False}),
-        ("rehearsal-changed-program", c_changed_program, {}),
-        ("rehearsal-changed-plan", c_changed_plan, {}),
-        ("continuation-runs-backup-copy", c_continuation_copy, {}),
-        ("probe-fails", c_probe_fails, {}),
-    ]
-    points = ["before-backup-rename", "after-backup-rename"]
-    for i, p in enumerate(parts):
-        points += [f"switch-before-part:{i}", f"switch-read:{i}"]
-        if p["kind"] == "file":
-            points.append(f"switch-before-exchange:{i}")
-        points += [f"switch-exchanged:{i}", f"switch-after-part:{i}"]
-    points += ["command:probe-switched", "command:mac-check", "before-record:receipt",
-               "after-record:receipt", "step-14"]
-    controls += [(f"crash-{pt}", crash_then_complete(pt), {}) for pt in points]
-    inverse_points = ["before-record:inverse-begun", "after-record:inverse-begun"]
-    for i, p in reversed(list(enumerate(parts))):
-        inverse_points.append(f"inverse-before-part:{i}")
-        if p["kind"] == "file":
-            inverse_points += [f"inverse-read:{i}", f"inverse-before-exchange:{i}", f"inverse-exchanged:{i}"]
-        else:
-            inverse_points.append(f"inverse-read:{i}")
-        inverse_points.append(f"inverse-after-part:{i}")
-    inverse_points += ["before-record:inverse-ended", "command:probe-native"]
-    controls += [(f"crash-{pt}", inverse_crash_then_complete(pt), {}) for pt in inverse_points]
-    for i in files:
-        rel = parts[i]["path"]
-        controls += [
-            (f"write-before-exchange:{i}", write_before_exchange(rel, i, "write-key"), {}),
-            (f"erase-before-exchange:{i}", write_before_exchange(rel, i, "erase-key"), {}),
-            (f"write-after-exchange:{i}", write_after_exchange(rel, i), {}),
-            (f"inverse-write-before-exchange:{i}", write_before_exchange(rel, i, "write-key", "inverse"), {}),
-            (f"inverse-write-after-exchange:{i}", write_after_exchange(rel, i, "inverse"), {}),
-            (f"descriptor-inside:{i}", descriptor_write(rel, i, "inside"), {}),
-            (f"descriptor-after-run:{i}", descriptor_write(rel, i, "after"), {}),
-        ]
-    controls += [
-        ("metadata-mode", metadata_change("chmod"), {}),
-        ("metadata-xattr", metadata_change("xattr"), {}),
-        ("metadata-acl", metadata_change("acl"), {}),
-        ("acl-denies-exchange", c_acl_denies_exchange, {}),
-        ("third-before-switch", c_third_before, {}),
-        ("third-after-receipt", c_third_after_receipt, {}),
-        ("third-before-receipt", c_third_before_receipt, {}),
-        ("switched-while-open", c_switched_while_open, {}),
-        ("switched-after-inverse", c_switched_after_inverse, {}),
-        ("entry-content-before", entry_change("modify-entry", ".claude/skills/grove", "before"), {}),
-        ("entry-content-after", entry_change("modify-entry", ".claude/skills/grove", "after"), {}),
-        ("entry-retarget-before", entry_change("retarget", ".codex/skills/grove", "before"), {}),
-        ("entry-retarget-after", entry_change("retarget", ".codex/skills/grove", "after"), {}),
-        ("entry-occupied-after", entry_change("create", ".codex/skills/grove", "after"), {}),
-        ("entry-occupied-after-inverse-read", c_occupied_after_read, {}),
-        ("step-14-resume", c_step14_resume, {}),
-        ("outside-entry-inside-run", c_outside_inside_run, {}),
-        ("outside-entry-after-stop", c_outside_after_stop, {}),
-        ("outside-platform-subtree", c_outside_platform_subtree, {}),
-        ("outside-platform-link", c_outside_platform_link, {}),
-        ("cell-after-receipt-no-copy", c_cell_after_receipt_no_copy, {}),
-        ("prepared-plan-differs", c_prepared_differs, {}),
-    ]
-    controls += process_controls(r)
-    controls += prelude_controls()
-    controls += gate_controls()
-    controls += review_controls()
-    controls += entry_controls()
-    controls += native_off_controls()
-    controls += serial_controls()
-    controls += status_controls()
-    return controls
-
-
-def prelude_controls() -> list:
-    no_file, no_key, no_hooks = {"ravel": "absent-file"}, {"ravel": "absent-key"}, {"hooks": "absent"}
-    controls = [
-        ("native-absent-file", c_native_full, no_file),
-        ("native-absent-key", c_native_full, no_key),
-        ("native-and-hooks", c_native_full, dict(no_key, **no_hooks)),
-    ]
-    for pt in ("prelude:native-settings", "gate:the native settings", "native-before-create", "native-created"):
-        controls.append((f"native-absent-file-crash-{pt}", prelude_crash(pt), no_file))
-    for pt in ("prelude:native-settings", "gate:the native settings", "native-read", "native-recorded",
-               "native-exchanged", "native-compared"):
-        controls.append((f"native-absent-key-crash-{pt}", prelude_crash(pt), no_key))
-    controls += [
-        ("native-write-before-exchange", c_native_write_before_exchange, no_key),
-        ("native-write-then-crash-before-comparison", c_native_write_then_crash, no_key),
-        ("native-descriptor-after-comparison", c_native_descriptor, no_key),
-        ("native-third-value", c_native_third, {}),
-        ("native-erased-after-inverse", c_native_erased_after_inverse, {}),
-        ("native-tool-later", prelude_writer("prelude:native-settings", "the native settings"), no_key),
-        ("hooks-absent", c_hooks_full, no_hooks),
-        ("hooks-crash-between-preludes", prelude_crash("prelude:hooks-installation"), dict(no_key, **no_hooks)),
-    ]
-    for label in ("marketplace-add", "install"):
-        for pt in ("command", "renamed", "compared"):
-            controls.append((f"hooks-crash-hooks-{pt}:{label}", prelude_crash(f"hooks-{pt}:{label}"), no_hooks))
-        controls.append((f"hooks-crash-held-link:{label}", c_hooks_held_crash(label), no_hooks))
-    for pt in ("gate:the hooks installation", "hooks-before-held:marketplace-add", "hooks-before-disable",
-               "hooks-disable-read", "hooks-disable-recorded", "hooks-disable-exchanged", "hooks-disable-compared"):
-        controls.append((f"hooks-crash-{pt}", prelude_crash(pt), no_hooks))
-    controls += [
-        ("hooks-crash-after-registration", c_hooks_after_registration, no_hooks),
-        ("hooks-write-inside-interval", c_hooks_write_in_interval, no_hooks),
-        ("hooks-descriptor-after-comparison", c_hooks_descriptor, no_hooks),
-        ("hooks-third-value-before-held-link", c_hooks_third_before_held, no_hooks),
-        ("hooks-command-in-place", c_hooks_in_place, no_hooks),
-        ("hooks-command-fails", c_hooks_command_fails, no_hooks),
-        ("hooks-tool-later", prelude_writer("prelude:hooks-installation", "the hooks installation"), no_hooks),
-    ]
-    for do in ("xattr", "acl"):
-        for when in ("initial", "before-held", "after-reading"):
-            controls.append((f"hooks-{do}-{when}", hooks_metadata(do, when), no_hooks))
-    enabled = {"hooks": "enabled"}
-    controls += [
-        ("hooks-enabled", run_to_complete, enabled),
-        ("hooks-disable-write-before-exchange", hooks_disable_fault("write-key", "before"), enabled),
-        ("hooks-disable-erase-before-exchange", hooks_disable_fault("erase-key", "before"), enabled),
-        ("hooks-disable-write-after-exchange", hooks_disable_fault("write-key", "after"), enabled),
-        ("hooks-disable-descriptor", hooks_disable_fault("descriptor", "before"), enabled),
-        ("open-run-no-prelude-active", open_run_no_prelude("switch-after-part:3", "active"), {}),
-        ("open-run-no-prelude-complete", open_run_no_prelude("step-14", "complete"), {}),
-        ("prelude-rehearsal-missing", c_prelude_unrehearsed, dict(no_key, rehearsed=False, **no_hooks)),
-        ("prelude-rehearsal-other-plan", c_prelude_other_plan, dict(no_key, rehearsed=False)),
-    ]
-    return controls
-
-
-# --- the controls of owner-switch-entries-k92 -------------------------------------
-# The owner's inverse, the merge entry, the purge check, the report of
-# `mac-check` and the pending-activation record. Each builds on the complete
-# fixture plan.
-
-CLAUDE_SKILL_ENTRY, CODEX_SKILL_LINK = ".claude/skills/grove", ".codex/skills/grove"
-
-
-def expect_reset(case, skip=()) -> None:
-    """Each cell outside `skip` holds its earlier value after the owner's inverse."""
-    settings = case.json(SETTINGS)["enabledPlugins"]
-    if "superseded" not in skip:
-        expect(settings["grove@linkuistics"] is True, "the owner's inverse left the superseded plugin disabled")
-    if "hooks" not in skip:
-        expect(settings[HOOKS_ID] is False, "the owner's inverse left the hooks plugin enabled")
-    if "skills" not in skip:
-        expect(case.json(RAVEL)["skills"] == OFF, "the owner's inverse left the switched skills value")
-    for rel, name in ((CLAUDE_SKILL_ENTRY, "grove"), (CODEX_SKILL_LINK, "codex")):
-        if name not in skip:
-            expect(os.path.lexists(os.path.join(case.home, rel)), f"the owner's inverse did not move {rel} back")
-
-
-def owner_inverse_to_changed(case, skip=()) -> str:
-    """The owner's inverse leaves a third value and ends in the changed state; the next run stops there."""
-    out = expect_exit(case.entry("inverse"), 3, "ended in the changed state")
-    st = case.state()
-    expect(not st["open"] and st["records"][-1] == "inverse-ended", f"the inverse did not end: {st['records']}")
-    expect_reset(case, skip)
-    expect("<!-- owner-switch-inverse " in case.manual(), "the owner's inverse added no line to the manual")
-    expect_exit(case.run(), 3, "classification")
-    expect(case.state()["state"] == "changed", "the next run did not find the changed state")
-    return out
-
-
-def c_owner_inverse_complete(case):
-    run_to_complete(case)
-    out = expect_exit(case.entry("inverse"), 0, "result: native")
-    expect("command probe-native (step inverse): exit 0" in out, "the owner's inverse ran no native probe")
-    expect("gate: no other Claude Code, Codex, Grove or Ravel process before the inverse" in out,
-           "the owner's inverse ran no process inspection")
-    expect_reset(case)
-    st = case.state()
-    expect(st["state"] == "native" and st["records"][-1] == "inverse-ended", f"unexpected {st['state']}")
-    expect(case.manual().count("<!-- owner-switch-inverse ") == 1, "the manual lacks the inverse's line")
-
-
-def c_owner_inverse_third_cell(when: str):
-    def fn(case):
-        if when == "after":
-            run_to_complete(case)
-        else:
-            case.set_control({"actions": [{"point": "before-record:receipt", "do": "crash"}]})
-            expect_exit(case.run(), 99)
-        write_in_place(os.path.join(case.home, RAVEL), ["skills"], {"other": True})
-        expect_exit(case.run(), 3, "drifted")
-        out = owner_inverse_to_changed(case, skip=("skills",))
-        expect('third value: part 3 .config/ravel/settings.json skills: {"other":true}; left' in out,
-               "the owner's inverse did not report the third value that it left")
-        expect(case.json(RAVEL)["skills"] == {"other": True}, "the owner's inverse changed the third value")
-    return fn
-
-
-def c_owner_inverse_entry(do: str, rel: str):
-    def fn(case):
-        run_to_complete(case)
-        target = os.path.join(case.state()["backup"], "retained", rel)
-        if do == "modify-entry":
-            with open(os.path.join(target, "SKILL.md"), "a") as f:
-                f.write("changed\n")
-        else:
-            os.remove(target)
-            os.symlink("/elsewhere", target)
-        expect_exit(case.run(), 3, "drifted")
-        out = owner_inverse_to_changed(case)
-        expect(f"third value: part {0 if rel == CLAUDE_SKILL_ENTRY else 1} {rel} moved back with a changed identity" in out,
-               "the owner's inverse did not move the changed entry back and report it")
-        expect(not os.path.lexists(target), "the changed entry stayed in the backup")
-    return fn
-
-
-def c_owner_inverse_occupied(case):
-    run_to_complete(case)
-    backup = case.state()["backup"]
-    os.makedirs(os.path.join(case.home, CODEX_SKILL_LINK))
-    expect_exit(case.run(), 3, "drifted")
-    out = owner_inverse_to_changed(case, skip=())
-    expect(f"third value: part 1 {CODEX_SKILL_LINK} is occupied while its retained entry exists; both are left" in out,
-           "the owner's inverse did not report the occupied cell")
-    expect(os.path.isdir(os.path.join(case.home, CODEX_SKILL_LINK)) and not os.path.islink(os.path.join(case.home, CODEX_SKILL_LINK)),
-           "the owner's inverse changed the occupying entry")
-    expect(os.path.islink(os.path.join(backup, "retained", CODEX_SKILL_LINK)), "the retained entry left the backup")
-
-
-def c_owner_inverse_copy(case):
-    case.set_control({"actions": [{"point": "switch-after-part:1", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    other = os.path.join(case.root, "program-changed.py")
-    with open(case.r.program) as f, open(other, "w") as g:
-        g.write(f.read() + "\n# changed\n")
-    out = case.entry("inverse", program=other)[1]
-    expect("continuation: running the program copy" in out and f"program: {case.r.program_digest}" in out,
-           "the owner's inverse did not run the program copy of the latest backup")
-    expect(case.state()["records"][-1] == "inverse-ended", "the copy did not end the inverse")
-
-
-def c_owner_inverse_refusals(case):
-    expect_exit(case.entry("inverse"), 3, "no complete backup exists")
-    case.set_control({"fail": {"probe-switched": 1}})
-    expect_exit(case.run(), 3, "the native probe passed")
-    expect_exit(case.entry("inverse"), 3, "is not open")
-
-
-def c_owner_inverse_writer(case):
-    run_to_complete(case)
-    sleeper(case, "codex")
-    before = case.snapshot()
-    expect_exit(case.entry("inverse"), 3, "remains before the inverse")
-    expect(case.snapshot() == before and case.state()["state"] == "complete", "a closed interval changed the layout")
-
-
-def flagged_switch_copy(case, actions: list) -> str:
-    """Run the switch with outside writes before the exchange of the Claude Code settings; return the flagged copy."""
-    case.set_control({"actions": actions})
-    expect_exit(case.run(), 3, "the switch met a conflict")
-    flagged = case.state()["flagged"]
-    expect(len(flagged) == 1 and flagged[0]["of"] == SETTINGS, f"expected one flagged copy of {SETTINGS}: {flagged}")
-    return flagged[0]["copy"]
-
-
-BEFORE_EXCHANGE = "switch-before-exchange:2"
-
-
-def c_merge_difference(case):
-    copy = flagged_switch_copy(case, [
-        {"point": BEFORE_EXCHANGE, "do": "write-key", "path": SETTINGS, "key": ["fault"], "value": 1},
-        {"point": BEFORE_EXCHANGE, "do": "erase-key", "path": SETTINGS, "key": ["theme"]}])
-    live = case.json(SETTINGS)
-    expect("fault" not in live and live.get("theme") == "dark", "the outside write reached the live file")
-    out = expect_exit(case.entry("merge", copy), 0, "record: merge 1")
-    live = case.json(SETTINGS)
-    expect(live.get("fault") == 1, "the merge did not add the key that the copy gained")
-    expect("theme" not in live, "the merge did not erase the key that the copy lost")
-    expect(live["enabledPlugins"]["grove@linkuistics"] is True, "the merge changed a cell")
-    expect("replaced: .claude/settings.json theme: \"dark\" -> (absent)" in out, "the merge listed no erased key")
-    expect(not case.state()["flagged"], "the merged copy is still flagged")
-    run_to_complete(case)
-    expect(case.json(SETTINGS).get("fault") == 1, "the switch lost the merged key")
-
-
-def c_merge_then_change(case):
-    copy = flagged_switch_copy(case, [
-        {"point": BEFORE_EXCHANGE, "do": "write-key", "path": SETTINGS, "key": ["fault"], "value": 1}])
-    expect_exit(case.entry("merge", copy), 0, "record: merge 1")
-    write_in_place(copy, ["late"], 2)
-    expect([f["copy"] for f in case.state()["flagged"]] == [copy], "a changed merged copy is not flagged")
-    expect_exit(case.run(), 3, "a kept copy is flagged; the owner merges it first")
-    out = expect_exit(case.entry("merge", copy), 0, "record: merge 2")
-    expect(case.json(SETTINGS).get("late") == 2 and "replaced: .claude/settings.json late" in out,
-           "the second merge did not take its difference from the first merge")
-    run_to_complete(case)
-
-
-def c_merge_return(case):
-    copy = flagged_switch_copy(case, [
-        {"point": BEFORE_EXCHANGE, "do": "write-key", "path": SETTINGS, "key": ["fault"], "value": 1}])
-    with open(copy + ".read", "rb") as f:
-        read = f.read()
-    expect_exit(case.entry("merge", copy), 0, "record: merge 1")
-    # A descriptor returns the merged copy to the content that the run read, in place.
-    fd = os.open(copy, os.O_WRONLY | os.O_TRUNC)
-    try:
-        os.write(fd, read)
-    finally:
-        os.close(fd)
-    expect(case.state()["flagged"], "a merged copy that returned to the content that the run read is not flagged")
-    expect_exit(case.run(), 3, "a kept copy is flagged; the owner merges it first")
-    out = expect_exit(case.entry("merge", copy), 0, "record: merge 2")
-    expect("fault" not in case.json(SETTINGS) and "fault: 1 -> (absent)" in out,
-           "the merge of the return did not erase the key")
-
-
-def c_merge_settings_copy(case):
-    case.set_control({"actions": [{"point": "native-read", "do": "write-key", "path": RAVEL,
-                                   "key": ["fault"], "value": 1}]})
-    expect_exit(case.run(), 3, "flagged")
-    flagged = case.state()["flagged"]
-    expect(len(flagged) == 1 and flagged[0]["backup"] is None, f"expected a flagged copy of a settings record: {flagged}")
-    expect_exit(case.entry("merge", flagged[0]["copy"]), 0, "record: merge 1")
-    expect(case.json(RAVEL).get("fault") == 1, "the merge did not reach the Ravel settings")
-    expect(len([r for r in settings_records(case) if r["label"] == "merge"]) == 1, "the merge wrote no settings record")
-    case.set_control({})
-    run_to_complete(case)
-
-
-def c_merge_held_copy(case):
-    case.set_control({"actions": [{"point": "stub:install:read", "do": "write-key", "path": SETTINGS,
-                                   "key": ["fault"], "value": 1}]})
-    expect_exit(case.run(), 3, "flagged")
-    flagged = case.state()["flagged"]
-    expect(len(flagged) == 1 and flagged[0]["kind"] == "held", f"expected a flagged held copy: {flagged}")
-    expect_exit(case.entry("merge", flagged[0]["copy"]), 0, "record: merge 1")
-    expect(case.json(SETTINGS).get("fault") == 1, "the merge of the held copy did not reach the live file")
-    case.set_control({})
-    run_to_complete(case)
-
-
-def c_merge_third_cell(case):
-    copy = flagged_switch_copy(case, [
-        {"point": BEFORE_EXCHANGE, "do": "write-key", "path": SETTINGS, "key": SUPERSEDED_PLUGIN, "value": "other"},
-        {"point": BEFORE_EXCHANGE, "do": "write-key", "path": SETTINGS, "key": HOOKS_PLUGIN, "value": True}])
-    expect_exit(case.entry("merge", copy), 0, "record: merge 1")
-    plugins = case.json(SETTINGS)["enabledPlugins"]
-    expect(plugins["grove@linkuistics"] == "other", "the merge did not take the copy's third value of a cell")
-    expect(plugins[HOOKS_ID] is False, "the merge took a value that a run writes into a cell")
-    expect_exit(case.run(), 3, "classification")
-
-
-def c_merge_record_only(case):
-    copy = flagged_switch_copy(case, [
-        {"point": BEFORE_EXCHANGE, "do": "write-key", "path": SETTINGS, "key": ["fault"], "value": 1}])
-    before = case.json(SETTINGS)
-    expect_exit(case.entry("merge", copy, "--record-only"), 0, "without applying a difference")
-    expect(case.json(SETTINGS) == before and not case.state()["flagged"], "--record-only changed the live file")
-    expect_exit(case.entry("merge", copy), 3, "not flagged")
-    expect_exit(case.entry("merge", os.path.join(case.home, SETTINGS)), 3, "is no kept copy")
-
-
-def c_purge(do: str):
-    def fn(case):
-        if do == "open":
-            case.set_control({"actions": [{"point": "switch-after-part:1", "do": "crash"}]})
-            expect_exit(case.run(), 99)
-            expect_exit(case.entry("purge-check"), 3, "is open")
-            return
-        run_to_complete(case)
-        if do == "clean":
-            out = expect_exit(case.entry("purge-check"), 0, "the conditions that the program reads hold")
-            expect(f"retained entry {CLAUDE_SKILL_ENTRY}: keeps its recorded change identity" in out,
-                   "the purge check did not read the receipt's retained entries")
-            expect("the owner confirms: the owner decides that the rollback window is closed" in out,
-                   "the purge check listed no condition of the owner")
-            return
-        with open(os.path.join(case.state()["backup"], "retained", CLAUDE_SKILL_ENTRY, "SKILL.md"), "a") as f:
-            f.write("changed\n")
-        expect_exit(case.entry("purge-check"), 3, "changed its identity since its move")
-    return fn
-
-
-def expect_mac_check(case, code: int, status: str, *texts: str) -> str:
-    got = case.mac_check()
-    expect(got[0] == code and got[1] == status and all(t in got[2] for t in texts),
-           f"mac-check reported {got}, not {code} {status} {texts}")
-    return got[2]
-
-
-def pending_body(case) -> dict:
-    blocks = re.findall(r"<!-- owner-switch-pending (\S+) -->\n.*?```json\n(.*?)\n```", case.manual(), re.S)
-    expect(blocks, "the manual holds no pending-activation record")
-    return json.loads(blocks[-1][1])
-
-
-def c_pending_after_step(case):
-    case.set_control({"mise": {"linkuistics/taps/personal": {"installed_version": "0.9"}}})
-    expect_exit(case.run(), 3, "step 5")
-    expect_exit(case.entry("pending", "--grove-commit", "0123abcd"), 0, "pending-activation record")
-    body = pending_body(case)
-    expect(body["grove"]["version"] == "1" and body["grove"]["release_commit"] == "0123abcd"
-           and body["grove"]["read"] == "from step 4 of the run", f"the record names the wrong Grove: {body['grove']}")
-    expect(body["ravel"]["version"] == "ravel 2.0.0 (fixture)" and body["ravel"]["path"].endswith("/prefix/bin/ravel"),
-           f"the record names the wrong Ravel: {body['ravel']}")
-    expect(body["formula_versions"]["linkuistics/taps/personal"] == "0.9", "the record lacks a formula version")
-    expect('"linkuistics/taps/personal"' in body["mise_status"]["output"], "the record lacks the mise status")
-    expect([f["name"] for f in body["failed"]] == ["skill-formulae"] and "step 5" in body["failed"][0]["output"],
-           f"the record lacks the failed step's output: {body['failed']}")
-    expect(body["state"] == "native" and body["backups"] == [] and body["run"]["result"] == "stop",
-           f"the record names the wrong state: {body['state']} {body['backups']}")
-
-
-def c_pending_before_step_4(case):
-    sleeper(case, "codex")
-    expect_exit(case.run(), 3, "before step 1")
-    expect_exit(case.entry("pending"), 0, "pending-activation record")
-    body = pending_body(case)
-    expect(body["grove"].get("version") == "1" and body["grove"]["read"].startswith("by this record"),
-           f"the record did not read the Grove version itself: {body['grove']}")
-    expect(body["grove"]["release_commit"] == "not supplied", "the record invented a release commit")
-    expect("another Claude Code" in body["run"]["reason"], "the record lacks the stop's reason")
-
-
-def c_pending_after_inverse(case):
-    case.set_control({"fail": {"probe-switched": 1}})
-    expect_exit(case.run(), 3, "the native probe passed")
-    expect_exit(case.entry("pending"), 0, "pending-activation record")
-    body = pending_body(case)
-    expect(len(body["backups"]) == 1 and body["state"] == "native", f"unexpected {body['backups']} {body['state']}")
-    expect([f["name"] for f in body["failed"]] == ["probe-switched"], f"the record lacks the failed probe: {body['failed']}")
-    case.set_control({})
-    expect_exit(case.run(), 0, "result: complete")
-    pending = re.findall(r"<!-- owner-switch-pending (\S+) -->", case.manual())
-    expect(f"It replaces the pending-activation records {pending[0]}." in case.manual(),
-           "the receipt does not name the pending-activation record that it replaces")
-
-
-def c_pending_drifted(case):
-    case.set_control({"actions": [{"point": "step-14", "do": "crash"}]})
-    expect_exit(case.run(), 99)
-    write_in_place(os.path.join(case.home, RAVEL), ["skills"], {"other": True})
-    os.makedirs(os.path.join(case.home, ".claude/skills/new-entry"))
-    expect_exit(case.run(), 3, "drifted")
-    expect_exit(case.entry("pending"), 0, "pending-activation record")
-    body = pending_body(case)
-    cells = {(c["path"], c.get("key")): c for c in body["cells"]}
-    expect(body["state"] == "drifted", f"unexpected {body['state']}")
-    expect(cells[(RAVEL, "skills")]["value"] == {"other": True} and cells[(RAVEL, "skills")]["status"] == "third",
-           f"the record lacks the drifted cell's value: {body['cells']}")
-    expect(cells[(SETTINGS, "enabledPlugins.grove@linkuistics")]["status"] == "switched", "the record lacks a switched cell")
-    expect(".claude/skills/new-entry" in body["outside_changed"], "the record lacks the changed outside entry")
-
-
-def entry_controls() -> list:
-    return [
-        ("owner-inverse-complete", c_owner_inverse_complete, {}),
-        ("owner-inverse-third-cell-after-receipt", c_owner_inverse_third_cell("after"), {}),
-        ("owner-inverse-third-cell-before-receipt", c_owner_inverse_third_cell("before"), {}),
-        ("owner-inverse-entry-content", c_owner_inverse_entry("modify-entry", CLAUDE_SKILL_ENTRY), {}),
-        ("owner-inverse-entry-retarget", c_owner_inverse_entry("retarget", CODEX_SKILL_LINK), {}),
-        ("owner-inverse-occupied-path", c_owner_inverse_occupied, {}),
-        ("owner-inverse-runs-backup-copy", c_owner_inverse_copy, {}),
-        ("owner-inverse-refusals", c_owner_inverse_refusals, {}),
-        ("owner-inverse-writer", c_owner_inverse_writer, {}),
-        ("merge-difference", c_merge_difference, {}),
-        ("merge-then-change", c_merge_then_change, {}),
-        ("merge-return-through-descriptor", c_merge_return, {}),
-        ("merge-settings-record-copy", c_merge_settings_copy, {"ravel": "absent-key"}),
-        ("merge-held-copy", c_merge_held_copy, {"hooks": "absent"}),
-        ("merge-third-cell", c_merge_third_cell, {}),
-        ("merge-record-only", c_merge_record_only, {}),
-        ("purge-check-clean", c_purge("clean"), {}),
-        ("purge-check-retained-changed", c_purge("changed"), {}),
-        ("purge-check-open-run", c_purge("open"), {}),
-        ("pending-after-step", c_pending_after_step, {}),
-        ("pending-before-step-4", c_pending_before_step_4, {}),
-        ("pending-after-inverse", c_pending_after_inverse, {}),
-        ("pending-drifted", c_pending_drifted, {}),
-    ]
-
-
-# --- native-off ("The native settings inside finish" and "Test seams") --------------
-
-# --- the serial switch and its restore -------------------------------------------
+# --- the switch and its restore -------------------------------------------
 # docs/specs/owner-skill-delivery.md, "Test seams": backup, caught failures,
 # hard interruption, explicit restore, attempt identity and later drift.
 
 # What restore leaves alone: the program's own state, the append-only manual
 # and the plugin cache that `claude plugin install` wrote ("Rollback").
 SERIAL_SKIP = (STATE, MANUAL, ".claude/plugins/cache/writing-hooks")
-SERIAL_ARGS = {"hooks": "absent", "rehearsed": False}
+SERIAL_ARGS = {"hooks": "absent"}
 
 
 def serial_view(case) -> dict:
@@ -3250,6 +1580,10 @@ def c_serial_switch(case):
            and "progress" not in json.dumps(note), f"the attempt note holds {note}")
     expect_exit(case.switch(note), 0, "result: switched")
     expect_switched(case)
+    # Step 6 writes the switched Ravel settings last.
+    writes = [p.split(":")[1] for p in case.points() if p.startswith("write:") and p.endswith(":replace")]
+    expect(writes and writes[-1] == RAVEL and SETTINGS in writes,
+           f"step 6 wrote in this order: {writes}")
     calls = case.commands()
     expect(calls.get("plugin marketplace add") == 1 and calls.get("plugin install") == 1,
            f"the switch ran these Claude Code commands: {calls}")
@@ -3264,7 +1598,7 @@ def c_serial_switch(case):
     programs = [n for _, _, names in os.walk(note["backup"]) for n in names if n.endswith(".py")]
     expect(not programs, f"the backup holds a program copy: {programs}")
     receipt = load(receipt_file(case, note), {})
-    expect(sorted(receipt["restore_identities"]) == sorted(SERIAL_RESTORE)
+    expect(sorted(receipt["restore_identities"]) == sorted(SWITCH_RESTORE)
            and all(a["holds"] for a in receipt["delivery_assertions"]),
            "the receipt does not keep restore identities and delivery assertions apart")
     retained = {r["item"] for r in receipt["retained"]}
@@ -3378,7 +1712,7 @@ def c_serial_drift(case):
 
 
 def c_serial_preflight(case):
-    case.serial_plan(lambda plan: plan["switch"]["inputs"][1].update(digest="0" * 64))
+    case.serial_plan(lambda plan: plan["inputs"][1].update(digest="0" * 64))
     before = serial_view(case)
     note = case.attempt()
     expect_exit(case.switch(note), 3, "command inputs differ")
@@ -3400,7 +1734,7 @@ def c_serial_preflight(case):
 def expect_originals(case, skip=()) -> None:
     """Each planned file and entry has its planned original identity: content, mode, ACL, attributes and link text."""
     m = case.r.module()
-    for w in load(case.serial, {})["switch"]["writes"]:
+    for w in load(case.serial, {})["writes"]:
         if w["path"] in skip:
             continue
         wanted = "absent" if w["original"].get("absent") else w["original"]["identity"]
@@ -3412,7 +1746,7 @@ def expect_backup_complete(case, note: dict) -> None:
     """The published backup holds each original whole, or records its absence."""
     m = case.r.module()
     items = {i["path"]: i for i in load(os.path.join(note["backup"], "manifest.json"), {})["items"]}
-    for w in load(case.serial, {})["switch"]["writes"]:
+    for w in load(case.serial, {})["writes"]:
         item = items[w["path"]]
         if w["original"].get("absent"):
             expect(item["data"] is None and item["identity"] == "absent", f"the backup holds the absent {w['path']}")
@@ -3531,10 +1865,9 @@ def serial_restore_off(ravel: str):
         # The switch refuses without the off value, so the program's own backup function makes the backup.
         m = case.r.module()
         plan = m.load_plan(case.serial)
-        sw = m.switch_section(plan)
         layout = m.Layout(case.home, plan)
         with contextlib.redirect_stdout(io.StringIO()):
-            m.backup_published(layout, m.create_backup(layout, plan, sw, m.load_note(note["_path"]), {}))
+            m.backup_published(layout, m.create_backup(layout, plan, m.load_note(note["_path"]), {}))
         save_json(os.path.join(case.home, RAVEL), dict(case.json(RAVEL) or {}, skills=SWITCHED))
         shutil.rmtree(os.path.join(case.home, ".claude/skills/grove"))
         expect_exit(case.literal(note["restore"]), 0, "restore: immediate")
@@ -3763,8 +2096,8 @@ def c_serial_backup_changed(case):
     manifest(lambda body: body["items"][0].update(data="../../.."))
     refused("names its copy as", "after a copy name outside the backup")
     plan = json.loads(saved["plan.json"])
-    plan["switch"]["restore"].reverse()
-    plan["switch"]["restore"] = [RAVEL] + [r for r in plan["switch"]["restore"] if r != RAVEL]
+    plan["restore"].reverse()
+    plan["restore"] = [RAVEL] + [r for r in plan["restore"] if r != RAVEL]
     data = (json.dumps(plan, indent=2) + "\n").encode()
     with open(paths["plan.json"], "wb") as f:
         f.write(data)
@@ -3778,6 +2111,13 @@ def c_serial_backup_changed(case):
 # --- status and the purge report ---------------------------------------------------
 # docs/specs/owner-skill-delivery.md, "Current health and restore eligibility",
 # "Purge" and "Test seams". Each status control reads the real `mac-check`.
+
+def expect_mac_check(case, code: int, status: str, *texts: str) -> str:
+    got = case.mac_check()
+    expect(got[0] == code and got[1] == status and all(t in got[2] for t in texts),
+           f"mac-check reported {got}, not {code} {status} {texts}")
+    return got[2]
+
 
 NATIVE = "Native skill delivery is verified"
 SWITCHED_OK = "the switched layout is verified"
@@ -3827,7 +2167,7 @@ def c_status_native(case):
     expect_mac_check(case, 10, "Needs attention", REVIEW)
     # A plan whose native assertion accepts the absent key, as before promotion.
     def either(plan):
-        plan["switch"]["native_assertions"][0] = {"path": RAVEL, "key": ["skills"],
+        plan["native_assertions"][0] = {"path": RAVEL, "key": ["skills"],
                                                   "values": [OFF, {"$absent": True}]}
     case.serial_plan(either)
     case.prepare()
@@ -3898,7 +2238,7 @@ def c_status_stale(case):
     switched_case(case)
     stale = os.path.join(case.root, "stale-plan.json")
     plan = load(case.serial, {})
-    plan["switch"]["tools"]["note"] = "a later preparation"
+    plan["tools"]["note"] = "a later preparation"
     save_json(stale, plan)
     case.prepare(stale)
     expect_mac_check(case, 10, "Needs attention", REVIEW)
@@ -4234,12 +2574,15 @@ def c_native_off_ancestor(case):
 
 
 def c_native_off_after_switch_stop(case):
-    expect_exit(case.run(), 3, "so no prelude runs")
-    expect(skills_cell(case) == "absent-key", "the stopped switch changed the settings")
+    case.serial_plan()
+    note = case.attempt()
     before = settings_bytes(case)
-    expect_exit(case.native_off(), 0)
+    expect_exit(case.switch(note), 3, "does not hold the off value; run native-off first")
+    expect(settings_bytes(case) == before and not os.path.lexists(note["backup"]),
+           "the refused switch changed the settings or published a backup")
+    expect_exit(case.literal(note["native_off"]), 0, "result: off value in place")
     expect_off(case, before)
-    return "the switch stopped before any backup, and native-off then wrote the off value"
+    return "the switch refused before any backup, and the note's native-off then wrote the off value"
 
 
 def c_native_off_print_command(case):
@@ -4441,7 +2784,7 @@ def native_off_controls() -> list:
         ("native-off-ravel-ancestor", c_native_off_ancestor, no_key),
         ("native-off-other-tool", c_native_off_other_tool, no_key),
         ("native-off-ravel-title", c_native_off_ravel_title, no_key),
-        ("native-off-after-switch-stop", c_native_off_after_switch_stop, dict(no_key, rehearsed=False)),
+        ("native-off-after-switch-stop", c_native_off_after_switch_stop, no_key),
         ("native-off-print-command", c_native_off_print_command, no_key),
         ("native-off-create-fails", c_native_off_create_fails, no_key),
         ("native-off-replace-fails", c_native_off_replace_fails, no_key),
@@ -4458,95 +2801,452 @@ def native_off_controls() -> list:
     return controls
 
 
+# --- the gates, the baseline, the plan and the processes through the switch ---------
+# docs/specs/owner-skill-delivery.md, "Test seams": source controls, the narrow
+# process inspection and the plan's completeness. Each refusal happens before
+# any switch-set write.
+
+def switch_refused(case, text: str, mutate=None, env=None, via=None) -> str:
+    """The switch refuses with exit 3 and TEXT, publishes no backup and changes no path."""
+    case.serial_plan(mutate)
+    note = case.attempt()
+    before = serial_view(case)
+    out = expect_exit(case.switch(note, env=env, via=via), 3, text)
+    expect_view(case, before, "after the refusal")
+    expect(not os.path.lexists(note["backup"]), "a refusal published a backup")
+    expect("switch:final" not in case.points(), "a refusal reached the end of the switch")
+    return out
+
+
+def switched(case, env=None, via=None) -> tuple:
+    """A complete switch: its attempt note and its output."""
+    case.serial_plan()
+    note = case.attempt()
+    out = expect_exit(case.switch(note, env=env, via=via), 0, "result: switched")
+    return note, out
+
+
+def backup_evidence(note: dict, step: str) -> list:
+    return load(os.path.join(note["backup"], "manifest.json"), {})["evidence"][step]
+
+
+def plan_refused(case, label: str, mutate, text: str) -> None:
+    """The switch refuses a changed plan at its loader, before its first hook point."""
+    case.serial_plan()
+    note = case.attempt()
+    bad = load(case.serial, {})
+    mutate(bad)
+    other = os.path.join(case.root, f"plan-{label}.json")
+    save_json(other, bad)
+    before = serial_view(case)
+    mark = len(case.points())
+    expect_exit(case.switch(note, plan=other), 3, text)
+    expect_view(case, before, f"after the plan {label}")
+    expect(not os.path.lexists(note["backup"]), f"the plan {label} published a backup")
+    expect(case.points()[mark:] == [], f"the plan {label} reached a hook point: {case.points()[mark:][:5]}")
+
+
+def c_gates_evidence(case):
+    note, out = switched(case)
+    expect("compare with finish's own skill listing: claude | built-in | debug" in out,
+           "step 3 did not print the built-in row for finish's listing")
+    four = backup_evidence(note, "4")[0]["result"]
+    expect(four["admitted"] == {"grove_version": "1", "digests": {}} and four["reran"] == [],
+           f"step 4 admitted {four.get('admitted')}")
+    six = backup_evidence(note, "6")[0]["result"]
+    expect(sorted(six["sources"]) == sorted(load(case.r.plan, {})["accepted"]["sources"]), "step 6 kept other sources")
+    readers = {r["plugin"]: r for r in backup_evidence(note, "7")[0]["result"]["readers"]}
+    expect(sorted(readers) == sorted(READERS) and not any(r["orphaned"] for r in readers.values()),
+           f"step 7 recorded {sorted(readers)}")
+    expect(readers["grove@linkuistics"]["path"] == os.path.join(case.home, READERS["grove@linkuistics"]),
+           "step 7 did not name the registered version directory")
+    expect(trials(case) == [], f"step 4 ran trials {trials(case)} with each digest accepted")
+
+
+def c_eleventh_source(case):
+    eleventh_source(case)
+    switch_refused(case, "step 6: the resolved sources are not the accepted ten: extra eleventh")
+
+
+def c_one_byte_other(case):
+    one_byte(case, "superpowers")
+    switch_refused(case, "step 6: superpowers gives [0-9a-f]{64}, not its accepted")
+    expect(trials(case) == [], "a source outside Grove's keg made step 4 rerun trials")
+
+
+def c_one_byte_grove(case):
+    one_byte(case, "design")
+    digest = source_digest(keg_source(case, "design"))
+    note, out = switched(case)
+    expect("the staging trials of design must run again" in out, "step 4 did not name the changed Grove source")
+    expect(trials(case) == ["design"], f"step 4 ran the trials {trials(case)}, not those of design")
+    four = backup_evidence(note, "4")[0]["result"]
+    expect(four["reran"] == ["design"] and four["admitted"]["digests"] == {"design": digest},
+           f"step 4 admitted {four['admitted']}")
+
+
+def c_trial_fails(case):
+    one_byte(case, "design")
+    case.set_control({"fail": {"trial": 1}})
+    switch_refused(case, "step 4: the staging trial trial-design of design failed")
+
+
+def c_no_trial(case):
+    one_byte(case, "writing")
+    switch_refused(case, "step 4: the plan names no staging trial for writing",
+                   mutate=lambda plan: plan["accepted"]["trials"].pop("writing"))
+
+
+def c_staging_missing(case):
+    one_byte(case, "design")
+    switch_refused(case, "the retained staging HOME .* is missing",
+                   mutate=lambda plan: plan["accepted"]["staging"].update(
+                       home=os.path.join(case.root, "no-staging-home")))
+    expect(trials(case) == [], f"step 4 ran trials {trials(case)} without the staging HOME")
+
+
+def c_tap_newer(case):
+    case.set_control({"tap_grove": "2"})
+    switch_refused(case, "the tap's current version 2 is not installed")
+
+
+def c_linked_older(case):
+    """The tap's current version 2 is installed, and Homebrew still links version 1."""
+    prefix = os.path.join(case.root, "prefix")
+    shutil.copytree(os.path.join(prefix, "Cellar/grove/1"), os.path.join(prefix, "Cellar/grove/2"), symlinks=True)
+    case.set_control({"tap_grove": "2"})
+    switch_refused(case, "the linked keg is 1, not the tap's current version 2")
+
+
+def c_opt_elsewhere(case):
+    prefix = os.path.join(case.root, "prefix")
+    shutil.copytree(os.path.join(prefix, "Cellar/grove/1"), os.path.join(prefix, "Cellar/grove/0"), symlinks=True)
+    os.remove(os.path.join(prefix, "opt/grove"))
+    os.symlink("../Cellar/grove/0", os.path.join(prefix, "opt/grove"))
+    switch_refused(case, "opt/grove reaches .*Cellar/grove/0, not the keg")
+
+
+def c_grove_version(case):
+    write_script(os.path.join(case.root, "prefix/Cellar/grove/1/bin/grove"), "#!/bin/sh\necho 'grove 0'\n")
+    switch_refused(case, "printed 'grove 0', not 'grove 1'")
+
+
+def c_formula(override: dict, text: str):
+    def fn(case):
+        case.set_control({"mise": override})
+        switch_refused(case, text)
+    return fn
+
+
+def c_reader_orphaned(case):
+    write(os.path.join(case.home, READERS["grove@linkuistics"], ".orphaned_at"), "1792928060164")
+    switch_refused(case, "step 7: the version directory .* of grove@linkuistics holds .orphaned_at")
+
+
+def c_reader_missing(case):
+    shutil.rmtree(os.path.join(case.home, READERS["context7@claude-plugins-official"]))
+    switch_refused(case, "step 7: the version directory .* of context7@claude-plugins-official is missing")
+
+
+def c_reader_unregistered(case):
+    old = os.path.join(case.home, ".claude/plugins/cache/linkuistics/grove/99999999")
+    write(os.path.join(old, "skills/grove-finish/SKILL.md"), "---\nname: grove-finish\n---\n")
+    switch_refused(case, "which finish read, has no registration", env={"OWNER_SWITCH_READERS": old})
+
+
+def c_reader_named(case):
+    read = os.path.join(case.home, READERS["grove@linkuistics"], ".claude-plugin")
+    note, _ = switched(case, env={"OWNER_SWITCH_READERS": read})
+    named = [r for r in backup_evidence(note, "7")[0]["result"]["readers"] if r["reason"] == "read"]
+    expect(len(named) == 1 and named[0]["read"] == read and named[0]["plugin"] == "grove@linkuistics",
+           f"step 7 did not record the directory that finish read: {named}")
+
+
+BASELINE_ROW = "control\t~/scratch\tunknown\tskill\tunknown\t0123456789abcdef\t1\tunknown\t-\t-\tUNCLASSIFIED"
+
+
+def c_baseline_anomaly(case):
+    case.set_control({"baseline_rows": [BASELINE_ROW]})
+    switch_refused(case, r"the baseline instrument reports changed entries: baseline row: control \| ~/scratch")
+
+
+def c_baseline_fails(case):
+    case.set_control({"fail": {"baseline": 1}})
+    switch_refused(case, "the baseline instrument baseline failed")
+
+
+def c_plan_changed_after_load(case):
+    """A gate reads the plan again by its path, after the program admitted its bytes."""
+    one_byte(case, "superpowers")
+    changed = source_digest(keg_source(case, "superpowers"))
+    case.serial_plan()
+    case.set_control({"actions": [{"point": "command:grove-release", "do": "write-key", "path": case.serial,
+                                   "key": ["accepted", "sources", "superpowers", "resourceDigest"],
+                                   "value": changed}]})
+    note = case.attempt()
+    before = serial_view(case)
+    expect_exit(case.switch(note), 3, "is not the plan that the program admitted")
+    expect_view(case, before, "after the changed plan")
+    expect(not os.path.lexists(note["backup"]), "a changed plan published a backup")
+
+
+def c_plan_paths_escape(case):
+    """A plan path that is absolute, holds .. or crosses a linked folder stops before any step."""
+    outside = os.path.join(case.root, "outside")
+    write(os.path.join(outside, "grove/SKILL.md"), "---\nname: grove\n---\nOutside HOME.\n")
+    os.symlink(outside, os.path.join(case.home, ".claude/linked"))
+    variants = {"absolute": os.path.join(outside, "grove"), "dotdot": "../outside/grove",
+                "linked": ".claude/linked/grove"}
+    for label, rel in variants.items():
+        def mutate(plan, rel=rel):
+            for w in plan["writes"] + plan["assertions"]:
+                if w["path"] == ".claude/skills/grove":
+                    w["path"] = rel
+            plan["restore"][plan["restore"].index(".claude/skills/grove")] = rel
+        plan_refused(case, label, mutate, "is not relative to HOME|without \\.\\.|leads outside HOME")
+        expect(os.path.isfile(os.path.join(outside, "grove/SKILL.md")), f"the {label} path moved an entry outside HOME")
+    return ", ".join(variants)
+
+
+def c_plan_incomplete(case):
+    """A plan without a check that a step needs, or with a removed field, stops before any step."""
+    def gate_4_other(plan):
+        plan["gates"]["4"] = [{"name": "grove-release", "argv": fixture_command("probe-native")}]
+
+    def earlier_value(plan):
+        plan["writes"][2]["set"][0]["earlier"] = True
+
+    def entry_identity(plan):
+        plan["writes"][0]["identity"] = "0" * 64
+
+    def entry_set(plan):
+        plan["writes"][0]["set"] = [{"key": ["x"], "value": 1}]
+
+    def ravel_sources(plan):
+        plan["writes"][-1]["set"][0]["value"] = OFF
+
+    mutations = {
+        "gates-empty": (lambda p: p.__setitem__("gates", {}), "gates must name exactly"),
+        "gate-4-other": (gate_4_other, "does not run the program's gate of step 4"),
+        "gate-7-empty": (lambda p: p["gates"].__setitem__("7", []), "gates.7 names no command"),
+        "probes-empty": (lambda p: p.__setitem__("probes", []), "probes names no command"),
+        "native-probe-missing": (lambda p: p.pop("native_probe"), "native_probe names no command"),
+        "mac-check-missing": (lambda p: p.pop("mac_check"), "mac_check is not a command"),
+        "baseline-missing": (lambda p: p.pop("baseline"), "baseline is not a command"),
+        "inventory-empty": (lambda p: p["inventory"].__setitem__("after", []), "inventory.after names no entry"),
+        "staging-missing": (lambda p: p["accepted"].pop("staging"), "accepted staging must name"),
+        "restore-order": (lambda p: p["restore"].reverse(), "must restore .config/ravel/settings.json first"),
+        "hook-file-missing": (lambda p: p.__setitem__("writes", [w for w in p["writes"]
+                                                                 if w["path"] != KNOWN_MARKETPLACES]),
+                              "writes does not name the file .claude/plugins/known_marketplaces.json"),
+        "earlier-value": (earlier_value, r"writes\[2\]\.set is not a list of keys with values"),
+        "entry-identity": (entry_identity, r"writes\[0\] holds identity"),
+        "entry-set": (entry_set, r"writes\[0\] holds set"),
+        "ravel-sources": (ravel_sources, "names no sources"),
+        "parts": (lambda p: p.__setitem__("parts", []), "the plan holds parts, which schema"),
+        "outside": (lambda p: p.__setitem__("outside", []), "the plan holds outside, which schema"),
+    }
+    for label, (mutate, text) in mutations.items():
+        plan_refused(case, label, mutate, f"the plan is incomplete: .*{text}")
+    return ", ".join(mutations)
+
+
+def c_plan_process_patterns(case):
+    """The plan holds no process, MCP or job pattern."""
+    old = {"session": {"harness": ["claude"], "mcp": []}, "watch": ["codex"],
+           "jobs": {"argv": ["/bin/launchctl", "list"], "patterns": ["mise"]}}
+    for name in old:
+        plan_refused(case, name, lambda p, n=name: p.__setitem__(n, old[n]),
+                     f"the plan holds {name}, which schema owner-switch-plan/2 does not name")
+    return ", ".join(old)
+
+
+def c_claude_version_differs(case):
+    """The switch runs no Claude Code command with a version that the plan does not hold."""
+    case.set_control({"claude_version": "2.2.0 (Claude Code)"})
+    switch_refused(case, "claude --version printed '2.2.0 \\(Claude Code\\)'; the plan holds")
+    expect(case.commands() == {}, f"a refused switch ran {case.commands()}")
+
+
+def c_receipt_evidence(case):
+    """The receipt holds the activated configuration, the sources, the readers and each retained resource."""
+    note, _ = switched(case)
+    body = load(receipt_file(case, note), {})
+    act = body.get("activated", {})
+    expect(act.get("ravel") == {"path": os.path.join(case.root, "prefix/bin/ravel"),
+                                "version": "ravel 2.0.0 (fixture)"}, f"the receipt names Ravel {act.get('ravel')}")
+    expect((act.get("grove") or {}).get("version") == "1", f"the receipt names Grove {act.get('grove')}")
+    sources = body.get("sources", {})
+    expect(sorted(sources) == sorted(sid for _, ids in KEGS.values() for sid in ids),
+           f"the receipt names the sources {sorted(sources)}")
+    for sid, got in sources.items():
+        expect(got.get("resourceDigest") == source_digest(keg_source(case, sid)),
+               f"the receipt's source {sid} is {got}")
+    expect(body.get("backup") == note["backup"] and body.get("restore_command") == note["restore"],
+           "the receipt does not name its backup and its restore")
+    kinds = sorted({i["item"] for i in body.get("retained", [])})
+    wanted = ["attempt note", "backup", "candidate keg", "earlier marketplace registration",
+              "frozen cache version", "Grove's Codex snapshot store", "retained source", "staging HOME",
+              "superseded plugin registration", "the original driver's Ravel keg"]
+    expect(kinds == sorted(wanted), f"the receipt retains {kinds}")
+    again = body.get("readers", {}).get("again", [])
+    expect(len(again) == len(READERS) and all(r["present"] and r["registered"] and not r["orphaned"] for r in again),
+           f"the receipt's second reading of the readers is {again}")
+
+
+def c_tool_before_switch(case):
+    pid = sleeper(case, "codex", "app-server", "daemon", "pid-update-loop", reparent=True)
+    out = switch_refused(case, "remains before the switch")
+    expect_reported(out, pid, "remaining", "Codex", "app-server daemon")
+    expect_alive([pid])
+
+
+def tool_later(do: str, argv=None):
+    """A tool that starts after the backup stops the switch. Restore cannot verify while it runs."""
+    def fn(case):
+        case.serial_plan()
+        before = serial_view(case)
+        note = case.attempt()
+        action = {"point": "gate:the first switch write", "do": do}
+        if argv:
+            action["argv"] = argv
+        case.set_control({"actions": [action]})
+        expect_exit(case.switch(note), 4, "recovery incomplete")
+        expect(not os.path.lexists(receipt_file(case, note)), "a success receipt remains")
+        case.kill()
+        expect_exit(case.literal(note["restore"]), 0, "result: restored")
+        expect_view(case, before, "after the explicit restore")
+    return fn
+
+
+def session_tool(spec: dict, text: str):
+    """A process of the fixture harness's session stops the switch when it is one of the tools."""
+    def fn(case):
+        case.set_control({"session": [spec]})
+        time.sleep(0.3)
+        switch_refused(case, text)
+    return fn
+
+
+def session_allowed(argv):
+    """A process of the session that is none of the tools needs no exemption."""
+    def fn(case):
+        case.set_control({"session": [[fixture(case, a) if a in FIXTURE_NAMES else a for a in argv]]})
+        time.sleep(0.3)
+        switched(case)
+    return fn
+
+
+def c_mcp_server_tool_child(case):
+    """No descendant exemption: a tool under an MCP server of the session stops the switch."""
+    server = fixture(case, "lib/server-with-child.js")
+    ready = os.path.join(case.root, "server-ready")
+    write(server, child(case, "codex") + f"open({ready!r}, 'w').close(); " + SLEEP + "\n")
+    case.set_control({"session": [[fixture(case, "node"), server]]})
+    # The harness starts the server beside the program, so the program waits for its child.
+    wait = (f"import os, subprocess, sys, time\nfor _ in range(200):\n    if os.path.exists({ready!r}): break\n"
+            "    time.sleep(0.05)\nsys.exit(subprocess.run(sys.argv[1:]).returncode)")
+    out = switch_refused(case, "remains before the switch", via=[PY, "-I", "-c", wait])
+    expect(re.search(r"remaining process \d+ \(parent \d+\) Codex", out) is not None, f"no Codex child: {out}")
+
+
+def c_finish_ancestors(case):
+    """The switch admits its exact Ravel driver and Claude Code harness ancestors."""
+    via = relay(case, "ravel") + relay(case, "share/claude/versions/2.1.319")
+    _, out = switched(case, via=via)
+    expect(re.search(r"admitted ancestor process \d+ .*Ravel", out) is not None, "no admitted Ravel ancestor")
+
+
+def c_source_changes_in_probes(case):
+    """Step 8 resolves the sources again: an eleventh source during the probes fails the switch."""
+    serial_failure("probes", actions=[{"point": "probes", "do": "eleventh-source"}],
+                   text="the sources no longer resolve with their accepted digests")(case)
+
+
+def gate_controls() -> list:
+    return [
+        ("gates-evidence", c_gates_evidence, SERIAL_ARGS),
+        ("source-eleventh-stops-step-6", c_eleventh_source, SERIAL_ARGS),
+        ("source-one-byte-stops-step-6", c_one_byte_other, SERIAL_ARGS),
+        ("source-one-byte-grove-reruns-trials", c_one_byte_grove, SERIAL_ARGS),
+        ("source-grove-trial-fails", c_trial_fails, SERIAL_ARGS),
+        ("source-grove-no-trial", c_no_trial, SERIAL_ARGS),
+        ("source-changes-during-probes", c_source_changes_in_probes, SERIAL_ARGS),
+        ("staging-home-missing", c_staging_missing, SERIAL_ARGS),
+        ("grove-tap-newer", c_tap_newer, SERIAL_ARGS),
+        ("grove-linked-older", c_linked_older, SERIAL_ARGS),
+        ("grove-opt-elsewhere", c_opt_elsewhere, SERIAL_ARGS),
+        ("grove-version-differs", c_grove_version, SERIAL_ARGS),
+        ("formula-missing", c_formula({"linkuistics/taps/personal": {"state": "missing"}},
+                                      "step 5: linkuistics/taps/personal is missing, not installed"), SERIAL_ARGS),
+        ("formula-undeclared", c_formula({"linkuistics/taps/testanyware": None},
+                                         "step 5: linkuistics/taps/testanyware is not declared"), SERIAL_ARGS),
+        ("formula-version", c_formula({"linkuistics/taps/superpowers": {"installed_version": "9"}},
+                                      "step 5: linkuistics/taps/superpowers is at 9, not its accepted version 4"),
+         SERIAL_ARGS),
+        ("reader-orphaned", c_reader_orphaned, SERIAL_ARGS),
+        ("reader-missing", c_reader_missing, SERIAL_ARGS),
+        ("reader-named-unregistered", c_reader_unregistered, SERIAL_ARGS),
+        ("reader-named", c_reader_named, SERIAL_ARGS),
+        ("reader-orphaned-in-probes",
+         serial_probe_change({"do": "touch", "path": os.path.join(READERS["grove@linkuistics"], ".orphaned_at"),
+                              "text": "1792928060164"}, "holds .orphaned_at",
+                             [os.path.join(READERS["grove@linkuistics"], ".orphaned_at")]), SERIAL_ARGS),
+        ("baseline-anomaly", c_baseline_anomaly, SERIAL_ARGS),
+        ("baseline-fails", c_baseline_fails, SERIAL_ARGS),
+        ("plan-changed-after-load", c_plan_changed_after_load, SERIAL_ARGS),
+        ("plan-paths-escape", c_plan_paths_escape, SERIAL_ARGS),
+        ("plan-incomplete", c_plan_incomplete, SERIAL_ARGS),
+        ("plan-process-patterns", c_plan_process_patterns, SERIAL_ARGS),
+        ("claude-version-differs", c_claude_version_differs, SERIAL_ARGS),
+        ("receipt-evidence", c_receipt_evidence, SERIAL_ARGS),
+    ]
+
+
+def switch_process_controls(r) -> list:
+    codex_child = {"argv": [os.path.join(r.fixture_bin, "codex"), "-c", SLEEP], "executable": None}
+    claude_child = {"argv": ["claude", "-c", SLEEP],
+                    "executable": os.path.join(r.fixture_bin, "share/claude/versions/2.1.319")}
+    return [
+        ("tool-before-switch", c_tool_before_switch, SERIAL_ARGS),
+        ("tool-later", tool_later("spawn-tool", [os.path.join(r.fixture_bin, "grove"), "-c", SLEEP]), SERIAL_ARGS),
+        ("descendant-harness-before-switch", session_tool(claude_child, r"remaining process \d+ .*Claude Code"),
+         SERIAL_ARGS),
+        ("descendant-harness-later", tool_later("spawn-in-session", codex_child), SERIAL_ARGS),
+        ("background-child-allowed", session_allowed(["/bin/sleep", "120"]), SERIAL_ARGS),
+        ("caffeinate-child-allowed", session_allowed(["caffeinate", "-c", SLEEP]), SERIAL_ARGS),
+        ("mcp-server-allowed", session_allowed(["node", os.path.join(r.fixture_bin, "lib/other-server.js")]),
+         SERIAL_ARGS),
+        ("mcp-server-tool-child", c_mcp_server_tool_child, SERIAL_ARGS),
+        ("finish-ancestors-allowed", c_finish_ancestors, SERIAL_ARGS),
+    ]
+
+
+def all_controls(r) -> list:
+    return (process_controls() + switch_process_controls(r) + gate_controls() + native_off_controls()
+            + serial_controls() + status_controls())
+
+
 def cmd_rehearse(args) -> int:
     r = Rehearsal(args.out, args.program, args.mac_check)
     for name, fn, kw in all_controls(r):
         if args.only and not re.search(args.only, name):
             continue
         r.control(name, fn, **kw)
-    # "Test seams": a passing record names the Claude Code version whose
-    # writes its rerun measured, so a record without the rerun is partial.
-    rerun = None if args.skip_settings_writes else settings_writes(r.out)
-    controls_passed = all(x["passed"] for x in r.results)
-    rerun_passed = rerun is None or rerun["passed"]
-    passed = controls_passed and rerun is not None and rerun["passed"] and not args.only
+    passed = all(x["passed"] for x in r.results)
     record = {
-        "schema": "owner-switch-rehearsal/1",
-        "passed": passed,
+        "schema": "owner-switch-rehearsal/2",
+        "passed": passed and not args.only,
         "plan": r.plan, "plan_digest": r.plan_digest,
         "program": r.program, "program_digest": r.program_digest,
         "python": platform.python_version(), "macos": platform.mac_ver()[0],
         "controls": len(r.results), "failed": [x["control"] for x in r.results if not x["passed"]],
         "results": r.results,
-        "settings_writes": rerun,
-        "partial": bool(args.only) or rerun is None,
+        "partial": bool(args.only),
     }
     save(os.path.join(r.out, "record.json"), record)
     print(f"{len(r.results) - len(record['failed'])}/{len(r.results)} controls passed; record {r.out}/record.json")
-    if rerun is not None:
-        print(f"settings-writes.sh rerun with claude {rerun['claude_version']}: "
-              f"{'passed' if rerun['passed'] else 'FAILED: ' + rerun['detail']}")
-    else:
-        print("settings-writes.sh did not run, so the record is partial and admits nothing")
-    return 0 if controls_passed and rerun_passed else 1
-
-
-SETTINGS_WRITES = os.path.join(HERE, "..", "docs/evaluations/hooks-installation-writes/settings-writes.sh")
-# docs/homebrew-skill-delivery-evidence.md, "The interval between the read and
-# the rename": each command made its write from a read 30 to 38 ms before
-# its rename.
-EVIDENCE_RANGE_MS = (30.0, 38.0)
-
-
-def settings_writes(out: str) -> dict:
-    """Rerun settings-writes.sh with the real claude, and check its write method."""
-    work = os.path.join(out, "settings-writes")
-    if os.path.exists(work):
-        shutil.rmtree(work)
-    scratch = os.path.join(work, "scratch")
-    os.makedirs(scratch)
-    script = os.path.realpath(SETTINGS_WRITES)
-    # The script's shebang finds bash on PATH. The system's bash 3.2 expands
-    # braces inside a quoted command substitution, which breaks its jq filters.
-    result = subprocess.run([script, scratch], capture_output=True, text=True, env=clean_env(), timeout=7200)
-    text = result.stdout + result.stderr
-    with open(os.path.join(work, "output.md"), "w") as f:
-        f.write(text)
-    version = re.search(r"^claude (.+?) sha256 (\w+)$", text, re.M)
-    renames = {m.group(1): int(m.group(2)) for m in
-               re.finditer(r"^### (marketplace add|plugin install|plugin disable):.*?\n.*?"
-                           r"^renames onto the path: (\d+)$", text, re.M | re.S)}
-    races = {}
-    for m in re.finditer(r"^(add|install|disable)\.(inplace|rename)\s+runs \d+ .*? missing from live at leads "
-                         r"([\d.]+)\.\.([\d.]+) ms, in live at leads from ([\d.]+) ms$", text, re.M):
-        races.setdefault(m.group(1), []).append((float(m.group(4)), float(m.group(5))))
-    intervals = {cmd: {"from_ms": max(lost for lost, _ in rows), "to_ms": min(kept for _, kept in rows)}
-                 for cmd, rows in races.items()}
-    # The criterion reads the measured sections, not the exit status. The
-    # script's last section starts codebase-memory-mcp in the scratch HOME,
-    # and that server refuses to start while an account daemon serves another
-    # cache directory. A section that did not run leaves its result absent.
-    problems = []
-    if not version:
-        problems.append("the output names no Claude Code version")
-    for label in ("marketplace add", "plugin install"):
-        if renames.get(label) != 1:
-            problems.append(f"{label} renamed {renames.get(label)} files onto the path, not 1")
-    low, high = EVIDENCE_RANGE_MS
-    for cmd in ("add", "install"):
-        iv = intervals.get(cmd)
-        if iv is None:
-            problems.append(f"no race result for {cmd}")
-        elif iv["from_ms"] > high or iv["to_ms"] < low:
-            problems.append(f"the interval of {cmd}, {iv['from_ms']} to {iv['to_ms']} ms, misses {low} to {high} ms")
-    return {
-        "passed": not problems, "detail": "; ".join(problems) or "passed",
-        "claude_version": version.group(1) if version else None,
-        "claude_sha256_prefix": version.group(2) if version else None,
-        "script_digest": digest_file(script), "script_exit": result.returncode,
-        "renames": renames, "intervals_ms": intervals,
-        "output": os.path.join(work, "output.md"),
-    }
+    return 0 if passed else 1
 
 
 def main() -> int:
@@ -4554,8 +3254,6 @@ def main() -> int:
         return cmd_fixture(sys.argv[2])
     if len(sys.argv) > 1 and sys.argv[1] == "hook":
         return cmd_hook(sys.argv[2])
-    if len(sys.argv) > 1 and sys.argv[1] == "holder":
-        return cmd_holder(sys.argv[2], sys.argv[3])
     if len(sys.argv) > 1 and sys.argv[1] == "stub-claude":
         return cmd_stub_claude(sys.argv[2:])
     if len(sys.argv) > 1 and sys.argv[1] == "stub-brew":
@@ -4574,8 +3272,6 @@ def main() -> int:
     p.add_argument("--program", default=os.path.join(HERE, "owner_switch.py"))
     p.add_argument("--only", help="run only the controls whose name matches; the record is then partial")
     p.add_argument("--mac-check", default="", help=f"the owner's mac-check command (default {MAC_CHECK})")
-    p.add_argument("--skip-settings-writes", action="store_true",
-                   help="do not rerun settings-writes.sh with the real claude; the record is then partial")
     args = parser.parse_args()
     return cmd_rehearse(args)
 

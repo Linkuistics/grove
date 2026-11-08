@@ -26,7 +26,8 @@ the part table docs/owner-cutover/switch-plan-parts.tsv.
 entry that a part or an `outside` item names from the real HOME, and stops
 unless each copy has the draft's change identity. It writes both settings
 files with each cell at its earlier value. It then runs the program's loader
-and `run --dry-run`, and five controls that must fail. Last, it lists the
+and `run --dry-run`, six controls that must fail, and one control that must
+pass: a change inside .claude/skills/synced and .codex/skills/.system. Last, it lists the
 real process tree and the job listing against the plan's patterns, with the
 program's own classification of kept processes. OUT holds record.json,
 dry-run.txt and processes.txt. OUT must not exist. The real HOME is read only.
@@ -64,12 +65,14 @@ DISABLED = ("grove@linkuistics", "linkuistics@linkuistics", "testanyware@linkuis
 # installs the second disabled. Both are false before step 9.
 ENABLED = ("technical-communication-hooks@writing-hooks", "guardrail@personal")
 
-# "outside": native residue that must stay unchanged. No root that a platform
-# writes, because a probe session can rewrite .claude/skills/synced and
-# .codex/skills/.system, and step 14 would count that as a failed probe. No
-# plugin version directory, because each session writes .in_use/<pid> there.
-OUTSIDE_PATHS = (".claude/skills/codebase-memory", ".codex/skills/codebase-memory", ".agents/.grove")
-OUTSIDE_ROOTS = (".agents/skills", ".pi/agent/skills", ".pi/agent/extensions", ".claude/agents", ".codex/agents")
+# "outside": native residue that must stay unchanged. "Concurrent writers"
+# compares each ordinary child of both native roots. A probe session can
+# rewrite .claude/skills/synced and .codex/skills/.system, so their entries
+# name neither container, and the program skips exactly those two. No plugin
+# version directory, because each session writes .in_use/<pid> there.
+OUTSIDE_PATHS = (".agents/.grove",)
+OUTSIDE_ROOTS = (".claude/skills", ".codex/skills", ".agents/skills", ".pi/agent/skills", ".pi/agent/extensions",
+                 ".claude/agents", ".codex/agents")
 
 # Step 1 and "Concurrent writers". A pattern matches the arguments of a process.
 HARNESS = [r"^(\S*/)?claude(\s|$)"]
@@ -245,7 +248,7 @@ def draft(_args):
     for root in OUTSIDE_ROOTS:
         entries = {}
         for name in sorted(os.listdir(os.path.join(HOME, root))):
-            if f"{root}/{name}" not in moved:
+            if f"{root}/{name}" not in moved and f"{root}/{name}" not in CONTAINERS:
                 entries[name] = identity(os.path.join(HOME, root, name))
         outside.append({"root": root, "entries": entries})
     plan = {
@@ -347,7 +350,7 @@ def write_plan(plan, path):
 
 
 def controls(plan, out, home):
-    """Each control must fail: a broken draft must not be admitted, and a changed layout is not native."""
+    """A broken draft must not be admitted, and a changed layout is not native, except inside a platform subtree."""
     folder = os.path.join(out, "controls")
     os.makedirs(folder)
     results = []
@@ -389,6 +392,20 @@ def controls(plan, out, home):
     changed("changed-entry", touch, restore)
     extra = os.path.join(home, ".agents/skills/new-native-skill")
     changed("new-outside-child", lambda: os.makedirs(extra), lambda: os.rmdir(extra))
+    sibling = os.path.join(home, ".codex/skills/quint-lang")
+    changed("new-sibling-of-system", lambda: os.makedirs(sibling), lambda: os.rmdir(sibling))
+
+    # A change confined to the two platform subtrees leaves the layout native.
+    inside = [os.path.join(home, ".claude/skills/synced"), os.path.join(home, ".codex/skills/.system")]
+    for d in inside:
+        os.makedirs(os.path.join(d, "probe-skill"))
+    try:
+        code, text = program("run", "--dry-run", "--plan", PLAN_OUT, "--home", home)
+    finally:
+        for d in inside:
+            shutil.rmtree(d)
+    results.append({"control": "inside-platform-subtrees", "exit": code, "passed": code == 0 and "state: native" in text,
+                    "output": text.strip()[:600]})
     return results
 
 

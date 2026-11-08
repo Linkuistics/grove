@@ -1698,7 +1698,7 @@ results of running the switch. No production or test code was changed.
 ### D1 — P1: command paths do not identify the rehearsed programs
 
 The commands at
-[`switch_plan_draft.py:101`](evaluations/owner-skill-delivery/switch_plan_draft.py#L101)
+[`switch_plan_draft.py:101`](evaluations/owner-skill-delivery/switch_plan_draft.py)
 and line 114 execute `owner_switch_probes.py` and `inventory.py` from the
 real `<state>/prepared` directory. The plan records their paths but no
 content identities. `load_plan` hashes the JSON only, `rehearsed` compares
@@ -1720,7 +1720,7 @@ that a continuation execute the operation preserved by its backup
 ### D2 — P1: job labels do not enumerate the programs that jobs can launch
 
 The job command and patterns at
-[`switch_plan_draft.py:96`](evaluations/owner-skill-delivery/switch_plan_draft.py#L96)
+[`switch_plan_draft.py:96`](evaluations/owner-skill-delivery/switch_plan_draft.py)
 read only the current launchd listing and crontab text. A launchd listing
 holds labels, PIDs and exit statuses; it supplies no program arguments.
 The patterns also omit Pi. Login items are not read at all, and every
@@ -1741,7 +1741,7 @@ step 2 must stop while one remains
 ### D3 — P2: omitting two whole roots also omits their ordinary children
 
 The `outside` choices at
-[`switch_plan_draft.py:67`](evaluations/owner-skill-delivery/switch_plan_draft.py#L67)
+[`switch_plan_draft.py:67`](evaluations/owner-skill-delivery/switch_plan_draft.py)
 omit `.claude/skills` and `.codex/skills` because their platform containers
 are mutable. That also omits the names of every other child not already
 in `parts`. The control adds a child only to `.agents/skills`, a root that
@@ -1765,7 +1765,7 @@ replacement for this missing observation.
 ### D4 — P2: the MCP list grants a non-server a kept-process exemption
 
 The pattern at
-[`switch_plan_draft.py:86`](evaluations/owner-skill-delivery/switch_plan_draft.py#L86)
+[`switch_plan_draft.py:86`](evaluations/owner-skill-delivery/switch_plan_draft.py)
 labels `caffeinate -i -t <digits>` as an MCP server. The producer's
 committed process listing shows that this exempts the harness child
 `caffeinate -i -t 300`. The program follows matching children recursively,
@@ -1785,9 +1785,9 @@ defect is the unresolved, load-bearing change to the exclusion contract.
 ### D5 — P1: the chosen inventory rejects the switched guardrail plugin
 
 The plan's `baseline` at
-[`switch_plan_draft.py:114`](evaluations/owner-skill-delivery/switch_plan_draft.py#L114)
+[`switch_plan_draft.py:114`](evaluations/owner-skill-delivery/switch_plan_draft.py)
 names the unchanged inventory instrument. Its plugin-skill classification
-at [`inventory.py:164`](evaluations/owner-skill-delivery/inventory.py#L164)
+at [`inventory.py:164`](evaluations/owner-skill-delivery/inventory.py)
 recognizes the old `linkuistics` marketplace, superpowers and Quint. For
 another enabled plugin with a `skills` directory, it emits
 `UNCLASSIFIED`. The personal plugin has `skills/guardrail/SKILL.md`.
@@ -2276,3 +2276,118 @@ files, the manifest and the three changed Mermaid sources.
 The session inspected diagram sources, not rendered layout. It ran no switch,
 real-harness trial, code-suite check or owner configuration operation.
 Those checks belong to the implementation and acceptance work named above.
+
+## Owner inventory exceptions
+
+`owner-inventory-exceptions-k264` applied the two inventory rules of
+[Concurrent writers](specs/owner-skill-delivery.md#concurrent-writers) on
+2026-11-08. These rules answer D3 and D5 of the
+[plan draft review](#owner-switch-plan-draft-review). The real HOME stayed
+read only.
+
+### The changes
+
+- [`inventory.py`](evaluations/owner-skill-delivery/inventory.py) recognises
+  a platform subtree only at its exact root: `~/.claude/skills/synced` and
+  `~/.codex/skills/.system`. A child with either name in the other root is an
+  ordinary child. Each other hidden child of a root is an ordinary child too.
+  A platform subtree that is not a plain directory gets an `UNCLASSIFIED` row.
+- The instrument's new `compare BEFORE AFTER` command keys each row by its
+  harness, location and entry. It skips only the rows inside the two
+  subtrees. It fails on each added, removed or changed key and on each
+  anomaly row of the second inventory. `task owner:inventory:compare` runs it.
+- An enabled `guardrail@personal` is the native residue only under two
+  conditions. The `personal` entry of `known_marketplaces.json` must have the
+  source directory `/opt/homebrew/opt/personal`. The plugin's `skills/` must
+  hold only `guardrail`. Otherwise its rows say `UNCLASSIFIED`.
+- `outside_changes` in
+  [`owner_switch.py`](../scripts/owner_switch.py) skips the same two
+  subtrees, each only while it is a plain directory. A link in place of
+  either is still compared.
+- [`switch_plan_draft.py`](evaluations/owner-skill-delivery/switch_plan_draft.py)
+  adds `.claude/skills` and `.codex/skills` to the `outside` roots. Their
+  entries name neither platform subtree. The committed
+  `switch-plan-draft.json` keeps the earlier form until
+  owner-switch-plan-k254 regenerates the plan.
+
+### Controls
+
+[`controls.py`](evaluations/owner-skill-delivery/controls.py) passed 37 of 37
+cases. Each case also checks the verdict of `compare` against the unchanged
+run. The new cases are these:
+
+- A superseded skill beside each subtree fails. The cases cover a directory
+  and a link to the Quint clone at each native root. They also cover a nested
+  copy in an ordinary child and a hidden child.
+- A link in place of `synced` fails. A child named `synced` in the Codex root
+  fails, and so does a child named `.system` in the Claude Code root.
+- A new child of `~/.agents/skills` and a new Pi skill fail.
+- A changed skill inside `synced` and a new skill inside `.system` pass. The
+  rows of that subtree still change, so the exclusion passes them.
+- The native guardrail from its sole-skill personal plugin passes. An extra
+  skill, another origin and an absent registration fail. A `guardrail` skill
+  from another marketplace fails.
+
+The fixture now holds a codebase-memory executable and a Quint clone with a
+fixed commit date. The unchanged run therefore has no anomaly row, and the
+verdict of `compare` depends only on the case. The fixture's temporary
+directory is a resolved path, because macOS links `/var` to `/private/var`.
+
+The instrument before this change stops on the unchanged fixture. It reports
+the guardrail skill of the valid personal plugin as `UNCLASSIFIED`, which
+reproduces D5.
+
+### Mutation controls
+
+Each deliberate mutation of a scratch copy made its control fail:
+
+| Mutation | Controls that failed |
+| --- | --- |
+| `compare` also skips both parent roots | 9 cases beside the subtrees |
+| `compare` skips nothing | The changes inside `synced` and `.system` |
+| The walker skips hidden children again | The hidden child beside `.system` |
+| The walker follows a link in place of `synced` | The link in place of `synced` |
+| The mutant drops the origin rule | Another origin and an absent registration |
+| The mutant drops the extra-skill rule | The extra skill in the guardrail plugin |
+
+The rehearsal gained the controls `outside-platform-subtree` and
+`outside-platform-link`. With `--only '^outside-'`, 4 of 4 controls passed.
+Three program mutations each failed a control. Skipping nothing failed
+`outside-platform-subtree`. Skipping each child of both roots failed the two
+earlier outside controls and `outside-platform-link`. Skipping a link in
+place of a subtree failed `outside-platform-link`.
+
+The draft generator ran in a scratch directory against the real HOME. Its
+`outside` held both native roots, each with only `codebase-memory`. Its
+`check` passed seven controls. The new `new-sibling-of-system` control must
+change the state, and `inside-platform-subtrees` must leave it native.
+
+### The real HOME
+
+`task owner:inventory` gave byte-identical output before and after the
+change, with 446 rows. `compare` of the two runs found no difference and
+skipped 36 rows inside the platform subtrees. These were the SHA-256 values
+of the measured files, which stayed unchanged during the final runs:
+
+| File | SHA-256 |
+| --- | --- |
+| `inventory.py` | `6c5195e75f3df5269bec964effead080772107a5270055d9e2af378fbeb4300f` |
+| `controls.py` | `c61749d9692d4688c2145040e47123c1a94940d3a4e36304b9d074bd155d33d3` |
+| `owner_switch.py` | `706cb2bd9f02d4a0585589c50048f2a10e75b4fc13019a7c592271b83f260edd` |
+| `owner_switch_rehearsal.py` | `ac1427165d61d8208229b1841daeb556305631bc129b8399ec05464035ca6d5c` |
+| `switch_plan_draft.py` | `9064d63f29bf28d41368d77db858bf4915c24b94b5efb4db146f9badb5441807` |
+
+### Limits
+
+- The personal keg is not installed in the real HOME, so this session
+  observed no real `guardrail@personal`. The registration shape comes from the
+  Grove keg trial of [The hook adapters from a keg](homebrew-skill-delivery-evidence.md#the-hook-adapters-from-a-keg).
+  The staging trial of the native guardrail must check it.
+- The sole-skill rule reads the `skills/` of the installation path that
+  `installed_plugins.json` records. Claude Code runs a directory
+  marketplace's plugin in place through the `opt` path. A difference between
+  the keg and the cache copy is outside this rule.
+- The origin rule names the Homebrew prefix `/opt/homebrew`, as the tool rows
+  do.
+- A disabled `guardrail@personal` stays outside the active collection, and
+  the origin rule does not apply to it.

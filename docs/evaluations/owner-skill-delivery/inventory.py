@@ -39,8 +39,25 @@ The design in docs/specs/owner-skill-delivery.md owns each classification and
 destination. This script encodes them so that a later inventory can compare
 entries one by one with docs/owner-skill-inventory.tsv.
 
+Two exceptions of "Concurrent writers" in the design:
+
+- The platform subtrees are only ~/.claude/skills/synced and
+  ~/.codex/skills/.system. A child with either name in another root, and each
+  other hidden child of a root, is an ordinary child. A platform subtree that
+  is not a plain directory gets an UNCLASSIFIED row.
+- An enabled guardrail@personal is the classified native residue only if the
+  marketplace personal in ~/.claude/plugins/known_marketplaces.json has the
+  source directory /opt/homebrew/opt/personal and the plugin's skills/ holds
+  only guardrail. Otherwise its rows say UNCLASSIFIED.
+
 Usage:
     python3 -I inventory.py > inventory.tsv
+    python3 -I inventory.py compare BEFORE.tsv AFTER.tsv
+
+`compare` keys each row by its harness, location and entry. It prints each
+key that only one side holds, each key whose rows differ with the differing
+columns, and each anomaly row of AFTER. It skips only the rows inside the two
+platform subtrees. Exit status 0 means no difference and no anomaly.
 
 Controls: controls.py beside this script builds a fixture HOME and checks that
 each class of change changes its entry. Set CONTROL_ROOT to a scratch directory
@@ -87,6 +104,43 @@ READER_MARKERS = (".in_use",)
 def filedigest(p):
     with open(p, "rb") as fh: return h16(xbit(p) + fh.read())
 
+# "Concurrent writers" of the design: the only two platform subtrees, each at
+# its exact root. A child with the same name in another root is an ordinary
+# child. The walker writes the rows inside a subtree at one location, and
+# compare() skips exactly those locations. The row of a subtree that is not a
+# plain directory sits at the root's location, so compare() still sees it.
+PLATFORM_SUBTREES = {("~/.claude/skills", "synced"), ("~/.codex/skills", ".system")}
+SKIPPED = {("claude", "~/.claude/skills/synced/<account>"), ("codex", "~/.codex/skills/.system")}
+ANOMALIES = ("UNCLASSIFIED", "UNASSIGNED", "UNCOVERED", "NEEDS-REVIEW")
+def compare(before_path, after_path):
+    """Print each difference between two inventories; return 0 only if there is none."""
+    sides, skipped = [], 0
+    for path in (before_path, after_path):
+        with open(path, encoding="utf-8") as fh: lines = fh.read().splitlines()
+        if not lines or lines[0] != "\t".join(HEADER): sys.exit(f"compare: {path} is not an inventory")
+        keyed = {}
+        for line in lines[1:]:
+            r = line.split("\t")
+            if (r[0], r[1]) in SKIPPED: skipped += 1; continue
+            keyed.setdefault((r[0], r[1], r[2]), []).append(r)
+        sides.append({k: sorted(v) for k, v in keyed.items()})
+    before, after = sides; found = 0
+    for k in sorted(before.keys() | after.keys()):
+        if k not in after: print("removed\t" + "\t".join(k)); found += 1
+        elif k not in before: print("added\t" + "\t".join(k)); found += 1
+        elif before[k] != after[k]:
+            cols = sorted({HEADER[i] for b, a in zip(before[k], after[k]) for i in range(len(HEADER)) if b[i] != a[i]})
+            print("changed\t" + "\t".join(k) + "\t" + (",".join(cols) or "row count")); found += 1
+    for k, rs in sorted(after.items()):
+        for r in rs:
+            if any(f in ANOMALIES for f in r): print("anomaly\t" + "\t".join(r)); found += 1
+    print(f"compare: {found} differences; {skipped} rows inside the platform subtrees skipped", file=sys.stderr)
+    return 1 if found else 0
+HEADER = ["harness", "location", "entry", "form", "identity", "digest16", "files", "class", "source_owner", "capabilities", "disposition", "note"]
+if sys.argv[1:2] == ["compare"]:
+    if len(sys.argv) != 4: sys.exit("usage: inventory.py compare BEFORE.tsv AFTER.tsv")
+    sys.exit(compare(sys.argv[2], sys.argv[3]))
+
 DEST = {}
 for s in "grove configure-grove grove-finish grove-planning grove-review-planning grove-integrate-review-planning".split(): DEST[s] = "grove-core"
 for s in "grove-requirements grove-review-requirements grove-integrate-review-requirements".split(): DEST[s] = "requirements"
@@ -129,12 +183,31 @@ walked = []
 inst = need_json(f"{H}/.claude/plugins/installed_plugins.json")
 claude_settings = need_json(f"{H}/.claude/settings.json")
 enabled = claude_settings.get("enabledPlugins", {})
+# "Native residue" and "Concurrent writers": an enabled guardrail@personal is a
+# classified native capability only from the personal keg's registered
+# marketplace, with guardrail as its only skill. The registration stores the
+# path that `claude plugin marketplace add "$(brew --prefix)/opt/personal"`
+# received (docs/specs/codex-skill-provisioning.md, "Hook adapters").
+RESIDUE = "guardrail@personal"
+PERSONAL_SOURCE = {"source": "directory", "path": "/opt/homebrew/opt/personal"}
+try:
+    with open(f"{H}/.claude/plugins/known_marketplaces.json", encoding="utf-8") as fh: known = json.load(fh)
+except (OSError, ValueError): known = {}
+def residue_problem(p):
+    src = known.get("personal", {}).get("source") if isinstance(known.get("personal"), dict) else None
+    if src != PERSONAL_SOURCE: return "marketplace personal is not registered from /opt/homebrew/opt/personal"
+    extra = [d for d in ls(os.path.join(p, "skills")) if d != "guardrail"]
+    if extra: return "skills other than guardrail: " + ", ".join(extra)
+    if not os.path.isfile(os.path.join(p, "skills", "guardrail", "SKILL.md")): return "no guardrail skill"
+    return None
 active_claude = set()
 for key, entries in sorted(inst.get("plugins", {}).items()):
     for e in entries:
         p = e["installPath"]; plugin, market = key.split("@")
         active_claude.add(os.path.realpath(p)); walked.append(p)
         en = enabled.get(key)
+        residue = en is True and key == RESIDUE
+        problem = residue_problem(p) if residue else None
         comps = []
         for k in ("skills", "commands", "agents"):
             if os.path.isdir(os.path.join(p, k)): comps.append(k)
@@ -146,7 +219,9 @@ for key, entries in sorted(inst.get("plugins", {}).items()):
         elif "skills" in comps: cls, owner = ("third-party-pack" if en else "disabled-third-party"), market
         else: cls, owner = "capability-only", market
         if not en: cls = "disabled-third-party" if market != "linkuistics" else cls
-        if market == "linkuistics" and plugin == "linkuistics": dispo = "disable; hooks move to skill-free plugin; guardrail to native-only plugin"
+        if residue: cls, owner = ("unknown", "unknown") if problem else ("native-residue", "personal keg marketplace")
+        if residue: dispo = "UNCLASSIFIED" if problem else "native-keep (native residue)"
+        elif market == "linkuistics" and plugin == "linkuistics": dispo = "disable; hooks move to skill-free plugin; guardrail to native-only plugin"
         elif market == "linkuistics": dispo = "disable"
         elif plugin == "superpowers": dispo = "disable; SessionStart prose becomes Ravel mandatory file"
         elif plugin == "quint-llm-kit": dispo = "disable"
@@ -155,7 +230,7 @@ for key, entries in sorted(inst.get("plugins", {}).items()):
         orphan = "yes" if os.path.exists(os.path.join(p, ".orphaned_at")) else "no"
         if os.path.isdir(p): pdg, pn = digest(p, READER_MARKERS)
         else: pdg, pn, dispo = "-", 0, "NEEDS-REVIEW"
-        row("claude", os.path.dirname(os.path.dirname(p)), key, f"plugin v{e['version']} sha {(e.get('gitCommitSha') or '-')[:12]} enabled={en} orphan={orphan}", plugin, pdg, pn, cls, owner, "+".join(comps), dispo)
+        row("claude", os.path.dirname(os.path.dirname(p)), key, f"plugin v{e['version']} sha {(e.get('gitCommitSha') or '-')[:12]} enabled={en} orphan={orphan}", plugin, pdg, pn, cls, owner, "+".join(comps), dispo, problem)
         sk = os.path.join(p, "skills")
         for d in ls(sk):
             sd = os.path.join(sk, d)
@@ -166,6 +241,7 @@ for key, entries in sorted(inst.get("plugins", {}).items()):
                 if d == "guardrail": dsp = "native-only (PersonalSkills Claude plugin; outside Ravel roots)"
                 elif d == "technical-communication": dsp = f"ravel:{tgt}; hooks via skill-free plugin"
                 else: dsp = f"ravel:{tgt}"
+            elif residue: dsp = "UNCLASSIFIED" if problem else "native-keep (native guardrail; outside Ravel roots)"
             elif plugin == "superpowers": dsp = "ravel:superpowers" + ("; mandatory file" if d == "using-superpowers" else "")
             elif plugin == "quint-llm-kit": dsp = "ravel:quint"
             elif not en: dsp = "outside (plugin disabled)"
@@ -182,13 +258,15 @@ def walk_root(harness, root, cls_fn):
     walked.append(rp)
     for e in sorted(os.listdir(rp)):
         p = os.path.join(rp, e)
-        if e.startswith(".") and e != ".system": continue
         if os.path.islink(p):
             tgt = os.readlink(p); real = os.path.realpath(p); ok = os.path.exists(p)
             form = f"link -> {t(tgt)}" + ("" if ok else " (DANGLING)")
         elif os.path.isdir(p): real, ok, form = p, True, "directory"
         else: continue
-        if e == ".system" or e == "synced":
+        if (root, e) in PLATFORM_SUBTREES:
+            if form != "directory":
+                row(harness, root, e, form, "-", "-", 0, "unknown", "unknown", "-", "UNCLASSIFIED", "a platform subtree must be a plain directory")
+                continue
             for s in sorted(os.listdir(real)):
                 sp = os.path.join(real, s)
                 if s.startswith(".") or not os.path.isdir(sp): continue
@@ -400,7 +478,6 @@ for key, paths in sorted(cover.items()):
     else:
         row("coverage", key[1], os.path.basename(key[1]), "SKILL.md outside every walked root and container", fm(os.path.join(key[1], "SKILL.md")).get("name"), dg, len(paths), "unknown", "unknown", "-", "UNCOVERED")
 
-hdr = ["harness", "location", "entry", "form", "identity", "digest16", "files", "class", "source_owner", "capabilities", "disposition", "note"]
 w = sys.stdout
-w.write("\t".join(hdr) + "\n")
+w.write("\t".join(HEADER) + "\n")
 for r in rows: w.write("\t".join(x.replace("\t", " ") for x in r) + "\n")

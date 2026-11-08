@@ -87,7 +87,9 @@ The plan (JSON, schema "owner-switch-plan/1"):
                  is an absent key. Entries come first.
     outside      entries outside the switch set: {"path", "identity"}, or
                  {"root", "entries": {name: identity}} for each child of a
-                 directory that no part names.
+                 directory that no part names. The comparison skips only
+                 the platform subtrees .claude/skills/synced and
+                 .codex/skills/.system, each while it is a plain directory.
     session      {"harness": [regex], "mcp": [regex]}: the kept processes. A
                  kept MCP server is a child of the harness process that
                  matches "mcp", or a descendant reached through matching
@@ -1070,6 +1072,17 @@ def part_status(layout: Layout, part: dict, backup) -> dict:
     return {"status": status, "original": original, "retained": retained}
 
 
+# "Concurrent writers": the only subtrees that a comparison skips. A probe
+# session can rewrite them. Their ordinary siblings, and a link or file in
+# place of either, are still compared.
+PLATFORM_SUBTREES = (".claude/skills/synced", ".codex/skills/.system")
+
+
+def platform_subtree(layout: Layout, rel: str) -> bool:
+    p = layout.path(rel)
+    return rel in PLATFORM_SUBTREES and os.path.isdir(p) and not os.path.islink(p)
+
+
 def outside_changes(layout: Layout, plan: dict) -> list:
     """Each entry outside the switch set that differs from the plan's manifest."""
     changed = []
@@ -1081,6 +1094,8 @@ def outside_changes(layout: Layout, plan: dict) -> list:
             names = {n for n in names if os.path.join(item["root"], n) not in part_paths}
             for name in sorted(names | set(item["entries"])):
                 rel = os.path.join(item["root"], name)
+                if platform_subtree(layout, rel):
+                    continue
                 if identity(layout.path(rel)) != item["entries"].get(name):
                     changed.append(rel)
         elif identity(layout.path(item["path"])) != item["identity"]:

@@ -384,6 +384,13 @@ tasks:
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/inventory.py
 
+  owner:inventory:compare:
+    desc: Compare two owner inventories per entry, skipping only the two platform subtrees, and fail on each difference or anomaly row
+    requires:
+      vars: [BEFORE, AFTER]
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/inventory.py compare "{{.BEFORE}}" "{{.AFTER}}"
+
   owner:inventory:controls:
     desc: Check in a fixture HOME that the owner inventory sees each class of change
     cmds:

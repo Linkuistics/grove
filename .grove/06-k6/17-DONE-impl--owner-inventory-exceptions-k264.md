@@ -43,3 +43,29 @@ subtrees of the native skill roots, and D5, the enabled native guardrail.
 
 No exclusion may name a parent root or suppress an ordinary sibling. A probe
 that writes an incidental file is not a reason for a new exclusion.
+
+## Decisions (running log)
+
+- The instrument gains a `compare BEFORE AFTER` command. Each consumer
+  that compares two inventories uses it. The D3 exclusion lives only there,
+  as two exact pairs of harness and location.
+- The walker treats `synced` and `.system` as platform subtrees only at
+  `~/.claude/skills` and `~/.codex/skills`. Elsewhere each is an ordinary
+  child. Other hidden children of a root become ordinary children too.
+- A platform subtree that is not a plain directory gets its own anomaly row.
+  A link in place of `synced` therefore fails, but a change inside it passes.
+- D5 reads the origin from the `personal` entry of
+  `~/.claude/plugins/known_marketplaces.json`. The source must be the
+  directory `/opt/homebrew/opt/personal`, which is the documented
+  `marketplace add` path. The plugin's `skills/` must hold only `guardrail`.
+- The consumers are `switch_plan_draft.py`, whose `outside` manifest omits
+  both native roots, and `outside_changes` in `scripts/owner_switch.py`. The
+  draft adds both roots without their platform subtrees. The program skips
+  exactly those two subtrees. owner-switch-plan-k254 regenerates the
+  committed draft from the real HOME.
+- `scripts/check.sh` failed only `every_repository_markdown_reference_resolves`.
+  Six `.py#L<n>` links of the plan draft review already failed it in the
+  parent revision, and this change moved the line of one. The links lose
+  their fragments. Their labels keep the reviewed revision's line numbers.
+- `.claude/settings.json` was in the working copy before this session. It is
+  not this leaf's work, so the commit leaves it out.

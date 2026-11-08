@@ -10,6 +10,16 @@ The fixture's plugin version directory holds one marker of an earlier session,
 as the owner's baseline did. Two cases change that directory in other places,
 including a nested .in_use, and must change the plugin row.
 
+The cases of "Test seams" in docs/specs/owner-skill-delivery.md follow. A
+superseded skill beside each platform subtree, at both native roots, through
+a link, as a nested copy and as a hidden child, must fail the instrument's
+`compare`. So must a link in place of synced, and a child named synced or
+.system in the other native root. A change inside synced or .system alone
+must pass it, and must still change that subtree's rows. The native guardrail
+from its sole-skill personal plugin must pass. An extra skill, another origin
+or no registration must fail. Each case also checks the verdict of `compare`
+against the unchanged run. The unchanged fixture must hold no anomaly row.
+
 The fixture stands in for the owner's HOME, so the script writes only inside
 its temporary directory. The instrument still reads the absolute tool paths
 under /opt/homebrew and /Applications, which are the same for every case.
@@ -22,6 +32,7 @@ cases against another revision of the instrument, such as the reviewed one.
 A revision that cannot see a class of change must fail its case.
 """
 import json, os, shutil, subprocess, sys, tempfile
+ANOMALIES = ("UNCLASSIFIED", "UNASSIGNED", "UNCOVERED", "NEEDS-REVIEW")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 instrument = os.path.join(HERE, "inventory.py")
@@ -44,6 +55,12 @@ PLUGIN_ROW = ("claude", "~/.claude/plugins/cache/linkuistics", "demo@linkuistics
 MARKER = PLUGIN + "/.in_use/1001"
 MARKER_V1 = '{"pid":1001,"procStart":"Sat Nov  7 09:00:00 2026"}'
 HOOK = {"matcher": "startup", "hooks": [{"type": "command", "command": "\"$HOME/.claude/hooks/herdr-agent-state.sh\" start", "timeout": 5}]}
+SYNCED = ".claude/skills/synced/account-1/docs"
+SYSTEM = ".codex/skills/.system/skill-creator"
+GUARDRAIL = ".claude/plugins/cache/personal/guardrail/unknown"
+GUARDRAIL_ROW = ("claude", "~/.claude/plugins/cache/personal", "guardrail@personal")
+PERSONAL_SOURCE = {"source": "directory", "path": "/opt/homebrew/opt/personal"}
+SUPERSEDED = "---\nname: brainstorming\n---\nSuperseded copy.\n"
 CODEX_TOML = '[mcp_servers.quint-kb]\ncommand = "node"\nargs = ["kb.js"]\n\n[plugins."visualize@openai-bundled"]\nenabled = false\n'
 
 def build(home):
@@ -66,6 +83,25 @@ def build(home):
     for d in (".codex/skills", ".agents/skills", ".pi/agent/skills", ".pi/agent/extensions", ".agents/.grove/snapshots/s1"):
         os.makedirs(os.path.join(home, d))
     os.symlink("snapshots/s1", os.path.join(home, ".agents/.grove/current"))
+    # The two platform subtrees, an ordinary child beside one, and the native
+    # guardrail plugin, enabled from the personal keg's marketplace.
+    write(home, SYNCED + "/SKILL.md", "---\nname: docs\n---\nAccount skill.\n")
+    write(home, SYSTEM + "/SKILL.md", "---\nname: skill-creator\n---\nSystem skill.\n")
+    write(home, ".claude/skills/codebase-memory/SKILL.md", "---\nname: codebase-memory\n---\nTool skill.\n")
+    write(home, GUARDRAIL + "/skills/guardrail/SKILL.md", "---\nname: guardrail\n---\nGuardrail.\n")
+    write(home, GUARDRAIL + "/commands/guardrail.md", "Guardrail command.\n")
+    edit_json(home, ".claude/plugins/installed_plugins.json", lambda o: o["plugins"].update({"guardrail@personal": [
+        {"scope": "user", "installPath": os.path.join(home, GUARDRAIL), "version": "unknown"}]}))
+    edit_json(home, ".claude/settings.json", lambda o: o["enabledPlugins"].update({"guardrail@personal": True}))
+    jwrite(home, ".claude/plugins/known_marketplaces.json", {"personal": {"source": PERSONAL_SOURCE, "installLocation": "/opt/homebrew/opt/personal"}})
+    write(home, ".quint-llm-kit/repo/skills/quint-lang/SKILL.md", "---\nname: quint-lang\n---\nQuint.\n")
+    # The two tools under HOME, so that the unchanged run has no anomaly row
+    # and the comparison's verdict depends only on the case.
+    write(home, ".local/bin/codebase-memory-mcp", "#!/bin/sh\nexit 0\n", 0o755)
+    git = ["git", "-C", os.path.join(home, ".quint-llm-kit/repo"), "-c", "user.name=fixture",
+           "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false"]
+    for args in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "fixture"]):
+        subprocess.run(git + args, check=True, capture_output=True, env={**os.environ, "HOME": home, "GIT_AUTHOR_DATE": "2026-11-08T00:00:00Z", "GIT_COMMITTER_DATE": "2026-11-08T00:00:00Z"})
     pages = ".codex/plugins/cache/openai-curated-remote/pages"
     write(home, pages + "/0.1.0/skills/write-page/SKILL.md", "---\nname: write-page\n---\nFixture page skill.\n")
     jwrite(home, pages + "/.codex-remote-plugin-install.json", {"schema_version": 1, "remote_plugin_id": "fixture"})
@@ -109,22 +145,72 @@ CASES = [
      ("marker", "UNCOVERED")),
 ]
 
+def link(home, target, rel):
+    os.symlink(os.path.join(home, target), os.path.join(home, rel))
+def synced_link(home):
+    shutil.rmtree(os.path.join(home, ".claude/skills/synced"))
+    write(home, ".elsewhere/account-1/brainstorming/SKILL.md", SUPERSEDED)
+    link(home, ".elsewhere", ".claude/skills/synced")
+def other_origin(home):
+    edit_json(home, ".claude/plugins/known_marketplaces.json",
+              lambda o: o["personal"].update(source={"source": "directory", "path": os.path.join(home, "PersonalSkills")}))
+def guardrail_elsewhere(home):
+    edit_json(home, ".claude/plugins/installed_plugins.json", lambda o: o["plugins"].update({"guardrail@acme": [
+        {"scope": "user", "installPath": os.path.join(home, ".claude/plugins/cache/acme/guardrail/1"), "version": "1"}]}))
+    write(home, ".claude/plugins/cache/acme/guardrail/1/skills/guardrail/SKILL.md", "---\nname: guardrail\n---\nCopy.\n")
+    edit_json(home, ".claude/settings.json", lambda o: o["enabledPlugins"].update({"guardrail@acme": True}))
+# "Test seams" of docs/specs/owner-skill-delivery.md: each case beside or
+# inside a platform subtree, and each case of the native guardrail. "fails"
+# and "passes" name the exit of `inventory.py compare` against the unchanged
+# run. A pass inside a subtree must also change that subtree's rows, so that
+# the exclusion, not a blind walker, passes it.
+CASES += [
+    ("superseded skill beside synced", lambda h: write(h, ".claude/skills/brainstorming/SKILL.md", SUPERSEDED), ("fails",)),
+    ("superseded skill beside .system", lambda h: write(h, ".codex/skills/brainstorming/SKILL.md", SUPERSEDED), ("fails",)),
+    ("superseded skill link beside synced", lambda h: link(h, ".quint-llm-kit/repo/skills/quint-lang", ".claude/skills/quint-lang"), ("fails",)),
+    ("superseded skill link beside .system", lambda h: link(h, ".quint-llm-kit/repo/skills/quint-lang", ".codex/skills/quint-lang"), ("fails",)),
+    ("nested copy in an ordinary child beside synced", lambda h: write(h, ".claude/skills/codebase-memory/brainstorming/SKILL.md", SUPERSEDED), ("fails",)),
+    ("hidden child beside .system", lambda h: write(h, ".codex/skills/.brainstorming/SKILL.md", SUPERSEDED), ("fails",)),
+    ("synced in the Codex root is an ordinary child", lambda h: write(h, ".codex/skills/synced/account-1/brainstorming/SKILL.md", SUPERSEDED), ("fails",)),
+    (".system in the Claude Code root is an ordinary child", lambda h: write(h, ".claude/skills/.system/brainstorming/SKILL.md", SUPERSEDED), ("fails",)),
+    ("link in place of synced", synced_link, ("fails",)),
+    ("new child of the Codex user root .agents/skills", lambda h: write(h, ".agents/skills/brainstorming/SKILL.md", SUPERSEDED), ("fails",)),
+    ("new Pi skill", lambda h: write(h, ".pi/agent/skills/brainstorming/SKILL.md", SUPERSEDED), ("fails",)),
+    ("changed skill inside synced", lambda h: write(h, SYNCED + "/SKILL.md", "---\nname: docs\n---\nUpdated by the account.\n"), ("passes",)),
+    ("new skill inside .system", lambda h: write(h, ".codex/skills/.system/imagegen/SKILL.md", "---\nname: imagegen\n---\n"), ("passes",)),
+    ("native guardrail from its sole-skill personal plugin", lambda h: None, ("residue", "native-keep (native residue)")),
+    ("extra skill in the guardrail plugin", lambda h: write(h, GUARDRAIL + "/skills/brainstorming/SKILL.md", SUPERSEDED), ("residue", "UNCLASSIFIED")),
+    ("guardrail plugin from another origin", other_origin, ("residue", "UNCLASSIFIED")),
+    ("guardrail plugin with no personal registration", lambda h: os.remove(os.path.join(h, ".claude/plugins/known_marketplaces.json")), ("residue", "UNCLASSIFIED")),
+    ("guardrail skill from another marketplace", guardrail_elsewhere, ("marker", "UNCLASSIFIED")),
+]
+
 def run(home):
     env = {k: v for k, v in os.environ.items() if k != "CONTROL_ROOT"}; env["HOME"] = home
     out = subprocess.run([sys.executable, "-I", instrument], env=env, capture_output=True, text=True)
     if out.returncode: return None
+    with open(os.path.join(home, "..", "inventory.tsv"), "w", encoding="utf-8") as fh: fh.write(out.stdout)
     return {(r[0], r[1], r[2]): r for r in (line.split("\t") for line in out.stdout.splitlines()[1:])}
+
+def compared(tmp, name):
+    """The exit status of the instrument's own comparison of the unchanged run with this case."""
+    tsv = lambda n: os.path.join(tmp, n.replace(" ", "-"), "inventory.tsv")
+    return subprocess.run([sys.executable, "-I", instrument, "compare", tsv("base"), tsv(name)],
+                          capture_output=True, text=True).returncode
 
 def fixture_run(tmp, name, mutate):
     home = os.path.join(tmp, name.replace(" ", "-"), "home")
     os.makedirs(home); build(home); mutate(home)
     return run(home)
 
-tmp = tempfile.mkdtemp(prefix="owner-inventory-controls.")
+# Resolved, so that a resolved path under the fixture HOME still starts with HOME.
+tmp = os.path.realpath(tempfile.mkdtemp(prefix="owner-inventory-controls."))
 failed = 0
 try:
     base = fixture_run(tmp, "base", lambda h: None)
     if base is None: sys.exit(f"controls: {instrument} failed on the unchanged fixture")
+    anomalies = [k for k, r in base.items() if any(f in ANOMALIES for f in r)]
+    if anomalies: sys.exit(f"controls: the unchanged fixture has anomaly rows: {anomalies}")
     for name, mutate, expect in CASES:
         got = fixture_run(tmp, name, mutate)
         if got is None: ok, why = False, "instrument failed"
@@ -133,8 +219,21 @@ try:
             k = expect[1]; ok = k in base and k in got and base[k] != got[k]; why = f"entry {k[2]} did not change"
         elif expect[0] == "added":
             k = expect[1]; ok = k not in base and k in got; why = f"entry {k[2]} was not added"
-        else:
+        elif expect[0] == "marker":
             ok = any(r[10] == expect[1] for k, r in got.items() if k not in base); why = f"no new {expect[1]} row"
+        elif expect[0] == "residue":
+            r = got.get(GUARDRAIL_ROW); ok = r is not None and r[10] == expect[1]
+            why = f"guardrail@personal has disposition {r[10] if r else 'none'}, not {expect[1]}"
+        elif expect[0] == "passes":
+            ok = got != base; why = "the subtree's rows did not change"
+        else:
+            ok = True
+        # Every case also states the comparison's verdict: unchanged and
+        # accepted cases pass it, and each other case fails it.
+        if got is not None and ok:
+            want = 0 if expect[0] in ("same", "passes") or expect[1:] == ("native-keep (native residue)",) else 1
+            code = compared(tmp, name)
+            if code != want: ok, why = False, f"compare exited {code}, not {want}"
         if not ok and got is not None and expect[0] != "same" and got == base: why += "; whole output unchanged"
         print(("PASS " if ok else "FAIL ") + name + ("" if ok else f": {why}"))
         failed += not ok

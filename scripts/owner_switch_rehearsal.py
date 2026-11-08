@@ -1232,6 +1232,24 @@ def c_outside_after_stop(case):
     expect(case.receipts() == 0, "the complete continuation copied a receipt with a changed outside entry")
 
 
+def c_outside_platform_subtree(case):
+    """A probe's change inside each platform subtree passes. outside-entry-inside-run fails a sibling."""
+    case.set_control({"actions": [
+        {"point": "after-record:receipt", "do": "create", "path": ".claude/skills/synced/account-1/docs"},
+        {"point": "after-record:receipt", "do": "create", "path": ".codex/skills/.system/imagegen"}]})
+    run_to_complete(case)
+
+
+def c_outside_platform_link(case):
+    """A link in place of a platform subtree is compared like any other child."""
+    case.set_control({"actions": [{"point": "step-14", "do": "crash"}]})
+    expect_exit(case.run(), 99)
+    os.makedirs(os.path.join(case.home, ".elsewhere/account-1/grove"))
+    os.symlink("../../.elsewhere", os.path.join(case.home, ".claude/skills/synced"))
+    expect_exit(case.run(), 3, "changed outside the switch set: .claude/skills/synced")
+    expect(case.receipts() == 0, "the complete continuation copied a receipt with a link in place of synced")
+
+
 def c_cell_after_receipt_no_copy(case):
     case.set_control({"actions": [{"point": "step-14", "do": "crash"}]})
     expect_exit(case.run(), 99)
@@ -2068,6 +2086,8 @@ def all_controls(r: Rehearsal) -> list:
         ("step-14-resume", c_step14_resume, {}),
         ("outside-entry-inside-run", c_outside_inside_run, {}),
         ("outside-entry-after-stop", c_outside_after_stop, {}),
+        ("outside-platform-subtree", c_outside_platform_subtree, {}),
+        ("outside-platform-link", c_outside_platform_link, {}),
         ("cell-after-receipt-no-copy", c_cell_after_receipt_no_copy, {}),
         ("writer-before-run", c_writer_before, {}),
         ("writer-later", interval_closed("spawn-writer"), {}),

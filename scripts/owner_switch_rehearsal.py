@@ -54,6 +54,18 @@ entries, step 14, the processes, the rehearsal condition, the preludes of
 step 3, its baseline rows and the gates with their source controls. They
 also cover the owner's inverse, the merge entry, the purge check, the
 pending-activation record and the switch's area of the owner's `mac-check`.
+The native-off controls run `native-off` without a plan or a switch backup.
+They cover an absent file, an absent key with its metadata, an existing off
+value and each refused form. They cover another Ravel process, a Ravel
+ancestor, a stop of the switch before its backup and --print-command. They
+also cover a failed creation, a failed rename and a crash at each named
+point. A reader polls the file during repeated publications. Copies of this
+interpreter under the names `ravel` and `helper` in OUT/fixture-bin stand in
+for other processes, and OWNER_SWITCH_REHEARSAL_SCOPE limits recognition to
+that folder. The persistence control fails unless OUT is on the volume of
+the account's HOME. The control of the accepted 2.0 build needs its darwin
+archive in target/ravel-archives-2.0, and the digest of
+scripts/harness-trials/builds.json.
 Each `mac-check` control runs the real command with HOME set to the case's
 HOME, which links the checker's folder and holds copies of the plan and the
 program in <state>/prepared. That command file is the only file of the
@@ -786,6 +798,24 @@ class Case:
             f.write(f"$ run (exit {result.returncode})\n{out}\n")
         return result.returncode, out
 
+    def native_off(self, *extra: str, argv=None, via=None) -> tuple:
+        """Run native-off under the fixture harness process, with the hook and the fixture scope.
+
+        VIA names a launcher that runs the command as its child, so the
+        launcher is an ancestor of the program.
+        """
+        args = argv or [PY, "-I", self.r.program, "native-off", "--home", self.home, *extra]
+        env = dict(clean_env(), OWNER_SWITCH_REHEARSAL_HOOK=self.r.hook,
+                   OWNER_SWITCH_REHEARSAL_SCOPE=self.r.fixture_bin, PYTHONHOME=sys.base_prefix)
+        result = subprocess.run([PY, "-I", SELF, "harness", HARNESS_MARK, self.root, "--"] + (via or []) + args,
+                                env=env, capture_output=True, text=True, timeout=120)
+        out = result.stdout + result.stderr
+        self.outputs.append(out)
+        self.runs.append({"exit": result.returncode, "claude": {}})
+        with open(os.path.join(self.root, "runs.log"), "a") as f:
+            f.write(f"$ native-off {' '.join(extra)} (exit {result.returncode})\n{out}\n")
+        return result.returncode, out
+
     def entry(self, command: str, *extra: str, program=None) -> tuple:
         """Run one of the owner's entries under the fixture harness process."""
         args = [PY, "-I", program or self.r.program, command, "--plan", self.r.plan, "--home", self.home,
@@ -933,6 +963,15 @@ class Rehearsal:
             with open(stub, "w") as f:
                 f.write(f"#!/bin/sh\nexec '{PY}' -I '{SELF}' stub-{name} \"$@\"\n")
             os.chmod(stub, 0o755)
+        # Copies of this interpreter under the names `ravel` and `helper`. The
+        # native-off controls run them as other processes, and native-off
+        # recognises only executables inside this folder (SCOPE_VAR).
+        self.fixture_bin = os.path.join(self.out, "fixture-bin")
+        os.makedirs(self.fixture_bin, exist_ok=True)
+        for name in ("ravel", "helper"):
+            copy = os.path.join(self.fixture_bin, name)
+            if not os.path.exists(copy):
+                shutil.copy2(os.path.realpath(PY), copy)
         self.results = []
 
     def control(self, name: str, fn, **case_args) -> None:
@@ -2103,6 +2142,7 @@ def all_controls(r: Rehearsal) -> list:
     controls += gate_controls()
     controls += review_controls()
     controls += entry_controls()
+    controls += native_off_controls()
     return controls
 
 
@@ -2567,6 +2607,366 @@ def entry_controls() -> list:
         ("pending-after-inverse", c_pending_after_inverse, {}),
         ("pending-drifted", c_pending_drifted, {}),
     ]
+
+
+# --- native-off ("The native settings inside finish" and "Test seams") --------------
+
+NATIVE_OFF_POINTS = ("native-off:begin", "native-off:read", "native-off:temp-partial",
+                     "native-off:temp-synced", "native-off:replaced", "native-off:published")
+NATIVE_OFF_TEMP = ".settings.json.native-off-"
+# The accepted Ravel 2.0 build: docs/evaluations/owner-skill-delivery/settings_drafts.py.
+BUILDS = os.path.join(HERE, "harness-trials", "builds.json")
+ARCHIVES = os.path.join(HERE, "..", "target", "ravel-archives-2.0")
+
+
+def settings_bytes(case):
+    try:
+        with open(os.path.join(case.home, RAVEL), "rb") as f:
+            return f.read()
+    except FileNotFoundError:
+        return None
+
+
+def parsed(data):
+    """The JSON value of DATA, or None when DATA is absent or not whole JSON."""
+    try:
+        return json.loads(data) if data is not None else None
+    except ValueError:
+        return None
+
+
+def off_of(before):
+    """The complete result of native-off for the bytes BEFORE, or None when they are absent."""
+    obj = json.loads(before) if before is not None else {}
+    obj["skills"] = OFF
+    return obj
+
+
+def temps(case) -> list:
+    folder = os.path.dirname(os.path.join(case.home, RAVEL))
+    return sorted(n for n in os.listdir(folder) if n.startswith(NATIVE_OFF_TEMP)) if os.path.isdir(folder) else []
+
+
+def expect_off(case, before) -> None:
+    """The live file holds exactly the off value and BEFORE's other members, in order."""
+    now = settings_bytes(case)
+    expect(now is not None, "native-off left no settings file")
+    obj = parsed(now)
+    want = off_of(before)
+    expect(isinstance(obj, dict) and list(obj) == list(want) and json.dumps(obj, sort_keys=True) == json.dumps(want, sort_keys=True),
+           f"the settings hold {now!r}, not {want}")
+    expect(not temps(case), f"a temporary file remains: {temps(case)}")
+    expect(not os.path.exists(os.path.join(case.home, STATE, "backups")), "native-off wrote a switch backup")
+
+
+def file_meta(path: str) -> dict:
+    """The mode, owner, ACL and user extended attributes of a file, read by the system tools."""
+    st = os.lstat(path)
+    names = subprocess.run(["/usr/bin/xattr", path], capture_output=True, text=True).stdout.split()
+    values = {n: subprocess.run(["/usr/bin/xattr", "-p", n, path], capture_output=True, text=True).stdout
+              for n in names if n.startswith("user.")}
+    acl = subprocess.run(["/bin/ls", "-le", path], capture_output=True, text=True).stdout.splitlines()[1:]
+    return {"mode": oct(st.st_mode & 0o7777), "uid": st.st_uid, "gid": st.st_gid, "acl": acl, "xattrs": values}
+
+
+def spawn_fixture(case, name: str, *args: str) -> None:
+    """Start the fixture copy NAME of the interpreter, sleeping, as another process."""
+    p = subprocess.Popen([os.path.join(case.r.fixture_bin, name), "-c", "import time; time.sleep(120)", *args],
+                         env={"PYTHONHOME": sys.base_prefix}, start_new_session=True,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    record_pid(case.root, p.pid)
+    time.sleep(0.2)
+    expect(p.poll() is None, f"the fixture {name} ended at once")
+
+
+def c_native_off_absent_file(case):
+    out = expect_exit(case.native_off(), 0, r"\(the file was absent\)")
+    expect_off(case, None)
+    mode = oct(os.lstat(os.path.join(case.home, RAVEL)).st_mode & 0o7777)
+    expect(mode == "0o644", f"the new settings file has mode {mode}")
+    return "a new file holds only the off value, mode 0o644, with no switch backup"
+
+
+def c_native_off_absent_key(case):
+    path = os.path.join(case.home, RAVEL)
+    os.chmod(path, 0o600)
+    subprocess.run(["/usr/bin/xattr", "-w", "user.fault", "kept", path], check=True)
+    subprocess.run(["/bin/chmod", "+a", "everyone allow read", path], check=True)
+    before, meta = settings_bytes(case), file_meta(path)
+    expect_exit(case.native_off(), 0, r"\(1 other keys kept\)")
+    expect_off(case, before)
+    after = file_meta(path)
+    expect(after == meta, f"the metadata changed from {meta} to {after}")
+    return f"the member policy, mode {meta['mode']}, ACL and user.fault are kept"
+
+
+def c_native_off_existing(case):
+    path = os.path.join(case.home, RAVEL)
+    before, inode = case.snapshot(), os.lstat(path).st_ino
+    expect_exit(case.native_off(), 0, "holds the off value; nothing changed")
+    expect(case.snapshot() == before and os.lstat(path).st_ino == inode, "an existing off value was rewritten")
+
+
+def native_off_refusal(body):
+    def fn(case):
+        path = os.path.join(case.home, RAVEL)
+        if body == "link":
+            target = os.path.join(case.root, "elsewhere-settings.json")
+            write(target, '{"policy": "config.rhai"}\n')
+            os.remove(path)
+            os.symlink(target, path)
+        else:
+            with open(path, "wb") as f:
+                f.write(body)
+        before = case.snapshot()
+        out = expect_exit(case.native_off(), 3, "native delivery is incomplete unless")
+        expect(case.snapshot() == before, "a refusal changed the layout")
+        return out.splitlines()[0][:200]
+    return fn
+
+
+def c_native_off_other_ravel(case):
+    spawn_fixture(case, "ravel")
+    before = case.snapshot()
+    expect_exit(case.native_off(), 3, "another Ravel driver runs")
+    expect(case.snapshot() == before, "native-off wrote while another Ravel process ran")
+    case.kill()
+    expect_exit(case.native_off(), 0)
+    expect_off(case, b'{\n  "policy": "config.rhai"\n}\n')
+
+
+def c_native_off_ancestor(case):
+    # A helper whose arguments name ravel is not a Ravel process.
+    spawn_fixture(case, "helper", "ravel", os.path.join(case.r.fixture_bin, "ravel"))
+    before = settings_bytes(case)
+    launcher = [os.path.join(case.r.fixture_bin, "ravel"), "-c",
+                "import subprocess, sys; sys.exit(subprocess.run(sys.argv[1:]).returncode)"]
+    expect_exit(case.native_off(via=launcher), 0, "result: off value in place")
+    expect_off(case, before)
+    return "a Ravel ancestor is exempt, and a helper whose arguments name ravel is not recognised"
+
+
+def c_native_off_after_switch_stop(case):
+    expect_exit(case.run(), 3, "so no prelude runs")
+    expect(skills_cell(case) == "absent-key", "the stopped switch changed the settings")
+    before = settings_bytes(case)
+    expect_exit(case.native_off(), 0)
+    expect_off(case, before)
+    return "the switch stopped before any backup, and native-off then wrote the off value"
+
+
+def c_native_off_print_command(case):
+    before = case.snapshot()
+    code, out = case.native_off("--print-command")
+    expect(code == 0, f"--print-command exited {code}: {out}")
+    doc = json.loads(out)
+    expect(doc["argv"][1:4] == ["-I", case.r.program, "native-off"] and doc["home"] == case.home
+           and doc["argv"][-1] == case.home and doc["settings"] == os.path.join(case.home, RAVEL),
+           f"--print-command printed {doc}")
+    expect(case.snapshot() == before, "--print-command changed the layout")
+    expect_exit(case.native_off(argv=doc["argv"]), 0, "result: off value in place")
+    expect_off(case, b'{\n  "policy": "config.rhai"\n}\n')
+    return doc["command"]
+
+
+def c_native_off_create_fails(case):
+    folder = os.path.dirname(os.path.join(case.home, RAVEL))
+    before = settings_bytes(case)
+    os.chmod(folder, 0o555)
+    try:
+        expect_exit(case.native_off(), 4, "native delivery is incomplete: start no new default launch")
+        expect(settings_bytes(case) == before and not temps(case), "the failed creation changed the folder")
+    finally:
+        os.chmod(folder, 0o755)
+    expect_exit(case.native_off(), 0)
+    expect_off(case, before)
+
+
+def c_native_off_replace_fails(case):
+    folder = os.path.dirname(os.path.join(case.home, RAVEL))
+    case.set_control({"actions": [{"point": "native-off:temp-synced", "do": "chmod",
+                                   "path": os.path.dirname(RAVEL), "mode": "555"}]})
+    before = settings_bytes(case)
+    try:
+        expect_exit(case.native_off(), 4, "native delivery is incomplete: start no new default launch")
+        expect(settings_bytes(case) == before, "the failed replacement changed the live file")
+        left = temps(case)
+        expect(len(left) == 1, f"expected the one temporary file that could not be removed, found {left}")
+    finally:
+        os.chmod(folder, 0o755)
+    expect_exit(case.native_off(), 0, "removed the interrupted temporary file")
+    expect_off(case, before)
+    return f"the rename failed and left {left[0]}, which the rerun removed"
+
+
+def native_off_crash(point: str):
+    def fn(case):
+        case.set_control({"actions": [{"point": point, "do": "crash"}]})
+        before = settings_bytes(case)
+        expect_exit(case.native_off(), 99)
+        expect(point in case.points(), f"the point {point} was not reached")
+        middle = settings_bytes(case)
+        complete = middle != before and parsed(middle) == off_of(before)
+        expect(middle == before or complete, f"the crash left {middle!r}")
+        left = temps(case)
+        expect_exit(case.native_off(), 0, "result: off value in place")
+        expect_off(case, before)
+        return f"after the crash: {'complete' if complete else 'original'}, temporary files {left}"
+    return fn
+
+
+def c_native_off_reader(case):
+    """A reader that polls the settings during 20 publications sees only whole files."""
+    path = os.path.join(case.home, RAVEL)
+    original = settings_bytes(case)
+    seen = {"original": 0, "complete": 0, "other": []}
+    stop = threading.Event()
+
+    def reader():
+        while not stop.is_set():
+            try:
+                with open(path, "rb") as f:
+                    data = f.read()
+            except FileNotFoundError:
+                seen["other"].append("absent")
+                continue
+            if data == original:
+                seen["original"] += 1
+            else:
+                if parsed(data) == off_of(original):
+                    seen["complete"] += 1
+                else:
+                    seen["other"].append(data[:80])
+
+    thread = threading.Thread(target=reader)
+    thread.start()
+    try:
+        for _ in range(20):
+            expect_exit(case.native_off(), 0)
+            with open(path + ".reset", "wb") as f:
+                f.write(original)
+            os.replace(path + ".reset", path)
+    finally:
+        stop.set()
+        thread.join()
+    expect(not seen["other"], f"a reader saw {seen['other'][:3]}")
+    expect(seen["original"] and seen["complete"], f"the reader saw too little: {seen}")
+    return f"{seen['original']} original and {seen['complete']} complete readings; none partial or absent"
+
+
+def c_native_off_persistence(case):
+    """Measure the publication on the volume of the account's HOME."""
+    account = os.path.realpath(pwd.getpwuid(os.getuid()).pw_dir)
+    home_dev, case_dev = os.stat(account).st_dev, os.stat(case.home).st_dev
+    expect(home_dev == case_dev, f"the case HOME is on device {case_dev}, not on the HOME volume {home_dev}; "
+                                 "choose an OUT on the HOME volume")
+    before = settings_bytes(case)
+    started = time.time()
+    expect_exit(case.native_off(), 0, "persistence: temporary file F_FULLFSYNC; folder F_FULLFSYNC")
+    seconds = time.time() - started
+    fresh = subprocess.run([PY, "-I", "-c", "import sys; sys.stdout.buffer.write(open(sys.argv[1], 'rb').read())",
+                            os.path.join(case.home, RAVEL)], capture_output=True).stdout
+    expect(fresh == settings_bytes(case), "a fresh process read other bytes")
+    expect_off(case, before)
+    df = subprocess.run(["/bin/df", "-P", case.home], capture_output=True, text=True).stdout.splitlines()[-1].split()
+    mounts = subprocess.run(["/sbin/mount"], capture_output=True, text=True).stdout
+    kind = re.search(rf"^{re.escape(df[0])} on {re.escape(df[-1])} \((\w+)", mounts, re.M)
+    return (f"device {df[0]} at {df[-1]} ({kind.group(1) if kind else 'unknown type'}), the HOME volume: "
+            f"F_FULLFSYNC flushed the temporary file and the folder, and a fresh process read the "
+            f"published bytes; the command took {seconds:.2f} s")
+
+
+def c_native_off_accepted_build(case):
+    """The published result resolves as `disabled` with the accepted 2.0 build."""
+    with open(BUILDS) as f:
+        want = json.load(f)["ravel2"]["binRavelSha256"]["Darwin-arm64"]
+    folder = os.path.realpath(ARCHIVES)
+    archives = sorted(n for n in os.listdir(folder) if n.endswith("-aarch64-apple-darwin.tar.xz")) \
+        if os.path.isdir(folder) else []
+    expect(len(archives) == 1, f"expected one darwin archive of the accepted build in {folder}, found {archives}")
+    work = os.path.join(case.root, "accepted")
+    os.makedirs(os.path.join(work, "archive"))
+    subprocess.run(["/usr/bin/tar", "-xJf", os.path.join(folder, archives[0]), "-C",
+                    os.path.join(work, "archive")], check=True)
+    (top,) = os.listdir(os.path.join(work, "archive"))
+    binary = os.path.join(work, "archive", top, "bin", "ravel")
+    got = digest_file(binary)
+    expect(got == want, f"{binary} is not the accepted 2.0 build: {got} != {want}")
+    # A fixture keg whose default skill directory holds one source, so an
+    # absent `skills` key resolves a source and the off value does not.
+    keg = os.path.join(work, "brew", "Cellar", "ravel@2", "2.0.0")
+    skills = os.path.join(work, "brew", "share", "ravel", "skills")
+    os.makedirs(os.path.join(keg, "bin"))
+    os.makedirs(os.path.join(keg, "share", "ravel"))
+    os.makedirs(skills)
+    shutil.copy2(binary, os.path.join(keg, "bin", "ravel"))
+    save(os.path.join(keg, "share", "ravel", "installation.json"), {"schemaVersion": 1, "skillDirectory": skills})
+    write(os.path.join(work, "source", "skills", "probe", "SKILL.md"),
+          "---\nname: probe\ndescription: A fixture skill.\n---\n")
+    os.symlink(os.path.join(work, "source"), os.path.join(skills, "fixture"))
+    os.makedirs(os.path.join(work, "tmp"))
+
+    def resolve():
+        result = subprocess.run(["/usr/bin/env", "-i", f"HOME={case.home}", f"TMPDIR={work}/tmp", "PATH=/usr/bin:/bin",
+                                 os.path.join(keg, "bin", "ravel"), "skills", "resolve", "--json"],
+                                capture_output=True, text=True)
+        try:
+            return result.returncode, json.loads(result.stdout)
+        except ValueError:
+            return result.returncode, result.stdout + result.stderr
+
+    # The fixture HOME's member `policy` is not a Ravel 2.0 setting. Settings
+    # that the build accepts hold two of its own members instead.
+    save_json(os.path.join(case.home, RAVEL), {"timeoutMs": 600000, "configEnv": ["OWNER_SWITCH_FIXTURE"]})
+    before = resolve()
+    expect(before[0] == 0 and isinstance(before[1], dict) and before[1].get("directories"),
+           f"the absent key did not resolve the fixture source: {before}")
+    expect_exit(case.native_off(), 0, r"\(2 other keys kept\)")
+    after = resolve()
+    expect(after == (0, {"schemaVersion": 1, "status": "disabled"}), f"the result resolves as {after}")
+    os.remove(os.path.join(case.home, RAVEL))
+    expect_exit(case.native_off(), 0, r"\(the file was absent\)")
+    absent = resolve()
+    expect(absent == (0, {"schemaVersion": 1, "status": "disabled"}), f"the new file resolves as {absent}")
+    return (f"build {want[:12]}: the absent key resolved {len(before[1]['directories'])} directory; "
+            "after native-off, both the kept members and the new file resolve as disabled")
+
+
+def native_off_controls() -> list:
+    no_file, no_key = {"ravel": "absent-file"}, {"ravel": "absent-key"}
+    controls = [
+        ("native-off-absent-file", c_native_off_absent_file, no_file),
+        ("native-off-absent-key", c_native_off_absent_key, no_key),
+        ("native-off-existing-off", c_native_off_existing, {}),
+    ]
+    refusals = {
+        "malformed": b'{"policy": ',
+        "repeated-member": b'{"policy": "a", "policy": "b"}\n',
+        "non-finite": b'{"policy": NaN}\n',
+        "array": b"[]\n",
+        "null-skills": b'{"policy": "config.rhai", "skills": null}\n',
+        "other-skills": b'{"skills": {"schemaVersion": 1, "sources": [{"id": "x", "path": "/x"}]}}\n',
+        "link": "link",
+    }
+    controls += [(f"native-off-refuses-{name}", native_off_refusal(body), no_key) for name, body in refusals.items()]
+    controls += [
+        ("native-off-other-ravel", c_native_off_other_ravel, no_key),
+        ("native-off-ravel-ancestor", c_native_off_ancestor, no_key),
+        ("native-off-after-switch-stop", c_native_off_after_switch_stop, dict(no_key, rehearsed=False)),
+        ("native-off-print-command", c_native_off_print_command, no_key),
+        ("native-off-create-fails", c_native_off_create_fails, no_key),
+        ("native-off-replace-fails", c_native_off_replace_fails, no_key),
+    ]
+    for ravel in ("absent-file", "absent-key"):
+        for point in NATIVE_OFF_POINTS:
+            controls.append((f"native-off-{ravel}-crash-{point.split(':')[1]}", native_off_crash(point),
+                             {"ravel": ravel}))
+    controls += [
+        ("native-off-reader", c_native_off_reader, no_key),
+        ("native-off-persistence", c_native_off_persistence, no_key),
+        ("native-off-accepted-build", c_native_off_accepted_build, no_key),
+    ]
+    return controls
 
 
 def cmd_rehearse(args) -> int:

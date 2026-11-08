@@ -18,6 +18,7 @@ Usage:
     python3 -I owner_switch.py merge       --plan PLAN [--home HOME] COPY [--record-only]
     python3 -I owner_switch.py purge-check --plan PLAN [--home HOME]
     python3 -I owner_switch.py pending     --plan PLAN [--home HOME] [--grove-commit SHA]
+    python3 -I owner_switch.py native-off  [--home HOME] [--print-command]
     python3 -I owner_switch.py identity    PATH
     python3 -I owner_switch.py digest      PATH
     python3 -I owner_switch.py gate        {4,5,6,7} [--plan PLAN] [--home HOME]
@@ -72,6 +73,34 @@ The owner's entries ("Rollback", "Concurrent writers" and "Purge"):
                  each changed entry outside the switch set and each flagged
                  copy. Finish supplies the release commit. A later receipt
                  names each pending-activation record that it replaces.
+
+native-off ("The native settings inside finish"). Finish runs it immediately
+after promotion, before source acceptance and before any new default launch.
+The owner runs the same command after a crash, or after a stop before the
+switch's backup. It reads no plan, needs no backup and runs no harness. It
+reads HOME/.config/ravel/settings.json, and it writes only that file:
+    absent file          a new file that holds only the off value
+    absent "skills"      the same members in the same order, then the off value
+    the off value        no change
+    another value, a malformed file, a link or another owner: a stop
+A repeated member name or a non-finite number is a malformed file. Another
+Ravel process stops it too: a process whose executable path or argv[0] has
+the basename `ravel`. Only this process and its exact ancestors are exempt.
+The new bytes go to a temporary sibling. It receives the original's mode,
+owner, flags, ACL and extended attributes, except com.apple.provenance, and
+F_FULLFSYNC flushes it. A check of its members and metadata comes before one
+rename onto the live file. F_FULLFSYNC then flushes the folder, and a reading
+confirms the bytes. The live file is never truncated. An interruption leaves
+the original or the complete new file, and the same command completes
+either; it removes each temporary sibling that an interruption left. Exit
+status: 0 when the off value is in place, 3 for a stop with no write to the
+settings, 4 when a write failed. After 3 or 4, native delivery is incomplete
+and no new default launch may start. --print-command prints the exact
+command, executable, program, HOME and settings path as one JSON object for
+the prepared recovery instructions, and writes nothing.
+OWNER_SWITCH_REHEARSAL_SCOPE limits the Ravel processes to executables inside
+one folder. Like the rehearsal hook, the program refuses it when HOME is the
+account's home directory.
 
 The owner's layout: the real plan names .local/state/owner-switch as its
 state. The prepared plan and program are <state>/prepared/plan.json and
@@ -208,12 +237,15 @@ import base64
 import ctypes
 import datetime
 import errno
+import fcntl
 import hashlib
 import json
+import math
 import os
 import pwd
 import re
 import secrets
+import shlex
 import stat
 import shutil
 import subprocess
@@ -706,12 +738,16 @@ def log(line: str) -> None:
 
 
 def hook(layout: Layout, point: str) -> None:
+    hook_at(layout.home, point)
+
+
+def hook_at(home: str, point: str) -> None:
     command = os.environ.get(HOOK_VAR)
     if not command:
         return
-    if layout.home == account_home():
+    if home == account_home():
         raise Stop(f"{HOOK_VAR} is set while HOME is the account's home directory")
-    result = subprocess.run([command, point], env=dict(os.environ, OWNER_SWITCH_HOME=layout.home))
+    result = subprocess.run([command, point], env=dict(os.environ, OWNER_SWITCH_HOME=home))
     if result.returncode == CRASH:
         sys.stdout.flush()
         os._exit(CRASH)
@@ -1661,6 +1697,332 @@ def native_settings(layout: Layout, prepared: dict) -> None:
         refuse(layout, prepared, f"the native settings found skills {show(value)} in {RAVEL_SETTINGS}")
     process_gate(layout, prepared, "the native settings")
     prelude_exchange(layout, RAVEL_SETTINGS, ["skills"], ABSENT, OFF, "native")
+
+
+# --- native-off ("The native settings inside finish") ------------------------
+
+# The temporary sibling of the settings file. A rerun removes each one that an
+# interruption left, because no reader of the settings reads these names.
+NATIVE_OFF_TEMP = ".settings.json.native-off-"
+SCOPE_VAR = "OWNER_SWITCH_REHEARSAL_SCOPE"
+# fcntl(2): F_FULLFSYNC asks the drive to flush its cache, which fsync(2) on
+# macOS does not do.
+F_FULLFSYNC = getattr(fcntl, "F_FULLFSYNC", 51)
+_libproc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
+_libproc.proc_pidpath.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+
+
+class Incomplete(Exception):
+    """A failed write of native-off: the off value is not established."""
+
+
+def native_off_argv(home: str) -> list:
+    """The exact command of native-off for HOME, with this interpreter and this program."""
+    return [sys.executable, "-I", PROGRAM_PATH, "native-off", "--home", home]
+
+
+def executable_path(pid: int):
+    """The canonical path of a process's executable (proc_pidpath), or None."""
+    buf = ctypes.create_string_buffer(4096)
+    if _libproc.proc_pidpath(pid, buf, 4096) <= 0:
+        return None
+    return os.fsdecode(buf.value)
+
+
+def other_ravel_drivers(home: str) -> list:
+    """Each Ravel process except this process and its exact ancestors.
+
+    A process is a Ravel process when the basename of its executable path or
+    of its argv[0] is `ravel`. An argument that only contains the name is not
+    recognition. OWNER_SWITCH_REHEARSAL_SCOPE limits the processes to the
+    executables inside one folder, and only outside the account's HOME.
+    """
+    scope = os.environ.get(SCOPE_VAR)
+    if scope and home == account_home():
+        raise Stop(f"{SCOPE_VAR} is set while HOME is the account's home directory")
+    scope = os.path.realpath(scope) + os.sep if scope else None
+    procs = list_processes()
+    exempt, pid = {os.getpid()}, os.getpid()
+    while pid in procs and procs[pid][0] not in (0, pid):
+        pid = procs[pid][0]
+        exempt.add(pid)
+    found = []
+    for pid, (_, args) in sorted(procs.items()):
+        if pid in exempt:
+            continue
+        exe = executable_path(pid)
+        first = args.split(None, 1)[0] if args.strip() else ""
+        if "ravel" not in {os.path.basename(p) for p in (exe, first) if p}:
+            continue
+        if scope and not (exe or first).startswith(scope):
+            continue
+        found.append(f"process {pid} ({exe or 'executable unreadable'}): {args[:300]}")
+    return found
+
+
+def strict_object(content: bytes):
+    """The JSON object of a settings file and None, or None and the problem.
+
+    A repeated member name or a non-finite number makes the file malformed:
+    a rewrite would lose a member or write a value that is not JSON.
+    """
+    def pairs(items):
+        names = [name for name, _ in items]
+        if len(set(names)) != len(names):
+            raise ValueError("a member name is repeated")
+        return dict(items)
+
+    def number(text):
+        value = float(text)
+        if not math.isfinite(value):
+            raise ValueError(f"the number {text} is not finite")
+        return value
+
+    def constant(name):
+        raise ValueError(f"{name} is not JSON")
+
+    try:
+        obj = json.loads(content.decode("utf-8"), object_pairs_hook=pairs, parse_float=number,
+                         parse_constant=constant)
+    except UnicodeDecodeError:
+        return None, "it is not UTF-8"
+    except ValueError as e:
+        return None, str(e)
+    if not isinstance(obj, dict):
+        return None, "it is not a JSON object"
+    return obj, None
+
+
+def file_metadata(fd: int) -> dict:
+    """The metadata that native-off keeps: mode, owner, flags, ACL and extended attributes."""
+    st = os.fstat(fd)
+    return {"mode": oct(st.st_mode & 0o7777), "uid": st.st_uid, "gid": st.st_gid, "flags": st.st_flags,
+            "acl": _acl_text(fd).decode(errors="replace"),
+            "xattrs": {n.decode(errors="replace"): v.hex() for n, v in _xattrs(fd) if n != PROVENANCE}}
+
+
+def full_sync(fd: int) -> str:
+    """Flush a file or folder to the drive, and name the method that the filesystem took."""
+    try:
+        fcntl.fcntl(fd, F_FULLFSYNC)
+        return "F_FULLFSYNC"
+    except OSError as e:
+        if e.errno not in (errno.ENOTSUP, errno.EINVAL, errno.ENOTTY):
+            raise
+    os.fsync(fd)
+    return "fsync, because the filesystem refused F_FULLFSYNC"
+
+
+def write_all(fd: int, data: bytes) -> None:
+    while data:
+        data = data[os.write(fd, data):]
+
+
+def remove_stale(folder: str) -> None:
+    """Remove each temporary sibling that an interrupted native-off left."""
+    try:
+        names = sorted(n for n in os.listdir(folder) if n.startswith(NATIVE_OFF_TEMP))
+    except FileNotFoundError:
+        return
+    for name in names:
+        try:
+            os.unlink(os.path.join(folder, name))
+            log(f"native-off: removed the interrupted temporary file {name}")
+        except OSError as e:
+            log(f"native-off: the interrupted temporary file {name} remains: {e.strerror}")
+
+
+def read_settings(path: str):
+    """The bytes and metadata of the settings file, or None when it is absent."""
+    try:
+        # O_NONBLOCK: a FIFO at the path must not block the open.
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except FileNotFoundError:
+        return None
+    except OSError as e:
+        if e.errno == errno.ELOOP:
+            raise Stop(f"{RAVEL_SETTINGS} is a link; review it, and replace nothing")
+        raise Stop(f"{RAVEL_SETTINGS} could not be read: {e.strerror}")
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise Stop(f"{RAVEL_SETTINGS} is not a regular file; review it, and replace nothing")
+        return read_fd(fd), file_metadata(fd)
+    finally:
+        os.close(fd)
+
+
+def native_off(home: str) -> None:
+    """Give the Ravel settings the off value as `skills`, and change nothing else.
+
+    "The native settings inside finish" owns the rules. The new bytes go to a
+    temporary sibling, which receives the original's metadata and is flushed
+    to the drive and checked. One rename then replaces the live file, which
+    is never truncated. An interruption leaves the original or the complete
+    new file, and the same command completes either.
+    """
+    hook_at(home, "native-off:begin")
+    path = os.path.join(home, RAVEL_SETTINGS)
+    folder = os.path.dirname(path)
+    real = os.path.realpath(folder)
+    if real != home and not real.startswith(home + os.sep):
+        raise Stop(f"{os.path.dirname(RAVEL_SETTINGS)} leads outside HOME through {real}")
+    found = read_settings(path)
+    if found is None:
+        obj, original = None, None
+        new = {"skills": OFF}
+    else:
+        content, meta = found
+        obj, problem = strict_object(content)
+        if obj is None:
+            raise Stop(f"{RAVEL_SETTINGS} is malformed: {problem}; review it, and replace nothing")
+        if same(obj.get("skills", ABSENT), OFF):
+            log(f"native-off: {RAVEL_SETTINGS} holds the off value; nothing changed")
+            remove_stale(folder)
+            return
+        if "skills" in obj:
+            raise Stop(f"{RAVEL_SETTINGS} holds skills {show(obj['skills'])}, not the off value; "
+                       "review it, and replace nothing")
+        if meta["uid"] != os.geteuid():
+            raise Stop(f"{RAVEL_SETTINGS} belongs to user {meta['uid']}, so a new file cannot keep its owner")
+        original = (content, meta)
+        new = dict(obj, skills=OFF)
+    drivers = other_ravel_drivers(home)
+    if drivers:
+        for line in drivers:
+            log(f"  remaining {line}")
+        raise Stop("another Ravel driver runs; end it, pause each writer of the settings, "
+                   "and signal no session")
+    hook_at(home, "native-off:read")
+    remove_stale(folder)
+    try:
+        os.makedirs(folder, 0o755, exist_ok=True)
+    except OSError as e:
+        raise Incomplete(f"{os.path.dirname(RAVEL_SETTINGS)} could not be created: {e.strerror}")
+    data = dump_json(new)
+    syncs = publish_settings(home, path, data, obj, original)
+    kept = f"{len(obj)} other keys kept" if obj is not None else "the file was absent"
+    log(f"native-off: wrote the off value to {RAVEL_SETTINGS} ({kept})")
+    log(f"persistence: temporary file {syncs[0]}; folder {syncs[1]}")
+
+
+def publish_settings(home: str, path: str, data: bytes, obj, original) -> list:
+    """Publish DATA at PATH through a checked, flushed temporary sibling and one rename."""
+    folder = os.path.dirname(path)
+    tmp = os.path.join(folder, NATIVE_OFF_TEMP + secrets.token_hex(6))
+    try:
+        # Read and write: check_publication reads the flushed bytes back.
+        tfd = os.open(tmp, os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    except OSError as e:
+        raise Incomplete(f"the temporary file {os.path.basename(tmp)} could not be created: {e.strerror}")
+    syncs, published = [], False
+    try:
+        half = len(data) // 2
+        write_all(tfd, data[:half])
+        hook_at(home, "native-off:temp-partial")
+        write_all(tfd, data[half:])
+        if original is None:
+            os.fchmod(tfd, 0o644)
+        else:
+            lfd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            try:
+                if read_fd(lfd) != original[0]:
+                    raise Stop(f"{RAVEL_SETTINGS} changed while native-off ran; pause its writers, "
+                               "and run the command again")
+                copy_metadata(lfd, tfd)
+            finally:
+                os.close(lfd)
+            # fcopyfile copies the modification time too, and the content is new.
+            os.utime(tfd, None)
+        syncs.append(full_sync(tfd))
+        check_publication(tfd, data, obj, original)
+        hook_at(home, "native-off:temp-synced")
+        if original is None:
+            try:
+                renamex(tmp, path, RENAME_EXCL)
+            except OSError as e:
+                if e.errno == errno.EEXIST:
+                    raise Stop(f"{RAVEL_SETTINGS} appeared while native-off ran; pause its writers, "
+                               "and run the command again")
+                raise
+        else:
+            current = read_settings(path)
+            if current is None or current[0] != original[0]:
+                raise Stop(f"{RAVEL_SETTINGS} changed while native-off ran; pause its writers, "
+                           "and run the command again")
+            os.rename(tmp, path)
+        published = True
+    except OSError as e:
+        raise Incomplete(f"the publication of {RAVEL_SETTINGS} failed: {e.strerror}")
+    finally:
+        os.close(tfd)
+        if not published:
+            try:
+                os.unlink(tmp)
+            except OSError as e:
+                log(f"native-off: the temporary file {os.path.basename(tmp)} remains: {e.strerror}; "
+                    "a rerun removes it")
+    hook_at(home, "native-off:replaced")
+    try:
+        dfd = os.open(folder, os.O_RDONLY)
+        try:
+            syncs.append(full_sync(dfd))
+        finally:
+            os.close(dfd)
+        hook_at(home, "native-off:published")
+        current = read_settings(path)
+    except OSError as e:
+        raise Incomplete(f"the folder of {RAVEL_SETTINGS} could not be flushed or read: {e.strerror}")
+    if current is None or current[0] != data:
+        raise Incomplete(f"{RAVEL_SETTINGS} does not hold the published bytes after the rename")
+    return syncs
+
+
+def check_publication(fd: int, data: bytes, obj, original) -> None:
+    """Check the flushed temporary file before it replaces the live file."""
+    content = read_fd(fd)
+    new, problem = strict_object(content)
+    if content != data or new is None:
+        raise Incomplete(f"the temporary file does not hold the prepared bytes: {problem or 'they differ'}")
+    if not same(new.get("skills", ABSENT), OFF):
+        raise Incomplete("the temporary file lacks the off value")
+    if obj is not None:
+        if list(new) != list(obj) + ["skills"]:
+            raise Incomplete("the temporary file does not keep the original members in order")
+        changed = [k for k in obj if not same(obj[k], new[k])]
+        if changed:
+            raise Incomplete(f"the temporary file changed the members {', '.join(changed)}")
+    meta = file_metadata(fd)
+    want = original[1] if original is not None else None
+    if want is None:
+        if meta["mode"] != oct(0o644):
+            raise Incomplete(f"the temporary file has mode {meta['mode']}, not 0o644")
+    elif meta != want:
+        differ = sorted(k for k in want if want[k] != meta[k])
+        raise Incomplete(f"the temporary file does not keep the original {', '.join(differ)}")
+
+
+def native_off_command(args) -> int:
+    home = os.path.realpath(args.home)
+    argv = native_off_argv(home)
+    rerun = shlex.join(argv)
+    if args.print_command:
+        print(json.dumps({"argv": argv, "command": rerun, "executable": sys.executable,
+                          "program": PROGRAM_PATH, "home": home,
+                          "settings": os.path.join(home, RAVEL_SETTINGS)}, indent=2))
+        return 0
+    try:
+        native_off(home)
+    except Stop as e:
+        log(f"stop: {e}")
+        log(f"native delivery is incomplete unless {RAVEL_SETTINGS} holds the off value: start no "
+            f"new default launch. Resolve the stop, then run: {rerun}")
+        return 3
+    except Incomplete as e:
+        log(f"native-off failed: {e}")
+        log(f"native delivery is incomplete: start no new default launch. Run the same command again: {rerun}")
+        return 4
+    log("result: off value in place")
+    return 0
 
 
 def claude_env(layout: Layout) -> dict:
@@ -2805,6 +3167,10 @@ def main(argv=None) -> int:
                            help="record a merge that the owner applied by hand")
         elif name == "pending":
             p.add_argument("--grove-commit", help="the release commit of the published Grove")
+    p = sub.add_parser("native-off")
+    p.add_argument("--home", default=account_home())
+    p.add_argument("--print-command", action="store_true",
+                   help="print the exact command for the prepared recovery instructions, and write nothing")
     sub.add_parser("identity").add_argument("path")
     sub.add_parser("digest").add_argument("path")
     p = sub.add_parser("gate")
@@ -2815,6 +3181,8 @@ def main(argv=None) -> int:
     try:
         if args.command == "gate":
             return gate_command(args)
+        if args.command == "native-off":
+            return native_off_command(args)
         if args.command == "identity":
             print(identity(args.path) or "absent")
             return 0

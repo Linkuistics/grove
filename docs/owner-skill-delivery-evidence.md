@@ -2460,3 +2460,118 @@ requires the model.
 - The same search without hidden files found nothing under `.grove/`, so the
   flag decides whether the control passes.
 - A mutated pattern, `owner-switch\.qntX`, found no file.
+
+## Owner switch native-off
+
+`owner-switch-native-off-k266` added the entry `native-off` to
+`scripts/owner_switch.py` on 2026-11-08. The section
+[The native settings inside finish](specs/owner-skill-delivery.md#the-native-settings-inside-finish)
+owns its rules. The module docstring states the entry's behaviour and exit
+status. The old prelude `native_settings` stays until
+`owner-switch-contraction-k270` removes it.
+
+### The entry
+
+- The command form is
+  `python3 -I owner_switch.py native-off [--home HOME] [--print-command]`.
+  The entry reads no plan and needs no switch backup.
+- `--print-command` prints one JSON object and writes nothing. The object
+  holds the exact argv and command, the interpreter, the program, the
+  canonical HOME and the settings path. The prepared recovery instructions
+  take the command from the prepared program copy.
+- Exit 0 means that the off value is in place. Exit 3 is a stop with no write
+  to the settings. Exit 4 is a failed write. After 3 or 4, the output says
+  that native delivery is incomplete, and it forbids a new default launch.
+  It also names the rerun command.
+- A repeated member name, a non-finite number, a value that is not an
+  object, a link or a file of another owner is a stop. The accepted 2.0 build
+  also refuses a repeated member name as `settings_invalid`.
+- A Ravel process is a process whose executable path (`proc_pidpath`) or
+  argv[0] has the basename `ravel`. Only the program and its exact ancestors
+  are exempt.
+
+### Controls
+
+The run `task owner:switch:rehearse` with `SKIP_SETTINGS_WRITES=1` passed
+all 249 controls on Python 3.15.1 and macOS 27.0.1. It took 11 minutes 48
+seconds. The record is partial, because the rerun of `settings-writes.sh`
+did not run. This leaf did not change the hooks installation that the rerun
+measures. These subjects had the same SHA-256 digests before and after the
+run:
+
+| Subject | SHA-256 |
+| --- | --- |
+| `scripts/owner_switch.py` | `7f649053badc5ed1860643a014aecd0d1437ee0fa531a3d946dbc953f9d2a2c4` |
+| `scripts/owner_switch_rehearsal.py` | `86ed44cac4adcfdf1268670a18d8655e33fe9b843faf405e63bf72863a82fb86` |
+| `scripts/harness-trials/builds.json` | `29569fef4fc8e64b1ecf8b8f74d1eb85e10c8bfe0c136a4560763f69c3b5cfdf` |
+| `target/ravel-archives-2.0/ravel-v1.1.0-aarch64-apple-darwin.tar.xz` | `289b4ac57ffd148255960507f02809034e8fb35fe97132813230116add804921` |
+
+The 31 native-off controls had these results:
+
+| Controls | Result |
+| --- | --- |
+| `native-off-absent-file` | A new file held only the off value, with mode 0o644. No switch backup existed. |
+| `native-off-absent-key` | The member `policy`, mode 0o600, the ACL and `user.fault` stayed. The off value came after `policy`. |
+| `native-off-existing-off` | The layout and the inode stayed unchanged. |
+| Seven `native-off-refuses-*` controls | Malformed text, a repeated member, `NaN`, an array, `skills` null, another `skills` value and a link each stopped with exit 3. The layout stayed unchanged. |
+| `native-off-other-ravel` | A fixture `ravel` process stopped the entry with no write. After the fixture ended, the same command wrote the off value. |
+| `native-off-ravel-ancestor` | A fixture `ravel` ancestor was exempt. A helper process with `ravel` in its arguments was not a Ravel process. |
+| `native-off-after-switch-stop` | An unrehearsed switch stopped before a backup and left the key absent. `native-off` then wrote the off value. |
+| `native-off-print-command` | The printed argv named the program and the HOME, and running that argv wrote the off value. |
+| `native-off-create-fails` | A read-only folder made the creation of the temporary file fail with exit 4. The live file stayed unchanged. The rerun completed. |
+| `native-off-replace-fails` | A read-only folder after the flush made the rename fail with exit 4. The live file stayed unchanged, and the temporary file remained. The rerun removed it and completed. |
+| Twelve crash controls | A crash at each of `begin`, `read`, `temp-partial`, `temp-synced`, `replaced` and `published` of the absent file and the absent key. Up to `temp-synced`, the live file was the original. After the rename, it was the complete new file. Each rerun completed and left no temporary file. |
+| `native-off-reader` | A thread read the file during 20 publications: 421162 original and 142000 complete readings, with no partial or absent reading. |
+| `native-off-persistence` | See the next section. |
+| `native-off-accepted-build` | Build `3a9a9129573e…` resolved the fixture source while the key was absent. After `native-off`, the kept members `timeoutMs` and `configEnv` and a new file each resolved as `disabled`. |
+
+### Persistence on the HOME volume
+
+The control ran in a case HOME on `/dev/disk3s1`, mounted at
+`/System/Volumes/Data` as APFS. The account's HOME is on the same device.
+`F_FULLFSYNC` succeeded on the temporary file and on the folder after the
+rename, with no fallback to `fsync`. A new process read the published bytes.
+The command took 0.37 s. That time includes the load of the interpreter and
+the process listing.
+
+`F_FULLFSYNC` asks the drive to flush its cache, which `fsync` on macOS does
+not do. No control cut power or ended the operating system. The crash controls
+end only the process, so they show the order of the file operations, not the
+durability after a power loss.
+
+### Mutation controls
+
+Each deliberate mutation of a scratch copy of the program made its control
+fail:
+
+| Mutation | Control that failed, and why |
+| --- | --- |
+| Write the live file in place, in two parts | `native-off-absent-key-crash-temp-partial` found a partial live file. `native-off-reader` stopped on the program's change check. |
+| Replace the rename by a copy onto the live file | `native-off-reader` saw empty readings in each of three runs. |
+| Skip the check for another Ravel process | `native-off-other-ravel` wrote the file. |
+| Recognise `ravel` as a substring of the arguments | `native-off-ravel-ancestor` stopped on the helper. |
+| Skip the copy of the metadata | `native-off-absent-key` failed on the ACL and the extended attributes. |
+| Use `fsync` in place of `F_FULLFSYNC` | `native-off-persistence` did not find the method. |
+| Skip the publication | `native-off-accepted-build` resolved the fixture source, not `disabled`. |
+| Accept a repeated member name | `native-off-refuses-repeated-member` wrote the file. |
+
+The first mutation stopped the whole rehearsal with an uncaught parse error.
+The controls now read the file defensively, and the rerun reported both
+failures. The mutations ran against the rehearsal before its final docstring
+edit. The control logic did not change after that.
+
+### Limits
+
+- The machine held an orphaned Ravel 1.1.0 process with parent 1 during this
+  session. It ran `start-session --kind=release-notes` from a temporary
+  folder. A manual unscoped run on a scratch HOME recognised that process and
+  stopped. It exempted this session's own Ravel ancestor. The owner must end
+  such a process before finish runs `native-off`.
+- A manual trial gave the live file an ACL entry `everyone deny delete`. The
+  rename then failed with exit 4, and the live file stayed unchanged. The
+  copied ACL also kept the temporary file from removal. The owner must remove
+  such a file by hand.
+- The owner's real `~/.config/ravel/settings.json` was absent. No control or
+  trial wrote the real HOME.
+- The recogniser covers only Ravel. `owner-switch-process-inspection-k267`
+  owns the narrow recogniser of the four tools.

@@ -19,6 +19,7 @@ Usage:
     python3 -I owner_switch.py purge-check --plan PLAN [--home HOME]
     python3 -I owner_switch.py pending     --plan PLAN [--home HOME] [--grove-commit SHA]
     python3 -I owner_switch.py native-off  [--home HOME] [--print-command]
+    python3 -I owner_switch.py processes   [--home HOME] [--owned FILE] [--json]
     python3 -I owner_switch.py identity    PATH
     python3 -I owner_switch.py digest      PATH
     python3 -I owner_switch.py gate        {4,5,6,7} [--plan PLAN] [--home HOME]
@@ -40,9 +41,9 @@ the reason, and it changes nothing more than its run log.
 
 The owner's entries ("Rollback", "Concurrent writers" and "Purge"):
     inverse      The owner's inverse. The program copy of the latest backup
-                 runs it, while that backup's run is open. It lists the
-                 processes of step 1, resets each switched cell and leaves
-                 each third value. It moves an entry back only onto an
+                 runs it, while that backup's run is open. It runs the
+                 narrow process inspection. It resets each switched cell
+                 and leaves each third value. It moves an entry back only onto an
                  absent original path, whatever the entry's change identity.
                  An occupied path is a third value: both entries stay, and
                  the program reports the cell. It then runs the native probe
@@ -84,8 +85,8 @@ reads HOME/.config/ravel/settings.json, and it writes only that file:
     the off value        no change
     another value, a malformed file, a link or another owner: a stop
 A repeated member name or a non-finite number is a malformed file. Another
-Ravel process stops it too: a process whose executable path or argv[0] has
-the basename `ravel`. Only this process and its exact ancestors are exempt.
+Ravel process stops it too, as the narrow process inspection below
+recognises it. Only this process and its exact ancestors are exempt.
 The new bytes go to a temporary sibling. It receives the original's mode,
 owner, flags, ACL and extended attributes, except com.apple.provenance, and
 F_FULLFSYNC flushes it. A check of its members and metadata comes before one
@@ -98,8 +99,49 @@ settings, 4 when a write failed. After 3 or 4, native delivery is incomplete
 and no new default launch may start. --print-command prints the exact
 command, executable, program, HOME and settings path as one JSON object for
 the prepared recovery instructions, and writes nothing.
-OWNER_SWITCH_REHEARSAL_SCOPE limits the Ravel processes to executables inside
-one folder. Like the rehearsal hook, the program refuses it when HOME is the
+
+The narrow process inspection ("The narrow process inspection" and "Probe
+process lifetime"). Each gate of the switch, the hooks installation and the
+inverse runs it. It reads the process table and signals no process. A
+process is one of the four tools when:
+    its executable (proc_pidpath) has the basename claude, codex, grove,
+    grove-llm or ravel, or a basename that starts with "codex-", as Codex's
+    helpers codex-exec-server and codex-code-mode-host do;
+    its executable lies in Claude Code's .../claude/versions/ folder;
+    or its executable is node, nodejs or bun and its title is claude or
+    codex, or its entry script resolves into @anthropic-ai/claude-code or
+    @openai/codex, or has the stem claude or codex.
+The argument vector comes from KERN_PROCARGS2, so an argument with a space
+stays one argument. The title is the basename of argv[0], or of its first
+word when a process rewrote argv[0] into words, as Node servers do. A
+relative entry script resolves against the process's own folder
+(PROC_PIDVNODEPATHINFO). Only names in the program position count, so a
+tool's name inside another argument is not recognition. The comparison is
+case-sensitive: the desktop applications Claude and ChatGPT, Pi and every
+other writer stay the owner's checklist obligations. When the executable is
+unreadable, as for a binary that an upgrade deleted, the launch path in
+KERN_PROCARGS2 can still identify a tool. Each other process with an
+unreadable executable needs review. So does a process whose title, launch
+path or script of a shell, Python, Perl or Ruby interpreter names a tool
+without a known executable form of it. Zombies and processes that exit
+during the inspection do not count. The program admits itself and its exact
+ancestors up to the first harness (Claude Code or Codex), and the drivers
+(Ravel and Grove) above it, with no descendant exemption. A second harness
+ancestor is another session, so it and each tool above it stop the step. A
+recognised process is also admitted when its PID, creation time
+(PROC_PIDTBSDINFO, "<seconds>.<microseconds>"), canonical executable and
+HOME equal a probe-owned record. Only inspections during probes may pass
+such records; the inspection after probe cleanup and the one before restore
+pass none. Each other recognised process, and each process that needs
+review, stops the step. Processes of other accounts are recognised by their
+executable only, because their arguments, folder and creation time need
+privilege, and they never need review.
+`processes` runs the inspection, prints each admitted and remaining process
+and changes nothing. --owned names a JSON list of probe-owned records, each
+{"pid", "start", "executable", "home"}, as `processes --json` reports them.
+Exit status: 0 when no other process remains, 3 otherwise.
+OWNER_SWITCH_REHEARSAL_SCOPE limits the inspection to executables inside one
+folder. Like the rehearsal hook, the program refuses it when HOME is the
 account's home directory.
 
 The owner's layout: the real plan names .local/state/owner-switch as its
@@ -119,13 +161,6 @@ The plan (JSON, schema "owner-switch-plan/1"):
                  directory that no part names. The comparison skips only
                  the platform subtrees .claude/skills/synced and
                  .codex/skills/.system, each while it is a plain directory.
-    session      {"harness": [regex], "mcp": [regex]}: the kept processes. A
-                 kept MCP server is a child of the harness process that
-                 matches "mcp", or a descendant reached through matching
-                 processes only. Each other descendant counts as another
-                 process.
-    watch        [regex]: the programs of step 1, matched against arguments
-    jobs         {"argv": [...], "patterns": [regex]}: the job listing
     baseline     command: the baseline instrument that step 3 reruns
     gates        {"4": [command], "5": [...], "6": [...], "7": [...]}
     accepted     the accepted values that the gates read:
@@ -140,7 +175,9 @@ The plan (JSON, schema "owner-switch-plan/1"):
     native_probe [command]: the native probe of Rollback
     mac_check    command: step 12
 Each field is required. Each list of commands names at least one command, and
-the list of each of steps 4 to 7 names that step's gate of this program. The
+the list of each of steps 4 to 7 names that step's gate of this program. A
+plan that holds "session", "watch" or "jobs" is refused: it holds no process,
+MCP or job pattern. The
 switch's steps are fixed, so no plan can omit one of their checks.
 A command is {"name", "argv"}. The argv items "$python" and "$program" become
 this program's interpreter and path, so a continuation runs the gates of the
@@ -577,6 +614,10 @@ def plan_path_problem(rel) -> str:
     return ""
 
 
+# "The narrow process inspection": the plan holds no process, MCP or job pattern.
+REMOVED_PLAN_FIELDS = ("session", "watch", "jobs")
+
+
 def validate_plan(plan: dict) -> None:
     """Refuse a plan that lacks a field, a check or a HOME-relative path.
 
@@ -603,16 +644,6 @@ def validate_plan(plan: dict) -> None:
             return
         for i, c in enumerate(value):
             command(f"{where}[{i}]", c)
-
-    def patterns(where: str, value, empty: bool) -> None:
-        if not isinstance(value, list) or (not value and not empty):
-            problems.append(f"{where} names no pattern")
-            return
-        for p in value:
-            try:
-                re.compile(p)
-            except (re.error, TypeError):
-                problems.append(f"{where} holds {p!r}, which is not a pattern")
 
     path("state", plan.get("state"))
     path("manual", plan.get("manual"))
@@ -662,18 +693,10 @@ def validate_plan(plan: dict) -> None:
             path(f"outside {i}", item["path"])
         else:
             problems.append(f"outside {i} is neither a path with an identity nor a root with entries")
-    session = plan.get("session")
-    if not isinstance(session, dict):
-        problems.append("session is missing")
-    else:
-        patterns("session.harness", session.get("harness"), False)
-        patterns("session.mcp", session.get("mcp"), True)
-    patterns("watch", plan.get("watch"), False)
-    jobs = plan.get("jobs")
-    if not isinstance(jobs, dict) or not isinstance(jobs.get("argv"), list) or not jobs["argv"]:
-        problems.append("jobs names no job listing")
-    else:
-        patterns("jobs.patterns", jobs.get("patterns"), False)
+    removed = [name for name in REMOVED_PLAN_FIELDS if name in plan]
+    if removed:
+        problems.append(f"the plan holds {', '.join(removed)}: the narrow process inspection is built in, "
+                        "and the owner's checklist replaces process, MCP and job patterns")
     command("baseline", plan.get("baseline"))
     gates = plan.get("gates")
     if not isinstance(gates, dict) or sorted(gates) != ["4", "5", "6", "7"]:
@@ -1201,88 +1224,402 @@ def report_state(st: dict) -> None:
         log("  the prepared plan differs from the open run's plan; apply it only after the inverse")
 
 
-# --- processes ----------------------------------------------------------------
+# --- the narrow process inspection ---------------------------------------------
+# docs/specs/owner-skill-delivery.md, "The narrow process inspection" and "Probe
+# process lifetime". The owner's checklist covers every other writer.
 
-def list_processes() -> dict:
-    out = subprocess.run(["/bin/ps", "-axww", "-o", "pid=,ppid=,args="],
-                         capture_output=True, text=True, check=True).stdout
+SCOPE_VAR = "OWNER_SWITCH_REHEARSAL_SCOPE"
+_libproc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
+_libproc.proc_pidpath.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+_libproc.proc_pidinfo.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_uint64, ctypes.c_void_p, ctypes.c_int]
+_libc.sysctl.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.c_uint, ctypes.c_void_p,
+                         ctypes.POINTER(ctypes.c_size_t), ctypes.c_void_p, ctypes.c_size_t]
+# <sys/sysctl.h>: CTL_KERN, KERN_ARGMAX and KERN_PROCARGS2. <sys/proc_info.h>:
+# PROC_PIDTBSDINFO and the layout of struct proc_bsdinfo.
+CTL_KERN, KERN_ARGMAX, KERN_PROCARGS2 = 1, 8, 49
+PROC_PIDTBSDINFO = 3
+# PROC_PIDVNODEPATHINFO gives struct proc_vnodepathinfo: the current folder's
+# vnode_info (152 bytes), then its path (MAXPATHLEN), then the root folder's.
+PROC_PIDVNODEPATHINFO, VNODE_INFO_SIZE, MAXPATHLEN = 9, 152, 1024
+SZOMB = 5
+
+
+class _BsdInfo(ctypes.Structure):
+    _fields_ = [("flags", ctypes.c_uint32), ("status", ctypes.c_uint32), ("xstatus", ctypes.c_uint32),
+                ("pid", ctypes.c_uint32), ("ppid", ctypes.c_uint32), ("uid", ctypes.c_uint32),
+                ("gid", ctypes.c_uint32), ("ruid", ctypes.c_uint32), ("rgid", ctypes.c_uint32),
+                ("svuid", ctypes.c_uint32), ("svgid", ctypes.c_uint32), ("rfu_1", ctypes.c_uint32),
+                ("comm", ctypes.c_char * 16), ("name", ctypes.c_char * 32), ("nfiles", ctypes.c_uint32),
+                ("pgid", ctypes.c_uint32), ("pjobc", ctypes.c_uint32), ("e_tdev", ctypes.c_uint32),
+                ("e_tpgid", ctypes.c_uint32), ("nice", ctypes.c_int32), ("start_tvsec", ctypes.c_uint64),
+                ("start_tvusec", ctypes.c_uint64)]
+
+
+# The executable basenames of the four tools. Grove has two executables.
+# Codex installs its helpers codex-exec-server and codex-code-mode-host beside
+# codex, so each basename that starts with "codex-" is Codex too.
+TOOLS = {"claude": "Claude Code", "codex": "Codex", "grove": "Grove", "grove-llm": "Grove", "ravel": "Ravel"}
+CODEX_HELPER = "codex-"
+HARNESSES = ("Claude Code", "Codex")
+# The two tools that also run as Node launchers, and their npm packages.
+NODE_TOOLS = {"claude": "Claude Code", "codex": "Codex"}
+NODE_PACKAGES = {"@anthropic-ai/claude-code": "Claude Code", "@openai/codex": "Codex"}
+NODE_RUNNERS = ("node", "nodejs", "bun")
+# Node options that take the next argument as their value, and options after
+# which no entry script follows.
+NODE_VALUE_OPTIONS = ("-r", "--require", "--import", "--loader", "--experimental-loader", "-C",
+                      "--conditions", "--env-file", "--env-file-if-exists", "--title", "--inspect-port",
+                      "--input-type", "--watch-path", "--disable-warning")
+NODE_NO_SCRIPT = ("-e", "--eval", "-p", "--print", "-", "-i", "--interactive")
+# Interpreters whose script argument can carry a tool's name, as a wrapper.
+SHELLS = ("sh", "bash", "zsh", "dash", "ksh", "fish")
+SHELL_VALUE_OPTIONS = ("--rcfile", "--init-file", "-o", "-O", "+o", "+O")
+PYTHON_VALUE_OPTIONS = ("-X", "-W")
+SCRIPT_SUFFIXES = (".js", ".mjs", ".cjs", ".sh", ".py")
+# Claude Code's native installer keeps each version as .../claude/versions/<version>.
+
+
+def executable_path(pid: int):
+    """The canonical path of a process's executable (proc_pidpath), or None."""
+    buf = ctypes.create_string_buffer(4096)
+    if _libproc.proc_pidpath(pid, buf, 4096) <= 0:
+        return None
+    return os.fsdecode(buf.value)
+
+
+def process_start(pid: int):
+    """The creation time of a process as "<seconds>.<microseconds>", or None.
+
+    PROC_PIDTBSDINFO reads it only for the account's own processes.
+    """
+    info = _BsdInfo()
+    if _libproc.proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, ctypes.byref(info), ctypes.sizeof(info)) != ctypes.sizeof(info):
+        return None
+    return f"{info.start_tvsec}.{info.start_tvusec:06d}"
+
+
+def process_status(pid: int):
+    """The BSD status of one of the account's processes (SZOMB for a zombie), or None when it is gone."""
+    info = _BsdInfo()
+    if _libproc.proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, ctypes.byref(info), ctypes.sizeof(info)) != ctypes.sizeof(info):
+        return None
+    return info.status
+
+
+def process_folder(pid: int):
+    """The current folder of one of the account's processes, or None."""
+    size = 2 * (VNODE_INFO_SIZE + MAXPATHLEN)
+    buf = ctypes.create_string_buffer(size)
+    if _libproc.proc_pidinfo(pid, PROC_PIDVNODEPATHINFO, 0, buf, size) != size:
+        return None
+    path = buf.raw[VNODE_INFO_SIZE:VNODE_INFO_SIZE + MAXPATHLEN].split(b"\0", 1)[0]
+    return os.fsdecode(path) or None
+
+
+def _argmax() -> int:
+    value, size = ctypes.c_int(0), ctypes.c_size_t(ctypes.sizeof(ctypes.c_int))
+    mib = (ctypes.c_int * 2)(CTL_KERN, KERN_ARGMAX)
+    if _libc.sysctl(mib, 2, ctypes.byref(value), ctypes.byref(size), None, 0) != 0:
+        return 1 << 20
+    return value.value
+
+
+def process_arguments(pid: int):
+    """The launch path, the argument vector and HOME of a process (KERN_PROCARGS2), or (None, None, None).
+
+    The kernel keeps the argument vector as separate strings, so an argument
+    with a space stays one argument. A process can rewrite its own vector, as
+    Node does for its title. The environment follows the vector, and only its
+    HOME is read. The kernel pads the launch path with NUL bytes, so an empty
+    argv[0] cannot be told from the padding.
+    """
+    size = ctypes.c_size_t(_argmax())
+    buf = ctypes.create_string_buffer(size.value)
+    mib = (ctypes.c_int * 3)(CTL_KERN, KERN_PROCARGS2, pid)
+    if _libc.sysctl(mib, 3, buf, ctypes.byref(size), None, 0) != 0 or size.value < 4:
+        return None, None, None
+    raw = buf.raw[:size.value]
+    argc = int.from_bytes(raw[:4], sys.byteorder)
+    rest = raw[4:]
+    end = rest.find(b"\0")
+    if end < 0:
+        return None, None, None
+    launch = os.fsdecode(rest[:end])
+    items = rest[end:].lstrip(b"\0").split(b"\0")
+    home = None
+    for item in items[argc:]:
+        if not item:
+            break
+        if item.startswith(b"HOME="):
+            home = os.fsdecode(item[5:])
+            break
+    return launch, [os.fsdecode(x) for x in items[:argc]], home
+
+
+def process_table() -> dict:
+    """Each process as {pid: {"ppid", "uid", "zombie"}}, from ps."""
+    result = subprocess.run(["/bin/ps", "-axww", "-o", "pid=,ppid=,uid=,stat="], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise Stop(f"the process listing failed: {result.stderr.strip()}")
+    out = result.stdout
     procs = {}
     for line in out.splitlines():
-        parts = line.strip().split(None, 2)
-        if len(parts) >= 2:
-            procs[int(parts[0])] = (int(parts[1]), parts[2] if len(parts) > 2 else "")
+        parts = line.split()
+        if len(parts) >= 4:
+            procs[int(parts[0])] = {"ppid": int(parts[1]), "uid": int(parts[2]), "zombie": "Z" in parts[3]}
     return procs
 
 
-def descendants(procs: dict, root: int) -> set:
-    children = {}
-    for pid, (ppid, _) in procs.items():
-        children.setdefault(ppid, []).append(pid)
-    out, todo = set(), [root]
-    while todo:
-        for child in children.get(todo.pop(), []):
-            if child not in out:
-                out.add(child)
-                todo.append(child)
+def _stem(path: str) -> str:
+    name = os.path.basename(path)
+    for suffix in SCRIPT_SUFFIXES:
+        if name.endswith(suffix):
+            return name[:-len(suffix)]
+    return name
+
+
+def _script(argv: list, value_options=(), no_script=()):
+    """The first argument after argv[0] that is not an option, or None."""
+    i = 1
+    while i < len(argv):
+        arg = argv[i]
+        if arg in no_script:
+            return None
+        if arg == "--":
+            return argv[i + 1] if i + 1 < len(argv) else None
+        if arg.startswith("-"):
+            i += 2 if arg in value_options else 1
+            continue
+        return arg
+    return None
+
+
+def _tool_executable(path):
+    """The tool and the form of an executable path, or None."""
+    if not path:
+        return None
+    name = os.path.basename(path)
+    if name in TOOLS:
+        return TOOLS[name], "native executable"
+    if name.startswith(CODEX_HELPER):
+        return "Codex", "helper executable"
+    parts = path.split("/")
+    if len(parts) >= 3 and parts[-2] == "versions" and parts[-3] == "claude":
+        return "Claude Code", "versioned executable"
+    return None
+
+
+def _role(tool: str, argv: list) -> str:
+    """The subcommand of a recognised process, for the report."""
+    rest = argv[1:]
+    if tool == "Codex" and "app-server" in rest:
+        i = rest.index("app-server")
+        if rest[i + 1:i + 2] == ["daemon"]:
+            return "app-server daemon"
+        return "managed app-server" if "--managed-daemon" in rest else "app-server"
+    first = _title(argv)
+    if first and first not in TOOLS and not first.startswith(("node", "-")):
+        return f"as {first}"
+    return ""
+
+
+def _title(argv: list) -> str:
+    """The program name in argv[0]. A title with spaces, as a Node process rewrites it, gives its first word."""
+    first = argv[0] if argv else ""
+    words = first.split()
+    return os.path.basename(words[0] if len(words) > 1 else first)
+
+
+def recognise(executable, launch, argv, resolve=os.path.realpath):
+    """Classify one process as a tool, as needing review, or as neither.
+
+    EXECUTABLE is the canonical path (proc_pidpath), LAUNCH the path that
+    started the process and ARGV its argument vector (KERN_PROCARGS2). Either
+    can be None when it is unreadable. The result is None, {"tool", "form",
+    "role"} or {"review", "names"}. Only names in the program position count:
+    a tool's name inside another argument is never recognition.
+    """
+    argv = argv or []
+    path = executable or launch
+    unread = "" if executable else ", executable unreadable, by its launch path"
+    found = _tool_executable(path)
+    if found:
+        return {"tool": found[0], "form": found[1] + unread, "role": _role(found[0], argv)}
+    first = _title(argv)
+    named = {n for n in (first, os.path.basename(launch or "")) if n in TOOLS}
+    runner = os.path.basename(path or "")
+    if runner in NODE_RUNNERS:
+        if first in NODE_TOOLS:
+            tool = NODE_TOOLS[first]
+            return {"tool": tool, "form": f"Node launcher titled {first}" + unread, "role": _role(tool, argv)}
+        script = _script(argv, NODE_VALUE_OPTIONS, NODE_NO_SCRIPT)
+        if script:
+            real = resolve(script)
+            for package, tool in NODE_PACKAGES.items():
+                if f"/node_modules/{package}/" in real:
+                    return {"tool": tool, "form": f"Node launcher of {real}" + unread, "role": _role(tool, argv)}
+            for candidate in (script, real):
+                if _stem(candidate) in NODE_TOOLS:
+                    tool = NODE_TOOLS[_stem(candidate)]
+                    return {"tool": tool, "form": f"Node launcher of {real}" + unread, "role": _role(tool, argv)}
+                if _stem(candidate) in TOOLS:
+                    named.add(_stem(candidate))
+    elif runner in SHELLS or runner.startswith("python") or runner in ("perl", "ruby"):
+        if runner in SHELLS:
+            script = _script(argv, SHELL_VALUE_OPTIONS, ("-c",))
+        else:
+            script = _script(argv, PYTHON_VALUE_OPTIONS if runner.startswith("python") else (), ("-c", "-m", "-e"))
+        if script and _stem(script) in TOOLS:
+            named.add(_stem(script))
+    if named:
+        names = ", ".join(sorted(named))
+        return {"review": f"the launch form names {names}, but the executable {path or 'unreadable'} "
+                          f"is not a known form of it", "names": sorted(TOOLS[n] for n in named)}
+    if path is None:
+        return {"review": "the executable identity and the argument vector are unreadable", "names": []}
+    if executable is None:
+        return {"review": f"the executable is unreadable, so its identity is unknown; it was launched as {launch}",
+                "names": []}
+    return None
+
+
+def ancestors_of(procs: dict, pid: int) -> list:
+    """The exact ancestors of PID, nearest first."""
+    out = []
+    while pid in procs and procs[pid]["ppid"] not in (0, pid):
+        pid = procs[pid]["ppid"]
+        out.append(pid)
     return out
 
 
-def matches(patterns: list, text: str) -> bool:
-    return any(re.search(p, text) for p in patterns)
+def rehearsal_scope(home: str):
+    """The folder of SCOPE_VAR with a trailing separator, or None."""
+    scope = os.environ.get(SCOPE_VAR)
+    if scope and os.path.realpath(home) == account_home():
+        raise Stop(f"{SCOPE_VAR} is set while HOME is the account's home directory")
+    return os.path.realpath(scope) + os.sep if scope else None
 
 
-def process_gate(layout: Layout, plan: dict, point: str) -> None:
-    """List processes against the kept processes before a write interval.
+def load_owned(path):
+    """The probe-owned processes of a record file: [{"pid", "start", "executable", "home"}]."""
+    if not path:
+        return []
+    try:
+        with open(path, "rb") as f:
+            records = json.loads(f.read())
+    except (OSError, ValueError) as e:
+        raise Stop(f"the probe-owned process record {path} is unreadable: {e}")
+    if not isinstance(records, list) or not all(
+            isinstance(r, dict) and isinstance(r.get("pid"), int) and isinstance(r.get("start"), str)
+            and isinstance(r.get("executable"), str) and isinstance(r.get("home"), str) for r in records):
+        raise Stop(f"the probe-owned process record {path} is not a list of pid, start, executable and home")
+    return records
 
-    The kept processes are the program, its ancestors (the shell, the harness
-    and the driver chain) and the harness process's MCP servers. Each other
-    process that the plan watches, and each other descendant of the session,
-    keeps the interval closed. So does each job that the plan watches.
+
+def inspect_processes(home: str, owned=()) -> dict:
+    """Recognise each Claude Code, Codex, Grove and Ravel process, and admit only the operator's.
+
+    The program is admitted, and so are its exact ancestors up to the first
+    harness (Claude Code or Codex) and the drivers (Ravel and Grove) above it.
+    A second harness ancestor is another session: it and each tool ancestor
+    above it count as other processes. A recognised process is also admitted
+    when its PID, creation time, canonical executable and HOME equal a record
+    of OWNED. Only inspections during probes pass OWNED; the inspection after
+    probe cleanup and the one before restore pass none. Each other recognised
+    process is "other", and each process that needs review is "review". The
+    program reads the process table and signals nothing. Processes of other
+    accounts are recognised by their executable only, because their
+    arguments, folder and creation time need privilege.
     """
-    hook(layout, f"gate:{point}")
-    procs = list_processes()
-    me = os.getpid()
-    ancestors, pid = [], me
-    while pid in procs and procs[pid][0] not in (0, pid):
-        pid = procs[pid][0]
-        ancestors.append(pid)
-    session = plan["session"]
-    harness = next((a for a in ancestors if matches(session["harness"], procs[a][1])), None)
-    root = harness if harness is not None else os.getppid()
-    kept = {me} | set(ancestors) | descendants(procs, me)
-    if harness is not None:
-        # The MCP servers of the harness process: each child that matches a
-        # pattern, and each descendant reached through matching processes
-        # only, such as the server that a launcher starts. Each other
-        # descendant of a server counts as another process.
-        todo = [harness]
-        while todo:
-            parent = todo.pop()
-            for pid, (ppid, args) in procs.items():
-                if ppid == parent and pid not in kept and matches(session["mcp"], args):
-                    kept.add(pid)
-                    todo.append(pid)
-    session_tree = descendants(procs, root)
-    others = []
-    for pid, (_, args) in sorted(procs.items()):
-        if pid in kept:
+    scope = rehearsal_scope(home)
+    procs = process_table()
+    me, uid = os.getpid(), os.getuid()
+    owned_ids = {(r["pid"], r["start"], r["executable"], r["home"]) for r in owned}
+    found = {}
+    for pid in sorted(procs):
+        info = procs[pid]
+        if info["zombie"] or pid == me:
             continue
-        if pid in session_tree:
-            others.append(f"process {pid} of the session: {args}")
-        elif matches(plan["watch"], args):
-            others.append(f"process {pid}: {args}")
-    jobs = plan["jobs"]
-    result = subprocess.run(jobs["argv"], capture_output=True, text=True, env=command_env(layout, "gate"))
-    if result.returncode != 0:
-        raise Stop(f"the job listing failed before {point}: {result.stderr.strip()}")
-    for line in result.stdout.splitlines():
-        if matches(jobs["patterns"], line):
-            others.append(f"job: {line.strip()}")
-    if others:
-        for line in others:
-            log(f"  remaining {line}")
-        raise Stop(f"other processes or jobs remain before {point}; ask the owner, and signal no session")
-    log(f"gate: no other process before {point}")
+        mine = info["uid"] == uid
+        exe = executable_path(pid)
+        launch, argv, env_home = process_arguments(pid) if mine else (None, None, None)
+        if exe is None:
+            # An exited process or a zombie fails both reads; neither writes anything.
+            if not mine or process_status(pid) in (None, SZOMB):
+                continue
+        if scope and not (exe or launch or "").startswith(scope):
+            continue
+        folder = process_folder(pid) if mine else None
+
+        def resolve(script, folder=folder):
+            return os.path.realpath(os.path.join(folder, script) if folder else script)
+
+        result = recognise(exe, launch, argv, resolve)
+        if result is not None:
+            found[pid] = dict(result, pid=pid, ppid=info["ppid"], executable=exe or launch,
+                              start=process_start(pid) if mine else None, home=env_home,
+                              args=" ".join(" ".join(argv or []).split())[:300])
+    lineage = {me}
+    harnesses = 0
+    for pid in ancestors_of(procs, me):
+        item = found.get(pid)
+        if item is not None and item.get("tool") in HARNESSES:
+            harnesses += 1
+        if harnesses > 1:
+            if item is not None:
+                item["outer"] = True
+            continue
+        lineage.add(pid)
+    report = {"admitted": [], "other": [], "review": []}
+    for pid, item in sorted(found.items()):
+        if pid in lineage:
+            item["admitted_as"] = "ancestor"
+            report["admitted"].append(item)
+        elif "tool" in item and (pid, item["start"], item["executable"], item["home"]) in owned_ids:
+            item["admitted_as"] = "probe-owned"
+            report["admitted"].append(item)
+        elif "tool" in item:
+            report["other"].append(item)
+        else:
+            report["review"].append(item)
+    return report
+
+
+def describe(item: dict) -> str:
+    what = f"{item['tool']} ({item['form']}{', ' + item['role'] if item.get('role') else ''})" if "tool" in item \
+        else f"review: {item['review']}"
+    outer = "outer harness ancestor, " if item.get("outer") else ""
+    return f"process {item['pid']} (parent {item['ppid']}) {outer}{what}: {item['args'] or item['executable']}"
+
+
+def process_gate(layout: Layout, point: str, owned=()) -> None:
+    """Stop before POINT unless the narrow process inspection admits each tool process."""
+    hook(layout, f"gate:{point}")
+    report = inspect_processes(layout.home, owned)
+    for item in report["admitted"]:
+        log(f"  admitted {item['admitted_as']} {describe(item)}")
+    for item in report["other"] + report["review"]:
+        log(f"  remaining {describe(item)}")
+    if report["other"] or report["review"]:
+        raise Stop(f"another Claude Code, Codex, Grove or Ravel process, or a process that needs review, "
+                   f"remains before {point}; end it through its owning interface, and the program signals none")
+    log(f"gate: no other Claude Code, Codex, Grove or Ravel process before {point}")
+
+
+def processes_command(args) -> int:
+    """The `processes` entry: run the inspection, print it and change nothing."""
+    home = os.path.realpath(args.home or account_home())
+    report = inspect_processes(home, load_owned(args.owned))
+    clear = not (report["other"] or report["review"])
+    if args.json:
+        print(json.dumps(dict(report, clear=clear), indent=2, sort_keys=True))
+        return 0 if clear else 3
+    for item in report["admitted"]:
+        log(f"admitted {item['admitted_as']} {describe(item)}")
+    for item in report["other"] + report["review"]:
+        log(f"remaining {describe(item)}")
+    log(f"result: {'clear' if clear else 'refused'}")
+    return 0 if clear else 3
 
 
 # --- commands -----------------------------------------------------------------
@@ -1493,7 +1830,7 @@ def invert_part(layout: Layout, backup: Backup, index: int, part: dict) -> None:
 def run_inverse(layout: Layout, backup: Backup, limit=None) -> None:
     """The inverse of the backup's plan, in its own write interval."""
     plan = backup.plan
-    process_gate(layout, plan, "the inverse")
+    process_gate(layout, "the inverse")
     if backup.last() != "inverse-begun":
         backup.add_record(layout, "inverse-begun", {})
     for index in reversed(range(len(plan["parts"]))):
@@ -1665,7 +2002,7 @@ def native_settings(layout: Layout, prepared: dict) -> None:
     except OSError as e:
         refuse(layout, prepared, f"the native settings could not read {RAVEL_SETTINGS}: {e.strerror}")
     if fd is None:
-        process_gate(layout, prepared, "the native settings")
+        process_gate(layout, "the native settings")
         os.makedirs(layout.settings, exist_ok=True)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         stage = os.path.join(layout.settings, f".create-{new_record_name('native')}")
@@ -1695,7 +2032,7 @@ def native_settings(layout: Layout, prepared: dict) -> None:
         return
     if not same(value, ABSENT):
         refuse(layout, prepared, f"the native settings found skills {show(value)} in {RAVEL_SETTINGS}")
-    process_gate(layout, prepared, "the native settings")
+    process_gate(layout, "the native settings")
     prelude_exchange(layout, RAVEL_SETTINGS, ["skills"], ABSENT, OFF, "native")
 
 
@@ -1704,12 +2041,9 @@ def native_settings(layout: Layout, prepared: dict) -> None:
 # The temporary sibling of the settings file. A rerun removes each one that an
 # interruption left, because no reader of the settings reads these names.
 NATIVE_OFF_TEMP = ".settings.json.native-off-"
-SCOPE_VAR = "OWNER_SWITCH_REHEARSAL_SCOPE"
 # fcntl(2): F_FULLFSYNC asks the drive to flush its cache, which fsync(2) on
 # macOS does not do.
 F_FULLFSYNC = getattr(fcntl, "F_FULLFSYNC", 51)
-_libproc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
-_libproc.proc_pidpath.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
 
 
 class Incomplete(Exception):
@@ -1721,43 +2055,16 @@ def native_off_argv(home: str) -> list:
     return [sys.executable, "-I", PROGRAM_PATH, "native-off", "--home", home]
 
 
-def executable_path(pid: int):
-    """The canonical path of a process's executable (proc_pidpath), or None."""
-    buf = ctypes.create_string_buffer(4096)
-    if _libproc.proc_pidpath(pid, buf, 4096) <= 0:
-        return None
-    return os.fsdecode(buf.value)
-
-
 def other_ravel_drivers(home: str) -> list:
     """Each Ravel process except this process and its exact ancestors.
 
-    A process is a Ravel process when the basename of its executable path or
-    of its argv[0] is `ravel`. An argument that only contains the name is not
-    recognition. OWNER_SWITCH_REHEARSAL_SCOPE limits the processes to the
-    executables inside one folder, and only outside the account's HOME.
+    The narrow process inspection recognises the process. A launch form that
+    names Ravel without a Ravel executable counts too, because it needs
+    review. An argument that only contains the name is not recognition.
     """
-    scope = os.environ.get(SCOPE_VAR)
-    if scope and home == account_home():
-        raise Stop(f"{SCOPE_VAR} is set while HOME is the account's home directory")
-    scope = os.path.realpath(scope) + os.sep if scope else None
-    procs = list_processes()
-    exempt, pid = {os.getpid()}, os.getpid()
-    while pid in procs and procs[pid][0] not in (0, pid):
-        pid = procs[pid][0]
-        exempt.add(pid)
-    found = []
-    for pid, (_, args) in sorted(procs.items()):
-        if pid in exempt:
-            continue
-        exe = executable_path(pid)
-        first = args.split(None, 1)[0] if args.strip() else ""
-        if "ravel" not in {os.path.basename(p) for p in (exe, first) if p}:
-            continue
-        if scope and not (exe or first).startswith(scope):
-            continue
-        found.append(f"process {pid} ({exe or 'executable unreadable'}): {args[:300]}")
-    return found
+    report = inspect_processes(home)
+    return [describe(item) for item in report["other"] + report["review"]
+            if item.get("tool") == "Ravel" or "Ravel" in item.get("names", [])]
 
 
 def strict_object(content: bytes):
@@ -2166,7 +2473,7 @@ def hooks_installation(layout: Layout, prepared: dict) -> None:
         return
     if state["kind"] == "other":
         refuse(layout, prepared, f"the hooks installation found that {state['reason']}")
-    process_gate(layout, prepared, "the hooks installation")
+    process_gate(layout, "the hooks installation")
     if state["kind"] == "absent":
         check_claude_version(layout)
         if not state["registered"]:
@@ -2704,7 +3011,7 @@ def all_switched(statuses: list) -> bool:
 def apply_switch(layout: Layout, backup: Backup) -> None:
     """Step 9: the parts in their order, in one write interval."""
     plan = backup.plan
-    process_gate(layout, plan, "step 9")
+    process_gate(layout, "step 9")
     changed = set()
     try:
         for index, part in enumerate(plan["parts"]):
@@ -2823,7 +3130,7 @@ def run_switch(args) -> int:
     log(f"program: {PROGRAM_DIGEST}")
     log(f"plan: {prepared['_digest']}")
     hook(layout, "start")
-    process_gate(layout, prepared, "step 1")
+    process_gate(layout, "step 1")
     step_3_preludes(layout, prepared)
     applying = latest_backup(layout)
     applying = applying.plan if applying and applying.is_open() else prepared
@@ -2975,8 +3282,8 @@ def append_manual(layout: Layout, text: str, what: str) -> None:
 def inverse_command(args) -> int:
     """The owner's inverse: "Rollback", run by the program copy of the latest backup.
 
-    It lists the processes of step 1, resets each switched cell and leaves
-    each third value. It moves an entry back only onto an absent original
+    It runs the narrow process inspection. It resets each switched cell and
+    leaves each third value. It moves an entry back only onto an absent original
     path, whatever the entry's change identity. Then it runs the native
     probe and appends one line to the maintained manual.
     """
@@ -3171,6 +3478,10 @@ def main(argv=None) -> int:
     p.add_argument("--home", default=account_home())
     p.add_argument("--print-command", action="store_true",
                    help="print the exact command for the prepared recovery instructions, and write nothing")
+    p = sub.add_parser("processes")
+    p.add_argument("--home", default=account_home())
+    p.add_argument("--owned", help="a JSON list of probe-owned processes: pid, start, executable and home")
+    p.add_argument("--json", action="store_true")
     sub.add_parser("identity").add_argument("path")
     sub.add_parser("digest").add_argument("path")
     p = sub.add_parser("gate")
@@ -3183,6 +3494,8 @@ def main(argv=None) -> int:
             return gate_command(args)
         if args.command == "native-off":
             return native_off_command(args)
+        if args.command == "processes":
+            return processes_command(args)
         if args.command == "identity":
             print(identity(args.path) or "absent")
             return 0

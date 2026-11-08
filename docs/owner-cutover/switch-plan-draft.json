@@ -862,16 +862,20 @@
   ],
   "outside": [
     {
-      "path": ".claude/skills/codebase-memory",
-      "identity": "7aa0989b3953c67cec981cdb5429b5b095933f6e7fbc4a5017e6117b2e52059a"
-    },
-    {
-      "path": ".codex/skills/codebase-memory",
-      "identity": "4beae554b59503b150897fe8ecab88dc2d70b089c95c2bbabf1829f1d81a16f1"
-    },
-    {
       "path": ".agents/.grove",
       "identity": "b14c7debee5d62b8446a505993f23cc23d140394e3f0f8ab60445f5f4b581781"
+    },
+    {
+      "root": ".claude/skills",
+      "entries": {
+        "codebase-memory": "7aa0989b3953c67cec981cdb5429b5b095933f6e7fbc4a5017e6117b2e52059a"
+      }
+    },
+    {
+      "root": ".codex/skills",
+      "entries": {
+        "codebase-memory": "4beae554b59503b150897fe8ecab88dc2d70b089c95c2bbabf1829f1d81a16f1"
+      }
     },
     {
       "root": ".agents/skills",
@@ -912,34 +916,6 @@
       }
     }
   ],
-  "session": {
-    "harness": [
-      "^(\\S*/)?claude(\\s|$)"
-    ],
-    "mcp": [
-      "^(\\S*/)?node \\S*/\\.quint-llm-kit/repo/mcp-servers/kb/dist/server\\.js$",
-      "^(\\S*/)?codebase-memory-mcp(\\s|$)",
-      "^npm exec @playwright/mcp@latest\\s*$",
-      "^(\\S*/)?npx (-y )?@playwright/mcp@latest\\s*$",
-      "^(\\S*/)?node \\S*/node_modules/\\.bin/playwright-mcp(\\s|$)",
-      "^caffeinate -i -t \\d+$"
-    ]
-  },
-  "watch": [
-    "^(\\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\\s|$)",
-    "(^|\\s)\\S*/(@anthropic-ai/claude-code|@openai/codex|@mariozechner/pi-coding-agent)/",
-    "^/Applications/(Claude|ChatGPT|Herdr|Orca)\\.app/"
-  ],
-  "jobs": {
-    "argv": [
-      "/bin/sh",
-      "-c",
-      "/bin/launchctl list && { /usr/bin/crontab -l 2>/dev/null || true; }"
-    ],
-    "patterns": [
-      "(?i)(anthropic|claude|codex|openai|chatgpt|herdr|\\borca\\b|\\bmise\\b|jdx|codebase-memory|grove|ravel)"
-    ]
-  },
   "baseline": {
     "name": "inventory",
     "argv": [

@@ -1,75 +1,47 @@
-# The real process tree against the draft's patterns
+# The narrow process inspection of the real process table
 
-listing process: 31950
+listing process: 12349
 
-## Ancestors (kept: the program's shell, the harness and the driver chain)
-31945	ancestor	task owner:switch-plan:check OUT=/private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/5f1c81f6-e056-46f3
-30742	ancestor	/bin/zsh -c source ~/.claude/shell-snapshots/snapshot-zsh-1794055048058-paucbu.sh 2>/dev/null || true && setopt NO_EXTENDED_GLOB NO_BARE_GLO
-14764	harness	claude --add-dir ~/Development/AgenticOrchestration/grove --model claude-opus-5-5 --effort high **Load the `grove-impl` skill now** — on Cla
-14756	ancestor	/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel start-session --kind=impl --prompt=**Load the `grove-impl` skill now** — on Claude Code, where pl
-77320	ancestor	grove
-75135	ancestor	-zsh
-75116	ancestor	/usr/bin/login -fpl antony /Applications/iTerm.app/Contents/MacOS/ShellLauncher --launch_shell
-90972	ancestor	~/Library/Application Support/iTerm2/iTermServer-3.7.6 ~/Library/Application Support/iTerm2/iterm2-daemon-1.socket
-90945	ancestor	/Applications/iTerm.app/Contents/MacOS/iTerm2
-1	ancestor	/sbin/launchd
+## Installed executables of the four tools
+claude	~/.local/bin/claude	~/.local/share/claude/versions/2.1.319
+codex	/opt/homebrew/bin/codex	/opt/homebrew/Caskroom/codex/0.167.0/bin/codex
+grove	/opt/homebrew/bin/grove	/opt/homebrew/Cellar/grove/22.8.0/bin/grove
+grove-llm	/opt/homebrew/bin/grove-llm	/opt/homebrew/Cellar/grove/22.8.0/bin/grove-llm
+ravel	/opt/homebrew/bin/ravel	/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel
 
-## Children of the harness and their descendants
-14944	parent 14764	kept by mcp ^(\S*/)?node \S*/\.quint-llm-kit/repo/mcp-servers/kb/dist/server\.js$	/opt/homebrew/bin/node ~/.quint-llm-kit/repo/mcp-servers/kb/dist/server.js
-14947	parent 14764	kept by mcp ^(\S*/)?codebase-memory-mcp(\s|$)	~/.local/bin/codebase-memory-mcp
-14950	parent 14764	kept by mcp ^npm exec @playwright/mcp@latest\s*$	npm exec @playwright/mcp@latest
-15092	parent 14950	kept by mcp ^(\S*/)?node \S*/node_modules/\.bin/playwright-mcp(\s|$)	/opt/homebrew/bin/node ~/.npm/_npx/9833c18b2d85bc59/node_modules/.bin/playwright-mcp
-15215	parent 14947	kept by mcp ^(\S*/)?codebase-memory-mcp(\s|$)	~/.local/bin/codebase-memory-mcp --cbm-daemon-internal
-16615	parent 14764	kept by mcp ^caffeinate -i -t \d+$	caffeinate -i -t 300
-30742	parent 14764	ancestor, kept	/bin/zsh -c source ~/.claude/shell-snapshots/snapshot-zsh-1794055048058-paucbu.sh 2>/dev/null || true && setopt NO_EXTENDED_GLOB NO_BARE_GLO
-31945	parent 30742	ancestor, kept	task owner:switch-plan:check OUT=/private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/5f1c81f6-e056-46f3
+## Admitted: the exact ancestors of the listing process
+process 16390 (parent 77320) Ravel (native executable): /opt/homebrew/Cellar/ravel/1.1.0/bin/ravel start-session --kind=impl --prompt=**Load the `grove-impl` skill now** — on Claude Code, where plugin
+process 16397 (parent 16390) Claude Code (versioned executable): claude --add-dir ~/Development/AgenticOrchestration/grove --model claude-opus-5-5 --effort high **Load the `grove-impl` skill now** — o
+process 77320 (parent 75135) Grove (native executable): grove
 
-## Other processes that a watch pattern matches (each would stop step 2 now)
-6446	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	/private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scratchpad/bre
-9362	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	~/.local/bin/herdr-core serve
-20097	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	~/.local/bin/herdr-core hold --socket ~/.local/state/herdr-core/default/default.holder.996edbff.sock
-20546	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	/private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scratchpad/run
-25057	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	/private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scratchpad/run
-27230	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	/private/var/folders/z1/nw_wk3gj3hqchs4_73xrf2dw0000gn/T/.tmpy6uwxo/ravel-1.1.0/bin/ravel start-session --kind=release-notes --prompt=Produc
-36656	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	/private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scratchpad/run
-47637	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	/private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scratchpad/bre
-63232	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	~/.codex/packages/app-server-daemon/releases/0.167.0-aarch64-apple-darwin/bin/codex app-server --listen unix:// --analytics-default-enabled 
-65402	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	/opt/homebrew/bin/mise dot watch
-79724	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	/private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scratchpad/run
-82077	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	~/.codex/packages/app-server-daemon/releases/0.167.0-aarch64-apple-darwin/bin/codex app-server daemon pid-update-loop
-85196	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	/private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scratchpad/fre
-85213	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	/private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scratchpad/fre
-85757	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	/private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scratchpad/run
-91101	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	/private/tmp/claude-501/-Users-antony-Development-grove-create-ade-ste100-skill/ae554c51-b4b0-463c-b878-8d6f9a6978af/scratchpad/ch2/packages
-92139	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	/private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scratchpad/run
-93292	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	/private/tmp/grove-session-recovery/target/debug/grove
-93940	watch ^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)	/private/tmp/grove-session-recovery/target/debug/grove
+## Other tool processes (each would stop the switch now)
+process 6446 (parent 1) Codex (native executable, app-server daemon): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scra
+process 7288 (parent 1) Claude Code (versioned executable, as ugrep): ugrep -G --ignore-files --hidden -I --exclude-dir=.git --exclude-dir=.svn --exclude-dir=.hg --exclude-dir=.bzr --exclude-dir=.jj -
+process 20546 (parent 1) Codex (native executable, app-server daemon): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scr
+process 25057 (parent 79724) Codex (native executable, managed app-server): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928de
+process 27230 (parent 1) Ravel (native executable): /private/var/folders/z1/nw_wk3gj3hqchs4_73xrf2dw0000gn/T/.tmpy6uwxo/ravel-1.1.0/bin/ravel start-session --kind=release-notes --prompt=Produce notes.
+process 36656 (parent 92139) Codex (native executable, managed app-server): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928de
+process 47637 (parent 6446) Codex (native executable, managed app-server): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def
+process 63232 (parent 82077) Codex (native executable, managed app-server): ~/.codex/packages/app-server-daemon/releases/0.167.0-aarch64-apple-darwin/bin/codex app-server --listen unix:// --analytics-
+process 79724 (parent 1) Codex (native executable, app-server daemon): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scr
+process 82077 (parent 1) Codex (native executable, app-server daemon): ~/.codex/packages/app-server-daemon/releases/0.167.0-aarch64-apple-darwin/bin/codex app-server daemon pid-update-loop
+process 85196 (parent 1) Codex (native executable, executable unreadable, by its launch path, managed app-server): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue
+process 85213 (parent 1) Codex (native executable, executable unreadable, by its launch path, app-server daemon): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-
+process 85757 (parent 20546) Codex (native executable, managed app-server): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928de
+process 91101 (parent 1) Codex (native executable, managed app-server): /private/tmp/claude-501/-Users-antony-Development-grove-create-ade-ste100-skill/ae554c51-b4b0-463c-b878-8d6f9a6978af/scratchpad/
+process 92139 (parent 1) Codex (native executable, app-server daemon): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scr
+process 93292 (parent 1) Grove (native executable): /private/tmp/grove-session-recovery/target/debug/grove
+process 93940 (parent 1) Grove (native executable): /private/tmp/grove-session-recovery/target/debug/grove
 
-## Jobs that a job pattern matches (listing exit 0)
--	0	dev.herdr.server.78950.1792987156121559000
-65402	1	dev.mise.mise-history
--	0	dev.herdr.server.79199.1792987156998465000
-
-## The program's process gate from the same position (stopped: True)
-remaining process 6446: /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e2
-remaining process 9362: ~/.local/bin/herdr-core serve
-remaining process 20097: ~/.local/bin/herdr-core hold --socket ~/.local/state/herdr-core/default/default.holder.996edbff.sock
-remaining process 20546: /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e
-remaining process 25057: /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e
-remaining process 27230: /private/var/folders/z1/nw_wk3gj3hqchs4_73xrf2dw0000gn/T/.tmpy6uwxo/ravel-1.1.0/bin/ravel start-session --kind=rele
-remaining process 36656: /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e
-remaining process 47637: /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e
-remaining process 63232: ~/.codex/packages/app-server-daemon/releases/0.167.0-aarch64-apple-darwin/bin/codex app-server --listen unix:// --a
-remaining process 65402: /opt/homebrew/bin/mise dot watch
-remaining process 79724: /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e
-remaining process 82077: ~/.codex/packages/app-server-daemon/releases/0.167.0-aarch64-apple-darwin/bin/codex app-server daemon pid-update-lo
-remaining process 85196: /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e
-remaining process 85213: /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e
-remaining process 85757: /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e
-remaining process 91101: /private/tmp/claude-501/-Users-antony-Development-grove-create-ade-ste100-skill/ae554c51-b4b0-463c-b878-8d6f9a6978a
-remaining process 92139: /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e
-remaining process 93292: /private/tmp/grove-session-recovery/target/debug/grove
-remaining process 93940: /private/tmp/grove-session-recovery/target/debug/grove
-remaining job: -	0	dev.herdr.server.78950.1792987156121559000
-remaining job: 65402	1	dev.mise.mise-history
-remaining job: -	0	dev.herdr.server.79199.1792987156998465000
+## Processes that need review (each would stop the switch now)
+process 888 (parent 1) review: the executable is unreadable, so its identity is unknown; it was launched as /opt/homebrew/bin/watchman: /opt/homebrew/bin/watchman --foreground --logfile=~/.local/state
+process 1754 (parent 1750) review: the executable is unreadable, so its identity is unknown; it was launched as ~/Development/Ravel.simplify-and-componentize/target/tools/mdbook: ~/Development/Ravel.s
+process 2086 (parent 1) review: the executable is unreadable, so its identity is unknown; it was launched as /opt/homebrew/Cellar/python@3.15/3.15.0/Frameworks/Python.framework/Versions/3.15/Resources
+process 5717 (parent 5713) review: the executable is unreadable, so its identity is unknown; it was launched as ~/Development/Ravel.simplify-and-componentize/target/tools/mdbook: ~/Development/Ravel.s
+process 19618 (parent 1) review: the executable is unreadable, so its identity is unknown; it was launched as /opt/homebrew/Cellar/python@3.15/3.15.0/Frameworks/Python.framework/Versions/3.15/Resource
+process 27369 (parent 1) review: the executable is unreadable, so its identity is unknown; it was launched as /opt/homebrew/Cellar/python@3.15/3.15.0/Frameworks/Python.framework/Versions/3.15/Resource
+process 28515 (parent 1) review: the executable is unreadable, so its identity is unknown; it was launched as /opt/homebrew/Cellar/python@3.15/3.15.0/Frameworks/Python.framework/Versions/3.15/Resource
+process 31909 (parent 1) review: the executable is unreadable, so its identity is unknown; it was launched as /opt/homebrew/Cellar/python@3.15/3.15.0/Frameworks/Python.framework/Versions/3.15/Resource
+process 75755 (parent 75751) review: the executable is unreadable, so its identity is unknown; it was launched as ~/Development/Ravel.simplify-and-componentize/target/tools/mdbook: ~/Development/Ravel
+process 86896 (parent 1) review: the executable is unreadable, so its identity is unknown; it was launched as /opt/homebrew/bin/uv: uv run --locked pytest -v -x tests/test_finite_action.py
+process 96667 (parent 1) review: the executable is unreadable, so its identity is unknown; it was launched as /opt/homebrew/bin/uv: uv run --locked pytest -v -x -p no:cacheprovider tests/test_finite_a

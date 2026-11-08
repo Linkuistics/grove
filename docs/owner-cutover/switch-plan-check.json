@@ -1,7 +1,7 @@
 {
   "plan": "docs/owner-cutover/switch-plan-draft.json",
-  "plan_digest": "c40451d63c33e1cb8800a80ddce6b8b4e21e534c4711ec5b8dd24a72249f0859",
-  "program_digest": "885171751f02b62451090a4a41cc7b5145bb3aac29556d85b1dbcb262cc7884f",
+  "plan_digest": "2b8d3d67d0e51c75d35d3cff42a3c340398fc6d3734582b56aff3403b1ad50c1",
+  "program_digest": "ef92cf7434d02d2f1cd95dd75ab37c210049946c03eefc1ebdd473e69c25b51e",
   "python": "3.15.1",
   "entries_copied": 170,
   "dry_run": {
@@ -30,6 +30,12 @@
       "output": "stop: the plan is incomplete: gates.4 does not run the program's gate of step 4"
     },
     {
+      "control": "process-patterns",
+      "exit": 3,
+      "passed": true,
+      "output": "stop: the plan is incomplete: the plan holds watch: the narrow process inspection is built in, and the owner's checklist replaces process, MCP and job patterns"
+    },
+    {
       "control": "changed-entry",
       "exit": 0,
       "passed": true,
@@ -40,156 +46,65 @@
       "exit": 0,
       "passed": true,
       "output": "state: changed\n  part 0 .claude/skills/grove: earlier\n  part 1 .claude/skills/terminal-browser: earlier\n  part 2 .codex/skills/authoring-conventions: earlier\n  part 3 .codex/skills/brainstorming: earlier\n  part 4 .codex/skills/cli-tool-design: earlier\n  part 5 .codex/skills/codebase-design: earlier\n  part 6 .codex/skills/coding-style-bash: earlier\n  part 7 .codex/skills/coding-style-elixir: earlier\n  part 8 .codex/skills/coding-style-python: earlier\n  part 9 .codex/skills/coding-style-rust: earlier\n  part 10 .codex/skills/coding-style-swift: earlier\n  part 11 .codex/skills/coding-style-typescr"
+    },
+    {
+      "control": "new-sibling-of-system",
+      "exit": 0,
+      "passed": true,
+      "output": "state: changed\n  part 0 .claude/skills/grove: earlier\n  part 1 .claude/skills/terminal-browser: earlier\n  part 2 .codex/skills/authoring-conventions: earlier\n  part 3 .codex/skills/brainstorming: earlier\n  part 4 .codex/skills/cli-tool-design: earlier\n  part 5 .codex/skills/codebase-design: earlier\n  part 6 .codex/skills/coding-style-bash: earlier\n  part 7 .codex/skills/coding-style-elixir: earlier\n  part 8 .codex/skills/coding-style-python: earlier\n  part 9 .codex/skills/coding-style-rust: earlier\n  part 10 .codex/skills/coding-style-swift: earlier\n  part 11 .codex/skills/coding-style-typescr"
+    },
+    {
+      "control": "inside-platform-subtrees",
+      "exit": 0,
+      "passed": true,
+      "output": "state: native\n  part 0 .claude/skills/grove: earlier\n  part 1 .claude/skills/terminal-browser: earlier\n  part 2 .codex/skills/authoring-conventions: earlier\n  part 3 .codex/skills/brainstorming: earlier\n  part 4 .codex/skills/cli-tool-design: earlier\n  part 5 .codex/skills/codebase-design: earlier\n  part 6 .codex/skills/coding-style-bash: earlier\n  part 7 .codex/skills/coding-style-elixir: earlier\n  part 8 .codex/skills/coding-style-python: earlier\n  part 9 .codex/skills/coding-style-rust: earlier\n  part 10 .codex/skills/coding-style-swift: earlier\n  part 11 .codex/skills/coding-style-typescri"
     }
   ],
-  "pattern_cases": [
-    {
-      "list": "watch",
-      "text": "/Applications/Claude.app/Contents/MacOS/Claude",
-      "expected": true,
-      "passed": true
+  "process_patterns": [],
+  "installed_tools": {
+    "claude": {
+      "path": "~/.local/bin/claude",
+      "canonical": "~/.local/share/claude/versions/2.1.319"
     },
-    {
-      "list": "watch",
-      "text": "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT",
-      "expected": true,
-      "passed": true
+    "codex": {
+      "path": "/opt/homebrew/bin/codex",
+      "canonical": "/opt/homebrew/Caskroom/codex/0.167.0/bin/codex"
     },
-    {
-      "list": "watch",
-      "text": "/opt/homebrew/bin/codex exec --json hello",
-      "expected": true,
-      "passed": true
+    "grove": {
+      "path": "/opt/homebrew/bin/grove",
+      "canonical": "/opt/homebrew/Cellar/grove/22.8.0/bin/grove"
     },
-    {
-      "list": "watch",
-      "text": "node /opt/homebrew/lib/node_modules/@mariozechner/pi-coding-agent/dist/cli.js",
-      "expected": true,
-      "passed": true
+    "grove-llm": {
+      "path": "/opt/homebrew/bin/grove-llm",
+      "canonical": "/opt/homebrew/Cellar/grove/22.8.0/bin/grove-llm"
     },
-    {
-      "list": "watch",
-      "text": "/opt/homebrew/bin/mise dot watch",
-      "expected": true,
-      "passed": true
-    },
-    {
-      "list": "watch",
-      "text": "/opt/homebrew/bin/ravel skills resolve --json",
-      "expected": true,
-      "passed": true
-    },
-    {
-      "list": "watch",
-      "text": "/Users/a/.local/bin/herdr-core serve",
-      "expected": true,
-      "passed": true
-    },
-    {
-      "list": "watch",
-      "text": "/Applications/OrcaSlicer.app/Contents/MacOS/OrcaSlicer",
-      "expected": false,
-      "passed": true
-    },
-    {
-      "list": "watch",
-      "text": "/opt/homebrew/bin/task serve DIR=/Users/a/Development/AgenticOrchestration/grove PORT=1",
-      "expected": false,
-      "passed": true
-    },
-    {
-      "list": "watch",
-      "text": "python3 -m http.server 8778 --directory /Users/a/Ravel.skill-directory-delivery/docs",
-      "expected": false,
-      "passed": true
-    },
-    {
-      "list": "harness",
-      "text": "claude --resume",
-      "expected": true,
-      "passed": true
-    },
-    {
-      "list": "harness",
-      "text": "/Users/a/.local/bin/claude -p hello",
-      "expected": true,
-      "passed": true
-    },
-    {
-      "list": "harness",
-      "text": "/Applications/Claude.app/Contents/MacOS/Claude",
-      "expected": false,
-      "passed": true
-    },
-    {
-      "list": "mcp",
-      "text": "/opt/homebrew/bin/node /tmp/other-server.js",
-      "expected": false,
-      "passed": true
-    },
-    {
-      "list": "mcp",
-      "text": "/bin/sleep 100",
-      "expected": false,
-      "passed": true
-    },
-    {
-      "list": "mcp",
-      "text": "/bin/zsh -c ls",
-      "expected": false,
-      "passed": true
-    },
-    {
-      "list": "jobs",
-      "text": "65402\t1\tdev.mise.mise-history",
-      "expected": true,
-      "passed": true
-    },
-    {
-      "list": "jobs",
-      "text": "-\t0\tcom.bambulab.orcaslicer.helper",
-      "expected": false,
-      "passed": true
+    "ravel": {
+      "path": "/opt/homebrew/bin/ravel",
+      "canonical": "/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel"
     }
-  ],
+  },
   "processes": {
-    "harness": 14764,
-    "servers": [
-      14944,
-      14947,
-      14950,
-      16615,
-      15092,
-      15215
+    "admitted": [
+      {
+        "pid": 16390,
+        "tool": "Ravel"
+      },
+      {
+        "pid": 16397,
+        "tool": "Claude Code"
+      },
+      {
+        "pid": 77320,
+        "tool": "Grove"
+      }
     ],
-    "session_others": [],
-    "watched": [
-      6446,
-      9362,
-      20097,
-      20546,
-      25057,
-      27230,
-      36656,
-      47637,
-      63232,
-      65402,
-      79724,
-      82077,
-      85196,
-      85213,
-      85757,
-      91101,
-      92139,
-      93292,
-      93940
-    ],
-    "jobs": [
-      "-\t0\tdev.herdr.server.78950.1792987156121559000",
-      "65402\t1\tdev.mise.mise-history",
-      "-\t0\tdev.herdr.server.79199.1792987156998465000"
-    ],
-    "gate_stopped": true,
-    "gate_lines": 22
+    "other": 17,
+    "review": 11,
+    "forms": [
+      "Claude Code: versioned executable",
+      "Codex: native executable",
+      "Grove: native executable",
+      "Ravel: native executable"
+    ]
   }
 }

@@ -26,14 +26,17 @@ the part table docs/owner-cutover/switch-plan-parts.tsv.
 entry that a part or an `outside` item names from the real HOME, and stops
 unless each copy has the draft's change identity. It writes both settings
 files with each cell at its earlier value. It then runs the program's loader
-and `run --dry-run`, six controls that must fail, and one control that must
-pass: a change inside .claude/skills/synced and .codex/skills/.system. Last, it lists the
-real process tree and the job listing against the plan's patterns, with the
-program's own classification of kept processes. OUT holds record.json,
-dry-run.txt and processes.txt. OUT must not exist. The real HOME is read only.
+and `run --dry-run`, seven controls that must fail, and one control that must
+pass: a change inside .claude/skills/synced and .codex/skills/.system. It
+stops unless the draft holds no process, MCP or job pattern ("session",
+"watch" or "jobs"). Last, it records the installed path and canonical path of
+each executable of the four tools, and it runs the program's narrow process
+inspection on the real process table. OUT holds record.json, dry-run.txt and
+processes.txt. OUT must not exist. The real HOME, launchd and the process
+table are read only.
 """
 
-import argparse, contextlib, copy, hashlib, importlib.util, io, json, os, re, shutil, subprocess, sys
+import argparse, copy, hashlib, importlib.util, json, os, re, shutil, subprocess, sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 PROGRAM = os.path.join(ROOT, "scripts", "owner_switch.py")
@@ -73,33 +76,6 @@ ENABLED = ("technical-communication-hooks@writing-hooks", "guardrail@personal")
 OUTSIDE_PATHS = (".agents/.grove",)
 OUTSIDE_ROOTS = (".claude/skills", ".codex/skills", ".agents/skills", ".pi/agent/skills", ".pi/agent/extensions",
                  ".claude/agents", ".codex/agents")
-
-# Step 1 and "Concurrent writers". A pattern matches the arguments of a process.
-HARNESS = [r"^(\S*/)?claude(\s|$)"]
-MCP = [
-    # quint-kb: `node .../kb/dist/server.js`, from ~/.claude.json.
-    r"^(\S*/)?node \S*/\.quint-llm-kit/repo/mcp-servers/kb/dist/server\.js$",
-    # codebase-memory-mcp and its daemon child `--cbm-daemon-internal`.
-    r"^(\S*/)?codebase-memory-mcp(\s|$)",
-    # Playwright: `npx @playwright/mcp@latest` runs as `npm exec ...`, which
-    # launches `node .../node_modules/.bin/playwright-mcp`.
-    r"^npm exec @playwright/mcp@latest\s*$",
-    r"^(\S*/)?npx (-y )?@playwright/mcp@latest\s*$",
-    r"^(\S*/)?node \S*/node_modules/\.bin/playwright-mcp(\s|$)",
-    # Not a server: Claude Code keeps the machine awake through this child.
-    # The design's kept processes do not name it, and this field is the only
-    # one that keeps a child of the harness process.
-    r"^caffeinate -i -t \d+$",
-]
-WATCH = [
-    r"^(\S*/)?(claude|codex|pi|grove|grove-llm|ravel|herdr|herdr-core|orca|mise|codebase-memory-mcp)(\s|$)",
-    r"(^|\s)\S*/(@anthropic-ai/claude-code|@openai/codex|@mariozechner/pi-coding-agent)/",
-    r"^/Applications/(Claude|ChatGPT|Herdr|Orca)\.app/",
-]
-JOBS = {
-    "argv": ["/bin/sh", "-c", "/bin/launchctl list && { /usr/bin/crontab -l 2>/dev/null || true; }"],
-    "patterns": [r"(?i)(anthropic|claude|codex|openai|chatgpt|herdr|\borca\b|\bmise\b|jdx|codebase-memory|grove|ravel)"],
-}
 
 PROBES_PROGRAM = PREPARED + "/owner_switch_probes.py"
 
@@ -257,9 +233,6 @@ def draft(_args):
         "manual": MANUAL,
         "parts": parts,
         "outside": outside,
-        "session": {"harness": HARNESS, "mcp": MCP},
-        "watch": WATCH,
-        "jobs": JOBS,
         "baseline": BASELINE,
         "gates": GATES,
         "accepted": {
@@ -368,6 +341,8 @@ def controls(plan, out, home):
             "is not relative to HOME")
     refused("gate-4-missing", lambda p: p["gates"].update({"4": [MAC_CHECK]}),
             "does not run the program's gate of step 4")
+    refused("process-patterns", lambda p: p.update(watch=[r"^(\S*/)?codex(\s|$)"]),
+            "the plan holds watch")
 
     def changed(name, act, undo):
         act()
@@ -409,103 +384,42 @@ def controls(plan, out, home):
     return results
 
 
-# Strings that each pattern list must match, or must not match.
-PATTERN_CASES = [
-    ("watch", True, "/Applications/Claude.app/Contents/MacOS/Claude"),
-    ("watch", True, "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT"),
-    ("watch", True, "/opt/homebrew/bin/codex exec --json hello"),
-    ("watch", True, "node /opt/homebrew/lib/node_modules/@mariozechner/pi-coding-agent/dist/cli.js"),
-    ("watch", True, "/opt/homebrew/bin/mise dot watch"),
-    ("watch", True, "/opt/homebrew/bin/ravel skills resolve --json"),
-    ("watch", True, "/Users/a/.local/bin/herdr-core serve"),
-    ("watch", False, "/Applications/OrcaSlicer.app/Contents/MacOS/OrcaSlicer"),
-    ("watch", False, "/opt/homebrew/bin/task serve DIR=/Users/a/Development/AgenticOrchestration/grove PORT=1"),
-    ("watch", False, "python3 -m http.server 8778 --directory /Users/a/Ravel.skill-directory-delivery/docs"),
-    ("harness", True, "claude --resume"),
-    ("harness", True, "/Users/a/.local/bin/claude -p hello"),
-    ("harness", False, "/Applications/Claude.app/Contents/MacOS/Claude"),
-    ("mcp", False, "/opt/homebrew/bin/node /tmp/other-server.js"),
-    ("mcp", False, "/bin/sleep 100"),
-    ("mcp", False, "/bin/zsh -c ls"),
-    ("jobs", True, "65402\t1\tdev.mise.mise-history"),
-    ("jobs", False, "-\t0\tcom.bambulab.orcaslicer.helper"),
-]
+# "The narrow process inspection": preparation records the installed paths of
+# the four tools. The canonical path names the version of each.
+TOOL_EXECUTABLES = ("claude", "codex", "grove", "grove-llm", "ravel")
 
 
-def pattern_cases(module, plan):
-    lists = {"watch": plan["watch"], "harness": plan["session"]["harness"], "mcp": plan["session"]["mcp"],
-             "jobs": plan["jobs"]["patterns"]}
-    return [{"list": name, "text": text, "expected": want, "passed": module.matches(lists[name], text) == want}
-            for name, want, text in PATTERN_CASES]
+def short(text, home):
+    return text.replace(home, "~")[:200]
 
 
-def short(args, home):
-    return args.replace(home, "~")[:140]
+def installed_tools():
+    """Each tool executable on PATH, with its canonical path."""
+    out = {}
+    for name in TOOL_EXECUTABLES:
+        path = shutil.which(name)
+        out[name] = {"path": path and short(path, HOME), "canonical": path and short(os.path.realpath(path), HOME)}
+    return out
 
 
-def process_listing(module, plan, layout_home):
-    """The real process tree against the plan's patterns, as the program's step 1 reads it."""
-    procs = module.list_processes()
-    me = os.getpid()
-    ancestors, pid = [], me
-    while pid in procs and procs[pid][0] not in (0, pid):
-        pid = procs[pid][0]
-        ancestors.append(pid)
-    session = plan["session"]
-    harness = next((a for a in ancestors if module.matches(session["harness"], procs[a][1])), None)
-    lines = ["# The real process tree against the draft's patterns",
-             "", f"listing process: {me}", "", "## Ancestors (kept: the program's shell, the harness and the driver chain)"]
-    for a in ancestors:
-        mark = "harness" if a == harness else "ancestor"
-        lines.append(f"{a}\t{mark}\t{short(procs[a][1], HOME)}")
-    kept = {me} | set(ancestors) | module.descendants(procs, me)
-    servers = []
-    if harness is not None:
-        todo = [harness]
-        while todo:
-            parent = todo.pop()
-            for p, (ppid, args) in sorted(procs.items()):
-                if ppid == parent and p not in kept and module.matches(session["mcp"], args):
-                    kept.add(p)
-                    servers.append(p)
-                    todo.append(p)
-    lines += ["", "## Children of the harness and their descendants"]
-    tree = module.descendants(procs, harness) if harness else set()
-    for p in sorted(tree):
-        if p in module.descendants(procs, me) or p == me:
-            continue
-        pattern = next((x for x in session["mcp"] if re.search(x, procs[p][1])), None)
-        if p in servers:
-            mark = f"kept by mcp {pattern}"
-        elif p in ancestors:
-            mark = "ancestor, kept"
-        else:
-            mark = "another process of the session"
-        lines.append(f"{p}\tparent {procs[p][0]}\t{mark}\t{short(procs[p][1], HOME)}")
-    others = [p for p in sorted(procs) if p not in kept and p not in tree and module.matches(plan["watch"], procs[p][1])]
-    lines += ["", "## Other processes that a watch pattern matches (each would stop step 2 now)"]
-    for p in others:
-        pattern = next(x for x in plan["watch"] if re.search(x, procs[p][1]))
-        lines.append(f"{p}\twatch {pattern}\t{short(procs[p][1], HOME)}")
-    jobs = subprocess.run(plan["jobs"]["argv"], capture_output=True, text=True)
-    matched = [l.strip() for l in jobs.stdout.splitlines() if module.matches(plan["jobs"]["patterns"], l)]
-    lines += ["", f"## Jobs that a job pattern matches (listing exit {jobs.returncode})"] + matched
-    # The program's own gate, from the same position, must name the same others.
-    admitted = module.load_plan(PLAN_OUT)
-    layout = module.Layout(layout_home, admitted)
-    buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
-        try:
-            module.process_gate(layout, admitted, "listing")
-            stopped = False
-        except module.Stop:
-            stopped = True
-    gate_lines = [l.strip() for l in buf.getvalue().splitlines() if l.strip().startswith("remaining")]
-    lines += ["", f"## The program's process gate from the same position (stopped: {stopped})"]
-    lines += [short(l, HOME) for l in gate_lines]
-    session_others = [p for p in tree if p not in kept]
-    return {"harness": harness, "servers": servers, "session_others": session_others, "watched": others,
-            "jobs": matched, "gate_stopped": stopped, "gate_lines": len(gate_lines)}, "\n".join(lines) + "\n"
+def process_listing(module):
+    """The program's narrow process inspection of the real process table, reading only."""
+    report = module.inspect_processes(HOME)
+    lines = ["# The narrow process inspection of the real process table", "",
+             f"listing process: {os.getpid()}", "", "## Installed executables of the four tools"]
+    tools = installed_tools()
+    for name, item in tools.items():
+        lines.append(f"{name}\t{item['path']}\t{item['canonical']}")
+    for title, key in (("Admitted: the exact ancestors of the listing process", "admitted"),
+                       ("Other tool processes (each would stop the switch now)", "other"),
+                       ("Processes that need review (each would stop the switch now)", "review")):
+        lines += ["", f"## {title}"]
+        lines += [short(module.describe(item), HOME) for item in report[key]]
+    summary = {"admitted": [{"pid": i["pid"], "tool": i.get("tool")} for i in report["admitted"]],
+               "other": len(report["other"]), "review": len(report["review"]),
+               "forms": sorted({f"{i['tool']}: {i['form'].split(',')[0]}" for k in ("admitted", "other")
+                                for i in report[k]})}
+    return tools, summary, "\n".join(lines) + "\n"
 
 
 def check(args):
@@ -532,32 +446,27 @@ def check(args):
     dry = {"exit": code, "native": "state: native" in text, "each_part_and_inverse": listed,
            "unrehearsed_reported": "rehearsed: no" in text}
     results = controls(plan, out, home)
-    cases = pattern_cases(module, plan)
-    listing, text = process_listing(module, plan, home)
+    patterns = [name for name in module.REMOVED_PLAN_FIELDS if name in plan]
+    tools, listing, text = process_listing(module)
     with open(os.path.join(out, "processes.txt"), "w") as f:
         f.write(text)
     record = {
         "plan": os.path.relpath(PLAN_OUT, ROOT), "plan_digest": hashlib.sha256(raw).hexdigest(),
         "program_digest": module.PROGRAM_DIGEST, "python": sys.version.split()[0],
-        "entries_copied": copied, "dry_run": dry, "controls": results, "pattern_cases": cases,
-        "processes": listing,
+        "entries_copied": copied, "dry_run": dry, "controls": results, "process_patterns": patterns,
+        "installed_tools": tools, "processes": listing,
     }
     with open(os.path.join(out, "record.json"), "w") as f:
         f.write(json.dumps(record, indent=2).replace(out, "<OUT>"))
         f.write("\n")
-    passed = (code == 0 and dry["native"] and listed and all(r["passed"] for r in results)
-              and all(c["passed"] for c in cases))
+    passed = code == 0 and dry["native"] and listed and all(r["passed"] for r in results) and not patterns
     print(f"plan {record['plan_digest']}, program {record['program_digest']}")
     print(f"dry run: exit {code}, native {dry['native']}, each part and its inverse listed {listed}")
     for r in results:
         print(f"control {r['control']}: {'passed' if r['passed'] else 'FAILED'} (exit {r['exit']})")
-    for c in cases:
-        if not c["passed"]:
-            print(f"pattern case FAILED: {c['list']} should {'' if c['expected'] else 'not '}match {c['text']!r}")
-    print(f"pattern cases: {sum(c['passed'] for c in cases)} of {len(cases)} passed")
-    print(f"processes: harness {listing['harness']}, {len(listing['servers'])} kept servers, "
-          f"{len(listing['session_others'])} other session processes, {len(listing['watched'])} watched, "
-          f"{len(listing['jobs'])} jobs; the program's gate stopped: {listing['gate_stopped']}")
+    print(f"process patterns in the draft: {', '.join(patterns) or 'none'}")
+    print(f"processes: {len(listing['admitted'])} admitted ancestors, {listing['other']} other tool processes, "
+          f"{listing['review']} that need review")
     print("result: " + ("passed" if passed else "FAILED"))
     return 0 if passed else 1
 

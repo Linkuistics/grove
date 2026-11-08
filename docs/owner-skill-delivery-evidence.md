@@ -3,7 +3,8 @@
 The [owner specification](specs/owner-skill-delivery.md) describes the current
 design. The exchange, held-copy, recovery-model and rehearsal-admission
 measurements below are historical evidence for the earlier design. They do
-not certify the simplified serial switch. [Single-owner switch design](#single-owner-switch-design) records the initial redesign.
+not certify the simplified serial switch. The process and job pattern
+measurements are historical evidence too. [Single-owner switch design](#single-owner-switch-design) records the initial redesign.
 [Its integration](#owner-switch-simplification-integration) records the current repairs and evidence boundary.
 
 This document records the inputs to the
@@ -1519,6 +1520,13 @@ before and after the work.
 | [`switch-plan-processes.txt`](owner-cutover/switch-plan-processes.txt) | The real process tree and job listing against the plan's patterns |
 | [`switch-plan-check.json`](owner-cutover/switch-plan-check.json) | The record of the check, with the result of each control |
 
+<!-- tc: depart synonym-rotation because "check" is the name of the task owner:switch-plan:check -->
+The pattern listing and the check record of this section are history.
+[Owner switch process inspection](#owner-switch-process-inspection) replaced
+the patterns, regenerated the draft and rewrote the check record, the
+listing and the dry run. The version control history holds this section's
+files.
+
 `task owner:switch-plan:draft` runs
 [`switch_plan_draft.py`](evaluations/owner-skill-delivery/switch_plan_draft.py)
 and writes the plan and the table from the real HOME. It reads only. Two runs
@@ -2575,3 +2583,213 @@ edit. The control logic did not change after that.
   trial wrote the real HOME.
 - The recogniser covers only Ravel. `owner-switch-process-inspection-k267`
   owns the narrow recogniser of the four tools.
+
+## Owner switch process inspection
+
+`owner-switch-process-inspection-k267` replaced the switch program's process
+and job patterns with the narrow recogniser on 2026-11-08. The section
+[The narrow process inspection](specs/owner-skill-delivery.md#the-narrow-process-inspection)
+owns the contract. The module docstring of `scripts/owner_switch.py` states
+the recognition rule, the admission rule and the entry `processes`.
+
+### What changed
+
+- The function `inspect_processes` recognises Claude Code, Codex, Grove and
+  Ravel. It reads each executable with `proc_pidpath`, each argument vector
+  with `sysctl` `KERN_PROCARGS2` and each creation time with
+  `PROC_PIDTBSDINFO`. It never reads the joined `ps` text, so an argument
+  with a space stays one argument.
+- The gate of each switch step, the hooks installation and the inverse call
+  that function. `native-off` calls it too, and it still refuses only another
+  Ravel process.
+- The program admits only itself and its exact ancestors. A recognised
+  process is also admitted when its PID, creation time and canonical
+  executable equal a probe-owned record. owner-switch-probes-k257 supplies
+  those records and the inspection after probe cleanup.
+- The entry `processes [--home HOME] [--owned FILE] [--json]` runs the
+  inspection and changes nothing. The owner can run it during the checklist.
+- The plan format has no `session`, `watch` or `jobs`. The program refuses a
+  plan that holds one of them. The draft generator writes none, and
+  `task owner:switch-plan:draft` regenerated the draft.
+- The functions `list_processes`, `descendants`, `matches` and the
+  pattern-based `process_gate` are gone. So is the job listing through
+  `launchctl list` and `crontab -l`. The fixture plan's patterns, the fixture
+  `jobs` command and the pattern controls are gone too.
+
+### Measured launch forms
+
+These forms come from the real process table on 2026-11-08, read only.
+
+| Tool | Executable and arguments |
+| --- | --- |
+| Claude Code | `~/.local/share/claude/versions/2.1.319` with argv[0] `claude`. `~/.local/bin/claude` links to it. The same binary also runs with argv[0] `ugrep` for Claude Code's search. |
+| Codex | `/opt/homebrew/Caskroom/codex/0.167.0/bin/codex`, linked from `/opt/homebrew/bin/codex`. Daemons run `.../app-server-daemon/releases/<version>/bin/codex` with `app-server daemon pid-update-loop`, and a child with `app-server --listen unix:// ... --managed-daemon`. |
+| Grove | `/opt/homebrew/Cellar/grove/22.8.0/bin/grove` and `grove-llm`. Debug builds run `target/debug/grove`. |
+| Ravel | `/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel`, and a 1.1.0 build in a temporary folder. |
+| Node servers | `node` from `/opt/homebrew/Cellar/node/26.13.0_2/bin/node`. Playwright rewrites its title to `npm exec @playwright/mcp@latest`, so argv[0] holds spaces and no path. |
+
+17 of the owner's 878 processes had an unreadable `proc_pidpath`. Each was a
+zombie or ran a binary that an upgrade deleted: old Python 3.15.0, watchman,
+uv, mdbook and two Codex daemons. `KERN_PROCARGS2` still gave each one's
+launch path.
+
+The launch path recognises a deleted tool binary, so the two Codex daemons
+stay recognised as Codex. Each other process with an unreadable executable
+needs review, as the contract states. On 2026-11-08 that rule sent 11
+processes to review. `PROC_PIDTBSDINFO` failed for each of the 299 processes
+of other accounts. `proc_pidpath` failed for one of them.
+
+### In-session review
+
+One fresh context read the inspection code, the recognition table and the
+contract, without this leaf's conclusions. Its findings had these
+dispositions:
+
+| Finding | Disposition |
+| --- | --- |
+| Codex's helpers `codex-exec-server` and `codex-code-mode-host` escaped | Fixed. A basename with the prefix `codex-` is Codex. |
+| An unreadable executable whose launch path names no tool returned nothing | Fixed. It needs review, as the contract states. |
+| A prerelease version in `.../claude/versions/` escaped | Fixed. Each executable in that folder is Claude Code. |
+| A Node title that ends in a path was read as a program name | Fixed. A title with spaces gives its first word. |
+| A relative entry script resolved against the inspector's folder | Fixed. It resolves against the process's own folder. |
+| `bun`, `--env-file-if-exists` and shell or Python option values | Fixed. |
+| An outer harness above the driver chain was admitted | Fixed. Only the chain up to the first harness, and the drivers above it, is admitted. |
+| A probe-owned record lacked the configuration HOME | Fixed. The record names HOME, and admission compares it with the process's environment. |
+| A process that exits during the inspection gave a false review. A failed `ps` raised an unexplained error. | Fixed. |
+| The operator's own short-lived children count as other processes | Trade-off. The contract grants no descendant exemption. The operator waits on the program alone, so a refusal on a transient search child is retried. |
+| An empty argv[0] shifts the vector | Trade-off. The kernel pads the launch path with NUL bytes, so an empty argv[0] cannot be told from the padding. |
+| Processes of other accounts are recognised by executable only | Trade-off. Their arguments, folder and creation time need privilege. |
+| PID reuse of an ancestor inside one snapshot | Noise. An ancestor of the running program cannot end and be reused during its own inspection. |
+| The scope guard compared path spellings | Fixed. It compares canonical paths. |
+
+The review also saw eight reparented Codex daemons from earlier probe trials
+in scratch folders and the real `~/.codex` daemon. owner-switch-probes-k257
+owns probe service cleanup, and the owner's checklist owns the real daemon.
+
+### Controls
+
+The run `task owner:switch:rehearse` with `SKIP_SETTINGS_WRITES=1` ran 265
+controls on Python 3.15.1 and macOS 27.0.1 in 12 minutes 51 seconds. 264
+passed. `owner-inverse-complete` failed, because it still expected the old
+gate message. The control then expected the new message, and its rerun
+passed.
+
+The record is partial, because the rerun of `settings-writes.sh` did
+not run. This leaf did not change the hooks installation that the rerun
+measures. These subjects had the same SHA-256 digests before and after the
+full run:
+
+| Subject | SHA-256 |
+| --- | --- |
+| `scripts/owner_switch.py` | `ef92cf7434d02d2f1cd95dd75ab37c210049946c03eefc1ebdd473e69c25b51e` |
+| `scripts/owner_switch_rehearsal.py` | `e23a0f622eeabe78fefc7acfe2b4d2ac2d1753942febc806d8bf378a2c280647` |
+| `scripts/harness-trials/builds.json` | `29569fef4fc8e64b1ecf8b8f74d1eb85e10c8bfe0c136a4560763f69c3b5cfdf` |
+| `target/ravel-archives-2.0/ravel-v1.1.0-aarch64-apple-darwin.tar.xz` | `289b4ac57ffd148255960507f02809034e8fb35fe97132813230116add804921` |
+
+The rerun of `owner-inverse-complete` used the rehearsal with the digest
+`c28e5835014ded420c49eccb97ec109ab14c12ea9a2cf7536a32af7af6617388`.
+
+The process controls had these results:
+
+| Controls | Result |
+| --- | --- |
+| `recognition-forms` | 42 measured and constructed forms gave the expected tool, review or nothing through the program's `recognise()`. |
+| `processes-native` | A versioned Claude Code, Codex, Grove, `grove-llm` and Ravel were each recognised. |
+| `processes-node` | Two package entry scripts, an npm bin link and a Node title `claude` were recognised. |
+| `processes-codex-daemon` | A reparented `app-server daemon pid-update-loop` and a managed app-server refused. |
+| `processes-unrelated` | Tool names in other arguments, a Node server, `caffeinate` and a Python script left the inspection clear. |
+| `processes-review` | A title `claude` on another executable, a wrapper script `codex` and a Node script `grove.js` needed review. |
+| `processes-deleted-executable` and `processes-deleted-other` | A deleted `codex` was recognised by its launch path. A deleted executable of another name needed review. |
+| `processes-relative-script` | `node cli.js` in the Claude Code package folder was Claude Code. |
+| `processes-ancestors` and `processes-outer-harness` | A Ravel driver and a Claude Code harness ancestor were admitted. An outer Codex above them refused. |
+| `processes-descendant-harness` | A Codex child of the harness refused. A `caffeinate` child needed no exemption. |
+| `processes-probe-owned` | Only the exact PID, creation time, executable and HOME admitted a probe-owned Codex. A changed creation time, executable or HOME, and a record without HOME, refused. |
+| `tool-before-run`, `tool-later`, `descendant-harness-before-run`, `descendant-harness-later`, `native-tool-later` and `hooks-tool-later` | A tool process before step 1, at step 9, in the session or at each prelude stopped the switch with no write. |
+| `background-child-allowed`, `caffeinate-child-allowed`, `mcp-server-allowed` and `finish-ancestors-allowed` | The switch completed. |
+| `mcp-server-tool-child` | A Codex child of an MCP server of the session stopped step 1. |
+| `plan-process-patterns` | A plan with `session`, `watch` or `jobs` stopped before any step. |
+| `native-off-other-tool` and `native-off-ravel-title` | Codex and Claude Code processes did not stop `native-off`. A process titled `ravel` without a Ravel executable did. |
+
+Each process control also checked that its fixture processes still ran, so
+the program signalled none of them.
+
+### The draft check
+
+`task owner:switch-plan:draft` regenerated the draft from the real HOME. The
+draft lost `session`, `watch` and `jobs`. It also took the root manifests of
+`.claude/skills` and `.codex/skills` that owner-inventory-exceptions-k264
+added to the generator, with the identities unchanged. The part table did
+not change.
+
+`task owner:switch-plan:check` passed: the dry run found the native state,
+eight controls passed, and the draft held no process pattern.
+[`switch-plan-check.json`](owner-cutover/switch-plan-check.json),
+[`switch-plan-processes.txt`](owner-cutover/switch-plan-processes.txt) and
+[`switch-plan-dry-run.txt`](owner-cutover/switch-plan-dry-run.txt) now hold
+this check's results. The listing names the installed path and canonical
+path of each tool executable. It then names the admitted ancestors, the
+other tool processes and the processes that need review.
+
+| Subject | SHA-256 |
+| --- | --- |
+| `docs/owner-cutover/switch-plan-draft.json` | `2b8d3d67d0e51c75d35d3cff42a3c340398fc6d3734582b56aff3403b1ad50c1` |
+| `docs/evaluations/owner-skill-delivery/switch_plan_draft.py` | `b1460297f04cf20b97706c9a891a4e5236aaea80073c75ecf9e249c127bcf6f7` |
+
+### Mutation controls
+
+Each deliberate mutation of a scratch copy of the program made its control
+fail:
+
+| Mutation | Control that failed, and why |
+| --- | --- |
+| Admit each descendant of an admitted ancestor | `processes-descendant-harness` exited 0 beside a descendant Codex. |
+| Recognise a tool name anywhere in the arguments | `processes-unrelated` refused the helper whose arguments name the tools. |
+| Drop Claude Code's versioned path | `processes-native` reported the versioned fixture as a review, not as Claude Code. |
+| Ignore the creation time of a probe-owned record | `processes-probe-owned` admitted the record with a changed creation time. |
+| Drop the review of a tool name without a tool executable | `processes-review` exited 0. |
+| Admit every ancestor | `processes-outer-harness` admitted the outer Codex. |
+| Resolve a relative script against the inspector's folder | `processes-relative-script` exited 0. |
+| Drop the review of an unreadable executable | `processes-deleted-other` exited 0. |
+| Make the gate ignore the report | `tool-before-run` completed the switch beside a Codex daemon. |
+
+### Checklist duties that no fixture establishes
+
+The fixtures prove recognition and admission on the shared process table.
+They cannot establish these duties of
+[the owner's checklist](specs/owner-skill-delivery.md#the-owners-checklist):
+
+- Item 1: the end of Pi sessions and of the desktop applications Claude
+  and ChatGPT with their hosted tools. It also covers the delegates inside
+  the operator's own harness process. The recogniser does not name Pi or the
+  applications, and an in-process delegate has no process of its own.
+- Item 2: the pause of `mise dot watch`, herdr, Orca, codebase-memory
+  installers and each other non-harness writer. The inspection recognises
+  none of them.
+- Item 3: relaunch prevention by login items, launch agents and schedules.
+  The inspection runs at its points only. A job that launches a tool
+  between two points is seen at the next point at the earliest. A job that
+  writes without a tool process is never seen.
+- Item 4: the operator's own settings actions, MCP operations and
+  in-process delegates. The operator's harness is an admitted ancestor, so
+  the inspection cannot see what it does.
+- Items 5 to 7: the marketplace freeze and the held Claude Code version.
+  They also cover the review of the plan and staging evidence, and the
+  pause of the manual's synchronisation. These are not process states.
+- A tool binary copied or hard-linked under another name, with another
+  title, is not recognised. A symbolic link resolves to the binary, so it is
+  recognised. A process of another account is recognised only by
+  its executable.
+
+### Limits
+
+- The real inspection on 2026-11-08 would refuse the switch. It found 17
+  other tool processes. They were the real Codex daemon and its app-server
+  and 11 Codex processes of earlier trials in scratch folders. The others
+  were an orphaned Ravel 1.1.0 session, two stale Grove debug builds and an
+  orphaned Claude Code `ugrep`. Eleven processes with deleted binaries need review. The owner
+  ends each of them before the switch.
+- No control ran a real Claude Code, Codex, Grove or Ravel process. The
+  fixtures are clones of the interpreter under the tools' names and paths.
+  The real process table supplied the measured forms.
+- The inspection after probe cleanup, and the ownership records of real
+  probes, belong to owner-switch-probes-k257.

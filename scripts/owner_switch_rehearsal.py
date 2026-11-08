@@ -56,13 +56,26 @@ also cover the owner's inverse, the merge entry, the purge check, the
 pending-activation record and the switch's area of the owner's `mac-check`.
 The native-off controls run `native-off` without a plan or a switch backup.
 They cover an absent file, an absent key with its metadata, an existing off
-value and each refused form. They cover another Ravel process, a Ravel
-ancestor, a stop of the switch before its backup and --print-command. They
+value and each refused form. They cover another Ravel process, a process
+titled ravel, a Ravel ancestor, other tools' processes, which do not stop
+it, a stop of the switch before its backup and --print-command. They
 also cover a failed creation, a failed rename and a crash at each named
-point. A reader polls the file during repeated publications. Copies of this
-interpreter under the names `ravel` and `helper` in OUT/fixture-bin stand in
-for other processes, and OWNER_SWITCH_REHEARSAL_SCOPE limits recognition to
-that folder. The persistence control fails unless OUT is on the volume of
+point. A reader polls the file during repeated publications.
+
+The process controls cover the narrow process inspection. One control passes
+each measured and constructed launch form through the program's recognise().
+The others run real processes: APFS clones of this interpreter in
+OUT/fixture-bin under the names and paths of the four tools, of `node`,
+`python3`, `caffeinate` and `helper`, with Node entry scripts, an npm bin link
+and a wrapper script. They cover native and versioned executables, Node
+launchers, reparented Codex daemons, unrelated arguments, review forms, a
+deleted executable, exact ancestors, a descendant harness, a caffeinate
+child, an MCP server and its tool child, and probe-owned records with a
+changed creation time or executable. Each control checks that the fixture
+processes still run, because the program signals none.
+OWNER_SWITCH_REHEARSAL_SCOPE limits recognition to that folder in every run,
+because the machine's own tool processes share the process table. The
+persistence control fails unless OUT is on the volume of
 the account's HOME. The control of the accepted 2.0 build needs its darwin
 archive in target/ravel-archives-2.0, and the digest of
 scripts/harness-trials/builds.json.
@@ -90,9 +103,15 @@ HERE = os.path.dirname(os.path.realpath(__file__))
 SELF = os.path.realpath(__file__)
 PY = sys.executable
 HARNESS_MARK = "owner-switch-fixture-harness"
-WRITER_MARK = "owner-switch-fixture-writer"
-JOB_MARK = "owner-switch-fixture-job"
-MCP_MARK = "owner-switch-fixture-mcp-server"
+# The fixture executables in OUT/fixture-bin: clones of this interpreter under
+# the names and paths of the four tools and of other programs. Each sleeps.
+FIXTURE_NAMES = ("ravel", "helper", "claude", "codex", "grove", "grove-llm", "node", "python3", "caffeinate",
+                 "share/claude/versions/2.1.319")
+SLEEP = "import time; time.sleep(120)"
+# The fixture scripts of the Node and wrapper forms, relative to OUT/fixture-bin.
+FIXTURE_SCRIPTS = ("lib/node_modules/@openai/codex/bin/codex.js",
+                   "lib/node_modules/@anthropic-ai/claude-code/cli.js",
+                   "lib/other-server.js", "lib/grove.js", "wrappers/codex")
 # The version that the stub claude prints, and that a fixture record measured.
 FIXTURE_CLAUDE = "2.1.319 (Claude Code)"
 # The owner's `mac-check`. The machine contract owns it, and the rehearsal runs
@@ -277,9 +296,6 @@ def build_plan(program: str, out: str) -> str:
             {"root": ".claude/skills", "entries": {}},
             {"path": ".claude/plugins/cache/writing-hooks", "identity": ident(".claude/plugins/cache/writing-hooks")},
         ],
-        "session": {"harness": [HARNESS_MARK], "mcp": [MCP_MARK]},
-        "watch": [WRITER_MARK],
-        "jobs": {"argv": fixture_command("jobs"), "patterns": [JOB_MARK]},
         "baseline": {"name": "baseline", "argv": fixture_command("baseline")},
         "gates": {"4": [gate_command("4", "grove-release")], "5": [gate_command("5", "skill-formulae")],
                   "6": [gate_command("6", "resolved-sources")], "7": [gate_command("7", "reader-evidence")]},
@@ -362,11 +378,6 @@ def cmd_fixture(name: str) -> int:
     if leaked:
         print(f"{name}: the environment selects another subject: {', '.join(sorted(leaked))}")
         return 1
-    if name == "jobs":
-        for label in load(os.path.join(root, "control.json"), {}).get("jobs", []):
-            print(f"-\t0\t{label}")
-        print("-\t0\tcom.apple.unrelated")
-        return 0
     if take_failure(root, name):
         print(f"{name}: failed by the control")
         return 1
@@ -462,10 +473,11 @@ def cmd_hook(point: str) -> int:
         elif do == "retarget":
             os.remove(path)
             os.symlink("/elsewhere", path)
-        elif do == "spawn-writer":
-            p = subprocess.Popen(["/bin/bash", "-c", f"exec -a {WRITER_MARK} /bin/sleep 120"],
-                                 start_new_session=True, stdin=subprocess.DEVNULL,
-                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        elif do == "spawn-tool":
+            # A tool process outside the session, which the hook leaves behind.
+            p = subprocess.Popen(action["argv"], executable=action.get("executable"),
+                                 env={"PYTHONHOME": sys.base_prefix}, start_new_session=True,
+                                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             record_pid(root, p.pid)
         elif do == "spawn-in-session":
             request = os.path.join(root, "spawn", f"{i}.req")
@@ -694,8 +706,9 @@ def cmd_harness(root: str, argv: list) -> int:
     stop = threading.Event()
 
     def spawn(args):
-        p = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL)
+        spec = args if isinstance(args, dict) else {"argv": args}
+        p = subprocess.Popen(spec["argv"], executable=spec.get("executable"), stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         children.append(p)
         record_pid(root, p.pid)
 
@@ -770,7 +783,8 @@ class Case:
             if os.path.exists(p):
                 os.remove(p)
 
-    def run(self, program=None, plan=None, dry=False, env=None) -> tuple:
+    def run(self, program=None, plan=None, dry=False, env=None, via=None) -> tuple:
+        """Run the switch under the fixture harness process. VIA names launchers that become its ancestors."""
         args = [PY, "-I", program or self.r.program, "run", "--plan", plan or self.r.plan, "--home", self.home]
         if dry:
             args.append("--dry-run")
@@ -782,9 +796,11 @@ class Case:
                    CLAUDE_CONFIG_DIR=os.path.join(self.root, "elsewhere"),
                    CODEX_HOME=os.path.join(self.root, "elsewhere", ".codex"),
                    # The stub ravel refuses every RAVEL_* name, so no resolution may inherit it.
-                   RAVEL_SKILL_DIRECTORIES=os.path.join(self.root, "elsewhere"), **(env or {}))
+                   RAVEL_SKILL_DIRECTORIES=os.path.join(self.root, "elsewhere"),
+                   # The inspection recognises only the fixture executables, which need PYTHONHOME.
+                   OWNER_SWITCH_REHEARSAL_SCOPE=self.r.fixture_bin, PYTHONHOME=sys.base_prefix, **(env or {}))
         before = len(self.claude_calls())
-        result = subprocess.run([PY, "-I", SELF, "harness", HARNESS_MARK, self.root, "--"] + args,
+        result = subprocess.run([PY, "-I", SELF, "harness", HARNESS_MARK, self.root, "--"] + (via or []) + args,
                                 env=env, capture_output=True, text=True, timeout=300)
         out = result.stdout + result.stderr
         self.outputs.append(out)
@@ -816,6 +832,19 @@ class Case:
             f.write(f"$ native-off {' '.join(extra)} (exit {result.returncode})\n{out}\n")
         return result.returncode, out
 
+    def processes(self, *extra: str, via=None) -> tuple:
+        """Run the `processes` entry under the fixture harness process, with the fixture scope."""
+        args = [PY, "-I", self.r.program, "processes", "--home", self.home, *extra]
+        env = dict(clean_env(), OWNER_SWITCH_REHEARSAL_SCOPE=self.r.fixture_bin, PYTHONHOME=sys.base_prefix)
+        result = subprocess.run([PY, "-I", SELF, "harness", HARNESS_MARK, self.root, "--"] + (via or []) + args,
+                                env=env, capture_output=True, text=True, timeout=120)
+        out = result.stdout + result.stderr
+        self.outputs.append(out)
+        self.runs.append({"exit": result.returncode, "claude": {}})
+        with open(os.path.join(self.root, "runs.log"), "a") as f:
+            f.write(f"$ processes {' '.join(extra)} (exit {result.returncode})\n{out}\n")
+        return result.returncode, out
+
     def entry(self, command: str, *extra: str, program=None) -> tuple:
         """Run one of the owner's entries under the fixture harness process."""
         args = [PY, "-I", program or self.r.program, command, "--plan", self.r.plan, "--home", self.home,
@@ -823,7 +852,8 @@ class Case:
         env = dict(clean_env(), PATH=self.r.stubs + os.pathsep + os.environ.get("PATH", ""),
                    CLAUDE_CONFIG_DIR=os.path.join(self.root, "elsewhere"),
                    CODEX_HOME=os.path.join(self.root, "elsewhere", ".codex"),
-                   RAVEL_SKILL_DIRECTORIES=os.path.join(self.root, "elsewhere"))
+                   RAVEL_SKILL_DIRECTORIES=os.path.join(self.root, "elsewhere"),
+                   OWNER_SWITCH_REHEARSAL_SCOPE=self.r.fixture_bin, PYTHONHOME=sys.base_prefix)
         result = subprocess.run([PY, "-I", SELF, "harness", HARNESS_MARK, self.root, "--"] + args,
                                 env=env, capture_output=True, text=True, timeout=300)
         out = result.stdout + result.stderr
@@ -963,15 +993,25 @@ class Rehearsal:
             with open(stub, "w") as f:
                 f.write(f"#!/bin/sh\nexec '{PY}' -I '{SELF}' stub-{name} \"$@\"\n")
             os.chmod(stub, 0o755)
-        # Copies of this interpreter under the names `ravel` and `helper`. The
-        # native-off controls run them as other processes, and native-off
+        # Clones of this interpreter under the names and paths of FIXTURE_NAMES.
+        # The process controls run them as other processes, and the program
         # recognises only executables inside this folder (SCOPE_VAR).
         self.fixture_bin = os.path.join(self.out, "fixture-bin")
         os.makedirs(self.fixture_bin, exist_ok=True)
-        for name in ("ravel", "helper"):
+        for name in FIXTURE_NAMES:
             copy = os.path.join(self.fixture_bin, name)
             if not os.path.exists(copy):
-                shutil.copy2(os.path.realpath(PY), copy)
+                os.makedirs(os.path.dirname(copy), exist_ok=True)
+                # An APFS clone shares the interpreter's blocks; a full copy is the fallback.
+                if subprocess.run(["/bin/cp", "-c", os.path.realpath(PY), copy]).returncode != 0:
+                    shutil.copy2(os.path.realpath(PY), copy)
+        for rel in FIXTURE_SCRIPTS:
+            write(os.path.join(self.fixture_bin, rel), SLEEP + "\n")
+        # The bin link of an npm installation, which Node runs as its script.
+        link = os.path.join(self.fixture_bin, "npm-bin", "codex")
+        if not os.path.lexists(link):
+            os.makedirs(os.path.dirname(link), exist_ok=True)
+            os.symlink("../lib/node_modules/@openai/codex/bin/codex.js", link)
         self.results = []
 
     def control(self, name: str, fn, **case_args) -> None:
@@ -1297,15 +1337,6 @@ def c_cell_after_receipt_no_copy(case):
     expect(case.receipts() == 0, "a run copied a receipt for a layout that is not switched")
 
 
-def c_writer_before(case):
-    p = subprocess.Popen(["/bin/bash", "-c", f"exec -a {WRITER_MARK} /bin/sleep 120"], start_new_session=True)
-    record_pid(case.root, p.pid)
-    time.sleep(0.2)
-    before = case.snapshot()
-    expect_exit(case.run(), 3, "other processes or jobs remain before step 1")
-    expect(case.snapshot() == before, "a stopped step 2 changed the layout")
-
-
 def interval_closed(do: str, argv=None):
     def fn(case):
         action = {"point": "gate:step 9", "do": do}
@@ -1321,18 +1352,475 @@ def interval_closed(do: str, argv=None):
     return fn
 
 
-def session_process(argv):
+# --- the narrow process inspection ---------------------------------------------
+# docs/specs/owner-skill-delivery.md, "The narrow process inspection" and "Test
+# seams". The fixture executables are clones of this interpreter in OUT/fixture-bin.
+
+# A launcher that runs its arguments as its child, so it becomes an ancestor.
+RELAY = "import subprocess, sys; sys.exit(subprocess.run(sys.argv[1:]).returncode)"
+
+
+def fixture(case, rel: str) -> str:
+    return os.path.join(case.r.fixture_bin, rel)
+
+
+def alive(pid: int) -> bool:
+    """Whether PID runs and is no zombie."""
+    stat = subprocess.run(["/bin/ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True).stdout.strip()
+    return bool(stat) and "Z" not in stat
+
+
+def start_fixture(case, argv: list, executable=None, reparent: bool = False) -> int:
+    """Start ARGV as another process outside the session and return its PID.
+
+    EXECUTABLE runs in place of argv[0], so argv[0] can be any title. With
+    REPARENT, an intermediate process starts it and exits, so its parent
+    becomes launchd, as for a daemon that outlives its launcher.
+    """
+    # A probe-owned service runs with the probe's HOME, which its record names.
+    env = {"PYTHONHOME": sys.base_prefix, "HOME": case.home}
+    if reparent:
+        code = ("import json, subprocess, sys; s = json.loads(sys.argv[1]); "
+                "p = subprocess.Popen(s['argv'], executable=s['executable'], env=s['env'], start_new_session=True, "
+                "stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); print(p.pid)")
+        spec = json.dumps({"argv": argv, "executable": executable, "env": env})
+        pid = int(subprocess.run([PY, "-I", "-c", code, spec], capture_output=True, text=True, check=True).stdout)
+    else:
+        pid = subprocess.Popen(argv, executable=executable, env=env, start_new_session=True, stdin=subprocess.DEVNULL,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).pid
+    record_pid(case.root, pid)
+    time.sleep(0.3)
+    expect(alive(pid), f"the fixture {argv[:3]} ended at once")
+    return pid
+
+
+def sleeper(case, rel: str, *args: str, title=None, reparent=False) -> int:
+    """Start the fixture executable REL, sleeping, with ARGS after its code."""
+    path = fixture(case, rel)
+    return start_fixture(case, [title or path, "-c", SLEEP, *args], executable=path, reparent=reparent)
+
+
+def node(case, script: str, *args: str) -> int:
+    """Start the fixture `node` with SCRIPT as its entry script."""
+    return start_fixture(case, [fixture(case, "node"), script, *args])
+
+
+def line_of(out: str, pid: int) -> str:
+    found = re.search(rf"^\s*(admitted \S+|remaining) process {pid} .*$", out, re.M)
+    expect(found is not None, f"the inspection did not report process {pid}: {out[-1500:]}")
+    return found.group(0)
+
+
+def expect_alive(pids: list) -> None:
+    expect(all(alive(p) for p in pids), "the program signalled a fixture process")
+
+
+def expect_reported(out: str, pid: int, *texts: str) -> str:
+    line = line_of(out, pid)
+    for text in texts:
+        expect(text in line, f"expected {text!r} for process {pid}: {line}")
+    return line
+
+
+def recognition_cases() -> list:
+    """Each form: (label, executable, launch path, argv, expected tool or "review" or None, text)."""
+    u = "/Users/owner"
+    claude = f"{u}/.local/share/claude/versions/2.1.319"
+    daemon = f"{u}/.codex/packages/app-server-daemon/releases/0.167.0-aarch64-apple-darwin/bin/codex"
+    node_exe = "/opt/homebrew/Cellar/node/26.13.0_2/bin/node"
+    pkg = "/opt/homebrew/lib/node_modules"
+    return [
+        ("claude-versioned", claude, f"{u}/.local/bin/claude", ["claude", "--resume"], "Claude Code", "versioned"),
+        ("claude-as-ugrep", claude, claude, ["ugrep", "-G", "--hidden"], "Claude Code", "as ugrep"),
+        ("codex-cask", "/opt/homebrew/Caskroom/codex/0.167.0/bin/codex", "/opt/homebrew/bin/codex",
+         ["codex", "exec", "--json", "hello"], "Codex", "native"),
+        ("codex-daemon", daemon, daemon, [daemon, "app-server", "daemon", "pid-update-loop"], "Codex",
+         "app-server daemon"),
+        ("codex-managed-app-server", daemon, daemon,
+         [daemon, "app-server", "--listen", "unix://", "--managed-daemon"], "Codex", "managed app-server"),
+        ("codex-npm-vendor", f"{pkg}/@openai/codex/vendor/aarch64-apple-darwin/codex/codex", None, ["codex"],
+         "Codex", "native"),
+        ("grove-cellar", "/opt/homebrew/Cellar/grove/22.8.0/bin/grove", "/opt/homebrew/bin/grove", ["grove"],
+         "Grove", "native"),
+        ("grove-llm", "/opt/homebrew/Cellar/grove/22.8.0/bin/grove-llm", "/opt/homebrew/bin/grove-llm",
+         ["grove-llm", "pick"], "Grove", "native"),
+        ("grove-debug-build", "/private/tmp/x/target/debug/grove", "/private/tmp/x/target/debug/grove",
+         ["/private/tmp/x/target/debug/grove"], "Grove", "native"),
+        ("ravel-cellar", "/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel", "/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel",
+         ["/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel", "start-session", "--kind=impl"], "Ravel", "native"),
+        ("node-npm-bin-link", node_exe, "/opt/homebrew/bin/node", ["node", "/opt/homebrew/bin/codex", "exec"],
+         "Codex", f"Node launcher of {pkg}/@openai/codex/bin/codex.js"),
+        ("node-claude-package", node_exe, "/opt/homebrew/bin/node",
+         ["node", "--no-warnings", f"{pkg}/@anthropic-ai/claude-code/cli.js"], "Claude Code", "Node launcher"),
+        ("node-claude-title", node_exe, "/opt/homebrew/bin/node", ["claude"], "Claude Code", "titled claude"),
+        ("node-option-value-skipped", node_exe, "/opt/homebrew/bin/node",
+         ["node", "--require", "/srv/claude.js", "/srv/other.js"], None, ""),
+        ("node-playwright-title", node_exe, "/opt/homebrew/bin/node", ["npm exec @playwright/mcp@latest", "", ""],
+         None, ""),
+        ("node-quint-server", node_exe, "/opt/homebrew/bin/node",
+         ["/opt/homebrew/bin/node", f"{u}/.quint-llm-kit/repo/mcp-servers/kb/dist/server.js"], None, ""),
+        ("node-pi", node_exe, "/opt/homebrew/bin/node",
+         ["node", f"{pkg}/@mariozechner/pi-coding-agent/dist/cli.js"], None, ""),
+        ("node-grove-script", node_exe, "/opt/homebrew/bin/node", ["node", "/srv/grove.js"], "review", "grove"),
+        ("argument-task", "/opt/homebrew/bin/task", "/opt/homebrew/bin/task",
+         ["task", "serve", f"DIR={u}/Development/AgenticOrchestration/grove"], None, ""),
+        ("argument-http-server", "/opt/homebrew/bin/python3.15", "/opt/homebrew/bin/python3",
+         ["python3", "-m", "http.server", "--directory", f"{u}/Ravel.skill-directory-delivery/docs"], None, ""),
+        ("argument-rg", "/opt/homebrew/bin/rg", "/opt/homebrew/bin/rg", ["rg", "claude", f"{u}/.codex"], None, ""),
+        ("argument-shell-command", "/bin/bash", "/bin/sh", ["/bin/sh", "-c", "codex exec hello"], None, ""),
+        ("desktop-claude", "/Applications/Claude.app/Contents/MacOS/Claude",
+         "/Applications/Claude.app/Contents/MacOS/Claude", ["/Applications/Claude.app/Contents/MacOS/Claude"],
+         None, ""),
+        ("desktop-chatgpt", "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT",
+         "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT", ["/Applications/ChatGPT.app/Contents/MacOS/ChatGPT"],
+         None, ""),
+        ("caffeinate", "/usr/bin/caffeinate", "caffeinate", ["caffeinate", "-i", "-t", "300"], None, ""),
+        ("versions-without-claude", "/srv/versions/2.1.319", "/srv/versions/2.1.319", ["x"], None, ""),
+        ("claude-prerelease-as-ugrep", f"{u}/.local/share/claude/versions/2.2.0-rc.1", None, ["ugrep"],
+         "Claude Code", "versioned"),
+        ("codex-exec-server", "/opt/homebrew/Caskroom/codex/0.167.0/bin/codex-exec-server", None,
+         ["codex-exec-server"], "Codex", "helper executable"),
+        ("codex-code-mode-host", daemon + "-code-mode-host", None, [daemon + "-code-mode-host"], "Codex",
+         "helper executable"),
+        ("node-title-ending-in-grove", node_exe, "/opt/homebrew/bin/node",
+         [f"npm exec @modelcontextprotocol/server-filesystem {u}/Development/grove"], None, ""),
+        ("node-title-ending-in-codex", node_exe, "/opt/homebrew/bin/node", [f"npm exec x {u}/src/codex"], None, ""),
+        ("node-env-file-if-exists", node_exe, "/opt/homebrew/bin/node",
+         ["node", "--env-file-if-exists", ".env", f"{pkg}/@anthropic-ai/claude-code/cli.js"], "Claude Code",
+         "Node launcher"),
+        ("node-relative-script", node_exe, "/opt/homebrew/bin/node", ["node", "cli.js"], "Claude Code",
+         "@anthropic-ai/claude-code/cli.js"),
+        ("bun-claude-package", "/opt/homebrew/bin/bun", "/opt/homebrew/bin/bun",
+         ["bun", f"{pkg}/@anthropic-ai/claude-code/cli.js"], "Claude Code", "Node launcher"),
+        ("shell-rcfile-value", "/bin/bash", "/bin/bash", ["bash", "--rcfile", f"{u}/grove.sh", "x"], None, ""),
+        ("python-option-value", "/opt/homebrew/bin/python3.15", "/opt/homebrew/bin/python3",
+         ["python3", "-X", "dev", f"{u}/bin/ravel.py"], "review", "ravel"),
+        ("title-without-tool", "/bin/sleep", "/bin/sleep", ["claude", "120"], "review", "claude"),
+        ("shell-wrapper", "/bin/bash", "/bin/sh", ["/bin/sh", f"{u}/bin/codex", "exec"], "review", "codex"),
+        ("python-wrapper", "/opt/homebrew/bin/python3.15", "/opt/homebrew/bin/python3",
+         ["python3", "-u", f"{u}/bin/ravel.py"], "review", "ravel"),
+        ("unreadable", None, None, None, "review", "unreadable"),
+        ("deleted-codex-daemon", None, daemon, [daemon, "app-server", "daemon"], "Codex",
+         "executable unreadable, by its launch path"),
+        ("deleted-watchman", None, "/opt/homebrew/bin/watchman", ["watchman", "--foreground"], "review",
+         "the executable is unreadable"),
+    ]
+
+
+def c_recognition_forms(case):
+    """Each measured and constructed launch form, through the program's own recognise()."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("owner_switch_under_test", case.r.program)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    links = {"/opt/homebrew/bin/codex": "/opt/homebrew/lib/node_modules/@openai/codex/bin/codex.js",
+             # A relative entry script resolves against the process's own folder.
+             "cli.js": "/opt/homebrew/lib/node_modules/@anthropic-ai/claude-code/cli.js"}
+    failed = []
+    for label, exe, launch, argv, want, text in recognition_cases():
+        got = module.recognise(exe, launch, argv, resolve=lambda p: links.get(p, p))
+        if want is None:
+            ok = got is None
+        elif want == "review":
+            ok = got is not None and "review" in got and text in got["review"]
+        else:
+            ok = got is not None and got.get("tool") == want and text in f"{got['form']}, {got['role']}"
+        if not ok:
+            failed.append(f"{label}: {got}")
+    expect(not failed, "; ".join(failed))
+    return f"{len(recognition_cases())} forms"
+
+
+def c_processes_native(case):
+    pids = {"Claude Code": sleeper(case, "share/claude/versions/2.1.319", title="claude"),
+            "Codex": sleeper(case, "codex"), "Grove": sleeper(case, "grove"),
+            "Ravel": sleeper(case, "ravel")}
+    llm = sleeper(case, "grove-llm")
+    out = expect_exit(case.processes(), 3, "result: refused")
+    for tool, pid in pids.items():
+        expect_reported(out, pid, "remaining", tool)
+    expect_reported(out, pids["Claude Code"], "versioned executable")
+    expect_reported(out, llm, "remaining", "Grove")
+    expect_alive(list(pids.values()) + [llm])
+    return "Claude Code by its versioned path, Codex, Grove, grove-llm and Ravel by basename"
+
+
+def c_processes_node(case):
+    pids = [node(case, fixture(case, "lib/node_modules/@openai/codex/bin/codex.js"), "exec"),
+            node(case, fixture(case, "lib/node_modules/@anthropic-ai/claude-code/cli.js")),
+            node(case, fixture(case, "npm-bin/codex")),
+            sleeper(case, "node", title="claude")]
+    out = expect_exit(case.processes(), 3, "result: refused")
+    expect_reported(out, pids[0], "Codex", "Node launcher of")
+    expect_reported(out, pids[1], "Claude Code", "@anthropic-ai/claude-code/cli.js")
+    expect_reported(out, pids[2], "Codex", "@openai/codex/bin/codex.js")
+    expect_reported(out, pids[3], "Claude Code", "Node launcher titled claude")
+    expect_alive(pids)
+    return "package entry scripts, an npm bin link and a Node title"
+
+
+def c_processes_codex_daemon(case):
+    loop = sleeper(case, "codex", "app-server", "daemon", "pid-update-loop", reparent=True)
+    server = sleeper(case, "codex", "app-server", "--listen", "unix://", "--managed-daemon", reparent=True)
+    out = expect_exit(case.processes(), 3, "result: refused")
+    expect_reported(out, loop, "remaining", "(parent 1)", "app-server daemon")
+    expect_reported(out, server, "remaining", "managed app-server")
+    expect_alive([loop, server])
+    return "a reparented daemon loop and a managed app-server refuse without a signal"
+
+
+def c_processes_unrelated(case):
+    pids = [sleeper(case, "helper", "claude", "codex", "grove", "ravel", fixture(case, "codex")),
+            node(case, fixture(case, "lib/other-server.js"), "--name", "codex"),
+            sleeper(case, "caffeinate", "-i", "-t", "300"),
+            start_fixture(case, [fixture(case, "python3"), fixture(case, "lib/other-server.js"), "claude"])]
+    out = expect_exit(case.processes(), 0, "result: clear")
+    for pid in pids:
+        expect(not re.search(rf"process {pid} ", out), f"process {pid} was recognised: {out[-1500:]}")
+    return "tool names in other arguments, a Node server, caffeinate and a Python script"
+
+
+def c_processes_review(case):
+    pids = [sleeper(case, "helper", title="claude"),
+            start_fixture(case, [fixture(case, "python3"), fixture(case, "wrappers/codex")]),
+            node(case, fixture(case, "lib/grove.js"))]
+    out = expect_exit(case.processes(), 3, "result: refused")
+    for pid, name in zip(pids, ("claude", "codex", "grove")):
+        expect_reported(out, pid, "remaining", "review:", f"names {name}")
+    expect_alive(pids)
+    return "a tool title, a wrapper script and a Node script named grove need review"
+
+
+def c_processes_deleted(case):
+    folder = fixture(case, f"deleted-{case.name}")
+    os.makedirs(folder, exist_ok=True)
+    copy = os.path.join(folder, "codex")
+    subprocess.run(["/bin/cp", "-c", fixture(case, "codex"), copy], check=True)
+    pid = start_fixture(case, [copy, "-c", SLEEP, "app-server", "daemon"])
+    os.remove(copy)
+    out = expect_exit(case.processes(), 3, "result: refused")
+    expect_reported(out, pid, "Codex", "executable unreadable, by its launch path")
+    return "a deleted Codex executable is recognised by its launch path"
+
+
+def c_processes_deleted_other(case):
+    folder = fixture(case, f"deleted-{case.name}")
+    os.makedirs(folder, exist_ok=True)
+    copy = os.path.join(folder, "watchman")
+    subprocess.run(["/bin/cp", "-c", fixture(case, "helper"), copy], check=True)
+    pid = start_fixture(case, [copy, "-c", SLEEP])
+    os.remove(copy)
+    out = expect_exit(case.processes(), 3, "result: refused")
+    expect_reported(out, pid, "review:", "the executable is unreadable")
+    return "a deleted executable that names no tool needs review"
+
+
+def c_processes_relative_script(case):
+    """A relative entry script resolves against the process's own folder."""
+    package = fixture(case, "lib/node_modules/@anthropic-ai/claude-code")
+    pid = subprocess.Popen([fixture(case, "node"), "cli.js"], cwd=package, env={"PYTHONHOME": sys.base_prefix},
+                           start_new_session=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL).pid
+    record_pid(case.root, pid)
+    time.sleep(0.3)
+    out = expect_exit(case.processes(), 3, "result: refused")
+    expect_reported(out, pid, "Claude Code", "@anthropic-ai/claude-code/cli.js")
+    return "node cli.js in the package folder is Claude Code"
+
+
+def relay(case, rel: str, prelude: str = "") -> list:
+    """A launcher of the fixture REL that runs its arguments as its child, after PRELUDE."""
+    return [fixture(case, rel), "-c", prelude + RELAY]
+
+
+def child(case, rel: str, *args: str) -> str:
+    """Python code that starts the fixture REL, sleeping, as a child, and records its PID."""
+    argv = [fixture(case, rel), "-c", SLEEP, *args]
+    # The child must not hold the captured output open after its launcher ends.
+    return (f"import subprocess; _c = subprocess.Popen({argv!r}, stdin=subprocess.DEVNULL, "
+            "stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL); "
+            f"open({os.path.join(case.root, 'pids')!r}, 'a').write(f'{{_c.pid}}\\n'); ")
+
+
+def c_processes_ancestors(case):
+    via = relay(case, "ravel") + relay(case, "share/claude/versions/2.1.319")
+    out = expect_exit(case.processes(via=via), 0, "result: clear")
+    expect(re.search(r"^admitted ancestor process \d+ .*Ravel", out, re.M) is not None, f"no Ravel ancestor: {out}")
+    expect(re.search(r"^admitted ancestor process \d+ .*Claude Code \(versioned", out, re.M) is not None,
+           f"no Claude Code ancestor: {out}")
+    return "a Ravel driver and a Claude Code harness ancestor are admitted"
+
+
+def c_processes_descendant(case):
+    via = relay(case, "ravel") + relay(case, "share/claude/versions/2.1.319",
+                                       child(case, "codex") + child(case, "caffeinate", "-i", "-t", "300"))
+    out = expect_exit(case.processes(via=via), 3, "result: refused")
+    expect(re.search(r"^remaining process \d+ \(parent \d+\) Codex", out, re.M) is not None,
+           f"the descendant harness was not refused: {out}")
+    expect("caffeinate" not in out, f"the caffeinate child was reported: {out}")
+    case.kill()
+    time.sleep(0.3)
+    expect_exit(case.processes(via=relay(case, "share/claude/versions/2.1.319",
+                                               child(case, "caffeinate", "-i", "-t", "300"))), 0, "result: clear")
+    return "a descendant Codex of the harness refuses, and a caffeinate child needs no exemption"
+
+
+def c_processes_outer_harness(case):
+    """A harness ancestor above the operator's harness is another session."""
+    via = relay(case, "codex") + relay(case, "ravel") + relay(case, "share/claude/versions/2.1.319")
+    out = expect_exit(case.processes(via=via), 3, "result: refused")
+    expect(re.search(r"^remaining process \d+ \(parent \d+\) outer harness ancestor, Codex", out, re.M)
+           is not None, f"the outer Codex was not refused: {out}")
+    expect(re.search(r"^admitted ancestor process \d+ .*Claude Code", out, re.M) is not None,
+           f"the operator's harness was not admitted: {out}")
+    expect(re.search(r"^admitted ancestor process \d+ .*Ravel", out, re.M) is not None,
+           f"the driver was not admitted: {out}")
+    return "an outer Codex refuses; the inner harness and its driver are admitted"
+
+
+def c_processes_probe_owned(case):
+    owned = sleeper(case, "codex", "app-server", "daemon", "pid-update-loop", reparent=True)
+    other = sleeper(case, "codex", "app-server", "daemon", "pid-update-loop", reparent=True)
+    code, out = case.processes("--json")
+    report = json.loads(out)
+    item = next(i for i in report["other"] if i["pid"] == owned)
+    record = {"pid": owned, "start": item["start"], "executable": item["executable"], "home": item["home"]}
+    expect(record["home"] == case.home, f"the record does not name the fixture's HOME: {item}")
+    expect(re.fullmatch(r"\d+\.\d{6}", record["start"] or "") is not None, f"no creation time: {item}")
+
+    def run_with(records) -> tuple:
+        path = os.path.join(case.root, "owned.json")
+        save_json(path, records)
+        return case.processes("--owned", path)
+
+    out = expect_exit(run_with([record]), 3, "result: refused")
+    expect_reported(out, owned, "admitted probe-owned")
+    expect_reported(out, other, "remaining")
+    os.kill(other, signal.SIGKILL)
+    time.sleep(0.3)
+    expect_exit(run_with([record]), 0, "result: clear")
+    sec, usec = record["start"].split(".")
+    reused = dict(record, start=f"{sec}.{(int(usec) + 1) % 1000000:06d}")
+    expect_reported(expect_exit(run_with([reused]), 3, "result: refused"), owned, "remaining")
+    moved = dict(record, executable=fixture(case, "grove"))
+    expect_reported(expect_exit(run_with([moved]), 3, "result: refused"), owned, "remaining")
+    elsewhere = dict(record, home=case.root)
+    expect_reported(expect_exit(run_with([elsewhere]), 3, "result: refused"), owned, "remaining")
+    expect_exit(run_with([{k: v for k, v in record.items() if k != "home"}]), 3,
+                "is not a list of pid, start, executable and home")
+    expect_alive([owned])
+    return "only an exact PID, creation time, executable and HOME admit a probe-owned process"
+
+
+def c_tool_before_run(case):
+    pid = sleeper(case, "codex", "app-server", "daemon", "pid-update-loop", reparent=True)
+    before = case.snapshot()
+    out = expect_exit(case.run(), 3, "remains before step 1")
+    expect_reported(out, pid, "remaining", "Codex", "app-server daemon")
+    expect(case.snapshot() == before, "a refused step 1 changed the layout")
+    expect_alive([pid])
+
+
+def session_tool(spec: dict, text: str):
+    """A process of the fixture harness's session stops step 1 when it is one of the tools."""
     def fn(case):
-        case.set_control({"session": [argv]})
-        time.sleep(0.1)
-        expect_exit(case.run(), 3, "of the session")
-        expect(case.state()["backup"] is None, "a session process did not stop step 2")
+        case.set_control({"session": [spec]})
+        time.sleep(0.3)
+        expect_exit(case.run(), 3, text)
+        expect(case.state()["backup"] is None, "a session tool did not stop step 1")
     return fn
 
 
-def c_job(case):
-    case.set_control({"jobs": [f"com.example.{JOB_MARK}"]})
-    expect_exit(case.run(), 3, "job: ")
+def session_allowed(argv):
+    """A process of the session that is none of the tools needs no exemption."""
+    def fn(case):
+        case.set_control({"session": [[fixture(case, a) if a in FIXTURE_NAMES else a for a in argv]]})
+        time.sleep(0.3)
+        run_to_complete(case)
+    return fn
+
+
+def c_mcp_server_tool_child(case):
+    """No descendant exemption: a tool under an MCP server of the session stops step 1."""
+    server = fixture(case, "lib/server-with-child.js")
+    ready = os.path.join(case.root, "server-ready")
+    write(server, child(case, "codex") + f"open({ready!r}, 'w').close(); " + SLEEP + "\n")
+    case.set_control({"session": [[fixture(case, "node"), server]]})
+    # The harness starts the server beside the program, so the program waits for its child.
+    wait = (f"import os, subprocess, sys, time\nfor _ in range(200):\n    if os.path.exists({ready!r}): break\n"
+            "    time.sleep(0.05)\nsys.exit(subprocess.run(sys.argv[1:]).returncode)")
+    out = expect_exit(case.run(via=[PY, "-I", "-c", wait]), 3, "remains before step 1")
+    expect(re.search(r"remaining process \d+ \(parent \d+\) Codex", out) is not None, f"no Codex child: {out}")
+
+
+def c_finish_ancestors(case):
+    """The switch admits its exact Ravel driver and Claude Code harness ancestors."""
+    via = relay(case, "ravel") + relay(case, "share/claude/versions/2.1.319")
+    expect_exit(case.run(via=via), 0, "result: complete")
+    out = case.outputs[-1]
+    expect(re.search(r"admitted ancestor process \d+ .*Ravel", out) is not None, "no admitted Ravel ancestor")
+
+
+def c_plan_process_patterns(case):
+    """The plan holds no process, MCP or job pattern."""
+    old = {"session": {"harness": ["claude"], "mcp": []}, "watch": ["codex"],
+           "jobs": {"argv": ["/bin/launchctl", "list"], "patterns": ["mise"]}}
+    plans = {name: plan_copy(case, f"plan-{name}.json", lambda p, n=name: p.__setitem__(n, old[n]))
+             for name in old}
+    before = case.snapshot()
+    for name, other in plans.items():
+        expect_exit(case.run(plan=other), 3, f"the plan holds {name}: the narrow process inspection is built in")
+    expect(case.snapshot() == before, "a plan with patterns changed the layout")
+    return ", ".join(plans)
+
+
+def c_native_off_other_tool(case):
+    """native-off refuses only another Ravel driver."""
+    sleeper(case, "codex")
+    sleeper(case, "share/claude/versions/2.1.319", title="claude")
+    before = settings_bytes(case)
+    expect_exit(case.native_off(), 0, "result: off value in place")
+    expect_off(case, before)
+    return "Codex and Claude Code processes do not stop native-off"
+
+
+def c_native_off_ravel_title(case):
+    """A process titled ravel without a Ravel executable needs review, so native-off stops."""
+    sleeper(case, "helper", title="ravel")
+    before = case.snapshot()
+    expect_exit(case.native_off(), 3, "another Ravel driver runs")
+    expect(case.snapshot() == before, "native-off wrote beside a process titled ravel")
+
+
+def process_controls(r) -> list:
+    codex_child = {"argv": [os.path.join(r.fixture_bin, "codex"), "-c", SLEEP], "executable": None}
+    claude_child = {"argv": ["claude", "-c", SLEEP],
+                    "executable": os.path.join(r.fixture_bin, "share/claude/versions/2.1.319")}
+    return [
+        ("recognition-forms", c_recognition_forms, {}),
+        ("processes-native", c_processes_native, {}),
+        ("processes-node", c_processes_node, {}),
+        ("processes-codex-daemon", c_processes_codex_daemon, {}),
+        ("processes-unrelated", c_processes_unrelated, {}),
+        ("processes-review", c_processes_review, {}),
+        ("processes-deleted-executable", c_processes_deleted, {}),
+        ("processes-deleted-other", c_processes_deleted_other, {}),
+        ("processes-relative-script", c_processes_relative_script, {}),
+        ("processes-outer-harness", c_processes_outer_harness, {}),
+        ("processes-ancestors", c_processes_ancestors, {}),
+        ("processes-descendant-harness", c_processes_descendant, {}),
+        ("processes-probe-owned", c_processes_probe_owned, {}),
+        ("tool-before-run", c_tool_before_run, {}),
+        ("tool-later", interval_closed("spawn-tool", [os.path.join(r.fixture_bin, "grove"), "-c", SLEEP]), {}),
+        ("descendant-harness-before-run", session_tool(claude_child, r"remaining process \d+ .*Claude Code"), {}),
+        ("descendant-harness-later", interval_closed("spawn-in-session", codex_child), {}),
+        ("background-child-allowed", session_allowed(["/bin/sleep", "120"]), {}),
+        ("caffeinate-child-allowed", session_allowed(["caffeinate", "-c", SLEEP]), {}),
+        ("mcp-server-allowed", session_allowed(["node", os.path.join(r.fixture_bin, "lib/other-server.js")]), {}),
+        ("mcp-server-tool-child", c_mcp_server_tool_child, {}),
+        ("finish-ancestors-allowed", c_finish_ancestors, {}),
+        ("plan-process-patterns", c_plan_process_patterns, {}),
+    ]
 
 
 def c_prepared_differs(case):
@@ -1466,7 +1954,8 @@ def c_native_erased_after_inverse(case):
 
 def prelude_writer(point: str, interval: str):
     def fn(case):
-        case.set_control({"actions": [{"point": point, "do": "spawn-writer"}]})
+        case.set_control({"actions": [{"point": point, "do": "spawn-tool",
+                                       "argv": [fixture(case, "codex"), "-c", SLEEP]}]})
         before = case.snapshot()
         expect_exit(case.run(), 3, f"before {interval}")
         expect(case.snapshot() == before, f"a write ran inside the closed interval of {interval}")
@@ -1858,23 +2347,6 @@ def c_plan_changed_after_load(case):
     expect_gate_stop(case, "is not the plan that the program admitted", plan=copy)
 
 
-def c_mcp_server_kept(case):
-    """F2: a kept MCP server, and the server that its launcher starts, keep the interval open."""
-    case.set_control({"session": [["/bin/bash", "-c", f"exec -a {MCP_MARK} /bin/sleep 120"]]})
-    time.sleep(0.1)
-    run_to_complete(case)
-
-
-def c_mcp_child(case):
-    """F2: another descendant of a kept MCP server counts as another process."""
-    child = f"exec -a {MCP_MARK} /bin/bash -c '/bin/sleep 30; true'"
-    case.set_control({"session": [["/bin/bash", "-c", child]]})
-    time.sleep(0.1)
-    out = expect_exit(case.run(), 3, "process \\d+ of the session: /bin/sleep 30")
-    expect(case.state()["backup"] is None, "a descendant of an MCP server did not stop step 2")
-    expect(f"of the session: {MCP_MARK}" not in out, "the kept MCP server counted as another process")
-
-
 def c_plan_paths_escape(case):
     """F4: a plan path that is absolute, holds .. or crosses a linked folder stops before any step."""
     outside = os.path.join(case.root, "outside")
@@ -1906,8 +2378,6 @@ def c_plan_incomplete(case):
         "native-probe-missing": lambda p: p.pop("native_probe"),
         "mac-check-missing": lambda p: p.pop("mac_check"),
         "baseline-missing": lambda p: p.pop("baseline"),
-        "jobs-missing": lambda p: p.pop("jobs"),
-        "watch-empty": lambda p: p.__setitem__("watch", []),
         "outside-empty": lambda p: p.__setitem__("outside", []),
         "staging-missing": lambda p: p["accepted"].pop("staging"),
     }
@@ -2021,8 +2491,6 @@ def review_controls() -> list:
     no_hooks, no_key = {"hooks": "absent"}, {"ravel": "absent-key"}
     return [
         ("plan-changed-after-load", c_plan_changed_after_load, {}),
-        ("mcp-server-kept", c_mcp_server_kept, {}),
-        ("mcp-server-child", c_mcp_child, {}),
         ("plan-paths-escape", c_plan_paths_escape, {}),
         ("plan-incomplete", c_plan_incomplete, {}),
         ("staging-home-missing", c_staging_missing, {}),
@@ -2128,16 +2596,9 @@ def all_controls(r: Rehearsal) -> list:
         ("outside-platform-subtree", c_outside_platform_subtree, {}),
         ("outside-platform-link", c_outside_platform_link, {}),
         ("cell-after-receipt-no-copy", c_cell_after_receipt_no_copy, {}),
-        ("writer-before-run", c_writer_before, {}),
-        ("writer-later", interval_closed("spawn-writer"), {}),
-        ("delegate-before-run", session_process(["/bin/bash", "-c", "exec -a fixture-delegate /bin/sleep 120"]), {}),
-        ("background-before-run", session_process(["/bin/sleep", "120"]), {}),
-        ("delegate-later", interval_closed("spawn-in-session",
-                                           ["/bin/bash", "-c", "exec -a fixture-delegate /bin/sleep 120"]), {}),
-        ("background-later", interval_closed("spawn-in-session", ["/bin/sleep", "120"]), {}),
-        ("job-before-run", c_job, {}),
         ("prepared-plan-differs", c_prepared_differs, {}),
     ]
+    controls += process_controls(r)
     controls += prelude_controls()
     controls += gate_controls()
     controls += review_controls()
@@ -2164,7 +2625,7 @@ def prelude_controls() -> list:
         ("native-descriptor-after-comparison", c_native_descriptor, no_key),
         ("native-third-value", c_native_third, {}),
         ("native-erased-after-inverse", c_native_erased_after_inverse, {}),
-        ("native-writer-later", prelude_writer("prelude:native-settings", "the native settings"), no_key),
+        ("native-tool-later", prelude_writer("prelude:native-settings", "the native settings"), no_key),
         ("hooks-absent", c_hooks_full, no_hooks),
         ("hooks-crash-between-preludes", prelude_crash("prelude:hooks-installation"), dict(no_key, **no_hooks)),
     ]
@@ -2182,7 +2643,7 @@ def prelude_controls() -> list:
         ("hooks-third-value-before-held-link", c_hooks_third_before_held, no_hooks),
         ("hooks-command-in-place", c_hooks_in_place, no_hooks),
         ("hooks-command-fails", c_hooks_command_fails, no_hooks),
-        ("hooks-writer-later", prelude_writer("prelude:hooks-installation", "the hooks installation"), no_hooks),
+        ("hooks-tool-later", prelude_writer("prelude:hooks-installation", "the hooks installation"), no_hooks),
     ]
     for do in ("xattr", "acl"):
         for when in ("initial", "before-held", "after-reading"):
@@ -2240,7 +2701,8 @@ def c_owner_inverse_complete(case):
     run_to_complete(case)
     out = expect_exit(case.entry("inverse"), 0, "result: native")
     expect("command probe-native (step inverse): exit 0" in out, "the owner's inverse ran no native probe")
-    expect("gate: no other process before the inverse" in out, "the owner's inverse listed no process")
+    expect("gate: no other Claude Code, Codex, Grove or Ravel process before the inverse" in out,
+           "the owner's inverse ran no process inspection")
     expect_reset(case)
     st = case.state()
     expect(st["state"] == "native" and st["records"][-1] == "inverse-ended", f"unexpected {st['state']}")
@@ -2315,11 +2777,9 @@ def c_owner_inverse_refusals(case):
 
 def c_owner_inverse_writer(case):
     run_to_complete(case)
-    p = subprocess.Popen(["/bin/bash", "-c", f"exec -a {WRITER_MARK} /bin/sleep 120"], start_new_session=True)
-    record_pid(case.root, p.pid)
-    time.sleep(0.2)
+    sleeper(case, "codex")
     before = case.snapshot()
-    expect_exit(case.entry("inverse"), 3, "other processes or jobs remain before the inverse")
+    expect_exit(case.entry("inverse"), 3, "remains before the inverse")
     expect(case.snapshot() == before and case.state()["state"] == "complete", "a closed interval changed the layout")
 
 
@@ -2530,16 +2990,14 @@ def c_pending_after_step(case):
 
 
 def c_pending_before_step_4(case):
-    p = subprocess.Popen(["/bin/bash", "-c", f"exec -a {WRITER_MARK} /bin/sleep 120"], start_new_session=True)
-    record_pid(case.root, p.pid)
-    time.sleep(0.2)
+    sleeper(case, "codex")
     expect_exit(case.run(), 3, "before step 1")
     expect_exit(case.entry("pending"), 0, "pending-activation record")
     body = pending_body(case)
     expect(body["grove"].get("version") == "1" and body["grove"]["read"].startswith("by this record"),
            f"the record did not read the Grove version itself: {body['grove']}")
     expect(body["grove"]["release_commit"] == "not supplied", "the record invented a release commit")
-    expect("other processes" in body["run"]["reason"], "the record lacks the stop's reason")
+    expect("another Claude Code" in body["run"]["reason"], "the record lacks the stop's reason")
 
 
 def c_pending_after_inverse(case):
@@ -2952,6 +3410,8 @@ def native_off_controls() -> list:
     controls += [
         ("native-off-other-ravel", c_native_off_other_ravel, no_key),
         ("native-off-ravel-ancestor", c_native_off_ancestor, no_key),
+        ("native-off-other-tool", c_native_off_other_tool, no_key),
+        ("native-off-ravel-title", c_native_off_ravel_title, no_key),
         ("native-off-after-switch-stop", c_native_off_after_switch_stop, dict(no_key, rehearsed=False)),
         ("native-off-print-command", c_native_off_print_command, no_key),
         ("native-off-create-fails", c_native_off_create_fails, no_key),

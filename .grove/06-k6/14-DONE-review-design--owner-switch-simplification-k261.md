@@ -43,3 +43,21 @@ findings, not fixes.
 ## Notes
 
 The real HOME is read only for this review.
+
+## Decisions (running log)
+
+- The reviewed producer is commit `eccf8b044d83`. The review is inspection
+  only. It reads the committed design, the earlier review and the plan draft
+  evidence. It runs no test, build, lint, format or check task. The real
+  HOME, launchd and the process table stay read only.
+- The evidence document had hard findings only in the completed k258 review
+  and in the k260 section under review. A preparatory commit marks the first
+  as history and the second as pending, as the earlier review text was
+  marked. The review changes no word of either section.
+- A scratch measurement withdrew one suspicion. Copies of the manual by
+  `cp -p` and `ditto` kept `com.apple.macl` and `com.apple.provenance`, so
+  the manual's attributes are no finding.
+- The section "Owner switch simplification review" of
+  `docs/owner-skill-delivery-evidence.md` holds nine findings, S1 to S9. S1,
+  S2 and S3 are P1, so the review cuts the integration step before
+  owner-switch-simplification-k262 plans from the design.

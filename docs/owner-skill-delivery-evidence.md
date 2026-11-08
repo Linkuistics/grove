@@ -1943,3 +1943,271 @@ layout. The editable sources and stable discussion links remain available
 for the scheduled review.
 
 <!-- tc: on -->
+
+## Owner switch simplification review
+
+`owner-switch-simplification-k261` inspected producer commit
+`eccf8b044d83041867e71072a17305f274d091dc` against the human's two facts.
+This grove is the only grove that runs, and the owner is the only user of
+Grove and Ravel. The subjects are the owner design, the coordinated recovery
+rows, the finish decision record and the three changed diagram sources. Each
+finding states a defect, a state of this machine that shows it, and the rule
+that the state breaks. No finding proposes a repair.
+
+### S1 — P1: a stop before the backup leaves no native return after promotion
+
+Switch step 5 writes the Ravel off value after the backup of step 4. Steps 1
+to 4 can stop without a write, by design. Ravel's promotion comes before
+step 1. In that interval the real `~/.config/ravel/settings.json` does not
+exist, so promoted Ravel 2.0 delivers the ten default sources. The native
+plugins and links stay active beside them.
+
+Consider this state. Finish releases Grove and promotes Ravel. Step 2 finds
+that a released source differs from its accepted digest, and the staging
+rerun fails. The attempt stops before step 4, so no backup exists, and
+`restore --backup <directory>` has no directory to read. A fresh attempt
+stops at the same step until a Grove patch release.
+
+That release can launch a default session itself. When its notes are
+missing, `task release:patch` runs `grove run release-notes` through
+[`release-notes.sh`](../scripts/release-notes.sh). That launch then receives
+every owner skill twice. An incomplete checklist item leaves the same state,
+because "the switch waits".
+
+[The native settings inside finish](specs/owner-skill-delivery.md#the-native-settings-inside-finish)
+names this state. It forbids a new default session until someone verifies
+the native return or a successful switch. As a route, it offers the owner's
+recovery entry, and that entry needs a backup. The coordinated row "Promotion complete, owner
+switch failed or was interrupted" also begins from "the complete backup".
+The switch-states view sends a run without a write to "Repair preparation".
+The cutover view calls it "Stop before mutation".
+
+The state breaks the one-active-copy rule of
+[Name collisions and stale copies](specs/owner-skill-delivery.md#name-collisions-and-stale-copies).
+The earlier design did not reach it, because its preludes wrote the off value
+before its verification steps. k260 moved that write behind the backup.
+
+### S2 — P1: the Codex probe leaves a Codex process that the narrow process check refuses
+
+[The owner's checklist](specs/owner-skill-delivery.md#the-owners-checklist)
+admits finish's live ancestors and the recorded probe processes, and nothing
+else. It states that "a delegate harness or app-server therefore stops the
+attempt". The program repeats the narrow process check before restore. It
+also waits for the probes to exit before its final check.
+
+The recorded and live process tables show what Codex leaves in a fresh
+`CODEX_HOME`. Each trial installed `packages/app-server-daemon/releases/<version>`
+there. Each left `codex app-server daemon pid-update-loop` with parent PID 1,
+and a child `codex app-server ... --managed-daemon`. On 2026-11-08 six
+disposable homes still had such processes, the oldest after about 21 days.
+The real HOME runs the same daemon from `~/.codex/packages/app-server-daemon`.
+
+Consider the real switch. The owner obeys checklist item 3 and stops the real
+daemon. Step 7 launches one Codex probe in the real HOME. Each recorded trial
+in a home without a daemon left one, so the probe can launch the daemon
+again. After the probe exits, the daemon is neither a finish ancestor nor a
+live descendant of the program.
+
+The final check then refuses a switch whose probes passed. The check before
+restore refuses the same process, and the rule "Never signal another
+session" forbids the program to end it. The attempt ends as recovery
+incomplete, whatever the probes observed. The disposable dry run shares the
+machine's process table, as it shares launchd, so it meets the same daemon.
+
+The state breaks the rule that a failed probe restores native delivery. It
+also breaks cutover order 7, where the probe results decide success. The
+test seam that admits only exact finish ancestors assumes that each probe
+exits with its children. No trial measured that assumption for Codex.
+
+### S3 — P1: whole restore and whole comparison outlast the quiet interval
+
+The "Recovery" row of
+[Four simplifications](specs/owner-skill-delivery.md#four-simplifications)
+rests on "no concurrent actor's change to merge". That fact holds for one
+quiet interval. The same `restore --backup <directory>` also serves "the
+owner's later return to native delivery" until purge. Restore replaces whole
+backed-up files. The write set includes `~/.claude/settings.json`, the plugin
+registries, the Ravel settings and the maintained manual.
+
+Consider this state. The switch succeeds on day 0. On day 5 the owner runs
+`/model`, which writes `model` into `~/.claude/settings.json`. The
+codebase-memory updater rewrites its hook entries in that file. The owner
+adds a note to "AI Dev Tooling".
+
+On day 7 the owner returns to native delivery. Restore accepts the unchanged
+backup and writes the day-0 files back. The model key, the updated hooks, the
+new note and the receipt disappear without a report. Restore reports
+"unrelated entries outside the write set", but these edits are inside
+write-set files.
+
+The same gap affects `mac-check` and the purge report. The plan drops its
+cells, and step 8 compares "the complete expected switched configuration".
+After the interval, nothing in the plan separates a switch value from an
+unrelated key. `mac-check` must then report "restore/review needed" after
+each ordinary settings edit, or call a layout switched without a stated
+basis. The first reading invites the restore above, and blocks purge.
+
+The two facts remove other writers during one operation. They do not remove
+the owner's own later edits, so the row rests on more than those facts.
+
+### S4 — P2: the dry-run comparison has no stated form, and step 2 contradicts it
+
+[The rehearsed plan](specs/owner-skill-delivery.md#the-rehearsed-plan)
+lists the changes that need another dry run. They are "a changed plan,
+program, helper, command input or tool version". It says that "Finish compares these inputs with the real
+attempt's prepared inputs". It names no instrument, no compared record and no
+rule for an allowed substitution. The "Dry run" row justifies the removal of
+admission by this comparison.
+
+Three states show the gap:
+
+- Step 2 says to rerun the affected staging trials when a released Grove
+  source differs, and to "accept the new result before proceeding". The plan
+  holds the accepted source versions. The hooks installation installs the
+  `writing` source as a plugin. A changed source therefore changes the plan
+  or a command input, which requires a new dry run before the attempt
+  proceeds. The coordinated row for a failed core trial agrees with that
+  rule, not with step 2.
+- Cutover order 6 runs the dry run before Grove's release and Ravel's
+  promotion. Step 5 registers `writing-hooks` from Grove's released `opt`
+  path, which holds no such marketplace before the release. The dry run must
+  read the candidate keg and the keg-only `ravel@2` instead. The design
+  records "the substituted prefixes" but does not say whether a new prefix is
+  a substitution or a changed input. If it is a changed input, each real
+  attempt needs a dry run inside finish, and no order schedules one.
+- After an unsuccessful finish, the owner may run a fresh switch. No text
+  names the actor of the comparison then.
+
+D1 asked that a certified plan identify each file that it runs by content.
+The design records those identities. It does not bind the real attempt to
+them, so the record satisfies D1 and the comparison does not yet.
+
+### S5 — P3: no observation covers the live finish process in steps 6 and 7
+
+The design removes exchange and held-link detection. Two obligations replace
+it: a staging session stays idle "through the installation", and the owner
+makes no settings action. Both end with step 5. In step 6 the program
+disables the plugin that holds finish's guidance and enables two plugins.
+These writes go under finish's live Claude Code process. In step 7, two
+probe harnesses launch in the real HOME.
+
+The Homebrew evidence found about 40 sites in Claude Code that write the user
+settings, `pluginConfigs` among them. The dry run cannot put a live parent
+harness over its disposable settings, because its operator's harness reads
+the real HOME. The staging trial that disables a session's own plugin records
+reads, not writes. A write by finish's process in step 6 can fail a valid
+switch at step 8. Or the next ordinary write of the program removes it
+without a report. The k261 doubt names this writer, and the design covers
+only the owner's actions in it.
+
+### S6 — P3: the owner's recovery after an unsuccessful finish lacks named inputs
+
+Each attempt makes a new backup directory, and "no run log or program copy
+selects a recovery route". After a crash, "the owner retains the backup
+location". The design does not say where that location survives when finish
+ends before it reports. Restore checks the complete backup, its content
+identities and its confined destination paths. It does not check that the
+backup belongs to the attempt that wrote the live layout.
+
+With two attempts, the owner can restore the earlier backup. That restore
+reverses each change between the attempts without a report. The fresh switch
+that the owner may run after finish also lacks a substitute for finish.
+Steps 1, 3 and 8 name finish's ancestors, its loaded cache paths and its
+guidance. The earlier design let one Claude Code session take "finish's place
+in steps 1, 3 and 7". k260 removed that sentence and wrote no replacement.
+
+### S7 — P3: the manual gains whole-file restore without its writers
+
+Step 9 adds the maintained manual to the backup write set. The restore
+operation puts back whole backed-up files. Step 9 also says that a failure
+"withdraws any success entry created by this attempt". The design does not say which of the
+two operations applies to the manual. The plan's `manual` is an Obsidian note
+in iCloud Drive, under `Library/Mobile Documents/iCloud~md~obsidian`.
+
+The checklist names no writer of that note. Obsidian ran during this review.
+iCloud delivers edits from the owner's other devices, and the checklist
+names no pause for it. A whole-file restore discards such an edit. The
+earlier design kept the manual append-only. k260 drops that rule and gives
+no reason, although the rule does not depend on other actors.
+
+### S8 — P3: the checklist asserts unprivileged inspection of login items
+
+The checklist says that "the owner can inspect account-owned items without
+privileges", and it lists Login Items with launch agents and schedules. The
+only recorded attempt, `sfltool dumpbtm`, waited for authorisation, as the
+section "Processes and jobs" states. The design records no other route that
+lists each login item and background item with its program.
+
+Jobs show a second gap. The herdr jobs `dev.herdr.server.<pid>.<time>` exist
+only in launchd. `~/Library/LaunchAgents` holds `dev.mise.mise-history.plist`
+and no herdr file. The checklist tells the owner to inspect LaunchAgents and
+to print a known label, but not to list the loaded jobs. An item that the
+owner cannot complete makes "the switch wait", and S1 then applies.
+
+### S9 — P3: the narrow process check has no recognition rule
+
+The design removes the patterns. It says that the program checks "other
+Claude Code, Codex, Grove and Ravel processes", and not how it recognises
+them. The plan draft evidence found native binaries, packaged Node forms of
+the three harnesses and the applications Claude and ChatGPT. ChatGPT holds
+Codex's `node_repl` MCP server. Checklist item 1 names "their desktop
+applications", and neither the program nor the checklist names ChatGPT. The
+test seam needs this boundary to build its fixtures.
+
+### Doubts without a finding
+
+- **The four removed mechanisms.** None defended only against another user
+  or another grove. The listing and the detection covered the owner's tools,
+  the finish process and Claude Code's own commands. The recovery states
+  covered crashes, and admission covered drift before the real run. The
+  human chose the checklist and the final comparison for the first two.
+  S1, S3, S4, S5, S6 and S7 name each place where a removal rests on more.
+- **The checklist's programs.** The checklist names each program of the
+  earlier step 1, except ChatGPT, as S9 states. It narrows `mise` to
+  `mise dot watch`, bootstrap and upgrades. The help of `mise dot watch` says
+  that it saves checkpoints, and applies incoming changes only in `sync` mode
+  with an origin. `mise dot origin` reports mode `manual` on this machine.
+- **D3.** Resolved. Step 1 refuses an entry outside the expected native
+  layout, and step 8 compares the expected switched layout. The design skips
+  only `synced` and `.system`. Today they hold platform skills only, such as
+  `pdf`, `docx` and `skill-creator`, and no Ravel source holds those names.
+- **D5.** Resolved. The inventory accepts an enabled `guardrail@personal`
+  only from the personal keg's marketplace with its sole skill. The dry run
+  now runs the final comparison that D5 needed.
+- **The final session's guidance.** The design keeps finish's loaded versions
+  registered, keeps the update freeze and the full 1.1.0 keg, and rereads the
+  guidance by path. The review found no route that removes that guidance
+  before the final signal, apart from the process stops of S2.
+- **The manual's attributes.** The note carries `com.apple.macl` and
+  `com.apple.provenance` in the `xattr` listing. Copies by `cp -p` and
+  `ditto` kept both, so they do not block the exact-metadata backup.
+- **Grove link cleanup.** The Grove delivery design adds no automatic
+  migration or cleanup command. Restored Grove 22.8 Codex links therefore
+  stay in place under the released Grove.
+- **The launchd boundary.** `launchctl list` names only the mise and herdr
+  jobs, so the Codex daemon is not a launchd job. S2 concerns the shared
+  process table instead.
+
+### Review evidence and limits
+
+The review read the producer commit and the owner design before and after
+it. It read the coordinated release design, the finish decision record, the
+diagram sources and the parent brief's consequence tables. It read the
+earlier review and the plan draft evidence with its process listing. The
+real HOME and the machine stayed read only. The review read the live process
+table, `launchctl list`, `~/Library/LaunchAgents`, the two excluded skill
+subtrees and the attributes of the switch-set files and the manual.
+
+The attribute copies went to a scratch folder outside the repository. The
+review ran no test, build, lint, format, check task or switch operation. It
+did not open the rendered visual document. The integration owns each repair
+and its executable verification.
+
+| Subject at the producer commit | SHA-256 |
+| --- | --- |
+| `docs/specs/owner-skill-delivery.md` | `365121757acef08c463509c466d5d98fdb83f2b7a4d707ba271b6658d4651f2d` |
+| `docs/specs/coordinated-release.md` | `0204f83ac4301ae89c347ae34c325bcbb44f18ed16edaa44d207e972507d23ee` |
+| `docs/adr/finish-promotes-after-the-grove-release.md` | `de4ede4ad4cbed561ca5235850119260f082677b0092f2e5f77658e8559aa7e9` |
+| `owner-cutover.mmd` | `d358abc1490163b64b65f37a6c6b9e5786dd2c4f77efc9f231091aa03c9b9e42` |
+| `owner-switch-states.mmd` | `887c633ae2c460510cc47af5cb3f380dc6c2d0f36848c2c17b0b3cf0b916f6a7` |
+| `owner-final-session.mmd` | `6acdb89ee7879c607253c5f23e40e7d55eac8aded3d169c53b562807d31d7617` |

@@ -3,27 +3,31 @@ sequenceDiagram
     participant R1 as Full Ravel 1.1.0 keg
     participant F as Finish in Claude Code
     participant N as Frozen native plugin cache
-    participant B as One backup
+    participant B as Explicit attempt backup
     participant H as Real HOME
     participant R2 as Promoted Ravel 2.0.0
     D->>R1: Launch finish through policy.ts
     R1->>F: Original mandate and ending
-    F->>N: Read finish guidance by absolute path
+    F->>N: Read guidance by absolute path
     F->>F: Release Grove, verify pair, promote Ravel
-    F->>F: Owner checklist and narrow process check
+    F->>H: native-off before any default launch or preflight
+    F->>F: Checklist, input comparison, source acceptance
+    F->>F: Retain attempt note and literal recovery command
     F->>B: Copy and verify all planned original items
-    Note over F,H: Finish waits; no settings action or other writer
-    F->>H: Off value, then disabled hook installation
-    F->>H: Deactivate native copies; activate Ravel last
+    Note over F,H: Observe idle parent and MCP servers throughout switch and probes
+    F->>H: Install hooks, deactivate native copies, activate Ravel last
     F->>R2: Resolve and run both harness probes
-    R2-->>F: Observed reads and hooks
+    R2-->>F: Reads, hooks and owned-service cleanup evidence
     F->>N: Reread guidance and compare registrations
     alt Probes and final comparisons pass
-        F->>H: Verified receipt and manual entry
+        F->>H: Receipt and append-only manual observation
         F->>R1: Exact original ending command
-    else Any failure after backup
+    else Failure after backup, owned services ended
         B->>H: Full native restore, Ravel sources off
+        F->>H: Invalidate receipt and append correction
         F->>F: Verify native return and stop without success
+    else Service cleanup incomplete
+        F->>F: Keep backup; owner resolves the service before restore
     end
-    Note over D,R1: No cleanup until the original driver's reap
-    Note over B,H: A crash needs explicit restore after restart
+    Note over D,R1: Keep original keg until driver's reap
+    Note over B,H: Restart uses explicit attempt instructions; later drift refuses overwrite

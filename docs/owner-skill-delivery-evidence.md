@@ -3,8 +3,8 @@
 The [owner specification](specs/owner-skill-delivery.md) describes the current
 design. The exchange, held-copy, recovery-model and rehearsal-admission
 measurements below are historical evidence for the earlier design. They do
-not certify the simplified serial switch. [Single-owner switch design](#single-owner-switch-design)
-states the present evidence boundary.
+not certify the simplified serial switch. [Single-owner switch design](#single-owner-switch-design) records the initial redesign.
+[Its integration](#owner-switch-simplification-integration) records the current repairs and evidence boundary.
 
 This document records the inputs to the
 [owner skill delivery design](specs/owner-skill-delivery.md). The design
@@ -1890,8 +1890,10 @@ The prototypes measured three facts, which k260 carries in its task file:
 
 ## Single-owner switch design
 
+This section records k260. The integration below repairs its reviewed contract.
+
 owner-switch-simplification-k260 uses the human's sole-user and sole-grove
-facts to replace four mechanisms. The specification now requires a quiet interval, one complete backup before all writes and ordinary serial writes.
+facts to replace four mechanisms. The initial specification required a quiet interval, one complete backup before all writes and ordinary serial writes.
 It requires full restore on failure and one disposable execution of the real plan.
 This is a design change only. No new switch or actual owner cutover is
 measured by this section.
@@ -2212,3 +2214,65 @@ and its executable verification.
 | `owner-cutover.mmd` | `d358abc1490163b64b65f37a6c6b9e5786dd2c4f77efc9f231091aa03c9b9e42` |
 | `owner-switch-states.mmd` | `887c633ae2c460510cc47af5cb3f380dc6c2d0f36848c2c17b0b3cf0b916f6a7` |
 | `owner-final-session.mmd` | `6acdb89ee7879c607253c5f23e40e7d55eac8aded3d169c53b562807d31d7617` |
+
+
+## Owner switch simplification integration
+
+`owner-switch-simplification-k263` read S1 to S9 from review commit
+`bb0457986498ea5768a42a4d610e98c72e284029`. It compared those findings with the
+owner specification and k260's record of the human's four choices.
+The real HOME, launchd and process table remained read only.
+The integration changes design documents and the planner's consequence tables.
+
+### Dispositions
+
+| Finding | Classification and source-supported disposition |
+| --- | --- |
+| S1 | Real issue. The reviewed off write followed preflight and backup, while promotion preceded both. A preflight refusal therefore had no backup to restore. The [native settings contract](specs/owner-skill-delivery.md#the-native-settings-inside-finish) now requires `native-off` immediately after promotion. Its retained command works without source acceptance or a switch backup. It changes only the off key and preserves unrelated settings and metadata. Ordinary switch writes still require the complete backup. |
+| S2 | Real issue. The review records Codex daemons surviving probe exit and reparenting to PID 1. Direct-child reaping cannot establish their absence. [Probe lifetime](specs/owner-skill-delivery.md#probe-process-lifetime) requires a measured launcher that prevents persistence or proves service ownership and ends it through a supported route. Unknown and pre-existing daemons remain unrelated. No real attempt proceeds without that acceptance evidence. |
+| S3 | Real issue. Whole-file restore would overwrite later unrelated keys, hooks and notes. [Rollback](specs/owner-skill-delivery.md#rollback) now refuses later whole-file drift before writing. Delivery assertions separately establish current health. Healthy delivery can coexist with ineligible restore. Wanted edits require a reviewed native-return plan, never an automatic merge or forced overwrite. |
+| S4 | Contract stated unclearly. D1 supplied content identities but no reproducible comparison or permitted substitutions. [The rehearsed plan](specs/owner-skill-delivery.md#the-rehearsed-plan) now retains a per-input table and comparison command. Only named HOME and release-prefix fields may vary with identical content. Changed source acceptance requires staging and another dry run. The owner performs comparison after finish. |
+| S5 | Real issue. The initial observation ended with installation, before native deactivation and probes beneath the live parent. [Claude Code's writes](specs/owner-skill-delivery.md#claude-codes-own-writes) now requires observation through receipt completion, including intermediate overwritten writes. That parent uses the staging HOME and held harness version. A quiet final file alone establishes no such evidence. |
+| S6 | Contract stated unclearly, with an explicit operational trade-off. Backup data cannot infer which interrupted invocation the owner intended. [Recovery](specs/owner-skill-delivery.md#resuming-the-switch) now retains immutable attempt instructions before mutation and binds the supplied backup to that note and HOME. Uncertain attribution refuses. A replacement operator supplies fresh ancestry and reader evidence after finish. No mutable progress state or latest-backup inference is introduced. |
+| S7 | Real issue. Whole-manual restore could remove unrelated Obsidian or iCloud edits. The [switch contract](specs/owner-skill-delivery.md#the-switch-inside-finish) restores append-only observations and excludes the manual from whole-file recovery. Failure invalidates the authoritative receipt and appends a correction. The checklist pauses manual writers and synchronisation. Unwritable manual evidence prevents success without preventing native configuration recovery. |
+| S8 | Real issue. The recorded login-item command required authorisation, and loaded herdr jobs lacked LaunchAgents files. [The checklist](specs/owner-skill-delivery.md#the-owners-checklist) now names loaded-job inspection and System Settings, with explicit inspection limits. It promises no exhaustive unprivileged command. Incomplete preparation stays in verified native delivery. |
+| S9 | Contract stated unclearly. The narrow inspection had no recogniser contract. [Process recognition](specs/owner-skill-delivery.md#the-narrow-process-inspection) now covers executable identities, measured packaged forms, Node entry scripts and Codex daemon subcommands. Unknown forms require review. Claude and ChatGPT also appear in the owner's desktop-app checklist. |
+
+All four chosen simplifications remain. None of these repairs restores broad job
+classification, concurrent-edit merge, partial resumption or digest-bound rehearsal
+admission. The `native-off` operation is a bounded safety exception before switch
+backup, needed because promotion enables sources before switch preflight.
+The finish decision record, coordinated recovery rows and visual views reflect
+that exception and the later-restore boundary.
+
+### Narrow review and limits
+
+One fresh-context reviewer inspected the native settings, rollback and recovery
+sections for recovery-safety defects. It found that an interrupted `native-off`
+write could damage settings before any switch backup existed.
+The contract now requires a complete temporary file and atomic replacement,
+with original-or-complete interruption controls. This preserves ordinary serial
+publication and adds no displaced-copy or merge mechanism.
+
+The integration implements no switch code and establishes no actual activation.
+Probe-service lifecycle, quiet-parent observation, file publication and input comparison
+remain explicit implementation and acceptance work. The planner's artifact and per-leaf
+tables assign that work to k262 and its consumers. Earlier rehearsals certify only
+the programs and inputs that they actually ran.
+
+
+### Integration validation
+
+The edited prose passed the controlled-English checker with no unaccepted hard findings.
+Local validation resolved 122 relative links and anchors across the edited Markdown.
+The same predicates rejected a deliberately missing path and anchor.
+
+The viewer manifest resolved all 19 diagram sources and its discussion references.
+The existing localhost viewer served the manifest and three changed diagram sources
+byte for byte from the working files. Digests of the eleven validation subjects
+stayed unchanged during that run. The subjects were the seven edited Markdown
+files, the manifest and the three changed Mermaid sources.
+
+The session inspected diagram sources, not rendered layout. It ran no switch,
+real-harness trial, code-suite check or owner configuration operation.
+Those checks belong to the implementation and acceptance work named above.

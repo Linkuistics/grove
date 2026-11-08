@@ -20,16 +20,25 @@ the end of the driver's last Ravel 1.1 launch, which is finish's own launch.
 The [owner skill delivery specification](../specs/owner-skill-delivery.md) owns
 its steps, probes and rollback. The switch follows the promotion.
 
+Immediately after promotion, finish establishes native delivery with the prepared
+`native-off` operation. That recovery route needs no switch backup and prevents
+duplicate delivery if switch preflight stops.
+
 The trade-off is a longer finish session against operations with no owner.
 Finish grows by two prepared operations. Promotion follows its release
 recovery rows. The owner's serial switch follows an owner checklist and a disposable execution of the real plan.
-It backs up before any write and restores native delivery on failure. It requires a quiet interval instead of preserving
+It backs up before any switch write and restores native delivery on failure. It requires a quiet interval instead of preserving
 concurrent edits.
 
 Both operations run after `finish-commit` removes `.grove/`,
 so no leaf can carry a repair. An interrupted switch requires the same restore
 command before a fresh attempt. It never resumes partly applied changes.
 A failure ends without a successful signal.
+
+Whole-file restore applies during that quiet interval or after a later drift
+comparison establishes eligibility. It refuses intervening edits rather than discarding
+them. Current delivery health uses named delivery assertions, so ordinary unrelated
+settings edits do not imply a failed switch. The manual keeps append-only observations.
 
 The design rejected four alternatives. An ordinary leaf cannot follow Grove's
 release, because that release belongs to finish and no leaf follows the finish

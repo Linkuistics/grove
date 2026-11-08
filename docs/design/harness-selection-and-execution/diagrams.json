@@ -1,6 +1,6 @@
 {
   "title": "Harness selection and execution — Grove caller views",
-  "intro": "Homebrew installs the owner's sources and Ravel delivers them. The owner is the sole user and this is the sole running grove. The simplified switch uses a checklist, narrow process check, one backup, serial writes and full restore. Proposed implementation; the k261 design review follows. The release order and reader protections stay. Graphs begin at Start here; sequences at their first message.",
+  "intro": "Homebrew installs the sources and Ravel delivers them under the four single-owner simplifications. k263 integrates the review before k262 plans implementation and acceptance. Native-off covers preflight stops after promotion, and later drift refuses whole-file restore. Delivery assertions establish current health. Probe cleanup and parent observation require measured evidence. Graphs begin at Start here, sequences at their first message.",
   "groups": [
     {
       "id": "release",
@@ -10,7 +10,7 @@
     {
       "id": "owner",
       "title": "Owner skill cutover",
-      "description": "Single-owner switch design awaiting its scheduled review; implementation and actual activation remain ahead."
+      "description": "k263 integrates the single-owner design review. k262 plans implementation and actual acceptance from that contract."
     },
     {
       "id": "skills",
@@ -58,21 +58,21 @@
       "group": "owner",
       "title": "Ordered owner cutover",
       "source": "owner-cutover.mmd",
-      "caption": "Design from the owner's accepted four simplification directions; k261 review follows. A quiet interval replaces concurrent-write preservation. One backup precedes native settings, hook commands and deactivation. Both harness probes and the final comparison precede success. A failed attempt restores native delivery with Ravel sources off. No partial continuation or rehearsal token applies."
+      "caption": "The four simplifications remain. Immediately after promotion, native-off establishes native delivery without a switch backup. The switch then compares prepared inputs, records explicit recovery instructions and backs up before switch writes. Probes include service cleanup. Receipt and append-only manual evidence precede success."
     },
     {
       "id": "owner-switch-states",
       "group": "owner",
       "title": "Switch failure and explicit restore",
       "source": "owner-switch-states.mmd",
-      "caption": "Recovery procedure, not a six-state classifier or checked model. A crash requires explicit full restore before a fresh attempt. Repeated restore targets the same backed-up native layout with Ravel's off-value exception. A restore failure keeps the backup and prevents success."
+      "caption": "Explicit recovery, not a state classifier or checked model. Without a complete switch backup, use native-off. With a backup, identify the attempt and restore during the quiet interval. Later whole-file drift refuses overwrite. Delivery health and restore eligibility are separate observations."
     },
     {
       "id": "owner-final-session",
       "group": "owner",
       "title": "Finish keeps its guidance through the switch",
       "source": "owner-final-session.mmd",
-      "caption": "Finish retains its absolute guidance paths, frozen current registrations and full original Ravel keg. Hook commands and program writes run serially while finish waits. Success needs reader checks, probes and a final comparison. Crash recovery uses the retained restore entry; no automatic cleanup can run while the program is dead."
+      "caption": "Finish retains absolute guidance paths, frozen registrations and the original Ravel keg. Native-off precedes preflight. The parent harness and MCP servers remain under observation through deactivation and probes. Owned services end before restore. Recovery instructions survive finish, and the manual remains append-only."
     },
     {
       "id": "release-tap",
@@ -175,8 +175,8 @@
   ],
   "discussion": {
     "title": "Simplify the switch for one owner",
-    "status": "Four directions accepted by the owner; detailed design awaits k261 review",
-    "summary": "The checklist owns background writers and jobs. The program checks other harness and driver processes, backs up before every change, writes serially, probes both harnesses and compares the final layout. Any failure restores native delivery; a crash needs explicit restore after restart. The design gives up concurrent-edit preservation and removes partial resumption and runtime rehearsal admission. Source identity, one active copy, native guardrail, readable finish guidance and old binaries remain protected.",
+    "status": "k261 findings integrated by k263; implementation and acceptance follow through k262",
+    "summary": "The checklist, serial switch, whole restore and disposable dry run remain. Recovery covers stops before backup and later edits. Input comparison declares permitted substitutions, while probe cleanup and parent observation require acceptance evidence. Immutable attempt instructions survive finish, and the manual remains append-only. No real activation is claimed.",
     "diagramIds": [
       "owner-cutover",
       "owner-switch-states",
@@ -186,15 +186,15 @@
     "updatedDiagrams": [
       {
         "id": "owner-cutover",
-        "summary": "Replaced exchange and resume branches with one backup, serial writes, probes and full restore."
+        "summary": "Added native-off before preflight, explicit attempt instructions and owned-service cleanup."
       },
       {
         "id": "owner-switch-states",
-        "summary": "Replaced the six-state diagram with explicit recovery after failure or crash."
+        "summary": "Separated backup-independent recovery, quiet-interval restore and later drift refusal."
       },
       {
         "id": "owner-final-session",
-        "summary": "Placed the backup before settings and hook installation while retaining guidance and original binaries."
+        "summary": "Extended parent observation and retained attempt instructions while keeping manual entries append-only."
       }
     ]
   }

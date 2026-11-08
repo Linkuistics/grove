@@ -1,21 +1,26 @@
 flowchart TB
-    A["Start here · Inspect the attempt"]
-    B{"Any switch write occurred?"}
-    C["No changed layout<br/>Repair preparation"]
-    D{"Verified receipt and<br/>current switched layout?"}
-    E["Keep successful activation<br/>Retain backup until purge"]
-    F["Re-establish quiet interval<br/>Run restore with the backup"]
+    A["Start here · Read retained attempt instructions"]
+    B{"Complete backup for this attempt?"}
+    C["Run native-off without switch backup<br/>Verify native delivery; repair preparation"]
+    D{"Current delivery assertions<br/>and receipt agree?"}
+    E["Keep successful activation<br/>Report restore eligibility separately"]
+    Q{"Recovery in same quiet interval<br/>or later whole-file drift comparison passes?"}
+    F["Verify explicit note, HOME and backup<br/>End owned probe services<br/>Run full restore"]
     G{"Native return verified?<br/>Ravel sources off?"}
-    H["Stop unsuccessfully<br/>Repair cause before a fresh attempt"]
-    I["Keep backup and failed paths<br/>Repair I/O or permissions<br/>Repeat the same restore"]
+    H["Record native return<br/>Append recovery outcome<br/>No activation success claimed"]
+    I["Keep backup and failed paths<br/>Repair service, I/O or permissions<br/>Repeat restore within quiet interval"]
+    N["Refuse overwrite; preserve later edits<br/>Review a revised native-return plan"]
     A -->|"1"| B
     B -->|"2 no"| C
-    B -->|"2 yes or uncertain"| D
+    B -->|"2 yes"| D
     D -->|"3 yes"| E
-    D -->|"3 no, including crash"| F
-    F -->|"4"| G
-    G -->|"5 yes"| H
-    G -->|"5 no or restore interrupted"| I
-    I -->|"6 explicit retry"| F
+    D -->|"3 no, or native return requested"| Q
+    E -->|"4 later native return requested"| Q
+    Q -->|"5 yes"| F
+    Q -->|"5 no or uncertain"| N
+    F -->|"6"| G
+    G -->|"7 yes"| H
+    G -->|"7 no or interrupted"| I
+    I -->|"8 explicit retry"| Q
     classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
     class A start

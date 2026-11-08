@@ -1,31 +1,33 @@
 flowchart TB
     A["Start here · Prepare accepted sources<br/>and isolated staging evidence"]
-    B["Prepare serial program and real plan<br/>Dry-run switch and full restore<br/>Identify command inputs by content"]
+    B["Prepare plan, tools and recovery instructions<br/>Dry-run switch and full restore<br/>Compare content with declared substitutions"]
     C["Finish releases Grove<br/>and promotes Ravel"]
-    D{"Owner checklist complete?<br/>No other harness or driver?"}
-    E["Verify sources, layout<br/>and finish's reader paths"]
-    F["One complete backup<br/>before every switch write"]
-    G["Write Ravel off value<br/>Install disabled writing hooks"]
-    H["Deactivate native copies<br/>Enable native capabilities<br/>Write switched Ravel settings last"]
-    I{"Both real-HOME probes pass?<br/>Final layout and readers agree?"}
-    J["Receipt and manual verified<br/>Original finish ending"]
-    R["Full restore from the backup<br/>Ravel sources explicitly off<br/>Verify native delivery, then stop"]
-    S["Stop before mutation<br/>Resolve checklist or preparation"]
+    O["Establish native delivery immediately<br/>native-off needs no switch backup"]
+    D{"Checklist and input comparison complete?<br/>Only recognised operator ancestors?"}
+    E["Verify sources and native layout<br/>Record operator readers and attempt note"]
+    F["Publish one complete backup<br/>before switch writes"]
+    G["Install disabled writing hooks<br/>Deactivate superseded native entries<br/>Enable capabilities; activate Ravel last"]
+    I{"Both probes and service cleanup pass?<br/>Final layout and readers agree?"}
+    J["Receipt and append-only manual verified<br/>Original finish ending"]
+    R["Restore explicit attempt backup<br/>Ravel sources off; native probes pass<br/>Invalidate receipt; append outcome"]
+    S["Keep verified native delivery<br/>Repair preparation; repeat affected staging<br/>and dry run after changed inputs"]
     A -->|"1"| B
     B -->|"2"| C
-    C -->|"3"| D
-    D -->|"4 yes"| E
-    D -->|"4 no"| S
-    E -->|"5 verified"| F
-    E -->|"5 failed"| S
-    F -->|"6 complete"| G
-    F -->|"6 incomplete: no write"| S
-    G -->|"7"| H
-    H -->|"8"| I
+    C -->|"3"| O
+    O -->|"4 verified"| D
+    D -->|"5 yes"| E
+    D -->|"5 no"| S
+    E -->|"6 verified"| F
+    E -->|"6 failed"| S
+    F -->|"7 complete"| G
+    F -->|"7 incomplete: no switch write"| S
+    G -->|"8"| I
     I -->|"9 yes"| J
     G -.->|"failure"| R
-    H -.->|"failure"| R
-    I -->|"9 no"| R
-    J -.->|"receipt or final comparison fails"| R
+    I -->|"9 no, owned services ended"| R
+    J -.->|"receipt or comparison fails"| R
+    O -.->|"cannot establish off value"| X["Stop without success<br/>No default launch until repaired"]
+    I -.->|"cleanup incomplete"| X
+    R -.->|"restore incomplete"| X
     classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
     class A start

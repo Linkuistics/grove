@@ -77,25 +77,23 @@ public integration. Neither duplicates Ravel's private runtime contract.
 
 ## Current changes
 
-The owner accepted four simplification directions. The detailed design now
-uses a quiet interval, a serial program and full restore. K261 reviews it
-before implementation. Source identity, one active copy, native capabilities,
-readable finish guidance and original binaries remain required. The real HOME
-has not been switched.
+k263 integrates the nine findings from k261 while preserving the four simplifications.
+The design uses an owner checklist, serial writes, whole restore and a disposable dry run.
+Implementation and real acceptance remain ahead. No real HOME was switched.
 
-- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Replaced exchange and partial-resume branches with one backup before all writes, serial changes, both harness probes and full restore.
-- [Switch failure and explicit restore](http://127.0.0.1:52710/#diagram-owner-switch-states) — Replaced six-state classification with an explicit restore procedure after failure or crash.
-- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Placed the backup before settings and hooks. Retained loaded cache registrations and the original Ravel keg.
-- [Owner checklist](../../specs/owner-skill-delivery.md#the-owners-checklist) — Assigned tools, login items, schedules and finish's own settings actions to the owner's quiet interval.
-- [Concurrent writers](../../specs/owner-skill-delivery.md#concurrent-writers) — Documented the loss of concurrent-edit preservation and retained exact native-root comparisons.
-- [Rollback](../../specs/owner-skill-delivery.md#rollback) — Defined whole-backup restoration with the deliberate Ravel off-value exception.
-- [The rehearsed plan](../../specs/owner-skill-delivery.md#the-rehearsed-plan) — Replaced runtime admission records with one disposable execution and content-identified inputs.
-- [Coordinated recovery](../../specs/coordinated-release.md#recovery-boundaries) — Replaced switch-state continuations with restore before a fresh attempt.
+- [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) — Establish native delivery before preflight, then record recovery instructions and back up before switch writes.
+- [Switch failure and explicit restore](http://127.0.0.1:52710/#diagram-owner-switch-states) — Use backup-independent recovery before mutation. Refuse later whole-file overwrite when intervening edits exist.
+- [Finish keeps its guidance through the switch](http://127.0.0.1:52710/#diagram-owner-final-session) — Observe the idle parent through probes. End owned services before restore and retain append-only manual entries.
+- [Owner checklist](../../specs/owner-skill-delivery.md#the-owners-checklist) — Include desktop apps, loaded jobs and manual synchronisation. No exhaustive unprivileged login-item command is assumed.
+- [Probe lifetime](../../specs/owner-skill-delivery.md#probe-process-lifetime) — Measure Codex daemon ownership and cleanup before real activation.
+- [Rollback](../../specs/owner-skill-delivery.md#rollback) — Distinguish current delivery health from eligibility for whole-file restore.
+- [The rehearsed plan](../../specs/owner-skill-delivery.md#the-rehearsed-plan) — Retain reproducible input comparison with declared content-preserving prefix substitutions.
+- [Coordinated recovery](../../specs/coordinated-release.md#recovery-boundaries) — Establish native delivery before any release task uses the default session route.
 
-Earlier exchange, held-link and recovery-model measurements remain in the
-[evidence](../../owner-skill-delivery-evidence.md#single-owner-switch-design).
-They certify the earlier mechanism only. The stable recovery-view anchor is
-retained so existing links reach the replacement procedure.
+The [integration evidence](../../owner-skill-delivery-evidence.md#owner-switch-simplification-integration)
+records each finding's disposition and the remaining measurement obligations.
+Earlier exchange and recovery-model experiments certify their historical mechanisms only.
+Stable viewer anchors still reach these replacement views.
 
 ## Earlier confinement changes
 

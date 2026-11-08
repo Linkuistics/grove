@@ -88,6 +88,16 @@ publication. They also cover an attempt mismatch, a later restore that
 drift refuses, and refusals before any write. A caught failure or a crash
 at each named point completes them. The hook action "fail" makes the hook
 exit 1, so the program meets a caught failure at that point.
+Further serial controls cover ACLs and attributes through backup and
+restore, failed reads and changed copies before publication, and changed
+backup records. They cover interrupted and failed restores, the off-value
+exception, an interrupted later restore and the owner's restore after
+finish. They also cover Claude Code command failures, an unwritable
+manual, a live probe-owned service and changes during the probes. The
+hook action "append-glob" changes each file that a pattern names. The
+fixture flag "probe_owned" makes the switched probe leave a service
+running. The off-value controls make their backup through the program's
+own `create_backup`, because the switch refuses without the off value.
 Each `mac-check` control runs the real command with HOME set to the case's
 HOME, which links the checker's folder and holds copies of the plan and the
 program in <state>/prepared. That command file is the only file of the
@@ -96,6 +106,11 @@ account's HOME that the rehearsal reads.
 from __future__ import annotations
 
 import argparse
+import contextlib
+import glob
+import hashlib
+import importlib.util
+import io
 import json
 import os
 import platform
@@ -458,6 +473,14 @@ def cmd_fixture(name: str) -> int:
         return 0
     ravel = load(os.path.join(home, ".config/ravel/settings.json"), {}).get("skills")
     link = os.path.lexists(os.path.join(home, ".codex/skills/grove"))
+    if name == "probe-switched" and load(os.path.join(root, "control.json"), {}).get("probe_owned"):
+        # A service that the probe proves it created and leaves running: "Probe process lifetime".
+        p = subprocess.Popen([PY, "-I", "-c", SLEEP], start_new_session=True, stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        record_pid(root, p.pid)
+        start = program_module(os.path.join(HERE, "owner_switch.py")).process_start(p.pid)
+        print("owner-switch-result: " + json.dumps({"owned": [
+            {"pid": p.pid, "start": start, "executable": os.path.realpath(PY), "home": home}]}))
     if name == "probe-switched":
         ok = ravel == SWITCHED and not link
     elif name == "probe-native":
@@ -534,6 +557,11 @@ def cmd_hook(point: str) -> int:
             os.makedirs(path, exist_ok=True)
         elif do == "touch":
             write(path, action.get("text", ""))
+        elif do == "append-glob":
+            # Change each existing file that the pattern names, such as a copy inside an unpublished backup.
+            for p in glob.glob(path):
+                with open(p, "a") as f:
+                    f.write("changed\n")
         elif do == "modify-entry":
             with open(os.path.join(path, "SKILL.md"), "a") as f:
                 f.write("changed\n")
@@ -921,13 +949,13 @@ class Case:
         path = re.search(r"^attempt note: (.+)$", out, re.M).group(1)
         return dict(load(path, {}), _path=path)
 
-    def switch(self, note: dict) -> tuple:
+    def switch(self, note: dict, via=None) -> tuple:
         return self.invoke([PY, "-I", self.r.program, "switch", "--plan", self.serial, "--home", self.home,
-                            "--attempt", note["_path"]])
+                            "--attempt", note["_path"]], via=via)
 
-    def restore(self, backup: str, note: dict, home=None) -> tuple:
+    def restore(self, backup: str, note: dict, home=None, extra=(), via=None) -> tuple:
         return self.invoke([PY, "-I", self.r.program, "restore", "--backup", backup, "--attempt", note["_path"],
-                            "--home", home or self.home])
+                            "--home", home or self.home, *extra], via=via)
 
     def literal(self, command: str) -> tuple:
         """Run a literal command of an attempt note, as the owner pastes it."""
@@ -1132,6 +1160,13 @@ class Rehearsal:
             os.makedirs(os.path.dirname(link), exist_ok=True)
             os.symlink("../lib/node_modules/@openai/codex/bin/codex.js", link)
         self.results = []
+        self._module = None
+
+    def module(self):
+        """The program under rehearsal as a module, loaded once."""
+        if self._module is None:
+            self._module = program_module(self.program)
+        return self._module
 
     def control(self, name: str, fn, **case_args) -> None:
         case = Case(self, name, **case_args)
@@ -1154,6 +1189,14 @@ def digest_file(path: str) -> str:
     import hashlib
     with open(path, "rb") as f:
         return hashlib.sha256(f.read()).hexdigest()
+
+
+def program_module(path: str):
+    """The program at PATH as a module, for a control that calls one of its functions directly."""
+    spec = importlib.util.spec_from_file_location("owner_switch_under_test", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 # --- the controls ---------------------------------------------------------------
@@ -3273,22 +3316,31 @@ def c_serial_switch(case):
     expect_view(case, before, "after a repeated restore")
 
 
-def serial_failure(point: str, fail=None):
+def serial_failure(point: str, fail=None, actions=None, text="", check=None):
+    """A caught failure at POINT, by a failing fixture command FAIL or by the hook's ACTIONS."""
     def fn(case):
         case.serial_plan()
         before = serial_view(case)
         manual = case.manual()
         note = case.attempt()
-        control = {"fail": fail} if fail else {"actions": [{"point": point, "do": "fail"}]}
+        if fail:
+            control = {"fail": fail}
+        else:
+            control = {"actions": actions or [{"point": point, "do": "fail"}]}
         case.set_control(control)
-        expect_exit(case.switch(note), 5, "restore: native delivery verified")
+        out = expect_exit(case.switch(note), 5, "restore: native delivery verified")
+        if text:
+            expect(re.search(text, out) is not None, f"expected {text!r} in output: {out[-1500:]}")
+        if check:
+            check(case, out)
         expect_view(case, before, "after the caught failure")
+        expect_originals(case)
         expect(not os.path.lexists(receipt_file(case, note)), "a success receipt remains")
-        text = case.manual()
-        expect(text.startswith(manual) and f"{note['attempt']} restored" in text,
+        text_now = case.manual()
+        expect(text_now.startswith(manual) and f"{note['attempt']} restored" in text_now,
                "the manual lacks the native return")
         if point == "switch:final":
-            expect(f"{note['attempt']} correction" in text, "the success observation received no correction")
+            expect(f"{note['attempt']} correction" in text_now, "the success observation received no correction")
         expect_exit(case.switch(note), 3, "the backup .+ of this attempt exists")
     return fn
 
@@ -3376,6 +3428,384 @@ def c_serial_preflight(case):
     return f"{len(before)} paths unchanged"
 
 
+def expect_originals(case, skip=()) -> None:
+    """Each planned file and entry has its planned original identity: content, mode, ACL, attributes and link text."""
+    m = case.r.module()
+    for w in load(case.serial, {})["switch"]["writes"]:
+        if w["path"] in skip:
+            continue
+        wanted = "absent" if w["original"].get("absent") else w["original"]["identity"]
+        got = m.restore_identity(os.path.join(case.home, w["path"]))
+        expect(got == wanted, f"{w['path']} has the restore identity {got}, not its original {wanted}")
+
+
+def expect_backup_complete(case, note: dict) -> None:
+    """The published backup holds each original whole, or records its absence."""
+    m = case.r.module()
+    items = {i["path"]: i for i in load(os.path.join(note["backup"], "manifest.json"), {})["items"]}
+    for w in load(case.serial, {})["switch"]["writes"]:
+        item = items[w["path"]]
+        if w["original"].get("absent"):
+            expect(item["data"] is None and item["identity"] == "absent", f"the backup holds the absent {w['path']}")
+            continue
+        got = m.restore_identity(os.path.join(note["backup"], item["data"]))
+        expect(got == w["original"]["identity"], f"the backup copy of {w['path']} has the identity {got}")
+
+
+def acl_lines(path: str) -> str:
+    return subprocess.run(["/bin/ls", "-led", path], capture_output=True, text=True, check=True).stdout
+
+
+def xattr_of(path: str, name: str) -> str:
+    return subprocess.run(["/usr/bin/xattr", "-p", name, path], capture_output=True, text=True).stdout.strip()
+
+
+def mark_metadata(path: str, right: str) -> None:
+    subprocess.run(["/bin/chmod", "+a", f"everyone allow {right}", path], check=True)
+    subprocess.run(["/usr/bin/xattr", "-w", "user.owner", "kept", path], check=True)
+
+
+def restored_record(case, note: dict) -> dict:
+    return load(os.path.join(case.home, STATE, "restored", f"{note['attempt']}.json"), None)
+
+
+def c_serial_backup_metadata(case):
+    entry = os.path.join(case.home, ".claude/skills/grove")
+    marked = {entry: "list", os.path.join(entry, "SKILL.md"): "read", os.path.join(case.home, RAVEL): "read",
+              os.path.join(case.home, INSTALLED_PLUGINS): "read"}
+    for path, right in marked.items():
+        mark_metadata(path, right)
+    case.serial_plan()
+    before = serial_view(case)
+    note = case.attempt()
+    case.set_control({"actions": [{"point": "probes", "do": "crash"}]})
+    expect_exit(case.switch(note), 99)
+    ravel = os.path.join(case.home, RAVEL)
+    expect(case.json(RAVEL)["skills"] == SWITCHED and "everyone allow read" in acl_lines(ravel)
+           and xattr_of(ravel, "user.owner") == "kept", "the ordinary write lost the Ravel settings' ACL or attribute")
+    expect_backup_complete(case, note)
+    copy = os.path.join(note["backup"], "data/0")
+    expect("everyone allow list" in acl_lines(copy) and xattr_of(copy, "user.owner") == "kept"
+           and os.path.islink(os.path.join(note["backup"], "data/1")),
+           "the backup lacks the folder's ACL or attribute, or the link")
+    expect_exit(case.literal(note["restore"]), 0, "restore: immediate")
+    expect_view(case, before, "after the restore")
+    expect_originals(case)
+    for path, right in marked.items():
+        expect(f"everyone allow {right}" in acl_lines(path) and xattr_of(path, "user.owner") == "kept",
+               f"restore lost the ACL or attribute of {path}")
+    return "ACLs and attributes of an entry folder, its file and two settings files survive backup and restore"
+
+
+def c_serial_backup_incomplete(case):
+    case.serial_plan()
+    before = serial_view(case)
+    note = case.attempt()
+    entry = os.path.join(case.home, ".claude/skills/grove")
+    skill = os.path.join(entry, "SKILL.md")
+    entry_mode, skill_mode = os.stat(entry).st_mode & 0o7777, os.stat(skill).st_mode & 0o7777
+    with open(skill, "rb") as f:
+        skill_bytes = f.read()
+    incomplete = f"{STATE}/backups/.incomplete-{note['attempt']}"
+
+    def refused(actions: list, text: str, what: str) -> None:
+        case.set_control({"actions": actions})
+        expect_exit(case.switch(note), 3, text)
+        os.chmod(entry, entry_mode)
+        os.chmod(skill, skill_mode)
+        with open(skill, "wb") as f:
+            f.write(skill_bytes)
+        expect_view(case, before, what)
+        expect(not os.path.lexists(note["backup"]), f"{what}: a backup was published")
+
+    refused([{"point": "backup:copy:0", "do": "chmod", "path": ".claude/skills/grove/SKILL.md", "mode": "000"}],
+            r"SKILL\.md cannot be read", "after a failed copy read")
+    refused([{"point": "backup:copy:0", "do": "chmod", "path": ".claude/skills/grove", "mode": "000"}],
+            r"skills/grove cannot be read", "after a failed folder metadata read")
+    refused([{"point": "backup:verify", "do": "append-glob", "path": f"{incomplete}/data/0/SKILL.md"}],
+            "the backup copy of .claude/skills/grove differs from the original", "after a changed copy")
+    refused([{"point": "backup:verify", "do": "append-glob", "path": ".claude/skills/grove/SKILL.md"}],
+            "the backup copy of .claude/skills/grove differs from the original", "after a changed original")
+    os.chmod(skill, 0o000)
+    refused([], r"SKILL\.md cannot be read", "after an unreadable original before the backup")
+    # No backup was published, so the same note admits the switch.
+    case.set_control({})
+    expect_exit(case.switch(note), 0, "result: switched")
+    return "failed reads and a copy or original that differs stop before publication with no write"
+
+
+def c_serial_restore_interrupted(case):
+    case.serial_plan()
+    before = serial_view(case)
+    note = case.attempt()
+    case.set_control({"actions": [{"point": "write:.config/ravel/settings.json:replace", "do": "crash"}]})
+    expect_exit(case.switch(note), 99)
+    folder = os.path.join(case.home, ".config/ravel")
+    expect(any(".owner-switch-" in n for n in os.listdir(folder)), "the crash left no temporary Ravel settings")
+    for point in ("restore:.claude/settings.json", "restore:native-probes"):
+        case.set_control({"actions": [{"point": point, "do": "crash"}]})
+        expect_exit(case.literal(note["restore"]), 99)
+        expect_exit(case.switch(note), 3, "the backup .+ of this attempt exists")
+    case.set_control({})
+    expect_exit(case.literal(note["restore"]), 0, "restore: immediate")
+    expect_view(case, before, "after the repeated restore")
+    expect_originals(case)
+    return "a restore interrupted twice completes when the owner repeats the same command"
+
+
+def serial_restore_off(ravel: str):
+    """A constructed backup whose Ravel settings lack the off value: restore enforces it."""
+    def fn(case):
+        case.serial_plan()
+        before = serial_view(case)
+        note = case.attempt()
+        # The switch refuses without the off value, so the program's own backup function makes the backup.
+        m = case.r.module()
+        plan = m.load_plan(case.serial)
+        sw = m.switch_section(plan)
+        layout = m.Layout(case.home, plan)
+        with contextlib.redirect_stdout(io.StringIO()):
+            m.backup_published(layout, m.create_backup(layout, plan, sw, m.load_note(note["_path"]), {}))
+        save_json(os.path.join(case.home, RAVEL), dict(case.json(RAVEL) or {}, skills=SWITCHED))
+        shutil.rmtree(os.path.join(case.home, ".claude/skills/grove"))
+        expect_exit(case.literal(note["restore"]), 0, "restore: immediate")
+        wanted = {"skills": OFF} if ravel == "absent-file" else {"policy": "config.rhai", "skills": OFF}
+        expect(case.json(RAVEL) == wanted, f"the Ravel settings hold {case.json(RAVEL)}, not {wanted}")
+        got = serial_view(case)
+        differ = sorted(k for k in set(got) | set(before) if got.get(k) != before.get(k))
+        expect(differ == [RAVEL], f"restore changed more than the Ravel settings: {differ}")
+        expect_originals(case, skip=(RAVEL,))
+        return f"the Ravel settings ({ravel}) gain only the off value"
+    return fn
+
+
+def c_serial_restore_io_failure(case):
+    case.serial_plan()
+    before = serial_view(case)
+    note = case.attempt()
+    case.set_control({"actions": [{"point": "deactivate:.codex/skills/grove", "do": "crash"}]})
+    expect_exit(case.switch(note), 99)
+    skills = os.path.join(case.home, ".claude/skills")
+    mode = os.stat(skills).st_mode & 0o7777
+    case.set_control({"actions": [{"point": "restore:.claude/skills/grove", "do": "chmod", "path": ".claude/skills",
+                                   "mode": "555"}]})
+    out = expect_exit(case.literal(note["restore"]), 4, r"failed path \.claude/skills/grove: ")
+    expect(re.search(r"result: recovery incomplete\. Repeat: ", out) is not None and "restore: native delivery verified"
+           not in out, f"a failed restore claimed success: {out[-1500:]}")
+    expect(os.path.isdir(note["backup"]) and restored_record(case, note) is None
+           and f"{note['attempt']} restored" not in case.manual(), "a failed restore removed the backup or recorded success")
+    os.chmod(skills, mode)
+    case.set_control({})
+    expect_exit(case.literal(note["restore"]), 0, "result: restored")
+    expect_view(case, before, "after the repeated restore")
+    return "a permission failure names its path, keeps the backup and claims nothing"
+
+
+def no_command(kind: str):
+    def check(case, out):
+        expect(not case.commands().get(kind), f"`claude {kind}` ran: {case.commands()}")
+    return check
+
+
+def c_serial_later_restore_interrupted(case):
+    case.serial_plan()
+    before = serial_view(case)
+    note = case.attempt()
+    expect_exit(case.switch(note), 0, "result: switched")
+    case.set_control({"actions": [{"point": "restore:.claude/settings.json", "do": "crash"}]})
+    out = expect_exit(case.literal(note["restore"]), 99)
+    retry = re.search(r"^if this restore is interrupted, repeat under the same quiet interval: (.+)$", out, re.M)
+    rnote = re.search(r"^recovery note: (.+)$", out, re.M)
+    expect(retry is not None and rnote is not None and "--recovery" in retry.group(1),
+           f"the later restore gave no recovery note or retry command: {out[-1500:]}")
+    recovery = load(rnote.group(1), {})
+    expect(os.path.isdir(recovery["backup"]), "the recovery backup is missing")
+    middle = serial_view(case)
+    # The note's own command now meets a layout that differs from the receipt.
+    expect_exit(case.literal(note["restore"]), 3, "differ from the receipt")
+    expect_view(case, middle, "after the refused restore")
+    case.set_control({})
+    expect_exit(case.literal(retry.group(1)), 0, "restore: retry")
+    expect_view(case, before, "after the retried restore")
+    expect(os.path.isdir(recovery["backup"]), "the retry removed the recovery backup")
+    expect(os.path.exists(receipt_file(case, note, ".invalid")) and not os.path.lexists(receipt_file(case, note)),
+           "the retry left a valid receipt")
+    text = case.manual()
+    expect(f"{note['attempt']} correction" in text and f"{note['attempt']} restored" in text,
+           "the manual lacks the correction or the native return")
+    expect_exit(case.literal(note["restore"]), 0, "restored already")
+    return "an interrupted later restore keeps its recovery backup and completes through its retry command"
+
+
+def c_serial_owner_after_finish(case):
+    case.serial_plan()
+    before = serial_view(case)
+    note = case.attempt()
+    finish = relay(case, "ravel") + relay(case, "share/claude/versions/2.1.319")
+    case.set_control({"actions": [{"point": "deactivate:.codex/skills/grove", "do": "crash"}]})
+    out = expect_exit(case.switch(note, via=finish), 99)
+    expect(re.search(r"admitted ancestor process \d+ .*Ravel", out) is not None, "the finish lineage had no Ravel")
+    middle = serial_view(case)
+    owner = relay(case, "share/claude/versions/2.1.319")
+    # A harness that outlived the ended finish is another session, with no exemption.
+    leftover = sleeper(case, "share/claude/versions/2.1.319", title="claude")
+    case.set_control({})
+    expect_exit(case.restore(note["backup"], note, via=owner), 3, f"remaining process {leftover} ")
+    expect_view(case, middle, "after the refused restore")
+    os.kill(leftover, signal.SIGKILL)
+    time.sleep(0.3)
+    guidance = os.path.join(case.root, "guidance", "SKILL.md")
+    write(guidance, "---\nname: grove-finish\n---\nThe retained instructions.\n")
+    # Guidance that changes before the end of restore leaves recovery incomplete.
+    case.set_control({"actions": [{"point": "restore:native-probes", "do": "touch", "path": guidance,
+                                   "text": "changed\n"}]})
+    expect_exit(case.restore(note["backup"], note, extra=["--guidance", guidance], via=owner), 4,
+                "the operator's guidance changed or cannot be read")
+    expect(restored_record(case, note) is None, "an incomplete restore wrote its restored record")
+    case.set_control({})
+    write(guidance, "---\nname: grove-finish\n---\nThe retained instructions.\n")
+    out = expect_exit(case.restore(note["backup"], note, extra=["--guidance", guidance], via=owner), 0,
+                      "result: restored")
+    expect_view(case, before, "after the owner's restore")
+    record = restored_record(case, note) or {}
+    operator = record.get("operator") or []
+    expect(any("Claude Code" in line for line in operator) and not any("Ravel" in line for line in operator),
+           f"the restored record does not name the owner's own session: {operator}")
+    expect([g["path"] for g in record.get("guidance") or []] == [guidance], f"the record lacks the guidance: {record}")
+    return "after finish, the owner's own Claude Code session restores and the record names it"
+
+
+def serial_manual_pending(point: str, success: bool):
+    """An unwritable manual: configuration recovery completes, and the manual entry stays pending."""
+    def fn(case):
+        case.serial_plan()
+        before = serial_view(case)
+        manual = case.manual()
+        note = case.attempt()
+        actions = [{"point": point, "do": "chmod", "path": MANUAL, "mode": "444"}]
+        if point == "switch:final":
+            actions.append({"point": point, "do": "fail"})
+        case.set_control({"actions": actions})
+        out = expect_exit(case.switch(note), 4, "the configuration is restored and verified, but the manual entry is "
+                                                 "pending")
+        expect_view(case, before, "after the recovery")
+        expect_originals(case)
+        expect(not os.path.lexists(receipt_file(case, note)) and os.path.exists(receipt_file(case, note, ".invalid")),
+               "a valid receipt remains")
+        text = case.manual()
+        expect(text.startswith(manual) and (f"{note['attempt']} switched" in text) == success
+               and f"{note['attempt']} restored" not in text, f"the manual changed unexpectedly: {text}")
+        os.chmod(os.path.join(case.home, MANUAL), 0o644)
+        case.set_control({})
+        expect_exit(case.literal(note["restore"]), 0, "restored already")
+        text = case.manual()
+        expect(text.startswith(manual) and f"{note['attempt']} restored" in text
+               and (f"{note['attempt']} correction" in text) == success,
+               f"the repeated restore did not append the pending entries: {text}")
+        expect_exit(case.literal(note["restore"]), 0, "restored already")
+        expect(case.manual() == text, "a third restore appended again")
+        expect_view(case, before, "after the pending entries")
+        return "the pending manual entries follow when the manual is writable again"
+    return fn
+
+
+def c_serial_probe_owned(case):
+    case.serial_plan()
+    before = serial_view(case)
+    note = case.attempt()
+    case.set_control({"probe_owned": True})
+    out = expect_exit(case.switch(note), 4, "remaining probe-owned service")
+    expect("restore: native delivery verified" not in out and "restored:" not in out,
+           f"the switch restored while a probe-owned service ran: {out[-1500:]}")
+    expect_switched(case)
+    expect(os.path.isdir(note["backup"]) and not os.path.lexists(receipt_file(case, note)),
+           "the backup is missing, or a receipt was written")
+    case.kill()
+    time.sleep(0.3)
+    case.set_control({})
+    expect_exit(case.literal(note["restore"]), 0, "restore: immediate")
+    expect_view(case, before, "after the owner's restore")
+    return "a live probe-owned service stops the switch with 4 and no restore"
+
+
+def serial_probe_change(action: dict, text: str, extra=None):
+    """A change during the probes: the final comparison fails, and no success receipt remains."""
+    def fn(case):
+        case.serial_plan()
+        before = serial_view(case)
+        note = case.attempt()
+        case.set_control({"actions": [dict(action, point="probes")]})
+        out = expect_exit(case.switch(note), 5, "the final comparison failed")
+        expect(re.search(text, out) is not None, f"expected {text!r} in output: {out[-1500:]}")
+        expect(not os.path.lexists(receipt_file(case, note)) and not os.path.lexists(receipt_file(case, note, ".invalid"))
+               and f"{note['attempt']} switched" not in case.manual(), "a receipt or success observation was written")
+        got = serial_view(case)
+        differ = sorted(k for k in set(got) | set(before) if got.get(k) != before.get(k))
+        expect(differ == sorted(extra or []), f"after the restore these paths differ: {differ}")
+        return "the final comparison fails and restore verifies native delivery"
+    return fn
+
+
+def c_serial_backup_changed(case):
+    case.serial_plan()
+    before = serial_view(case)
+    note = case.attempt()
+    case.set_control({"actions": [{"point": "deactivate:.codex/skills/grove", "do": "crash"}]})
+    expect_exit(case.switch(note), 99)
+    middle = serial_view(case)
+    m = case.r.module()
+    paths = {name: os.path.join(note["backup"], name) for name in ("manifest.json", "plan.json", "data/0/SKILL.md")}
+    saved = {}
+    for name, path in paths.items():
+        with open(path, "rb") as f:
+            saved[name] = f.read()
+
+    def refused(text: str, what: str) -> None:
+        expect_exit(case.literal(note["restore"]), 3, text)
+        expect_view(case, middle, what)
+        for name, path in paths.items():
+            with open(path, "wb") as f:
+                f.write(saved[name])
+
+    def manifest(change) -> None:
+        body = json.loads(saved["manifest.json"])
+        change(body)
+        with open(paths["manifest.json"], "w") as f:
+            json.dump(body, f)
+
+    def changed_copy() -> None:
+        with open(paths["data/0/SKILL.md"], "a") as f:
+            f.write("changed\n")
+
+    def matching(body) -> None:
+        nodes = m.nodes_of(os.path.join(note["backup"], "data/0"))
+        body["items"][0].update(nodes=nodes, identity=m.nodes_identity(nodes))
+
+    changed_copy()
+    refused("differs from its manifest", "after a changed copy")
+    changed_copy()
+    manifest(matching)
+    refused("another identity than the plan's original", "after a changed copy with a matching manifest")
+    changed_copy()
+    manifest(lambda body: (matching(body), body.update(kind="recovery")))
+    refused("is a recovery backup", "after a manifest that names another kind")
+    manifest(lambda body: body["items"][0].update(path=".claude/skills/other"))
+    refused("is not the plan's entry .claude/skills/grove", "after a manifest item outside the plan")
+    manifest(lambda body: body["items"][0].update(data="../../.."))
+    refused("names its copy as", "after a copy name outside the backup")
+    plan = json.loads(saved["plan.json"])
+    plan["switch"]["restore"].reverse()
+    plan["switch"]["restore"] = [RAVEL] + [r for r in plan["switch"]["restore"] if r != RAVEL]
+    data = (json.dumps(plan, indent=2) + "\n").encode()
+    with open(paths["plan.json"], "wb") as f:
+        f.write(data)
+    manifest(lambda body: body["plan"].update(digest=hashlib.sha256(data).hexdigest()))
+    refused("another plan than the attempt note names", "after a changed plan with its digest")
+    expect_exit(case.literal(note["restore"]), 0, "result: restored")
+    expect_view(case, before, "after the restore")
+    return "each changed copy, manifest or plan refuses before any write"
+
+
 def serial_controls() -> list:
     controls = [
         ("serial-switch-and-later-restore", c_serial_switch, SERIAL_ARGS),
@@ -3393,6 +3823,48 @@ def serial_controls() -> list:
     crashes = ["backup:published", "hooks:after:install", "write:.claude/settings.json:replace",
                "deactivate:.codex/skills/grove", "probes", "receipt:written", "switch:final"]
     controls += [(f"serial-crash-{pt}", serial_crash(pt), SERIAL_ARGS) for pt in crashes]
+    # The cases of "Test seams" that owner-switch-restore-controls-k273 added.
+    controls += [
+        ("serial-backup-metadata", c_serial_backup_metadata, SERIAL_ARGS),
+        ("serial-backup-incomplete", c_serial_backup_incomplete, SERIAL_ARGS),
+        ("serial-backup-changed", c_serial_backup_changed, SERIAL_ARGS),
+        ("serial-restore-interrupted", c_serial_restore_interrupted, SERIAL_ARGS),
+        ("serial-restore-off-absent-file", serial_restore_off("absent-file"), dict(SERIAL_ARGS, ravel="absent-file")),
+        ("serial-restore-off-absent-key", serial_restore_off("absent-key"), dict(SERIAL_ARGS, ravel="absent-key")),
+        ("serial-restore-io-failure", c_serial_restore_io_failure, SERIAL_ARGS),
+        ("serial-later-restore-interrupted", c_serial_later_restore_interrupted, SERIAL_ARGS),
+        ("serial-owner-after-finish", c_serial_owner_after_finish, SERIAL_ARGS),
+        ("serial-hooks-command-fails",
+         serial_failure("hooks:install", {"claude-install": 1}, text=r"`claude plugin install \S+` failed"),
+         SERIAL_ARGS),
+        ("serial-hooks-unexpected-change",
+         serial_failure("hooks:after:install", actions=[{"point": "hooks:after:install", "do": "write-key",
+                                                         "path": SETTINGS, "key": ["model"], "value": "opus"}],
+                        text="changed other keys of .claude/settings.json"), SERIAL_ARGS),
+        ("serial-hooks-acl-appears",
+         serial_failure("hooks:before:marketplace-add",
+                        actions=[{"point": "hooks:before:marketplace-add", "do": "acl", "path": SETTINGS}],
+                        text="holds an ACL, which `claude plugin marketplace add", check=no_command("plugin marketplace add")),
+         SERIAL_ARGS),
+        ("serial-hooks-attribute-appears",
+         serial_failure("hooks:before:install", actions=[{"point": "hooks:before:install", "do": "xattr",
+                                                          "path": SETTINGS}],
+                        text="holds the extended attribute user.fault, which `claude plugin install",
+                        check=no_command("plugin install")), SERIAL_ARGS),
+        ("serial-manual-unwritable", serial_manual_pending("receipt:written", False), SERIAL_ARGS),
+        ("serial-manual-correction-pending", serial_manual_pending("switch:final", True), SERIAL_ARGS),
+        ("serial-probe-owned-live", c_serial_probe_owned, SERIAL_ARGS),
+        ("serial-probe-changes-setting",
+         serial_probe_change({"do": "write-key", "path": SETTINGS, "key": HOOKS_PLUGIN, "value": False},
+                             r"the assertion \.claude/settings\.json"), SERIAL_ARGS),
+        ("serial-probe-adds-entry",
+         serial_probe_change({"do": "touch", "path": ".codex/skills/extra/SKILL.md"},
+                             r"the inventory changed at \.codex/skills/extra",
+                             [".codex/skills/extra", ".codex/skills/extra/SKILL.md"]), SERIAL_ARGS),
+        ("serial-probe-changes-registration",
+         serial_probe_change({"do": "erase-key", "path": INSTALLED_PLUGINS, "key": ["plugins", "grove@linkuistics"]},
+                             "lost its registration"), SERIAL_ARGS),
+    ]
     return controls
 
 

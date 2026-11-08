@@ -2872,7 +2872,7 @@ fail, except the two that the table names:
 | Skip the restore after a caught failure | `serial-fail-probes` and `serial-fail-switch:final` left the switched layout. |
 | Skip the removal of an original absence | `serial-fail-hooks:after:marketplace-add` exited 4 with `known_marketplaces.json` left. |
 | Skip the refusal of an existing backup in the note check | The first run survived, because the changed originals refused the repeated switch later. The controls now require the note's refusal, and `serial-crash-probes` and `serial-fail-probes` then failed. |
-| Skip the comparison of originals with their copies before publication | It survived. No control yet makes a copy differ. `owner-switch-restore-controls-k273` owns the failed copy and metadata read. |
+| Skip the comparison of originals with their copies before publication | It survived. No control made a copy differ. `serial-backup-incomplete` now does, as [Owner switch restore controls](#owner-switch-restore-controls) records. |
 
 The other mutations ran before that change of the refusal text. The change
 only narrows what two controls accept.
@@ -2883,10 +2883,123 @@ only narrows what two controls accept.
   control ran a real harness or wrote the real HOME.
 - The probe-owned service seam only verifies that no recorded service
   still runs. `owner-switch-probes-k257` adds the measured shutdown route.
-- `owner-switch-restore-controls-k273` owns the remaining cases of
-  "Test seams". The running log of `owner-switch-serial-restore-k272`
-  lists them.
+- [Owner switch restore controls](#owner-switch-restore-controls)
+  records the remaining cases of "Test seams".
 - A first full run gave a false failure count, because the program changed
   while the run read it. That run measured nothing. A later run failed one
   control, because its pattern refused the space in that case's folder
   name. The run above began after the correction.
+
+## Owner switch restore controls
+
+`owner-switch-restore-controls-k273` added 19 serial controls to
+`scripts/owner_switch_rehearsal.py` on 2026-11-08. They cover the cases of
+[Test seams](specs/owner-skill-delivery.md#test-seams) that the
+[serial restore](#owner-switch-serial-restore) left open. Four of those
+cases found program defects, which this leaf corrected first.
+
+### Program changes
+
+- An unreadable planned original ended `switch` with a traceback and
+  exit 1. A failed content or metadata read now refuses with exit 3. The
+  identity function raises the program's stop, so no write happens.
+- `restore` trusted the manifest's items. A changed manifest whose copies
+  matched it passed, and an item path outside the plan raised a
+  `KeyError`. Each item must now name the plan's write by path, type and
+  `data/<n>`. A switch backup's items must also have the plan's original
+  identities. The backup's plan digest and kind must equal the note's. The
+  chain from the immutable note to each copy now holds no link that a
+  changed manifest alone can satisfy.
+- A restore that ended with exit 4 for an unwritable manual wrote its
+  restored record first. A repeated restore then reported that nothing
+  remained and lost the pending manual entry. A repeated restore now
+  appends each missing entry, found by its marker, and writes no restore
+  destination.
+- The restored record now names the admitted ancestors as the operator.
+  `restore --guidance` records each guidance file by digest, and a file
+  that changed or became unreadable by the end leaves recovery incomplete.
+
+### Controls
+
+The run `task owner:switch:rehearse` with `SKIP_SETTINGS_WRITES=1` passed
+all 307 controls on Python 3.15.1 and macOS 27.0.1. It took 17 minutes 45
+seconds. The 288 earlier controls are among them. The record is partial,
+because the rerun of `settings-writes.sh` did not run. These subjects had
+the same SHA-256 digests before and after the run:
+
+| Subject | SHA-256 |
+| --- | --- |
+| `scripts/owner_switch.py` | `df596f601efcb889d0e12cacb07c36911f55b2b1a90bcc78b5ea600481ceacd0` |
+| `scripts/owner_switch_rehearsal.py` | `593dd9be01108f7f970794d2a3a3b71ac69fd3609298e1b55d0ef8cd2ec85022` |
+| `scripts/harness-trials/builds.json` | `29569fef4fc8e64b1ecf8b8f74d1eb85e10c8bfe0c136a4560763f69c3b5cfdf` |
+
+The 19 new controls had these results:
+
+| Control | Result |
+| --- | --- |
+| `serial-backup-metadata` | ACLs and `user.owner` on an entry folder, its file, the Ravel settings and `installed_plugins.json` reached the backup. The ordinary write kept them on the Ravel settings. The backup kept the link as a link. After a crash and the literal restore, each path had its original restore identity and its ACL and attribute. |
+| `serial-backup-incomplete` | An unreadable file and an unreadable folder during the copy, a changed copy and a changed original before publication each refused with exit 3. So did an unreadable original before the backup. None published a backup or changed the layout, and the same note then completed the switch. |
+| `serial-backup-changed` | After a crash, each changed backup refused restore with exit 3 and no write. The changes were a copy, a copy with a matching manifest, and that change with the kind "recovery". They were also an item outside the plan, a copy name outside the backup, and a changed plan with its digest in the manifest. The unchanged backup then restored. |
+| `serial-restore-interrupted` | A crash during the Ravel write left a temporary file. Restore crashed at `restore:.claude/settings.json` and again at `restore:native-probes`, and the note's switch refused after each. The same command then restored the native layout and removed the temporary file. |
+| `serial-restore-off-absent-file` | A backup without the Ravel settings, made by the program's `create_backup`, restored the native layout. The Ravel settings then held only the off value, and nothing else differed. |
+| `serial-restore-off-absent-key` | The same with settings that lacked `skills` and held `policy`. Restore kept `policy` and added only the off value. |
+| `serial-restore-io-failure` | A read-only `.claude/skills` made restore exit 4 and name `.claude/skills/grove` with its error. The backup stayed, and the program wrote no restored record or native return. After the owner corrected the permission, the same command restored. |
+| `serial-later-restore-interrupted` | A crash during a later restore left its recovery note and backup. The note's own command then refused, because the layout differed from the receipt. The printed retry command with `--recovery` restored, invalidated the receipt and appended a correction and a native return. |
+| `serial-owner-after-finish` | A switch under a Ravel driver and Claude Code crashed. A remaining Claude Code process refused the owner's restore with no write. Guidance that changed during restore left recovery incomplete with exit 4. The owner's own Claude Code session then restored. The record named that session without Ravel, and the guidance by path. |
+| `serial-hooks-command-fails` | A failed `claude plugin install` exited 5 with the native layout and its originals restored. |
+| `serial-hooks-unexpected-change` | A `model` key that appeared after `claude plugin install` exited 5 with "changed other keys". |
+| `serial-hooks-acl-appears` | An ACL that appeared before `claude plugin marketplace add` stopped before that command ran, and restore removed it. |
+| `serial-hooks-attribute-appears` | An attribute that appeared before `claude plugin install` stopped before that command ran, and restore removed it. |
+| `serial-manual-unwritable` | A read-only manual after the receipt stopped the success observation. The switch restored the configuration and exited 4 with the entry pending. After the owner corrected the permission, a repeated restore appended the native return once. |
+| `serial-manual-correction-pending` | After the success observation, a read-only manual and a failed final comparison left the correction pending with exit 4. A repeated restore appended the correction and the native return once. |
+| `serial-probe-owned-live` | A probe that left its service running made the switch exit 4 with no restore and no receipt. After the owner ended the service, the literal restore restored. |
+| `serial-probe-changes-setting` | A capability setting that changed during the probes failed the final comparison. The switch exited 5, wrote no receipt and restored. |
+| `serial-probe-adds-entry` | A native entry added during the probes failed the final comparison. Restore kept that entry, because it lies outside the write set. |
+| `serial-probe-changes-registration` | A registration removed during the probes failed the final comparison, and restore returned it. |
+
+Each caught-failure control now also compares every planned original by
+its restore identity. That identity covers mode, ACL, attributes and link
+text, which the layout comparison of content and mode does not.
+
+### Mutation controls
+
+A scratch copy of the program received one mutation at a time, and each
+mutant ran only the control named below. The mutants changed the program
+with the digest above. Each of the 24 mutants made its control fail. Two failed by the refusal text alone, which the table says.
+
+| Mutation | Control that failed, and why |
+| --- | --- |
+| Let a read error escape the identity function | `serial-backup-incomplete` met another refusal text. |
+| Skip the item identity check | `serial-backup-changed` restored a changed copy with a matching manifest. |
+| Skip the kind check | `serial-backup-changed` restored the same change under the kind "recovery". |
+| Skip the plan digest check against the note | `serial-backup-changed` restored with a changed plan. |
+| Skip the copy-name check | `serial-backup-changed` met another refusal text, because the copy check still refused. |
+| Append nothing in a repeated restore | `serial-manual-unwritable` and `serial-manual-correction-pending` lost their pending entries. |
+| Skip the guidance check | `serial-owner-after-finish` restored with changed guidance. |
+| Record no operator | `serial-owner-after-finish` found an empty operator. |
+| Copy no folder metadata | `serial-backup-metadata` refused, because the backup check found the folder copy different. |
+| Skip the comparison before publication | `serial-backup-incomplete` published a changed copy. |
+| Skip the metadata refusal before a command | `serial-hooks-acl-appears` and `serial-hooks-attribute-appears` switched. |
+| Skip the settings reread after a command | `serial-hooks-unexpected-change` switched. |
+| Ignore a failed command | `serial-hooks-command-fails` met another failure text, because the later hooks state still failed. |
+| Ignore a remaining probe-owned service | `serial-probe-owned-live` switched. |
+| Ignore assertions, inventory or readers in the final comparison | Each of the three `serial-probe-*` change controls switched. |
+| Enforce no off value in restore | Both off-value controls exited 4. |
+| Keep interrupted temporary files | `serial-restore-interrupted` found the temporary file. |
+| Ignore a failed restore path | `serial-restore-io-failure` exited 0. |
+| Accept no recovery identity in a retry | `serial-later-restore-interrupted` refused its retry. |
+
+### Limits
+
+- No fixture fails an ACL or attribute read of an open descriptor. A
+  folder with mode 000 stands for the failed metadata read and a file with
+  mode 000 for the failed copy read. Both reach the same conversion.
+- A recovery backup holds the layout that its later restore compared, so
+  no earlier record anchors its manifest. A changed recovery manifest can
+  only widen what its retry accepts.
+- The owner's restore records the operator's ancestors and guidance. It
+  does not record cache paths or a built-in skill listing, which the
+  switch takes from its reader evidence.
+- The settings-write measurement, the idle signed-in parent harness and
+  the real probes remain acceptance work on real harnesses. No fixture
+  establishes them.

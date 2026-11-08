@@ -331,22 +331,33 @@ verified native delivery.
               crash leaves the backup: the next action is the note's
               restore command, and a repeated switch with that note refuses.
     restore   Verify each copy of the backup against its manifest, and the
-              backup against the note's digest, attempt ID, backup path and
-              HOME. Refuse a mismatch with no write. With a valid receipt,
-              this is a later restore: any restore destination whose
-              identity differs from the receipt's refuses before the first
-              write. An eligible later restore first writes a recovery note
-              and a recovery backup of the current layout. Its retry
-              command adds --recovery, which accepts each path at either
-              the recovery backup's identity or the restored identity. A
-              backup that was restored already passes with no write while
-              the layout is unchanged since. Restore writes each
-              destination whole, or removes it for an original absence, in
-              the order of switch.restore, the Ravel settings first. It
-              then runs native-off, verifies each destination against the
-              backup, runs the native probes, invalidates the receipt,
-              writes <state>/restored/<id>.json and appends to the manual.
-              A success observation without a correction receives one.
+              manifest's items against the plan's write set by path, type
+              and copy name. A switch backup's items must also have the
+              plan's original identities. Verify the backup against the
+              note's digest, plan digest, kind, attempt ID, backup path and
+              HOME. Refuse a mismatch with no write. Restore records each
+              --guidance file by digest. The restored record names the
+              admitted ancestors as the operator and keeps the guidance,
+              which must still be readable at the end.
+
+              With a valid receipt, this is a later restore: any restore
+              destination whose identity differs from the receipt's
+              refuses before the first write. An eligible later restore
+              first writes a recovery note and a recovery backup of the
+              current layout. Its retry command adds --recovery, which
+              accepts each path at either the recovery backup's identity
+              or the restored identity. After a completed restore, a
+              repeated restore writes no restore destination while the
+              layout stays the same. It only appends each manual entry
+              that the earlier restore could not append.
+
+              Restore writes each destination whole, or removes it for an
+              original absence, in the order of switch.restore, the Ravel
+              settings first. It then runs native-off, verifies each
+              destination against the backup, runs the native probes,
+              invalidates the receipt, writes <state>/restored/<id>.json
+              and appends to the manual. A success observation without a
+              correction receives one.
     restore-identity
               Print the restore identity of a path for a plan's author.
 The plan's "switch" section, which the old entries ignore:
@@ -3748,7 +3759,11 @@ def nodes_of(path: str):
         else:
             raise Stop(f"{p} is neither a file, a folder nor a link, so no backup can hold it")
 
-    walk(path, ".")
+    try:
+        walk(path, ".")
+    except OSError as e:
+        # A failed content or metadata read is a refusal, never a partial identity.
+        raise Stop(f"{e.filename or path} cannot be read: {e.strerror}")
     return out
 
 
@@ -4030,13 +4045,41 @@ def load_backup(path: str) -> dict:
     if not isinstance(manifest, dict) or manifest.get("schema") != BACKUP_SCHEMA:
         raise Stop(f"{path} is not a backup of schema {BACKUP_SCHEMA}")
     plan = load_plan(os.path.join(path, "plan.json"))
-    if plan["_digest"] != manifest["plan"]["digest"]:
+    if plan["_digest"] != (manifest.get("plan") or {}).get("digest"):
         raise Stop(f"the plan in {path} is not the plan that its manifest names")
+    check_manifest(path, manifest, switch_section(plan))
     for item in manifest["items"]:
         copy = nodes_of(os.path.join(path, item["data"])) if item["data"] else None
         if canon(copy) != canon(item["nodes"]) or nodes_identity(copy) != item["identity"]:
             raise Stop(f"the backup copy of {item['path']} in {path} differs from its manifest")
     return dict(manifest, path=path, plan_doc=plan)
+
+
+def check_manifest(path: str, manifest: dict, sw: dict) -> None:
+    """Stop unless the manifest's items are the plan's write set, in its order.
+
+    Each item names its write by path and type, and its copy only as
+    data/<n>. A switch backup's item identities must also equal the plan's
+    originals, which the switch verified before it made the backup. The
+    note names the plan by digest, so the chain from the immutable note to
+    each copy has no link that a changed manifest alone can satisfy. A
+    recovery backup holds the layout that its later restore compared, which
+    no earlier record names.
+    """
+    items = manifest.get("items")
+    writes = sw["writes"]
+    if not isinstance(items, list) or len(items) != len(writes):
+        raise Stop(f"the manifest of {path} does not name the plan's {len(writes)} writes")
+    for i, (item, w) in enumerate(zip(items, writes)):
+        if not isinstance(item, dict) or item.get("path") != w["path"] or item.get("type") != w["type"]:
+            raise Stop(f"item {i} of the manifest of {path} is not the plan's {w['type']} {w['path']}")
+        if item.get("data") not in (None, f"data/{i}") or (item["data"] is None) != (item.get("nodes") is None):
+            raise Stop(f"item {i} of the manifest of {path} names its copy as {item.get('data')!r}")
+        if manifest.get("kind") == "switch":
+            wanted = "absent" if w["original"].get("absent") else w["original"]["identity"]
+            if item.get("identity") != wanted:
+                raise Stop(f"the manifest of {path} records {w['path']} at another identity than the plan's "
+                           f"original")
 
 
 # --- ordinary writes and the serial hooks commands ----------------------------------
@@ -4517,7 +4560,7 @@ def switch_command(args) -> int:
     except (Stop, Conflict, Incomplete, OSError) as e:
         log(f"failure: {e}")
         invalidate_receipt(layout, note["attempt"], f"the switch failed: {e}")
-        code = restore_from(layout, backup, note, f"the switch failed: {e}")
+        code = restore_from(layout, backup, note, f"the switch failed: {e}", ctx["operator"], ctx["guidance"])
         if code == 0:
             log("result: failed; restore verified native delivery")
             return EXIT_RESTORED
@@ -4542,6 +4585,10 @@ def check_backup_note(backup: dict, note: dict, home: str) -> None:
         problems.append(f"the backup belongs to attempt {backup['attempt']}, the note to {note['attempt']}")
     if backup["note"]["digest"] != note["_digest"]:
         problems.append("the backup records another attempt note")
+    if backup["plan"]["digest"] != (note.get("plan") or {}).get("digest"):
+        problems.append("the backup holds another plan than the attempt note names")
+    if backup.get("kind") != note["kind"]:
+        problems.append(f"the backup is a {backup.get('kind')} backup, and the note a {note['kind']} note")
     if backup["home"] != home or note["home"] != home:
         problems.append(f"the backup names HOME {backup['home']} and the note {note['home']}, not {home}")
     if os.path.realpath(note["backup"]) != backup["path"]:
@@ -4599,8 +4646,14 @@ def remove_write_temps(layout: Layout, rels: list) -> None:
                 log(f"restore: removed the interrupted temporary file {os.path.join(folder, name)}")
 
 
-def restore_from(layout: Layout, backup: dict, note: dict, reason: str) -> int:
-    """Restore each destination whole, enforce the off value, verify, run the native probes and append."""
+def restore_from(layout: Layout, backup: dict, note: dict, reason: str, operator=(), guidance=()) -> int:
+    """Restore each destination whole, enforce the off value, verify, run the native probes and append.
+
+    OPERATOR names the admitted ancestors of the restoring process, and
+    GUIDANCE each file that the operator read, by path and digest. The
+    restored record keeps both, so a restore after finish names its own
+    operator ("Resuming the switch").
+    """
     plan = backup["plan_doc"]
     sw = switch_section(plan)
     items = {item["path"]: item for item in backup["items"]}
@@ -4619,8 +4672,12 @@ def restore_from(layout: Layout, backup: dict, note: dict, reason: str) -> int:
             failed.append(f"{rel}: {e}")
     for rel in sw["restore"]:
         item = items[rel]
-        ok = ravel_restored(layout, backup, item) if rel == RAVEL_SETTINGS else \
-            restore_identity(layout.path(rel)) == item["identity"]
+        try:
+            ok = ravel_restored(layout, backup, item) if rel == RAVEL_SETTINGS else \
+                restore_identity(layout.path(rel)) == item["identity"]
+        except Stop as e:
+            ok = False
+            failed.append(f"{rel}: {e}")
         if not ok and not any(f.startswith(rel + ":") for f in failed):
             failed.append(f"{rel}: differs from the backup after restore")
     try:
@@ -4644,29 +4701,48 @@ def restore_from(layout: Layout, backup: dict, note: dict, reason: str) -> int:
     if probe_failed:
         log("restore: native probe failed: " + ", ".join(f["name"] for f in probe_failed))
         return EXIT_INCOMPLETE
+    unread = [g["path"] for g in guidance if file_digest(g["path"]) != g["digest"]]
+    if unread:
+        log("restore: the operator's guidance changed or cannot be read: " + ", ".join(unread))
+        return EXIT_INCOMPLETE
     invalidate_receipt(layout, backup["attempt"], reason)
     marker = restored_path(layout, backup["attempt"])
     os.makedirs(os.path.dirname(marker), 0o700, exist_ok=True)
     if not os.path.lexists(marker):
         write_exclusive(marker, dump_json({"attempt": backup["attempt"], "backup": backup["path"], "at": now(),
-                                           "reason": reason}))
+                                           "reason": reason, "operator": list(operator),
+                                           "guidance": list(guidance)}))
+    code = append_restore_entries(layout, backup, reason)
+    if code == 0:
+        log("restore: native delivery verified")
+    return code
+
+
+def append_restore_entries(layout: Layout, backup: dict, reason: str) -> int:
+    """Append each manual entry of this restore that the manual lacks, found by its marker.
+
+    A restore whose append failed has its restored record already, so a
+    repeated restore appends the pending entries here ("The switch inside
+    finish": the pending correction stays an explicit obligation).
+    """
+    attempt, text = backup["attempt"], manual_text(layout)
     entries = []
-    if manual_marker(backup["attempt"], "switched") in manual_text(layout) and \
-            manual_marker(backup["attempt"], "correction") not in manual_text(layout):
-        entries.append(("correction", f"\n{manual_marker(backup['attempt'], 'correction')}\n"
-                                      f"The success observation of owner skill switch {backup['attempt']} no "
+    if manual_marker(attempt, "switched") in text and manual_marker(attempt, "correction") not in text:
+        entries.append(("correction", f"\n{manual_marker(attempt, 'correction')}\n"
+                                      f"The success observation of owner skill switch {attempt} no "
                                       f"longer holds: {reason}.\n"))
-    entries.append(("native return", f"\n{manual_marker(backup['attempt'], 'restored')}\n"
-                                     f"## Native skill delivery restored from {backup['attempt']}\n\n"
-                                     f"Restore from `{backup['path']}` verified native delivery at {now()}: "
-                                     f"{reason}.\n"))
+    if manual_marker(attempt, "restored") not in text:
+        entries.append(("native return", f"\n{manual_marker(attempt, 'restored')}\n"
+                                         f"## Native skill delivery restored from {attempt}\n\n"
+                                         f"Restore from `{backup['path']}` verified native delivery at {now()}: "
+                                         f"{reason}. The record `{restored_path(layout, attempt)}` names the "
+                                         f"operator.\n"))
     try:
-        for what, text in entries:
-            append_verified(layout, text, what)
+        for what, entry in entries:
+            append_verified(layout, entry, what)
     except Stop as e:
         log(f"restore: the configuration is restored and verified, but the manual entry is pending: {e}")
         return EXIT_INCOMPLETE
-    log("restore: native delivery verified")
     return 0
 
 
@@ -4748,12 +4824,23 @@ def restore_command(args) -> int:
             check_backup_note(recovery["backup_doc"], recovery, home)
         log(f"restore: attempt {backup['attempt']} from {backup['path']}")
         hook(layout, "restore:start")
-        process_gate(layout, "restore")
+        report = process_gate(layout, "restore")
+        operator = [describe(i) for i in report["admitted"]]
+        guidance = []
+        for p in args.guidance or []:
+            digest = file_digest(p)
+            if digest is None:
+                raise Stop(f"the operator's guidance {p} cannot be read")
+            guidance.append({"path": os.path.abspath(p), "digest": digest})
         mode = restore_eligibility(layout, sw, backup, recovery)
         log(f"restore: {mode}")
         if mode == "done":
-            log("result: restored already; nothing written")
-            return 0
+            # Only a manual entry that an earlier restore of this backup could not append remains.
+            done = load_json_file(restored_path(layout, backup["attempt"])) or {}
+            code = append_restore_entries(layout, backup, done.get("reason") or "the owner restored")
+            log("result: restored already; no restore destination written" if code == 0
+                else f"result: the manual entry is still pending. Repeat: {args_command(args)}")
+            return code
         if mode == "later":
             recovery_backup(layout, sw, backup, note)
     except Stop as e:
@@ -4763,7 +4850,7 @@ def restore_command(args) -> int:
     reason = {"immediate": "the owner restored after a failed or interrupted switch",
               "later": "the owner returned to native delivery",
               "retry": "the owner repeated an interrupted restore"}[mode]
-    code = restore_from(layout, backup, note, reason)
+    code = restore_from(layout, backup, note, reason, operator, guidance)
     log("result: restored" if code == 0 else f"result: recovery incomplete. Repeat: {args_command(args)}")
     return code
 
@@ -4772,6 +4859,8 @@ def args_command(args) -> str:
     argv = ["restore", "--backup", args.backup, "--attempt", args.attempt, "--home", os.path.realpath(args.home)]
     if args.recovery:
         argv += ["--recovery", args.recovery]
+    for p in args.guidance or []:
+        argv += ["--guidance", p]
     return shlex.join(program_argv(*argv))
 
 
@@ -4816,6 +4905,7 @@ def main(argv=None) -> int:
     p.add_argument("--attempt", required=True, help="the attempt note of the backup's attempt")
     p.add_argument("--home", default=account_home())
     p.add_argument("--recovery", help="the recovery note of an interrupted later restore")
+    p.add_argument("--guidance", action="append", help="a guidance file that the operator read; repeatable")
     p = sub.add_parser("gate")
     p.add_argument("step", choices=("4", "5", "6", "7"))
     p.add_argument("--plan")

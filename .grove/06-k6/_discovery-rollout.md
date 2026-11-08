@@ -77,7 +77,11 @@ skill-loading-replan-k80 cut four implementation leaves here:
    `owner-switch-contraction-k270` and `owner-switch-dry-run-k271`. The
    switch core follows expand, migrate and contract, so each leaf leaves the
    fixture suite green. The contraction removes the inverse, merge and other
-   entries that items 1 and 2 delivered. `owner-switch-probes-k257` moved ahead of
+   entries that items 1 and 2 delivered. The restore of k268 writes
+   `<state>/restored/<attempt>.json` with its operator and guidance. A
+   restore can end with exit 4 while its manual entry stays pending, and a
+   repeated restore appends it. The status entry must report that pending
+   entry, not native delivery alone. `owner-switch-probes-k257` moved ahead of
    `owner-staging-hooks-k251`, because that measurement covers both probes.
    `owner-marketplace-freeze-k253`, `owner-switch-plan-k254` and
    `owner-switch-rehearsal-k255` then finish order 6. They freeze automatic

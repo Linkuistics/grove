@@ -471,6 +471,33 @@ tasks:
     cmds:
       - python3 -I scripts/owner_switch_rehearsal.py rehearse --out "{{.OUT}}" {{if .ONLY}}--only "{{.ONLY}}"{{end}}
 
+  # The dry run of the prepared owner switch plan ("The rehearsed plan" of
+  # docs/specs/owner-skill-delivery.md). It reads the plan and the program in
+  # HOME/.local/state/owner-switch/prepared, copies the relevant layout of
+  # HOME into OUT/home, and runs native-off, the switch and full restore
+  # there. HOME is only read. OUT is a new or empty directory. ARGS passes
+  # further options, such as --path, --include, --tool or
+  # --prefix grove-keg=DIR. For example:
+  #   task owner:switch:dry-run OUT="$SCRATCH/dry-run" ARGS="--prefix ravel=/opt/homebrew/opt/ravel@2"
+  owner:switch:dry-run:
+    desc: Execute the prepared owner switch plan once in a disposable copy of HOME in OUT, with native-off, the switch and full restore, and write OUT/result.json with its input table
+    requires:
+      vars: [OUT]
+    cmds:
+      - python3 -I scripts/owner_switch_dry_run.py run --out "{{.OUT}}" {{.ARGS}}
+
+  # The comparison of a dry-run result with the real prepared inputs. It
+  # reads only, and the owner runs it before each real attempt. ARGS passes
+  # the real prefixes, such as --prefix grove-keg=DIR --prefix ravel=DIR, and
+  # --out FILE retains the comparison. For example:
+  #   task owner:switch:compare RESULT="$SCRATCH/dry-run/result.json"
+  owner:switch:compare:
+    desc: Compare a dry-run RESULT with the real prepared inputs row by row, allowing only declared prefix substitutions with equal content and versions
+    requires:
+      vars: [RESULT]
+    cmds:
+      - python3 -I scripts/owner_switch_dry_run.py compare --result "{{.RESULT}}" {{.ARGS}}
+
   release:patch:
     desc: Publish and install the next patch release
     cmds:

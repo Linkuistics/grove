@@ -45,3 +45,16 @@ and revised acceptance, then another dry run.
 
 The dry run is reproducible, so a new run after a change costs little.
 Never edit a result by hand.
+
+owner-switch-dry-run-k271 delivered the instrument as
+`scripts/owner_switch_dry_run.py`, with `task owner:switch:dry-run` and
+`task owner:switch:compare`. Its module docstring states the input table,
+the copied layout and the declared prefixes. Declare the candidate keg and
+`ravel@2` with `run --prefix grove-keg=DIR --prefix ravel=DIR`. Pass sign-in
+files and the plugin cache with `--include` as the staging contract needs.
+The comparison compares the row `tool:grove` by content and by
+`grove --version`. A candidate keg that was built before the release bump
+reports another version than the released keg. Inside finish, that row then
+differs, so finish needs another dry run against the released keg, or a
+candidate keg built at the release commit. The section "Owner switch dry
+run" of `docs/owner-skill-delivery-evidence.md` records this limit.

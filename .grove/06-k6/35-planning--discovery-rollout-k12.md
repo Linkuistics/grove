@@ -69,3 +69,12 @@ a merge, a pending record or a resumed run may reach finish.
 A request to plan is not the finish confirmation. The finish session proposes
 the concrete whole sequence and obtains its one explicit confirmation under
 the repository rules. Do not ask again for already authorised individual moves.
+
+owner-switch-dry-run-k271 found a consequence for the finish handoff. The
+dry-run comparison requires equal executable content and versions under a
+declared prefix, and it compares the row `tool:grove` by `grove --version`.
+The candidate keg carries the Cargo version of its commit, so after the
+release bump its row differs from the released keg's. The handoff must
+choose one route: another dry run inside finish against the released keg,
+or a candidate keg built at the release commit. The section "Owner switch
+dry run" of `docs/owner-skill-delivery-evidence.md` records the limit.

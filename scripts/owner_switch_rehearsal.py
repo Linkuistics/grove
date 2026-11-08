@@ -8,11 +8,12 @@ and its output. A hook acts at the program's named points: it crashes the
 program, makes it fail, writes as another program or launches a process. The
 real HOME is never changed, and the rehearsal reads only its `mac-check`
 command and that command's folder. The dry run of the real plan in a
-disposable copy of HOME is another instrument ("The rehearsed plan").
+disposable copy of HOME is another instrument, scripts/owner_switch_dry_run.py
+("The rehearsed plan"), and the dry-run controls below check it.
 
 Usage:
     python3 -I owner_switch_rehearsal.py rehearse --out OUT [--program PATH] [--only REGEX]
-                                                  [--mac-check PATH]
+                                                  [--mac-check PATH] [--dry-run PATH]
 
 The record OUT/record.json names the digests of the plan and the program and
 the result of each control. For each run of a control, it counts the Claude
@@ -111,6 +112,20 @@ reader after success, a stale receipt, a crash before the receipt, step 8's
 `mac-check` during the switch, a pending manual entry and an interrupted
 later restore. The purge controls cover a clean report with a reader marker,
 a changed cache version and registration, and an unverified switch.
+
+The dry-run controls prepare a fixture plan and program in the case's HOME,
+which stands for the real HOME. The plan's probes run a probe program with a
+local helper, and its `mac-check` is a shell script that runs a checker under
+$HOME, in the form of the owner's. The case's Ravel settings have no "skills"
+key, so the dry run's native-off writes the off value. Each control runs
+scripts/owner_switch_dry_run.py into the case's folder with the stubs first
+on PATH and OWNER_SWITCH_FIXTURE_PREFIX naming the case's prefix. They cover
+the full run with its comparison, a subject that changes during the run, a
+write into the source HOME and a failed probe. Against the case's HOME
+afterwards, they cover equal content at a declared Grove keg prefix, the same
+move without its declaration, a changed helper at the same path, a changed
+plan value, a changed source and a changed tool version. A last control
+covers refusals before the run.
 """
 from __future__ import annotations
 
@@ -578,8 +593,16 @@ def cmd_hook(point: str) -> int:
     return 99 if crash else (1 if failing else 0)
 
 
+def fixture_prefix() -> str:
+    """The case's fixture Homebrew prefix. A dry run names it, because its disposable HOME lies elsewhere."""
+    return os.environ.get("OWNER_SWITCH_FIXTURE_PREFIX") or os.path.join(case_root(), "prefix")
+
+
 def cmd_stub_brew(argv: list) -> int:
-    prefix = os.path.join(case_root(), "prefix")
+    prefix = fixture_prefix()
+    if argv == ["--version"]:
+        print("Homebrew 7.0.12 (fixture)")
+        return 0
     if argv == ["--prefix"]:
         print(prefix)
         return 0
@@ -606,10 +629,13 @@ def cmd_stub_brew(argv: list) -> int:
 def cmd_stub_mise(argv: list) -> int:
     """`mise -C HOME bootstrap packages status --json`, in the shape of mise 2026.11.2."""
     home = os.environ.get("OWNER_SWITCH_HOME", "")
+    if argv == ["--version"]:
+        print("2026.11.2 macos-arm64 (fixture)")
+        return 0
     if argv != ["-C", home, "bootstrap", "packages", "status", "--json"] or os.environ.get("HOME") != home:
         print(f"stub mise: unsupported {argv} with HOME {os.environ.get('HOME')}", file=sys.stderr)
         return 2
-    prefix = os.path.join(case_root(), "prefix")
+    prefix = fixture_prefix()
     override = load(os.path.join(case_root(), "control.json"), {}).get("mise", {})
     rows = [{"package": "jq", "requested_version": "latest", "desired_state": "present", "state": "installed",
              "installed_version": "1.8.1"}]
@@ -1016,7 +1042,8 @@ def expect_exit(got: tuple, code: int, text: str = "") -> str:
 
 
 class Rehearsal:
-    def __init__(self, out: str, program: str, mac_check: str = ""):
+    def __init__(self, out: str, program: str, mac_check: str = "", dry_run: str = ""):
+        self.dry_run = os.path.realpath(dry_run or DRY_RUN)
         self.mac_check = os.path.realpath(mac_check or MAC_CHECK)
         self.machine_config = os.path.join(os.path.dirname(os.path.dirname(self.mac_check)), "lib/machine-config")
         self.out = os.path.realpath(out)
@@ -1074,6 +1101,8 @@ class Rehearsal:
             detail, ok = str(e), False
         except subprocess.TimeoutExpired as e:
             detail, ok = f"timeout: {e}", False
+        except Exception as e:  # An error in a control fails that control only, and the suite continues.
+            detail, ok = f"error: {type(e).__name__}: {e}", False
         finally:
             case.kill()
         self.results.append({"control": name, "passed": ok, "detail": detail,
@@ -3222,13 +3251,344 @@ def switch_process_controls(r) -> list:
     ]
 
 
+# --- the dry-run instrument ---------------------------------------------------------
+# "The rehearsed plan" and the two dry-run cases of "Test seams". Each control
+# prepares a fixture plan and program in the case's HOME, which stands for the
+# real HOME, runs scripts/owner_switch_dry_run.py into the case's folder and
+# compares the result with the case's HOME.
+
+DRY_RUN = os.path.join(HERE, "owner_switch_dry_run.py")
+PROBE_SCRIPT = f"{STATE}/prepared/fixture_probe.py"
+PROBE_HELPER = f"{STATE}/prepared/fixture_probe_helper.py"
+FIXTURE_MAC_CHECK = ".local/bin/mac-check"
+FIXTURE_CHECKER = ".local/lib/fixture-check/check.py"
+DRY_ARGS = {"ravel": "absent-key", "hooks": "absent"}
+DRY_STEPS = ["native-off", "attempt", "switch", "restore"]
+
+
+def dry_run_files(case) -> None:
+    """A probe program with a local helper, and a mac-check script that runs a checker under $HOME.
+
+    The mac-check script has the form of the owner's: a shell script that runs
+    an interpreter by its absolute path with a checker under $HOME.
+    """
+    write(os.path.join(case.home, PROBE_SCRIPT),
+          "import os\nimport sys\n\nsys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))\n"
+          "import fixture_probe_helper  # noqa: E402\n\nfixture_probe_helper.main(sys.argv[1:])\n")
+    write(os.path.join(case.home, PROBE_HELPER),
+          f"import os\n\n\ndef main(args):\n    os.execv({PY!r}, [{PY!r}, '-I', {SELF!r}, 'fixture-command'] + args)\n")
+    write_script(os.path.join(case.home, FIXTURE_MAC_CHECK),
+                 f"#!/bin/sh\nexec '{PY}' -I \"$HOME/{FIXTURE_CHECKER}\" \"$@\"\n")
+    write(os.path.join(case.home, FIXTURE_CHECKER),
+          f"import os\n\nos.execv({PY!r}, [{PY!r}, '-I', {SELF!r}, 'fixture-command', 'mac-check'])\n")
+
+
+def dry_run_prepare(case, mutate=None) -> None:
+    """Prepare the fixture plan and program in the case's HOME, as the owner prepares the real ones.
+
+    The case's Ravel settings have no "skills" key, as in the real HOME before
+    finish. The plan's original of those settings is the layout after
+    native-off, so the setup runs native-off, computes the plan and then puts
+    the original bytes back. The dry run's own native-off then produces the
+    planned original.
+    """
+    path = os.path.join(case.home, RAVEL)
+    with open(path, "rb") as f:
+        original = f.read()
+    expect_exit(case.native_off(), 0, "off value")
+    dry_run_files(case)
+
+    def fields(plan):
+        plan["probes"] = [{"name": "probe-switched", "argv": ["$python", "-I", PROBE_SCRIPT, "probe-switched"]}]
+        plan["native_probe"] = [{"name": "probe-native", "argv": ["$python", "-I", PROBE_SCRIPT, "probe-native"]}]
+        plan["mac_check"] = {"name": "mac-check", "argv": [FIXTURE_MAC_CHECK, "--only", "Owner skill switch"]}
+        plan["inputs"] += [{"role": role, "path": os.path.join(case.home, rel),
+                            "digest": digest_file(os.path.join(case.home, rel))}
+                           for role, rel in (("probe program", PROBE_SCRIPT), ("probe helper", PROBE_HELPER),
+                                             ("mac-check command", FIXTURE_MAC_CHECK),
+                                             ("mac-check helper", FIXTURE_CHECKER))]
+        if mutate:
+            mutate(plan)
+    case.serial_plan(fields)
+    with open(path, "r+b") as f:
+        f.truncate()
+        f.write(original)
+    case.prepare()
+
+
+def dry_env(case) -> dict:
+    """The instrument's environment: the fixture prefix, and variables that it must not pass on."""
+    return dict(clean_env(), OWNER_SWITCH_FIXTURE_PREFIX=os.path.join(case.root, "prefix"),
+                CLAUDE_CONFIG_DIR=os.path.join(case.root, "elsewhere"),
+                CODEX_HOME=os.path.join(case.root, "elsewhere", ".codex"),
+                RAVEL_SKILL_DIRECTORIES=os.path.join(case.root, "elsewhere"),
+                OWNER_SWITCH_REHEARSAL_HOOK=os.path.join(case.root, "no-such-hook"))
+
+
+def dry_invoke(case, argv: list, label: str) -> tuple:
+    result = subprocess.run([PY, "-I", case.r.dry_run] + argv, env=dry_env(case), capture_output=True, text=True,
+                            timeout=900)
+    out = result.stdout + result.stderr
+    case.outputs.append(out)
+    case.runs.append({"exit": result.returncode, "claude": {}})
+    with open(os.path.join(case.root, "runs.log"), "a") as f:
+        f.write(f"$ owner_switch_dry_run.py {label} (exit {result.returncode})\n{out}\n")
+    return result.returncode, out
+
+
+def dry_run(case, *extra: str, out: str = "dry") -> tuple:
+    """Run the dry run of the case's prepared plan into the case folder OUT; return the exit, output and result."""
+    folder = os.path.join(case.root, out)
+    code, text = dry_invoke(case, ["run", "--home", case.home, "--out", folder, "--path", case.r.stubs,
+                                   "--python", PY, "--fixture-scope", case.r.fixture_bin, *extra], "run")
+    return code, text, load(os.path.join(folder, "result.json"), {})
+
+
+def dry_compare(case, *extra: str, out: str = "dry", name: str = "comparison") -> tuple:
+    folder = os.path.join(case.root, out)
+    record = os.path.join(folder, f"{name}.json")
+    code, text = dry_invoke(case, ["compare", "--result", os.path.join(folder, "result.json"), "--home", case.home,
+                                   "--path", case.r.stubs, "--python", PY, "--out", record, *extra], "compare")
+    return code, text, load(record, {})
+
+
+def verdicts(record: dict) -> dict:
+    return {r["logical"]: r for r in record.get("rows", [])}
+
+
+def expect_dry_passed(code: int, text: str, result: dict) -> None:
+    expect(code == 0 and result.get("passed") is True, f"the dry run did not pass (exit {code}): {text[-2500:]}")
+
+
+def release_grove_keg(case) -> str:
+    """Install an equal copy of Grove's keg at another version path, as a release of the same content."""
+    prefix = os.path.join(case.root, "prefix")
+    released = os.path.join(prefix, "Cellar/grove/1-released")
+    subprocess.run(["/bin/cp", "-pPR", os.path.join(prefix, "Cellar/grove/1"), released], check=True)
+    links = {os.path.join(prefix, "opt/grove"): "../Cellar/grove/1-released",
+             os.path.join(prefix, "var/homebrew/linked/grove"): "../../../Cellar/grove/1-released"}
+    for sid in KEGS["grove"][1]:
+        links[os.path.join(prefix, "share/ravel/skills", sid)] = \
+            f"../../../Cellar/grove/1-released/share/ravel/skills/{sid}"
+    for link, target in links.items():
+        os.remove(link)
+        os.symlink(target, link)
+    return released
+
+
+GROVE_ROWS = ["tool:grove"] + [f"source:{sid}" for sid in KEGS["grove"][1]]
+
+
+def c_dry_run_full(case):
+    dry_run_prepare(case)
+    before = case.snapshot()
+    code, text, result = dry_run(case)
+    expect_dry_passed(code, text, result)
+    expect(result["fixture"] and "no real-harness acceptance" in result["limits"][0],
+           f"the fixture result does not state its limit: {result['limits'][:1]}")
+    expect([s["step"] for s in result["steps"]] == DRY_STEPS and all(s["passed"] for s in result["steps"]),
+           f"the dry run ran these steps: {[(s['step'], s['exit']) for s in result['steps']]}")
+    native = result["native_off"]
+    expect(native["backups_before"] == [] and native["skills_after"] == OFF
+           and native["settings_before"] != native["settings_after"],
+           f"native-off did not write the off value without a backup: {native}")
+    probes = [(p["phase"], p["name"], p["exit"]) for p in result["probes"]]
+    expect(probes == [("switch", "probe-switched", 0), ("restore", "probe-native", 0)],
+           f"the per-probe outcomes are {probes}")
+    rc = result["restore_comparison"]
+    items = {r["item"] for r in rc["rows"]}
+    expect(rc["equal"] and "restore .config/ravel/settings.json" in items
+           and "inventory .codex/skills/grove" in items, f"the restore comparison is {rc}")
+    expect(result["valid"] and not result["changed"], f"subjects changed: {result['changed']}")
+    expect(result["source_unchanged"]["equal"], f"the source HOME changed: {result['source_unchanged']['moved']}")
+    expect(case.snapshot() == before, "the dry run changed the case's HOME, which stands for the real HOME")
+    rows = {r["logical"]: r for r in result["inputs"]}
+    wanted = ["plan", "program", "interpreter:$python", "input:probe helper", "input:fixture commands",
+              f"command:probes/probe-switched:2", "command:mac_check/mac-check:0",
+              "helper:command:probes/probe-switched:2 fixture_probe_helper",
+              f"helper:command:mac_check/mac-check:0 $HOME/{FIXTURE_CHECKER}",
+              f"helper:command:mac_check/mac-check:0 {PY}", "interpreter:command:mac_check/mac-check:0",
+              "tool:claude", "tool:brew", "tool:mise", "tool:ravel", "tool:grove", "source:grove-core",
+              "source:personal"]
+    missing = [w for w in wanted if w not in rows]
+    expect(not missing, f"the input table lacks {missing}; it holds {sorted(rows)}")
+    expect(rows["tool:claude"].get("version") == FIXTURE_CLAUDE and rows["tool:ravel"].get("version")
+           == "ravel 2.0.0 (fixture)" and rows["tool:grove"].get("version") == "grove 1",
+           f"the tool versions are {[(k, v.get('version')) for k, v in rows.items() if k.startswith('tool:')]}")
+    expect(all(r["digest"] for r in result["inputs"]), "a row has no content digest")
+    expect(rows["helper:command:probes/probe-switched:2 fixture_probe_helper"]["path"].startswith(result["dry_home"]),
+           "the helper row does not name the executed path in the disposable HOME")
+    expect(not result["undeclared"], f"the plan's inputs miss {result['undeclared']}")
+    code, text, record = dry_compare(case)
+    expect(code == 0 and record.get("equal"), f"the comparison with the unchanged HOME failed: {text[-2500:]}")
+    v = verdicts(record)
+    expect(v["plan"]["verdict"] == "substituted home" and v["input:probe helper"]["verdict"] == "substituted home"
+           and v["tool:claude"]["verdict"] == "equal", f"the verdicts are {[(k, x['verdict']) for k, x in v.items()]}")
+    return f"{len(result['inputs'])} rows; {len(rc['rows'])} restore items equal"
+
+
+def c_dry_run_subject_changes(case):
+    dry_run_prepare(case)
+    hook = os.path.join(case.root, "change-helper.sh")
+    write_script(hook, f"#!/bin/sh\nif [ \"$1\" = switch:final ]; then printf '# changed\\n' >> "
+                       f"\"$OWNER_SWITCH_HOME/{PROBE_HELPER}\"; fi\nexit 0\n")
+    code, text, result = dry_run(case, "--fixture-hook", hook)
+    expect(code == 1 and result.get("passed") is False and result.get("valid") is False,
+           f"a changed subject did not invalidate the run (exit {code}): {text[-1500:]}")
+    changed = {c["logical"] for c in result["changed"]}
+    expect({"input:probe helper", "helper:command:probes/probe-switched:2 fixture_probe_helper"} <= changed,
+           f"the run names these changed subjects: {sorted(changed)}")
+    expect(all(s["passed"] for s in result["steps"]), "the steps did not all pass, so the control proves nothing")
+    code, text, _ = dry_compare(case)
+    expect(code == 1 and "did not pass" in text, f"the comparison accepted an invalid run: {text[-1500:]}")
+
+
+def c_dry_run_declared_prefix(case):
+    dry_run_prepare(case)
+    keg = os.path.join(case.root, "prefix/Cellar/grove/1")
+    expect_dry_passed(*dry_run(case, "--prefix", f"grove-keg={keg}"))
+    released = release_grove_keg(case)
+    code, text, record = dry_compare(case, "--prefix", f"grove-keg={released}")
+    expect(code == 0 and record.get("equal"), f"equal content at the declared prefix failed: {text[-2500:]}")
+    v = verdicts(record)
+    wrong = [(k, v[k]["verdict"]) for k in GROVE_ROWS if v[k]["verdict"] != "substituted grove-keg"]
+    expect(not wrong, f"these rows are not the declared substitution: {wrong}")
+
+
+def c_dry_run_unknown_substitution(case):
+    dry_run_prepare(case)
+    keg = os.path.join(case.root, "prefix/Cellar/grove/1")
+    expect_dry_passed(*dry_run(case, "--prefix", f"grove-keg={keg}"))
+    release_grove_keg(case)
+    code, text, record = dry_compare(case)
+    v = verdicts(record)
+    unknown = [k for k in GROVE_ROWS if any("unknown substitution" in r for r in v[k]["reasons"])]
+    expect(code == 1 and unknown == GROVE_ROWS, f"an undeclared prefix passed (exit {code}): {unknown}: {text[-1500:]}")
+    code, text, _ = dry_compare(case, "--prefix", f"brew={case.root}", name="undeclared-name")
+    expect(code == 2 and "not a declared substitution" in text, f"an unknown name was accepted: {text[-800:]}")
+    code, text, _ = dry_compare(case, "--prefix", f"ravel={case.root}", name="undeclared-ravel")
+    expect(code == 2 and "declared no such substitution" in text,
+           f"a substitution that the dry run did not declare was accepted: {text[-800:]}")
+
+
+def c_dry_run_changed_helper(case):
+    dry_run_prepare(case)
+    code, text, result = dry_run(case)
+    expect_dry_passed(code, text, result)
+    with open(os.path.join(case.home, PROBE_HELPER), "a") as f:
+        f.write("# changed\n")
+    code, text, record = dry_compare(case)
+    v = verdicts(record)
+    key = "helper:command:probes/probe-switched:2 fixture_probe_helper"
+    expect(key in v, f"the comparison has no row {key!r} (exit {code}): {sorted(v)}")
+    row = v[key]
+    expect(code == 1 and row["verdict"] == "differs" and len(row["reasons"]) == 1
+           and row["reasons"][0].startswith("content differs") and v["input:probe helper"]["verdict"] == "differs",
+           f"a changed helper at the same path passed (exit {code}): {row}")
+    real = {r["logical"]: r for r in record["real_inputs"]}
+    dry = {r["logical"]: r for r in result["inputs"]}
+    expect(real[key]["digest"] != dry[key]["digest"], "the recorded content identity did not change")
+
+
+def c_dry_run_changed_plan(case):
+    dry_run_prepare(case)
+    expect_dry_passed(*dry_run(case))
+    plan_path = os.path.join(case.home, STATE, "prepared/plan.json")
+    plan = load(plan_path, {})
+    plan["retained"][0]["condition"] = ["its last driver ends", "a changed condition"]
+    save_json(plan_path, plan)
+    code, text, record = dry_compare(case)
+    expect(code == 1 and "/retained/0/condition" in " ".join(record.get("plan_differences", []))
+           and verdicts(record)["plan"]["verdict"] == "differs",
+           f"a changed plan value passed (exit {code}): {text[-1500:]}")
+
+
+def c_dry_run_changed_source(case):
+    dry_run_prepare(case)
+    expect_dry_passed(*dry_run(case))
+    one_byte(case, "personal")
+    code, text, record = dry_compare(case)
+    row = verdicts(record)["source:personal"]
+    expect(code == 1 and row["verdict"] == "differs" and "content differs" in row["reasons"][0],
+           f"a changed source passed (exit {code}): {row}")
+
+
+def c_dry_run_tool_version(case):
+    dry_run_prepare(case)
+    expect_dry_passed(*dry_run(case))
+    case.set_control({"claude_version": "2.1.320 (Claude Code)"})
+    code, text, record = dry_compare(case)
+    row = verdicts(record)["tool:claude"]
+    expect(code == 1 and any(r.startswith("version differs") for r in row["reasons"]),
+           f"a changed tool version passed (exit {code}): {row}")
+
+
+def c_dry_run_failed_probe(case):
+    def failing(plan):
+        plan["probes"][0]["argv"][-1] = "probe-native"
+    dry_run_prepare(case, failing)
+    before = case.snapshot()
+    code, text, result = dry_run(case)
+    steps = [(s["step"], s["exit"]) for s in result.get("steps", [])]
+    expect(code == 1 and result.get("passed") is False and steps[-1] == ("switch", 5),
+           f"a failed probe did not fail the dry run (exit {code}): {steps}")
+    probes = [(p["phase"], p["name"], p["exit"]) for p in result["probes"]]
+    expect(("switch", "probe-switched", 1) in probes and ("restore", "probe-native", 0) in probes,
+           f"the per-probe outcomes are {probes}")
+    expect(case.snapshot() == before, "the failed dry run changed the case's HOME")
+
+
+def c_dry_run_source_written(case):
+    """A write that leaves the disposable HOME for the source HOME must fail the run."""
+    dry_run_prepare(case)
+    target = os.path.join(case.home, ".codex/skills/codebase-memory/SKILL.md")
+    hook = os.path.join(case.root, "write-source.sh")
+    write_script(hook, f"#!/bin/sh\nif [ \"$1\" = switch:final ]; then printf 'changed\\n' >> '{target}'; fi\nexit 0\n")
+    code, text, result = dry_run(case, "--fixture-hook", hook)
+    moved = result.get("source_unchanged", {}).get("moved", [])
+    expect(code == 1 and result.get("passed") is False and "~/.codex/skills" in moved,
+           f"a write into the source HOME passed (exit {code}): {moved}: {text[-1500:]}")
+
+
+def c_dry_run_refusals(case):
+    dry_run_prepare(case)
+    busy = os.path.join(case.root, "busy")
+    write(os.path.join(busy, "file"), "x\n")
+    code, text, _ = dry_run(case, out="busy")
+    expect(code == 3 and "new or empty folder" in text, f"a used OUT was accepted: {text[-800:]}")
+    code, text = dry_invoke(case, ["run", "--home", case.home, "--out", os.path.join(case.home, STATE, "dry"),
+                                   "--path", case.r.stubs], "run inside")
+    expect(code == 3 and "inside the copied path" in text, f"an OUT inside a copied path was accepted: {text[-800:]}")
+    code, text, _ = dry_run(case, "--prefix", f"home={case.root}", out="home-prefix")
+    expect(code == 2 and "not a declared substitution" in text, f"a home prefix was accepted: {text[-800:]}")
+    os.remove(os.path.join(case.home, STATE, "prepared/plan.json"))
+    code, text, _ = dry_run(case, out="no-plan")
+    expect(code == 3 and "cannot be read" in text, f"a missing prepared plan was accepted: {text[-800:]}")
+
+
+def dry_run_controls() -> list:
+    return [
+        ("dry-run-full", c_dry_run_full, DRY_ARGS),
+        ("dry-run-subject-changes", c_dry_run_subject_changes, DRY_ARGS),
+        ("dry-run-declared-prefix", c_dry_run_declared_prefix, DRY_ARGS),
+        ("dry-run-unknown-substitution", c_dry_run_unknown_substitution, DRY_ARGS),
+        ("dry-run-changed-helper", c_dry_run_changed_helper, DRY_ARGS),
+        ("dry-run-changed-plan", c_dry_run_changed_plan, DRY_ARGS),
+        ("dry-run-changed-source", c_dry_run_changed_source, DRY_ARGS),
+        ("dry-run-tool-version", c_dry_run_tool_version, DRY_ARGS),
+        ("dry-run-failed-probe", c_dry_run_failed_probe, DRY_ARGS),
+        ("dry-run-source-written", c_dry_run_source_written, DRY_ARGS),
+        ("dry-run-refusals", c_dry_run_refusals, DRY_ARGS),
+    ]
+
+
 def all_controls(r) -> list:
     return (process_controls() + switch_process_controls(r) + gate_controls() + native_off_controls()
-            + serial_controls() + status_controls())
+            + serial_controls() + status_controls() + dry_run_controls())
 
 
 def cmd_rehearse(args) -> int:
-    r = Rehearsal(args.out, args.program, args.mac_check)
+    r = Rehearsal(args.out, args.program, args.mac_check, args.dry_run)
     for name, fn, kw in all_controls(r):
         if args.only and not re.search(args.only, name):
             continue
@@ -3239,6 +3599,7 @@ def cmd_rehearse(args) -> int:
         "passed": passed and not args.only,
         "plan": r.plan, "plan_digest": r.plan_digest,
         "program": r.program, "program_digest": r.program_digest,
+        "dry_run": r.dry_run, "dry_run_digest": digest_file(r.dry_run),
         "python": platform.python_version(), "macos": platform.mac_ver()[0],
         "controls": len(r.results), "failed": [x["control"] for x in r.results if not x["passed"]],
         "results": r.results,
@@ -3272,6 +3633,7 @@ def main() -> int:
     p.add_argument("--program", default=os.path.join(HERE, "owner_switch.py"))
     p.add_argument("--only", help="run only the controls whose name matches; the record is then partial")
     p.add_argument("--mac-check", default="", help=f"the owner's mac-check command (default {MAC_CHECK})")
+    p.add_argument("--dry-run", default="", help="the dry-run instrument (default scripts/owner_switch_dry_run.py)")
     args = parser.parse_args()
     return cmd_rehearse(args)
 

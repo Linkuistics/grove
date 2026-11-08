@@ -3398,3 +3398,176 @@ ran only the controls named below.
 - The fixture plan is not the real plan. The dry run of
   owner-switch-dry-run-k271 executes the real plan in a disposable copy of
   HOME.
+
+## Owner switch dry run
+
+`owner-switch-dry-run-k271` added the dry-run instrument
+`scripts/owner_switch_dry_run.py` on 2026-11-09. The sections
+[The rehearsed plan](specs/owner-skill-delivery.md#the-rehearsed-plan) and
+[Test seams](specs/owner-skill-delivery.md#test-seams) own the rules. The
+module docstring states each entry, the input table, the substitutions and
+the exit codes.
+
+### The instrument
+
+The instrument has three entries, and it uses only the Python standard
+library. `task owner:switch:dry-run` and `task owner:switch:compare` run
+them.
+
+- `run` copies the prepared plan, the prepared program and each planned path
+  into a new folder `OUT/home`. It then runs `native-off`, `attempt`,
+  `switch` and the literal `restore` command of the attempt note in that
+  copy. The ordinary writes, the hook commands, the probe cleanup and the
+  final comparison all execute.
+- `inputs` prints the input table of the real prepared inputs and writes
+  nothing.
+- `compare` reads the real prepared inputs through the same table, and it
+  compares them with the result of a run. It writes only the file that
+  `--out` names.
+
+The executed plan differs from the prepared plan only in its path fields.
+These are the paths of `inputs`, the items of each command, the staging
+folders and the retained paths. The instrument rewrites no file content. The switch's
+checks of original identity therefore apply unchanged in the copy.
+
+`native-off` runs first in the copy, before any switch backup exists. The
+result records that no backup existed before it, and the Ravel settings
+before and after it.
+
+The instrument removes the program's own variables from each command's
+environment, and it sets `HOME` to the copy. It watches the source paths
+and the account's `~/Library/LaunchAgents` before and after the run. A
+change to either fails the run.
+
+### The input table
+
+Each row of the table holds a logical input, the executed path, a SHA-256
+digest and a role. A tool row also holds the first line of its `--version`
+output. The logical names come from the structure of the plan, not from
+paths:
+
+| Logical input | Content |
+| --- | --- |
+| `plan` | The prepared plan, with a second digest of its path-normalised form. |
+| `program`, `interpreter:program` | The prepared program and the interpreter of its first line. |
+| `interpreter:$python` | The Python that runs the program, with its version. |
+| `input:<role>` | Each item of the plan's `inputs`, with its planned digest. |
+| `command:<field>/<name>:<i>` | Each path item of each command. |
+| `helper:<parent> <token>` | Each local helper of a command item, found statically. |
+| `interpreter:<parent>` | The interpreter of a script's first line. |
+| `tool:<name>` | `claude`, `brew`, `mise`, `ravel` and `grove`, with their versions. |
+| `source:<id>` | Each skill source under the Homebrew prefix. |
+
+A Python helper is a module that a script imports from its own folder or
+from a literal `sys.path` folder. A shell helper is an absolute or `$HOME`
+path token that names an executable or a script. The instrument digests
+every row before and after the run. A changed row makes the run invalid,
+and an invalid run does not pass.
+
+### Substitutions
+
+The comparison declares three prefixes: `home`, `grove-keg` and `ravel`.
+It replaces the longest declared prefix of each path with `${name}`. A row
+whose normalised path and content are equal is "substituted" with the
+prefix's name. A row with equal content at an undeclared path is an
+"unknown substitution", and it fails.
+
+A row whose content or version differs fails, whatever its path. The plan
+compares by its normalised digest. An undeclared prefix name exits 2, and so
+does a name that the dry run did not declare. `compare` also fails when the
+dry-run result did not pass.
+
+### The fixture suite
+
+The suite received eleven controls in a new group. Each control prepares a
+fixture plan and program in the case's HOME, which stands for the real HOME.
+It then runs the instrument into the case's folder.
+
+| Control | Result |
+| --- | --- |
+| `dry-run-full` | All four steps passed. `native-off` wrote the off value without a backup. Both probes and the restore comparison passed. The case's HOME was unchanged, and the comparison with it was equal. |
+| `dry-run-subject-changes` | A hook appended to the probe helper during the switch. The run named the changed rows and was invalid, and `compare` refused it. |
+| `dry-run-declared-prefix` | Equal content at a released Grove keg compared as `substituted grove-keg`. |
+| `dry-run-unknown-substitution` | Equal content at an undeclared prefix failed. An unknown name and an undeclared name exited 2. |
+| `dry-run-changed-helper` | A changed helper at the same path compared as "content differs". |
+| `dry-run-changed-plan` | A changed plan value failed, and `compare` named its plan path. |
+| `dry-run-changed-source` | A changed skill source compared as "content differs". |
+| `dry-run-tool-version` | A changed `claude` version compared as "version differs". |
+| `dry-run-failed-probe` | A failed probe made the switch exit 5. The probe outcomes recorded the failure, and the case's HOME was unchanged. |
+| `dry-run-source-written` | A write from the copy into the source HOME failed the run. |
+| `dry-run-refusals` | A used `OUT`, an `OUT` inside a copied path, a `home` prefix and a missing plan each made the instrument stop. |
+
+The controls also strip leaked program variables from the environment, and
+they give the stub tools fixture versions. A fixture result states as its
+first limit that it supplies no real-harness acceptance.
+
+The control runner now records an unexpected error in a control as a failed
+control, and the suite continues. Before this change, an error ended the
+suite without a summary.
+
+`task owner:switch:rehearse` passed all 153 controls on Python 3.15.1 and
+macOS 27.0.1. The controls took 7.6 minutes. These subjects had the same SHA-256
+digests before and after the run:
+
+| Subject | SHA-256 |
+| --- | --- |
+| `scripts/owner_switch.py` | `d2806f928c0b4687d79861be5a65405aac1edc64bc86593c5a211eca83988097` |
+| `scripts/owner_switch_rehearsal.py` | `b2013ca74e1b0f737321e26558aa85627da6c3bc6434f1c954b6eae4dcc84905` |
+| `scripts/owner_switch_dry_run.py` | `397a57c6221b0a69dd020a5b51ae512d1f4f9583c0ca80a5b3e2a90db87bbd21` |
+| `~/.local/lib/machine-config/check.py` | `5c7a3bd43c08e43e02859c6c0c22edcb59e0bf0b38dcbe7b040784be247e9201` |
+| `~/.local/bin/mac-check` | `b6738bfa2b04b21742a4693e9d4d5e86c9f69d56ccd8c73d36a484d6ade0a5e8` |
+
+### Mutation controls
+
+A scratch copy of the instrument received one mutation at a time. Each
+mutant ran the eleven dry-run controls.
+
+| Mutation | Controls that failed |
+| --- | --- |
+| The comparison ignores content | `changed-helper`, `changed-plan`, `changed-source` |
+| A moved row needs no declared prefix | `unknown-substitution` |
+| The run ignores changed subjects | `subject-changes` |
+| The table finds no Python helpers | `full`, `subject-changes`, `changed-helper` |
+| The comparison ignores versions | `tool-version` |
+| The executed plan keeps the source paths | `full`, `subject-changes`, `declared-prefix` |
+| The run skips the restore | `full` and six other controls |
+| The run does not watch the source paths | `source-written` |
+| The run skips `native-off` | `full` and nine other controls |
+| `compare` accepts a result that did not pass | `subject-changes` |
+| The table finds no shell helpers | `full` |
+
+### Two measurement incidents
+
+The first measurement ran during an edit of the suite's docstring. The
+instrument recorded the suite as a changed subject, and I discarded that
+run. Every later run began after the last edit.
+
+A later mutant run stopped at its third control. The no-helpers mutant
+produced no helper row, and the `changed-helper` control raised `KeyError`.
+The runner ended without a summary, and the watcher of the run waited for
+one. The runner change above corrects this, and the measurement above ran
+after it.
+
+### The real HOME
+
+`~/.local/state/owner-switch` does not exist, so the real HOME holds no
+prepared plan. `inputs` and `run --out` both stopped with exit 3 and
+"cannot be read as JSON". `run` created no `OUT` folder and no state folder.
+The listing of `~/Library/LaunchAgents` had the same digest before and
+after.
+
+### Limits
+
+- `tool:grove` compares by `grove --version`. Inside finish, the candidate
+  keg carries the pre-release Cargo version, so that row differs from a dry
+  run against the released keg. owner-switch-rehearsal-k255 and
+  discovery-rollout-k12 record the choice: another dry run against the
+  released keg, or a candidate keg built at the release commit.
+- The instrument finds helpers statically. A helper that a program finds at
+  run time, for example through a computed path, has no row.
+- The instrument watches launchd jobs through `~/Library/LaunchAgents`. It
+  does not observe login items.
+- Copied files keep their bytes, so an absolute path inside a file still
+  names the source HOME. The source watch fails a run that writes there.
+- Every result in this section is a fixture result. None of them supplies
+  real-harness acceptance.

@@ -20,6 +20,12 @@ measured the owner's checkout tool in a fixture HOME. The section
 `skill-marketplace-decision-k201` replaced the checkouts with Homebrew
 formulae, and `candidate-keg-k238` removed the measurement's script and task.
 
+`owner-switch-model-removal-k265` removed the Quint model of the earlier
+switch's recovery, its runner and its task. The section
+[The recovery model](#the-recovery-model) keeps that model's measurements as
+history. The section [Owner switch model removal](#owner-switch-model-removal)
+records the search for its other references.
+
 ## Method
 
 On 2026-11-02, the session walked every skill discovery root of Claude Code,
@@ -381,10 +387,17 @@ The stage file must take the live file's metadata before the exchange.
 
 ### The recovery model
 
-`owner-switch-recovery-k87` wrote the Quint model
-[`models/owner-switch.qnt`](models/owner-switch.qnt) and its runner
-[`models/run-owner-switch.sh`](models/run-owner-switch.sh). Its run of
-2026-11-02 had the model digest `793ef9ef86a4`.
+This section is historical. Its runs checked the recovery of the earlier
+switch, with cells, exchanges, outside writes and partial continuations. The
+simplified design removes those mechanisms, so these runs are not acceptance
+evidence for the current switch.
+`owner-switch-model-removal-k265` removed the model, its runner and the task
+`model:owner-switch`. The repository's history keeps their last versions. Their
+digests are the same as in the last table of this section.
+
+`owner-switch-recovery-k87` wrote the Quint model `docs/models/owner-switch.qnt`
+and its runner `docs/models/run-owner-switch.sh`. Its run of 2026-11-02 had
+the model digest `793ef9ef86a4`.
 
 `owner-switch-recovery-k89` then changed the model for the findings of
 `owner-switch-recovery-k88`. Outside programs and late descriptors now remove
@@ -2391,3 +2404,59 @@ of the measured files, which stayed unchanged during the final runs:
   do.
 - A disabled `guardrail@personal` stays outside the active collection, and
   the origin rule does not apply to it.
+
+## Owner switch model removal
+
+`owner-switch-model-removal-k265` removed `docs/models/owner-switch.qnt`, its
+runner `docs/models/run-owner-switch.sh` and the task `model:owner-switch` on
+2026-11-08. [The recovery model](specs/owner-skill-delivery.md#the-recovery-model)
+states the reason. Before the removal, the two files had the digests of the
+last table in [The recovery model](#the-recovery-model). `scripts/check.sh`
+ran neither file. No other model or task changed.
+
+### The changes
+
+- `Taskfile.yml` no longer has the task `model:owner-switch`.
+- The module docstring of `scripts/owner_switch.py` no longer names the model
+  as the check of its recovery rules. The docstring of `known_cells` no longer
+  cites the model's merge.
+- The specification section "The recovery model" states that the repository
+  no longer holds the model.
+- This document's section [The recovery model](#the-recovery-model) now
+  states its historical scope first. Its observations, tables and digests stay
+  unchanged.
+
+### The search
+
+The session searched the working tree from its root with ripgrep. The search
+included hidden files and excluded `.jj`, `.git` and `target`. It used two
+patterns:
+
+- The names of the subjects:
+  `owner-switch\.qnt|run-owner-switch|model:owner-switch`.
+- Prose that names the model, without regard to case:
+  `recovery model|Quint model|checked model|model of the owner switch`.
+
+The session classified each matching file:
+
+| Class | Files | Disposition |
+| --- | --- | --- |
+| Historical evidence | This document | Kept, with the scope statements above |
+| Current documents that state the removal | The specification, the docstring of `scripts/owner_switch.py` and the viewer manifest of `docs/design/harness-selection-and-execution`, whose caption claims no checked model | Kept |
+| Retired task files | The `DONE` leaves of the switch design, review and implementation | Unchanged |
+| Live briefs | `_discovery-rollout.md`, whose table orders this removal, and `_owner-switch-program.md` of the closed node `owner-switch-program-k91` | Unchanged and reported |
+| This leaf's task file | `18-impl--owner-switch-model-removal-k265.md` | Unchanged |
+| Other subjects | `plugins/README.md`, which describes the `model-led-development` skill, and `docs/formalism-findings.md`, which describes other models | Unrelated |
+
+No current document, docstring or task description presents the model as
+acceptance evidence. The brief of `owner-switch-program-k91` still says that
+the model must stay green. That node has no live child, so no live leaf
+requires the model.
+
+### Controls
+
+- The positive control: the name search found the retired task file
+  `36-DONE-design--owner-switch-recovery-k87.md`, which names the model.
+- The same search without hidden files found nothing under `.grove/`, so the
+  flag decides whether the control passes.
+- A mutated pattern, `owner-switch\.qntX`, found no file.

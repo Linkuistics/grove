@@ -986,10 +986,12 @@ for any eligible native return before purge.
 
 ### The recovery model
 
-The old Quint model describes cells, exchanges, outside writes and partial
+The old Quint model described cells, exchanges, outside writes and partial
 continuations that this design removes. Its success is not evidence for the
-simplified switch. Remove it and its task and claim-specific controls with the
-implementation change. Preserve the earlier measurements as historical evidence.
+simplified switch. The repository no longer holds the model, its runner, its
+task or its claim-specific controls. The
+[evidence](../owner-skill-delivery-evidence.md#the-recovery-model) keeps the
+earlier measurements as history.
 
 The program's existing disposable-HOME seam tests the current contract.
 It covers backup completeness before mutation, the full switch, failures and hard interruptions at write boundaries.

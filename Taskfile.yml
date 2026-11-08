@@ -474,11 +474,6 @@ tasks:
     cmds:
       - python3 -I scripts/owner_switch_rehearsal.py rehearse --out "{{.OUT}}" {{if .ONLY}}--only "{{.ONLY}}"{{end}} {{if .SKIP_SETTINGS_WRITES}}--skip-settings-writes{{end}}
 
-  model:owner-switch:
-    desc: Run every claim of the Quint model of the owner switch's recovery (SAMPLES, STEPS and SWEEP adjust the run)
-    cmds:
-      - bash docs/models/run-owner-switch.sh
-
   release:patch:
     desc: Publish and install the next patch release
     cmds:

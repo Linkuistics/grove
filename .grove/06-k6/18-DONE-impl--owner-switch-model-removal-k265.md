@@ -36,3 +36,19 @@ as history.
 
 Live task files and briefs may still name the model as the old rule. Leave
 retired task files unchanged. Report a live one that still requires the model.
+
+## Decisions (running log)
+
+- `docs/models/` held only the two subjects, so the directory went with
+  them. Their final digests equal the last run of record in the evidence
+  (`c90bbf9ab658…`, `0fe7ef316e63…`), so the evidence names that table
+  rather than a commit hash, which a rebase would change.
+- Historical sections in the evidence keep every observation, table and
+  digest. Live links to the deleted files became plain paths, and a scope
+  paragraph now opens the section. Later dated passages that mention the
+  model's runs (the entries and reader-marker sections) stay as written.
+- `known_cells` loses its citation of the model's merge. The merge code
+  itself stays: removing it belongs to `owner-switch-contraction-k270`.
+- Report: the closed node brief `01-k91/_owner-switch-program.md` still says
+  the model must stay green. The node has no live child, so nothing requires
+  the model. The brief stays unchanged as the node's record.

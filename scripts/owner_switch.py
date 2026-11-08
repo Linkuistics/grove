@@ -3,8 +3,8 @@
 
 docs/specs/owner-skill-delivery.md owns every rule this program applies: "The
 switch inside finish", "Concurrent writers", "Resuming the switch", "The
-rehearsed plan" and "Rollback". docs/models/owner-switch.qnt checks the
-recovery rules. Change the model first when a recovery rule changes.
+rehearsed plan" and "Rollback". No model checks these rules.
+The specification's section "The recovery model" states why.
 
 The program is one file, so the copy in each backup is exact. It uses only
 the standard library and runs on Python 3.9 and later. It reaches
@@ -913,8 +913,7 @@ def recorded_base(record: dict) -> bytes:
 def known_cells(layout: Layout, record: dict, prepared: dict) -> dict:
     """Each cell key of the copy's file, with the values that a run writes there.
 
-    A cell takes the copy's value only when it is none of these values, as
-    the owner's merge in the recovery model takes it.
+    A cell takes the copy's value only when it is none of these values.
     """
     plan = prepared
     if record["_backup"] is not None:

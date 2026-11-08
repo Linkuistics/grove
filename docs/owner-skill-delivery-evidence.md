@@ -1686,6 +1686,8 @@ match. Three wider mutants failed them:
 The dry run reads no gate, no probe and no rehearsal record. The rehearsal of
 owner-switch-rehearsal-k255 measures them on the completed plan.
 
+<!-- tc: off because this section preserves the completed review's findings as history -->
+
 ## Owner switch plan draft review
 
 `owner-switch-plan-draft-k258` inspected producer commit
@@ -1847,6 +1849,8 @@ digests also match that record. The generator digest is
 No test, build, lint, format, check task or switch operation was run by this
 review. Integration owns fixes and executable verification of the cases.
 
+<!-- tc: on -->
+
 ## Owner switch plan draft integration
 
 `owner-switch-plan-draft-k259` triaged the five findings of the review above
@@ -1883,6 +1887,8 @@ The prototypes measured three facts, which k260 carries in its task file:
   in a disposable layout.
 - `launchctl print gui/<uid>/<label>` shows the program arguments of each
   loaded job. All 577 jobs took about 2 seconds.
+
+<!-- tc: pending because this producer section is under review and the conversion has not reached it -->
 
 ## Single-owner switch design
 
@@ -1935,3 +1941,5 @@ at the existing localhost viewer and matched the working files. Browser
 access was unavailable, so this session did not inspect their rendered
 layout. The editable sources and stable discussion links remain available
 for the scheduled review.
+
+<!-- tc: on -->

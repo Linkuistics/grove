@@ -45,3 +45,13 @@ than its record.
 
 - Each finding names its file and line, a concrete scenario and a severity,
   or the review states that it found none.
+
+## Decisions (running log)
+
+- The review is inspection-only. Its findings and evidence limits are in
+  `docs/owner-skill-delivery-evidence.md`, "Probe service lifecycle
+  implementation review", anchored to producer commit `7ea0da768914`.
+  Four actionable findings require an integration before session-probes-k281.
+  No production or test code changed, and no test, build, lint or format
+  command ran. The pre-existing `.claude/settings.json` addition stays
+  outside this task's commit.

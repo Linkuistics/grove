@@ -4599,3 +4599,123 @@ change that file until owner-marketplace-freeze-k253 freezes them.
 - The session probes run `testanyware llm-instructions` and
   `testanyware doctor`, and no measurement here covers their services.
   session-probes-k281 runs them through the same launcher.
+
+## Probe service lifecycle implementation review
+
+`probe-service-lifecycle-k282` inspected producer commit
+`7ea0da768914be8adc054896d3abfacef33f1502` against
+[Probe process lifetime](specs/owner-skill-delivery.md#probe-process-lifetime).
+The review found four actionable defects. These scenarios follow from the
+committed source; this review did not execute them. It ran no test, build,
+lint or format command and changed no production or test code.
+
+### L1 — P1: records with an unreadable executable lose their cleanup obligation
+
+Location: [`scripts/owner_switch.py:2858`](../scripts/owner_switch.py#L2858),
+`owned_record`, as used by `read_journal` and `probe_owned`.
+
+`owner_switch_probes.identity` can record `executable: null` when both
+executable reads fail but the creation time remains readable. The tracker
+retains that record, and `owned_state` correctly calls it `changed`, so
+the launcher refuses to signal it and fails its cleanup. However,
+`owned_record` accepts only a string executable. Both the journal reader
+and the result merger therefore discard the unresolved record before
+`end_probe_services` sees it.
+
+Consider a detached service whose executable stays unreadable through the
+launcher's last poll. The failed probe reports that live service, but the
+switch can report no remaining owned process and enter automatic restore
+at lines 3240–3242 and 3300–3303. If the executable becomes readable after
+the probe exits, an ordinary helper also need not fail the later narrow
+process inspection. The record must retain its unresolved cleanup
+obligation even when it cannot authorise a signal. The existing unknown
+executable control calls `end_owned` directly and bypasses both filters.
+
+### L2 — P1: switch-side cleanup never records children created during shutdown
+
+Location: [`scripts/owner_switch.py:2991`](../scripts/owner_switch.py#L2991),
+`end_probe_services`.
+
+The switch calls `end_owned(owned)` without a watcher, using a fixed list
+of records. The tracker's shutdown watcher and repeated cleanup rounds
+exist only in the probe process. They are unavailable when the switch
+must clean up after that process has died or exhausted its stop grace.
+
+For example, a killed probe leaves a journaled service. When the switch
+sends that service SIGTERM, its shutdown handler starts `/bin/sleep` in a
+new session, stays alive for half a second and then exits. The switch
+never reads that parent link, even though it lasts much longer than the
+recorded 50 ms sampling limit. It declares the recorded parent ended and
+can proceed to restore with the child alive. The narrow process gate
+does not recognise an ordinary `/bin/sleep` as one of the four tools.
+The child-during-cleanup control exercises `Launch.cleanup`, not this
+fallback path. Switch-side cleanup needs equivalent descendant evidence
+or must retain an unresolved outcome when it cannot establish cleanup.
+
+### L3 — P1: an interrupted later probe strands earlier probes' records
+
+Location: [`scripts/owner_switch.py:1502`](../scripts/owner_switch.py#L1502),
+`run_probes`, together with the current-journal cleanup at line 1470.
+
+Cleanup of the whole probe sequence occurs only after its list
+comprehension returns. Each `run_probe` handles an interrupt by ending
+its own journal and re-raising. It cannot see earlier probes' evidence.
+
+Suppose the first probe dies after journaling a detached service.
+`run_probe` returns its failed exit and journal, and the sequence starts
+the next probe. A KeyboardInterrupt during that next probe cleans only
+the second journal. The comprehension never returns, so the caller never
+reaches `end_probe_services(probe_owned(probes))`. The first service
+survives the interrupted switch. A later command-start error similarly
+bypasses cleanup of the completed prefix. The records remain on disk,
+but no error path consumes that prefix. Preserve and discharge the
+sequence's accumulated obligations on every exit. The interrupt control
+contains only one probe and cannot expose this loss.
+
+### L4 — P2: the launcher's exception path ends only the leader's group
+
+Location: [`scripts/owner_switch_probes.py:716`](../scripts/owner_switch_probes.py#L716),
+`Launch.run`.
+
+The exception handler ends the leader's group and reaps the leader, but
+does not clean up the tracker's recorded processes outside that group.
+If a process-table read fails during the settle interval after the
+leader has been reaped, the handler does nothing to any process.
+
+A detached service can already have a complete ownership record when
+that read raises `Fail`. The service survives, and `launch_command` then
+removes the work folder by default. For a standalone `launch`, that folder
+also holds the only journal. The command reports failure while leaving
+the recorded service alive and losing its record. A switch-provided
+journal preserves evidence for the switch's fallback, but does not
+repair the standalone launcher. The exception path needs to preserve
+the original error while attempting owned-service cleanup and reporting
+any unresolved identities.
+
+### Review evidence and limits
+
+The review read the launcher's tracking, identity, pre-existing-harness,
+signal and exception paths; the switch's journal, identity, cleanup and
+probe-sequence paths; and their fixture controls. It also read the
+rehearsal changes and the producer's recorded lifecycle measurements.
+The recorded 25 controls and 157 rehearsal cases are producer evidence,
+not fresh results from this review.
+
+Graph evidence used project
+`Users-antony-Development-AgenticOrchestration-grove.gh-issue-25`, full
+generation `2026-11-09T09:42:35Z`. Exact-path coverage reported matching
+metadata and no recorded gap for the two programs, their controls, the
+rehearsal, the lifecycle measurement script and the Taskfile. Graph
+searches for the bounded symbols and both-direction traces of
+`run_probe` and `end_owned` exhausted their returned pages. Some outbound
+edges resolve Python methods to unrelated Rust methods; the review used
+the exact source for those calls. Coverage is a best-effort signal.
+
+The identity-check-to-signal interval remains a platform limitation: the
+code does not pin a process handle. The faster-than-observation escape
+remains an explicit measurement limit, with no such escape reported in
+the real launches. Neither is counted again as a defect here. L2 concerns
+an entirely absent observer on the fallback path, and L1, L3 and L4 lose
+already captured evidence; accepting the sampling limit does not settle
+those findings. This review does not certify that the measured launches
+bound every possible service lifecycle.

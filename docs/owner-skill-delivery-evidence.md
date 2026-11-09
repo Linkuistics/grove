@@ -4614,7 +4614,7 @@ lint or format command and changed no production or test code.
 
 ### L1 — P1: records with an unreadable executable lose their cleanup obligation
 
-Location: [`scripts/owner_switch.py:2858`](../scripts/owner_switch.py#L2858),
+Location: [`scripts/owner_switch.py:2858`](../scripts/owner_switch.py),
 `owned_record`, as used by `read_journal` and `probe_owned`.
 
 `owner_switch_probes.identity` can record `executable: null` when both
@@ -4636,7 +4636,7 @@ executable control calls `end_owned` directly and bypasses both filters.
 
 ### L2 — P1: switch-side cleanup never records children created during shutdown
 
-Location: [`scripts/owner_switch.py:2991`](../scripts/owner_switch.py#L2991),
+Location: [`scripts/owner_switch.py:2991`](../scripts/owner_switch.py),
 `end_probe_services`.
 
 The switch calls `end_owned(owned)` without a watcher, using a fixed list
@@ -4657,7 +4657,7 @@ or must retain an unresolved outcome when it cannot establish cleanup.
 
 ### L3 — P1: an interrupted later probe strands earlier probes' records
 
-Location: [`scripts/owner_switch.py:1502`](../scripts/owner_switch.py#L1502),
+Location: [`scripts/owner_switch.py:1502`](../scripts/owner_switch.py),
 `run_probes`, together with the current-journal cleanup at line 1470.
 
 Cleanup of the whole probe sequence occurs only after its list
@@ -4677,7 +4677,7 @@ contains only one probe and cannot expose this loss.
 
 ### L4 — P2: the launcher's exception path ends only the leader's group
 
-Location: [`scripts/owner_switch_probes.py:716`](../scripts/owner_switch_probes.py#L716),
+Location: [`scripts/owner_switch_probes.py:716`](../scripts/owner_switch_probes.py),
 `Launch.run`.
 
 The exception handler ends the leader's group and reaps the leader, but
@@ -4820,3 +4820,220 @@ scripts.
 - These fixes ran only against fixtures. No real harness session ran in this
   session, and the lifecycle measurements of
   [Probe service lifecycle](#probe-service-lifecycle) were not repeated.
+
+## Session probes
+
+`session-probes-k281` delivered this section on 2026-11-09. It adds the
+probe program's `session` mode on the measured launcher of
+[Probe service lifecycle](#probe-service-lifecycle). The sections
+[The switch inside finish](specs/owner-skill-delivery.md#the-switch-inside-finish),
+[Rollback](specs/owner-skill-delivery.md#rollback) and
+[Concurrent writers](specs/owner-skill-delivery.md#concurrent-writers) own
+the observations.
+
+### The session mode
+
+[`scripts/owner_switch_probes.py`](../scripts/owner_switch_probes.py) states
+each observation in its docstring. The plan draft's probe commands stay
+unchanged. The program now imports `harness_trial.py` from its own folder,
+as it imports `owner_switch.py`, so `<state>/prepared/` holds all three.
+
+- The **ravel** session asks for a small Python command-line tool for other
+  agents, one quoted line of `grove-planning`, and the TestAnyware skill with
+  its two commands. It requires the mandatory read first and an unnamed
+  craft skill before the first edit. It also requires `grove-planning` from
+  the `grove-core` snapshot with a quoted line of that copy, and the
+  TestAnyware read with both commands. On Claude Code it requires the
+  technical-communication SessionStart hook. The native listing must hold
+  no superseded name, and the request view must give each accepted digest.
+- The **native** session asks only for one quoted line of `grove-planning`.
+  The native listing must hold it, and the agent must read it natively and
+  quote a line of a native copy.
+- `grove-planning` is the kind skill because `grove-core` holds only six
+  skills, and only its three planning kinds are not `finish`. The quoted
+  line differs between the snapshot copy and the native copy.
+- The craft verdict accepts only `cli-tool-design` or
+  `coding-style-python`. A first debug run credited `technical-communication`,
+  which the hooks' instruction names. That read shows no discovery.
+- Before the launch and after its cleanup, the probe reads each ordinary
+  child of the three native skill roots. It skips only
+  `~/.claude/skills/synced` and `~/.codex/skills/.system`, and only while
+  each is a real folder. Any other change fails the probe.
+- The result's `writes` lists each entry that the session added, changed or
+  removed at the top level of HOME and in the harness and tool folders.
+  `.config`, `.cache` and `.local` hold over a million files in the real
+  HOME, so the probe walks only their named subfolders.
+
+The ravel route's `sh -c` script writes Ravel's request view and the
+harness's event stream to the work folder. Ravel prints only the session
+result on standard output, as the lifecycle record shows.
+
+### The staging pass
+
+`task owner:probes:sessions` ran eight cases one at a time, from 10:31:27Z
+to 10:37:50Z. Each case ran in its own `cp -c` clone of the staging HOME,
+with the plan draft and the accepted 2.0 build. Claude Code was 2.1.319 with
+`claude-opus-5-5`, and Codex was 0.167.0 with `gpt-6.1-sol`, both at medium
+effort.
+
+The layouts are:
+
+- **switched**: the staging layout. On Claude Code, the runner installs
+  `technical-communication-hooks@writing-hooks` from the candidate keg with
+  Claude Code's own commands, because owner-staging-hooks-k251 installs it
+  in the retained HOME only later.
+- **stale**: switched, with a copy of the real HOME's `grove-planning` in
+  both native skill roots.
+- **native**: the staging layout with copies of the 58 real `.codex/skills`
+  entries that the plan names absent, in both native skill roots.
+
+| Case | Layout | Wanted | Result | Failed observations |
+| --- | --- | --- | --- | --- |
+| `claude-ravel` | switched | pass | exit 0 | none |
+| `claude-ravel-stale` | stale | fail | exit 1 | `listing`: `grove-planning` listed |
+| `claude-native` | native | pass | exit 0 | none |
+| `claude-native-bare` | switched | fail | exit 1 | `listing`, `kindSkill`: no native copy |
+| `codex-ravel` | switched | pass | exit 0 | none |
+| `codex-ravel-stale` | stale | fail | exit 1 | `listing`: `grove-planning` listed |
+| `codex-native` | native | pass | exit 0 | none |
+| `codex-native-bare` | switched | fail | exit 1 | `listing`, `kindSkill`: no native copy |
+
+In the two passing ravel cases, each agent read the mandatory file first. It
+read `cli-tool-design` before its first edit: Claude Code by path, and Codex
+through a Python script whose result held the skill's marks. Each agent
+quoted the snapshot copy's line. In the two native cases, Claude Code loaded
+`grove-planning` through its Skill tool, and Codex read the native copy with
+a shell command. Each quoted the native copy's line.
+
+No launch left an owned process after its leader, so cleanup signalled
+nothing. No launch had an unattributed process or a new launchd child
+without a record. The owned processes include the `tc-hook` shells and
+`testanyware doctor`.
+
+The record is `~/.local/state/owner-staging/trials/probe-sessions-1/sessions.json`,
+with SHA-256 `ebfcf130cf13e9a204f6a43c8e760d5baed02868132cd0c0751961d7cca9df4b`.
+It names the measured probe program, SHA-256
+`4e2aeb0d76a3538f323469c8981a90fb84e150d084b222502fb8385266fff397`. The
+program, `harness_trial.py`, `owner_switch.py` and the plan draft had the
+same digests before and after the run. The final program differs from the
+measured one in its docstring, and in one more folder of the write record,
+`~/.local/state/technical-communication`. Reversing the docstring edits
+reproduces the measured digest.
+
+### Files that a probe session writes
+
+No session changed a skill copy or an agent definition outside the excluded
+`~/.claude/skills/synced` subtree. No MCP server rewrote one. Each Claude
+Code session rewrote `.last-complete-round` and `manifest.json` in that
+subtree, which claude.ai's skill sync owns.
+
+Each Claude Code session wrote these entries:
+
+- `.claude.json`, and a new `.claude/backups/.claude.json.backup.<ms>`.
+  An older backup went.
+- The session file and a `memory` folder in `.claude/projects/<work>`.
+- `.claude/session-env/<id>` and `.claude/cache/model-catalog`.
+- `.claude/plugins/store/cc-plugin-agents-md_builtin-*.json`.
+- Two files of `.claude/plugins/synced/<id>`, and the two files of
+  `.claude/skills/synced/<id>` above.
+- The lock files of one `.npm/_npx` package.
+
+With the hooks installed, a Claude Code session also wrote these entries:
+
+- `.claude/plugins/data/technical-communication-hooks-writing-hooks`.
+- The hooks' reply log,
+  `~/.local/state/technical-communication/sessions/claude-code--<id>.jsonl`.
+
+Each Codex session wrote these entries:
+
+- The session file in `.codex/sessions/<date>`.
+- The SQLite files `state_5`, `logs_2`, `memories_1`, `queue_1`, `goals_1`
+  and `thread_history_1` of `.codex`, with their `-shm` and `-wal` files.
+- `.codex/cache/codex_apps_*`, `.codex/models_cache.json`,
+  `.codex/plugins/cache` and `.codex/tmp/arg0-macos`.
+- The lock files of one `.npm/_npx` package.
+
+A ravel-route session also wrote a new descriptor and a `staging` folder in
+`.cache/ravel/skills/v1`. In a HOME without snapshots, Ravel writes them too.
+
+These are findings for the plan's expected inventories. The probe judges
+none of them, apart from the native skill roots.
+
+### The bytecode write of the hooks
+
+The hooks plugin runs in place from the `writing` source of the keg. Its
+`tc_hook.py` loads `ste-lint.py` through `importlib`, and `tc-hook` runs
+Python with `-I`, which does not stop bytecode writes. Python therefore wrote
+`scripts/__pycache__/ste-lint.cpython-315.pyc` into the candidate keg's
+`writing` source. The source then gave `resourceDigest` `6be6f84a…`, not the
+accepted `2dea55cd…`, and the next debug case's `digests` verdict failed.
+
+In the staging pass, each of the three later Claude Code sessions with the
+hooks installed wrote the file again, including `claude-native-bare`, which
+made no edit. The runner removed it before each case and recorded each
+removal. In the real switch, the Claude Code probe of step 7 makes the same
+write. The Codex probe and `mac-check` would then report a source digest
+that is not the accepted digest. tc-hook-bytecode-k284 takes the fix, ahead
+of the hooks staging leaf.
+
+### Fixture controls
+
+`task owner:probes:controls` now runs 42 controls. Eleven are new:
+
+- A fake Claude Code prints a scripted event stream. The native session
+  passes with a native copy. It fails without one, and it fails for a quoted
+  line of the snapshot copy.
+- The root comparison ignores changes inside `.claude/skills/synced` and
+  `.codex/skills/.system`. It fails for a change to an ordinary child, a
+  nested `synced` folder, an `.agents/skills` entry and a `.systemic`
+  sibling. A write below `.claude/agents` appears in the record.
+- Scripted ravel events pass each observation. For each observation, one
+  wrong layout fails it and no other. A read of `technical-communication`
+  does not satisfy the craft verdict, and a `grove-planning` read from
+  another source does not satisfy the kind verdict. An empty listing fails.
+- The ravel route's shell writes the view and the stream and ends the session
+  with the harness's status.
+
+Each of 14 mutations of the new code, in a scratch copy, turned its control
+red. They removed the root comparison, skipped by name alone, and accepted a
+quote of any copy. Others dropped the mandatory order, the craft skill
+list, the edit order, the kind skill's source or the doctor command. The
+rest dropped the hook mark, the superseded check, the empty-listing check,
+the digest comparison, the native listing check or the view file. The kind-source mutation first
+stayed green, and the source control above closes that gap.
+
+`staging_trial.clone_home` meant to drop the clone's Ravel cache, but its
+removal failed in silence on Ravel's read-only snapshots. Each clone of this
+pass therefore kept the staging HOME's snapshots. The helper now makes the
+cache writable and refuses when the removal fails. Its test holds a read-only
+snapshot, and the old removal fails that test.
+
+`bash scripts/check.sh` passed all 18 checks on the final tree. Its first run
+failed on four links of the review section above, whose `#L` line fragments
+name Python files. Those links now name the files alone, and their text keeps
+the line numbers. Pyflakes-class rules (`ruff --select F,E9`) pass on the five
+changed scripts.
+
+### Limits
+
+- Each case ran once. A single run shows that a behaviour occurs. It does not
+  measure how often an agent skips a skill.
+- No probe session ran in the real HOME. The native layout stands for the
+  real native delivery with copies in the user roots. The real Claude Code
+  native route reads the Grove skills from the `grove@linkuistics` plugin
+  instead. The probe finds a plugin-cache copy too.
+- The clones kept the staging HOME's Ravel snapshots, as the previous
+  section states. Ravel's digests matched the accepted digests in each
+  passing ravel case. In `codex-native-bare`, the agent found a snapshot copy
+  of `grove-planning` and quoted it, and the case failed as wanted.
+- The write record walks named folders. A session write elsewhere in
+  `.config`, `.cache` or `.local` stays unrecorded, unless it adds a new
+  top-level entry of HOME.
+- The hooks verdict proves the SessionStart hook. It does not prove the
+  prompt hook or the document gate, although the bytecode write shows the
+  gate ran.
+- A probe fails for a new Claude Code or Codex process that it did not
+  start. A harness that another session starts during a probe therefore
+  fails it.
+- The stored plan draft still names the producer's program digest.
+  owner-switch-plan-k254 writes the draft again.

@@ -28,6 +28,7 @@ PLAN = os.path.join(ROOT, "docs", "owner-cutover", "switch-plan-draft.json")
 sys.path.insert(0, HERE)
 import owner_switch as osw  # noqa: E402
 import owner_switch_probes as probes  # noqa: E402
+import harness_trial as ht  # noqa: E402
 
 PY = os.path.realpath(sys.executable)
 MARK = osw.RESULT_MARK
@@ -89,6 +90,17 @@ elif kind == "spawning-child":
     time.sleep(mode.get("sleep", 300))
 elif kind == "sleep":
     time.sleep(mode.get("sleep", 300))
+elif kind == "stream":
+    # A scripted event stream of a headless session, and the files that the
+    # session writes below HOME.
+    for rel in mode.get("touch", []):
+        path = os.path.join(os.environ["HOME"], rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "a") as f:
+            f.write("written by the fixture session\n")
+    for item in mode["stream"]:
+        print(json.dumps(item).replace("{{cwd}}", os.getcwd()), flush=True)
+    sys.exit(0)
 print(json.dumps({{"type": "result", "fixture": kind}}))
 '''
 
@@ -724,6 +736,227 @@ class ResolveControls(Fixture):
         code, result, err = self.probe("resolve", "--expect", "disabled", env=env)
         self.assertEqual(code, 1)
         self.assertIn("not the plan that the program admitted", result["problems"][0])
+
+
+NATIVE_LINE = "**Load the `grove` skill now** - the native copy's line."
+SNAPSHOT_LINE = "**Load the `grove` skill now.** The snapshot copy's line."
+
+
+def skill_text(name: str, line: str, heading: str = "# planning") -> str:
+    return f"---\nname: {name}\ndescription: fixture\n---\n\n{heading}\n\n{line}\n"
+
+
+def write(path: str, text: str) -> str:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        f.write(text)
+    return path
+
+
+def native_stream(quote: str = NATIVE_LINE, listed=("grove-planning", "init")) -> list:
+    return [
+        {"type": "system", "subtype": "init", "session_id": "fixture-session", "cwd": "{cwd}", "skills": list(listed)},
+        {"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "id": "t1", "name": "Skill", "input": {"skill": "grove-planning"}}]}},
+        {"type": "user", "message": {"content": [
+            {"type": "tool_result", "tool_use_id": "t1", "content": "Launching skill: grove-planning"}]}},
+        {"type": "assistant", "message": {"content": [{"type": "text", "text": f"QUOTE: {quote}"}]}},
+    ]
+
+
+class SessionControls(Fixture):
+    """The native session probe end to end with a fake Claude Code, and the native root comparison."""
+
+    def native_copy(self) -> None:
+        write(os.path.join(self.home, ".claude", "skills", "grove-planning", "SKILL.md"),
+              skill_text("grove-planning", NATIVE_LINE))
+
+    def session(self, stream, touch=()) -> tuple:
+        self.fake("claude", {"kind": "stream", "stream": stream, "touch": list(touch)})
+        return self.probe("session", "--harness", "claude", "--route", "native", "--plan", PLAN)
+
+    def test_native_session_passes_with_a_native_copy(self):
+        self.native_copy()
+        code, result, err = self.session(native_stream())
+        self.assertEqual((code, result["ok"]), (0, True), result["problems"])
+        kind = result["observations"]["kindSkill"]
+        self.assertEqual((kind["readTool"], kind["quote"]), ("Skill", NATIVE_LINE))
+        self.assertEqual(result["observations"]["listing"]["count"], 2)
+        self.assertEqual(result["rootChanges"], [])
+
+    def test_native_session_fails_for_a_wrong_layout(self):
+        # No native copy: Ravel's layout, where native discovery holds no Grove skill.
+        code, result, err = self.session(native_stream(listed=("init",)))
+        self.assertEqual((code, result["ok"]), (1, False))
+        problems = " ".join(result["problems"])
+        self.assertIn("HOME holds no native copy of grove-planning", problems)
+        self.assertIn("native discovery did not list grove-planning", problems)
+
+    def test_native_session_fails_for_a_quote_of_another_copy(self):
+        self.native_copy()
+        code, result, err = self.session(native_stream(quote=SNAPSHOT_LINE))
+        self.assertEqual((code, result["ok"]), (1, False))
+        self.assertTrue(any("is no line of a native copy" in p for p in result["problems"]), result["problems"])
+
+    def test_root_comparison_skips_only_the_exact_platform_subtrees(self):
+        self.native_copy()
+        for rel in (".claude/skills/synced/x", ".codex/skills/.system/x", ".agents/skills/keep/SKILL.md"):
+            write(os.path.join(self.home, rel), "before\n")
+        quiet = (".claude/skills/synced/x", ".codex/skills/.system/new/SKILL.md")
+        code, result, err = self.session(native_stream(), touch=quiet)
+        self.assertEqual((code, result["ok"]), (0, True), result["problems"])
+        self.assertEqual(result["rootsCompared"][".claude/skills"]["skipped"], ["synced"])
+        self.assertTrue(set(quiet) <= {c["path"] for c in result["writes"]["changes"]})
+        loud = {".claude/skills/grove/SKILL.md": ".claude/skills/grove",
+                ".codex/skills/x/synced/y": ".codex/skills/x",
+                ".agents/skills/keep/SKILL.md": ".agents/skills/keep",
+                ".codex/skills/.systemic/SKILL.md": ".codex/skills/.systemic"}
+        for touch, entry in loud.items():
+            with self.subTest(touch):
+                code, result, err = self.session(native_stream(), touch=[touch])
+                self.assertEqual((code, result["ok"]), (1, False))
+                self.assertTrue(any(f"root entry {entry} was" in p for p in result["problems"]), result["problems"])
+                self.assertIn(touch, result["writes"]["skillCopiesChanged"])
+
+    def test_agent_definition_writes_are_recorded(self):
+        self.native_copy()
+        code, result, err = self.session(native_stream(), touch=[".claude/agents/fixture.md"])
+        self.assertIn(".claude/agents/fixture.md", result["writes"]["agentDefinitionsChanged"])
+
+
+class RavelVerdictControls(unittest.TestCase):
+    """The observations of a ravel session, judged from a scripted event list against fixture snapshots."""
+
+    def setUp(self):
+        self.root = os.path.realpath(tempfile.mkdtemp(prefix="probe-verdicts-", dir="/private/tmp"))
+        self.home = os.path.join(self.root, "home")
+        os.makedirs(self.home)
+        with open(PLAN) as f:
+            self.plan = json.load(f)
+        self.plan["_digest"] = "fixture"
+        sources, directories = [], []
+        for sid, source in self.plan["accepted"]["sources"].items():
+            tree = os.path.join(self.root, "snapshots", sid, "tree")
+            for folder in ("skills", "craft"):
+                os.makedirs(os.path.join(tree, folder))
+                directories.append({"path": os.path.join(tree, folder), "source": sid})
+            sources.append({"id": sid, "resourceDigest": source["resourceDigest"], "snapshotRoot": tree,
+                            "originPath": f"/keg/{sid}"})
+        tree = lambda sid: os.path.join(self.root, "snapshots", sid, "tree")  # noqa: E731
+        self.mandatory = write(os.path.join(tree("superpowers"), "skills", "using-superpowers", "SKILL.md"),
+                               skill_text("using-superpowers", "**Use skills.**", "# Using"))
+        self.kind = write(os.path.join(tree("grove-core"), "skills", "grove-planning", "SKILL.md"),
+                          skill_text("grove-planning", SNAPSHOT_LINE))
+        self.craft = write(os.path.join(tree("design"), "craft", "cli-tool-design", "SKILL.md"),
+                           skill_text("cli-tool-design", "**Design.**", "# CLI"))
+        self.hooked = write(os.path.join(tree("writing"), "craft", "technical-communication", "SKILL.md"),
+                            skill_text("technical-communication", "**Write plainly.**", "# TC"))
+        self.testanyware = write(os.path.join(tree("testanyware"), "skills", "using-testanyware", "SKILL.md"),
+                                 skill_text("using-testanyware", "**Drive VMs.**", "# TestAnyware"))
+        self.view = {"kind": "owner-switch-probe", "skills": {
+            "sources": sources, "directories": directories,
+            "mandatory": [{"source": "superpowers", "path": self.mandatory}]}}
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def events(self) -> list:
+        work = os.path.join(self.root, "work")
+        return [
+            {"tool": "Read", "path": self.mandatory},
+            {"tool": "Read", "path": self.kind},
+            {"tool": "Read", "path": self.testanyware},
+            {"tool": "Bash", "command": "testanyware llm-instructions"},
+            {"tool": "Bash", "command": "testanyware doctor"},
+            {"tool": "Read", "path": self.craft},
+            {"tool": "Write", "path": os.path.join(work, "tally.py")},
+            {"text": f"QUOTE: {SNAPSHOT_LINE}"},
+        ]
+
+    def judge(self, events, listed=("init",), hooks=True, view=None) -> dict:
+        view = view or self.view
+        classifier = ht.Classifier(view, ht.Path(self.home), ht.Path(os.path.join(self.root, "work")))
+        entries = []
+        for n, item in enumerate(events):
+            if "text" in item:
+                block = {"type": "text", "text": item["text"]}
+            else:
+                key = "file_path" if "path" in item else "command"
+                block = {"type": "tool_use", "id": f"t{n}", "name": item["tool"],
+                         "input": {key: item.get("path") or item.get("command")}}
+            entries.append({"type": "assistant", "message": {"content": [block]}})
+        desc = {"transcripts": [{"main": True, "events": ht.extract_events(entries, classifier),
+                                 "startup": {"init": {"skills": list(listed)}}}]}
+        stream = [{"type": "system", "subtype": "hook_response", "hook_event": "SessionStart", "exit_code": 0,
+                   "output": "In this session ... the `technical-communication` skill."}] if hooks else []
+        return probes.session_verdicts("claude", "ravel", desc, view, stream, self.plan, self.home,
+                                       probes.RAVEL_PROMPT)
+
+    def failed(self, verdicts: dict) -> dict:
+        return {name: v["reason"] for name, v in verdicts.items() if not v["passed"]}
+
+    def test_every_observation_passes(self):
+        self.assertEqual(self.failed(self.judge(self.events())), {})
+
+    def test_each_observation_fails_for_its_wrong_layout(self):
+        events = self.events()
+        late = events[1:2] + events[:1] + events[2:]
+        after = events[:5] + events[6:7] + events[5:6] + events[7:]
+        wrong_digest = json.loads(json.dumps(self.view))
+        wrong_digest["skills"]["sources"][0]["resourceDigest"] = "0" * 64
+        cases = {
+            "mandatoryFirst": self.judge(late),
+            "craftSkill": self.judge(after),
+            "craftSkill named by the hooks": self.judge([dict(e, path=self.hooked) if e.get("path") == self.craft
+                                                          else e for e in events]),
+            "kindSkill": self.judge([e for e in events if e.get("path") != self.kind]),
+            "testanyware": self.judge([e for e in events if "doctor" not in str(e.get("command"))]),
+            "hooks": self.judge(events, hooks=False),
+            "listing": self.judge(events, listed=("init", "grove:grove-planning")),
+            "digests": self.judge(events, view=wrong_digest),
+        }
+        for name, verdicts in cases.items():
+            with self.subTest(name):
+                self.assertEqual(list(self.failed(verdicts)), [name.split()[0]])
+
+    def test_the_quote_must_be_a_line_of_the_snapshot_copy(self):
+        events = self.events()[:-1] + [{"text": f"QUOTE: {NATIVE_LINE}"}]
+        self.assertIn("is no line of the grove-core copy", self.failed(self.judge(events))["kindSkill"])
+
+    def test_the_kind_skill_must_come_from_grove_core(self):
+        other = write(os.path.join(self.root, "snapshots", "engineering", "tree", "skills", "grove-planning",
+                                   "SKILL.md"), skill_text("grove-planning", SNAPSHOT_LINE))
+        events = [dict(e, path=other) if e.get("path") == self.kind else e for e in self.events()]
+        self.assertIn("no read of grove-planning from the grove-core snapshot",
+                      self.failed(self.judge(events))["kindSkill"])
+
+    def test_an_empty_listing_cannot_pass(self):
+        self.assertIn("no native skill listing", self.failed(self.judge(self.events(), listed=()))["listing"])
+
+
+class EndingShellControls(unittest.TestCase):
+
+    def test_the_ravel_script_keeps_the_view_and_the_stream_and_ends_the_session(self):
+        root = os.path.realpath(tempfile.mkdtemp(prefix="probe-shell-", dir="/private/tmp"))
+        try:
+            ravel = write(os.path.join(root, "ravel"), "#!/bin/sh\necho \"$@\" >\"$(dirname \"$0\")/ended\"\n")
+            os.chmod(ravel, 0o755)
+            view, stream = os.path.join(root, "view.json"), os.path.join(root, "stream.jsonl")
+            script = probes.ending_shell(ravel, view, stream)
+            done = subprocess.run(["/bin/sh", "-c", script, '{"kind": "k"}', "/bin/sh", "-c", "echo out; exit 3"],
+                                  capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stderr)
+            with open(view) as f:
+                self.assertEqual(json.load(f), {"kind": "k"})
+            with open(stream) as f:
+                self.assertEqual(f.read(), "out\n")
+            with open(os.path.join(root, "ended")) as f:
+                self.assertEqual(f.read(), "end-session harness-exit-3\n")
+            rhai = probes.probe_script("codex", "m", "e", ravel, view, stream)
+            self.assertIn("ravel::json_encode(view)", rhai)
+            self.assertNotIn("--add-dir", rhai)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
 
 
 if __name__ == "__main__":

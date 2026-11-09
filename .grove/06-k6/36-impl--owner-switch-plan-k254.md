@@ -20,8 +20,12 @@ in the owner's prepared folder.
   keeps the plan and the program at `<state>/prepared/plan.json` and
   `<state>/prepared/owner_switch.py`. Without them, `mac-check` reports that
   the switch is not prepared.
-- owner-switch-probes-k257 implements the probe program. It can change that
-  interface.
+- owner-switch-probes-k257 implements the probe program. It keeps the plan
+  draft's probe commands unchanged. The probe program imports
+  `owner_switch.py` and `harness_trial.py` from its own folder, so
+  `<state>/prepared/` holds both beside it. The section "Session probes" of
+  `docs/owner-skill-delivery-evidence.md` lists each file that a probe
+  session writes, for the expected inventories.
 - "The native settings inside finish", "The switch inside finish" and
   "Resuming the switch" of `docs/specs/owner-skill-delivery.md` state what
   finish and the owner need before mutation.
@@ -46,8 +50,9 @@ in the owner's prepared folder.
   identities. It records the off-value restoration exception.
 - The plan holds no `session.mcp`, process pattern, cell field or part
   recovery field.
-- `<state>/prepared/` holds the plan, the program, `inventory.py` and
-  `owner_switch_probes.py`. Their digests are in the evidence document.
+- `<state>/prepared/` holds the plan, the program, `inventory.py`,
+  `owner_switch_probes.py` and `harness_trial.py`. Their digests are in the
+  evidence document.
 - Prepared instructions, readable after `.grove/` teardown, name the exact
   `native-off` and `restore --backup` commands. They also name the
   attempt-note format and the comparison command.

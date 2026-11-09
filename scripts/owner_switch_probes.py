@@ -9,6 +9,7 @@ HOME, with HOME set and OWNER_SWITCH_PLAN naming the plan.
 
     owner_switch_probes.py resolve --expect switched|disabled [--plan PLAN]
     owner_switch_probes.py session --harness claude|codex --route ravel|native [--plan PLAN]
+                                   [--timeout S] [--keep]
     owner_switch_probes.py launch --harness claude|codex --route ravel|native --prompt TEXT
                                   [--model M] [--effort E] [--timeout S] [--settle S]
                                   [--interrupt-after S] [--crash-after S] [--keep]
@@ -42,16 +43,64 @@ resolve. `ravel skills resolve --json` with HOME's configuration.
               snapshotRoot and can be read. The result records each digest.
     disabled  The status is "disabled".
 
-session. session-probes-k281 adds the harness sessions. This version refuses
-it with exit 2.
+session. One headless harness session through the measured launcher, in a new
+work directory, with a fixed prompt. scripts/harness_trial.py, beside this
+file, extracts the events from the stream and the session file. Each skill
+read is a classified path or a tool result that holds the skill's `name:`
+line and first heading. The result keeps each tool result only as its digest.
+The Grove kind skill is grove-planning: a grove-core skill whose kind is not
+finish. Claude Code runs claude-opus-5-5 and Codex gpt-6.1-sol, both at
+medium effort.
+    ravel   The prompt asks for a small Python command-line tool for other
+            agents, then for one quoted line of grove-planning, then for
+            using-testanyware, `testanyware llm-instructions` and
+            `testanyware doctor`. The observations are:
+            mandatoryFirst  The mandatory file comes before any skill search
+                            and any task action.
+            craftSkill      cli-tool-design or coding-style-python, from a
+                            craft root of its snapshot, before the first edit.
+                            The prompt names neither.
+            kindSkill       grove-planning from the grove-core snapshot, and a
+                            quoted line of that copy.
+            testanyware     using-testanyware from its snapshot, and both
+                            commands.
+            hooks           Claude Code only: a SessionStart hook response
+                            that holds "technical-communication".
+            listing         The harness's own skill listing is not empty and
+                            holds no superseded name.
+            digests         The request view names exactly the plan's
+                            accepted sources with their digests, and the
+                            plan's mandatory file.
+    native  The prompt asks only for one quoted line of grove-planning.
+            listing         The listing holds grove-planning.
+            kindSkill       A native read of grove-planning: the Skill tool,
+                            or a native copy by path or by content. The
+                            quoted line is a line of a native copy.
+    The superseded names are the base names of the plan's `absent`
+    assertions below a native skill root. On the ravel route, each skill of
+    the view's search directories is one too. The quoted line that the
+    prompt asks for differs between the snapshot copy and the native copy.
+    Before the launch and after its cleanup, the probe reads each ordinary
+    child of ~/.claude/skills, ~/.codex/skills and ~/.agents/skills by
+    owner_switch.identity. It skips only ~/.claude/skills/synced and
+    ~/.codex/skills/.system, and only while each is a real folder. Any other
+    added, removed or changed child fails the probe ("Concurrent writers").
+    The result's `writes` lists each entry that the session added, changed or
+    removed at the top level of HOME and below WRITE_ROOTS. It names each
+    change below a native skill root or an agent definition root. It judges
+    none of them.
+    The session also fails when the launch fails, when the leader exits
+    non-zero, or when Ravel's result is not harness-exit-0.
 
 launch. The measured launcher ("Probe process lifetime"), which the session
 probes use, run on its own for the lifecycle measurements. It runs one
 harness with PROMPT in the work directory. The native route runs the harness
 directly. The ravel route runs `ravel start-session --kind owner-switch-probe
 --config <work>/probe.rhai --prompt PROMPT --json`. Its headless script
-selects `/bin/sh -c` with the same harness command, which then runs
-`<ravel> end-session harness-exit-<status>`, because Ravel 2.0 fails a
+selects `/bin/sh -c` with the same harness command. The shell writes Ravel's
+request view to <work>/view.json and the harness's output to
+<work>/stream.jsonl, because Ravel prints only the session result. It then
+runs `<ravel> end-session harness-exit-<status>`, because Ravel 2.0 fails a
 session whose managed process exits without a result. The owner's config.rhai
 stays unread: it launches the interactive Codex TUI.
     Claude Code  claude -p --output-format stream-json --verbose --model M
@@ -108,6 +157,7 @@ import ctypes
 import hashlib
 import json
 import os
+import re
 import shlex
 import shutil
 import signal
@@ -121,6 +171,15 @@ HERE = os.path.dirname(os.path.realpath(__file__))
 # file both in the repository and in <state>/prepared.
 sys.path.insert(0, HERE)
 import owner_switch as osw  # noqa: E402  (process identity, the recogniser and end_owned)
+import harness_trial as ht  # noqa: E402  (the harness adapters and the event classifier)
+
+# A read inside a script, such as a Python heredoc, names no path, so only its
+# result shows what the agent received. An agent reads a snapshot through a
+# glob. A command can read a skill and touch the work folder at once. The
+# staging trial runner sets the same three switches.
+ht.KEEP_RESULTS = True
+ht.EXPAND_GLOBS = True
+ht.KEEP_CLASSES = True
 
 RESULT_MARK = osw.RESULT_MARK
 JOURNAL_VAR = osw.JOURNAL_VAR
@@ -144,6 +203,65 @@ SETTLE_SECONDS = 3.0
 INTERRUPT_GRACE = 20.0
 CODEX_SANDBOX = "workspace-write"
 CODEX_APPROVAL = "never"
+
+# The session probes. The owner's policy runs each Grove kind on Claude Code
+# with claude-opus-5-5 at medium effort or higher. A probe inside finish must
+# not fail for a skipped skill search ("The failures at low effort" of the
+# evidence record).
+SESSION_DEFAULTS = {"claude": ("claude-opus-5-5", "medium"), "codex": ("gpt-6.1-sol", "medium")}
+# The Grove kind skill: a skill of the grove-core snapshot whose kind is not
+# finish. grove-core holds only the planning kinds besides finish.
+KIND_SKILL = "grove-planning"
+KIND_SOURCE = "grove-core"
+# The craft skills that the probe's unnamed task needs: a Python command-line
+# tool that other agents run. The hooks' instruction names
+# technical-communication, so a read of it shows no discovery.
+CRAFT_SKILLS = ("cli-tool-design", "coding-style-python")
+TESTANYWARE_SKILL = "using-testanyware"
+TESTANYWARE_SOURCE = "testanyware"
+TESTANYWARE_COMMANDS = {"llm-instructions": re.compile(r"\btestanyware\s+llm-instructions\b"),
+                        "doctor": re.compile(r"\btestanyware\s+doctor\b")}
+# The SessionStart hook of technical-communication-hooks@writing-hooks prints
+# the always-on instruction, which names its skill.
+HOOK_MARK = "technical-communication"
+# The classes of an event that looks for a skill or acts on the task. The
+# mandatory obligation of Ravel's discovery instructions comes before each
+# (staging_trial.py, GATED).
+GATED = {"listing", "skill", "kind-skill", "supporting", "native", "planted", "source-origin", "action",
+         "command", "work", "delegate", "native-skill-tool"}
+# A read of a skill: its SKILL.md by path, or a result that holds its marks.
+SKILL_CLASSES = {"skill", "kind-skill", "content"}
+# A quoted part of a line shorter than this proves no read of that copy.
+QUOTE_MIN_CHARS = 20
+# The native skill roots of HOME. The switch's absent assertions lie in them.
+NATIVE_SKILL_ROOTS = (".claude/skills", ".codex/skills", ".agents/skills", ".pi/agent/skills")
+# The roots whose ordinary children each probe compares, with the one exact
+# platform-managed subtree of each ("Concurrent writers").
+COMPARED_ROOTS = {".claude/skills": "synced", ".codex/skills": ".system", ".agents/skills": None}
+AGENT_ROOTS = (".claude/agents", ".codex/agents")
+# The folders where a harness session, its MCP servers, its hooks, Ravel or
+# TestAnyware can write. The write record walks each, and the top level of
+# HOME. The technical-communication hooks keep a reply log in their state
+# folder.
+WRITE_ROOTS = (".claude", ".codex", ".agents", ".pi", ".config/ravel", ".config/testanyware", ".cache/ravel",
+               ".local/share/claude", ".local/state/ravel", ".local/state/technical-communication", ".npm/_npx",
+               "Library/Keychains", "Library/Application Support/TestAnyware")
+RAVEL_PROMPT = (
+    "This session is an automated probe of skill delivery. Do these steps in this order, and ask no question.\n\n"
+    "1. In the current directory, write a small Python command-line tool, `tally.py`, that other AI agents will "
+    "run. It counts the lines, words and bytes of the files that it is given. When it is written, run it once "
+    "on itself.\n"
+    f"2. Load the `{KIND_SKILL}` skill. Do not follow its procedure. Quote, word for word, the first line of "
+    "its body that begins with two asterisks, on a line of its own that begins with `QUOTE: `.\n"
+    "3. Load the `using-testanyware` skill. Then run `testanyware llm-instructions` and `testanyware doctor`. "
+    "Start, stop or change no virtual machine. A failed doctor check is acceptable.\n\n"
+    "End with a short reply that repeats the `QUOTE: ` line."
+)
+NATIVE_PROMPT = (
+    "This session is an automated probe of skill discovery. Ask no question.\n\n"
+    f"Load the `{KIND_SKILL}` skill. Do not follow its procedure. Quote, word for word, the first line of its "
+    "body that begins with two asterisks, on a line of its own that begins with `QUOTE: `. Do nothing else."
+)
 
 
 class Fail(Exception):
@@ -549,30 +667,34 @@ def harness_argv(harness: str, model: str, effort: str, prompt: str, add_dirs=()
                      "-c", f'approval_policy="{CODEX_APPROVAL}"', prompt]
 
 
-def ending_shell(ravel: str) -> str:
-    """The `sh -c` script of a ravel-route launch: run the harness, then end the session with its status.
+def ending_shell(ravel: str, view: str, stream: str) -> str:
+    """The `sh -c` script of a ravel-route launch: keep the view, run the harness, then end the session.
 
-    Ravel 2.0's start-session fails with session_result_missing when the
-    managed process exits without `ravel end-session RESULT`. The probe ends
-    the session itself, so the result does not depend on the agent.
+    Its first argument is Ravel's request view as JSON, which the script
+    writes to VIEW. The harness's standard output goes to STREAM, because
+    Ravel prints only the session result. Ravel 2.0's start-session fails
+    with session_result_missing when the managed process exits without
+    `ravel end-session RESULT`. The probe ends the session itself, so the
+    result does not depend on the agent.
     """
-    return '"$0" "$@"; status=$?; exec ' + shlex.quote(ravel) + ' end-session "harness-exit-$status"'
+    return (f"printf '%s' \"$0\" >{shlex.quote(view)}; \"$@\" >{shlex.quote(stream)}; status=$?; exec "
+            + shlex.quote(ravel) + ' end-session "harness-exit-$status"')
 
 
-def probe_script(harness: str, model: str, effort: str, ravel: str) -> str:
+def probe_script(harness: str, model: str, effort: str, ravel: str, view: str, stream: str) -> str:
     """The headless Ravel selection script of a ravel-route launch: the native route's command, then end-session."""
     program, fixed = harness_argv(harness, model, effort, "")
-    fixed = ["-c", ending_shell(ravel), program] + fixed[:-1]
     add_dirs = ('    if request.skills != () { for source in request.skills.sources '
                 '{ args += ["--add-dir", source.snapshotRoot]; } }\n') if harness == "claude" else ""
     provider = "anthropic" if harness == "claude" else "openai"
-    head, tail = fixed[:3], fixed[3:]
     return ("// Written by owner_switch_probes.py for one probe launch.\n"
             "export const SCHEMA_VERSION = 4;\n"
             f'export const VERSION = "{PROBE_KIND}";\n\n'
             "fn select(request, context) {\n"
-            f"    let args = [{', '.join(json.dumps(a) for a in head)}];\n" + add_dirs +
-            f"    args += [{', '.join(json.dumps(a) for a in tail)}];\n"
+            "    let view = #{ kind: request.kind, skills: request.skills };\n"
+            f'    let args = ["-c", {json.dumps(ending_shell(ravel, view, stream))}, ravel::json_encode(view), '
+            f"{json.dumps(program)}];\n" + add_dirs +
+            f"    args += [{', '.join(json.dumps(a) for a in fixed[:-1])}];\n"
             "    args.push(request.prompt);\n"
             f'    #{{ status: "selected", program: "/bin/sh", args: args, provider: "{provider}", '
             f'model: {json.dumps(model)}, effort: {json.dumps(effort)}, reason: "owner switch probe" }}\n'
@@ -605,8 +727,17 @@ class Launch:
         script = os.path.join(self.work, "probe.rhai")
         ravel = os.path.join(brew_prefix(self.env, self.work), "bin", "ravel")
         with open(script, "w") as f:
-            f.write(probe_script(self.harness, self.model, self.effort, ravel))
+            f.write(probe_script(self.harness, self.model, self.effort, ravel, self.view_path(),
+                                 self.stream_path()))
         return [ravel, "start-session", "--kind", PROBE_KIND, "--config", script, "--prompt", self.prompt, "--json"]
+
+    def view_path(self) -> str:
+        """Where a ravel-route launch keeps Ravel's request view."""
+        return os.path.join(self.work, "view.json")
+
+    def stream_path(self) -> str:
+        """The harness's event stream: the leader's output on the native route, a file of its own on the ravel route."""
+        return os.path.join(self.work, "stdout" if self.route == "native" else "stream.jsonl")
 
     def on_signal(self, signum, frame) -> None:
         self.signalled = signum
@@ -787,6 +918,480 @@ def launch_command(args) -> dict:
     return result
 
 
+# --- session ----------------------------------------------------------------------
+
+def plan_superseded(plan: dict) -> set:
+    """The superseded skill names: each native entry that the plan's switched assertions name absent."""
+    names = set()
+    for assertion in plan.get("assertions") or []:
+        path = assertion.get("path") or ""
+        if assertion.get("absent") and os.path.dirname(path) in NATIVE_SKILL_ROOTS:
+            names.add(os.path.basename(path))
+    return names
+
+
+def view_skills(view: dict) -> dict:
+    """{skill name: [{"source", "path", "craft"}]} for each SKILL.md of the view's search directories."""
+    out = {}
+    for directory in (view.get("skills") or {}).get("directories") or []:
+        base = directory.get("path") or ""
+        if not os.path.isdir(base):
+            continue
+        for name in sorted(os.listdir(base)):
+            path = os.path.join(base, name, "SKILL.md")
+            if os.path.isfile(path):
+                out.setdefault(name, []).append({"source": directory.get("source"), "path": os.path.realpath(path),
+                                                 "craft": os.path.basename(base.rstrip("/")) == "craft"})
+    return out
+
+
+def native_copies(home: str, skill: str) -> list:
+    """Each native SKILL.md of SKILL in HOME: the user roots and Claude Code's plugin cache."""
+    found = [os.path.join(home, root, skill, "SKILL.md") for root in NATIVE_SKILL_ROOTS]
+    cache = os.path.join(home, ".claude", "plugins", "cache")
+    if os.path.isdir(cache):
+        for market in sorted(os.listdir(cache)):
+            for plugin in sorted(os.listdir(os.path.join(cache, market)) if os.path.isdir(
+                    os.path.join(cache, market)) else []):
+                folder = os.path.join(cache, market, plugin)
+                for version in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+                    found.append(os.path.join(folder, version, "skills", skill, "SKILL.md"))
+    return [p for p in found if os.path.isfile(p)]
+
+
+def skill_marks(path: str, skill: str):
+    """The `name:` line and the first heading of a SKILL.md's body, or None. A listing of front matter holds only the first."""
+    try:
+        with open(path, errors="replace") as f:
+            text = f.read()
+    except OSError:
+        return None
+    body = text.split("---", 2)[2] if text.startswith("---") else text
+    heading = next((line.strip() for line in body.splitlines() if line.startswith("# ")), None)
+    return (f"name: {skill}", heading) if heading else None
+
+
+def mark_reads(desc: dict, files: list) -> None:
+    """Add `contentReads` to each event whose result holds both marks of one of FILES, then drop each full result.
+
+    FILES are {"source", "skill", "path", ...}. The record keeps each result only as its digest and length.
+    """
+    marks = [(f, skill_marks(f["path"], f["skill"])) for f in files]
+    for transcript in desc.get("transcripts") or []:
+        for event in transcript.get("events") or []:
+            result = event.pop("resultFull", None)
+            if result is None:
+                continue
+            found = [dict(f) for f, pair in marks if pair and all(m in result for m in pair)]
+            if found:
+                event["contentReads"] = found
+            event["result"] = {"sha256": hashlib.sha256(result.encode()).hexdigest(), "chars": len(result)}
+
+
+def main_events(desc: dict) -> list:
+    transcript = next((t for t in desc.get("transcripts") or [] if t.get("main")), None)
+    return [e for e in (transcript or {}).get("events") or [] if not e.get("sidechain")]
+
+
+def reads_of(event: dict) -> list:
+    """Each classified read of one event: its first class, the rest under `more`, and each content read."""
+    first = {k: event.get(k) for k in ("class", "skill", "source", "path")}
+    content = [{"class": "content", **{k: c.get(k) for k in ("skill", "source", "path")}}
+               for c in event.get("contentReads") or []]
+    return [first, *event.get("more", []), *content]
+
+
+def native_listing(desc: dict) -> list:
+    """The skill names that the harness itself listed at startup."""
+    names = []
+    for item in [t.get("startup") for t in desc.get("transcripts") or [] if t.get("main")] + [desc.get("startup")]:
+        item = item or {}
+        names += list((item.get("init") or {}).get("skills") or [])
+        names += list((item.get("skillListing") or {}).get("names") or [])
+    return sorted({n.strip() for n in names if isinstance(n, str) and n.strip()})
+
+
+def bare(name: str) -> str:
+    return name.split(":")[-1]
+
+
+def quoted(events: list) -> str:
+    """The text after the last `QUOTE:` in the agent's own text, or ""."""
+    found = ""
+    for event in events:
+        if event.get("class") == "text":
+            for line in str(event.get("target") or "").splitlines():
+                at = line.find("QUOTE:")
+                if at >= 0:
+                    found = line[at + len("QUOTE:"):].strip()
+    if len(found) > 2 and found[0] == found[-1] and found[0] in "`\"'":
+        found = found[1:-1].strip()
+    return found
+
+
+def quote_in(quote: str, path: str) -> bool:
+    """Whether QUOTE is a whole line of the file at PATH, or a long enough part of it."""
+    try:
+        with open(path, errors="replace") as f:
+            text = f.read()
+    except OSError:
+        return False
+    if not quote:
+        return False
+    return quote in {line.strip() for line in text.splitlines()} or (len(quote) >= QUOTE_MIN_CHARS and quote in text)
+
+
+def quote_line(path: str) -> str:
+    """The line that the probe asks for: the first line of the body that begins with `**`."""
+    try:
+        with open(path, errors="replace") as f:
+            text = f.read()
+    except OSError:
+        return ""
+    body = text.split("---", 2)[2] if text.startswith("---") else text
+    return next((line.strip() for line in body.splitlines() if line.startswith("**")), "")
+
+
+def first_action(events: list):
+    return next((e for e in events if e.get("class") == "action"), None)
+
+
+def mandatory_verdict(events: list, mandatory_skills: set) -> dict:
+    """The mandatory file comes before any skill search and any task action. A file of a mandatory skill belongs to that read."""
+    first = next((i for i, e in enumerate(events) if e.get("class") == "mandatory"), None)
+    if first is None:
+        return {"passed": False, "reason": "the agent never read the mandatory file"}
+    early = [e for e in events[:first] if e.get("class") in GATED
+             and not (e.get("class") == "supporting" and e.get("skill") in mandatory_skills)]
+    if early:
+        shown = [f"#{e['seq']} {e.get('class')} {str(e.get('target'))[:80]}" for e in early]
+        return {"passed": False, "mandatorySeq": events[first]["seq"],
+                "reason": f"events before the mandatory read: {shown}"}
+    return {"passed": True, "mandatorySeq": events[first]["seq"]}
+
+
+def craft_verdict(events: list, skills: dict, prompt: str) -> dict:
+    """The agent reads a craft skill that the task needs and the prompt does not name, before its first edit."""
+    craft = {(c["source"], name) for name, copies in skills.items() for c in copies
+             if c["craft"] and name in CRAFT_SKILLS and name not in prompt}
+    read = next(((e, r) for e in events for r in reads_of(e)
+                 if r.get("class") in SKILL_CLASSES and (r.get("source"), r.get("skill")) in craft), None)
+    action = first_action(events)
+    verdict = {"skill": read[1].get("skill") if read else None, "source": read[1].get("source") if read else None,
+               "readSeq": read[0]["seq"] if read else None, "actionSeq": action["seq"] if action else None}
+    if not read:
+        reason = f"the agent read none of the craft skills {', '.join(CRAFT_SKILLS)} from its snapshot"
+    elif not action:
+        reason = "the agent made no edit, so the read precedes no action"
+    elif read[0]["seq"] >= action["seq"]:
+        reason = "the craft skill was read at or after the first edit"
+    else:
+        reason = None
+    return dict(verdict, passed=reason is None, reason=reason)
+
+
+def kind_verdict(events: list, skills: dict) -> dict:
+    """The agent reads the Grove kind skill from the grove-core snapshot, and quotes a line of that copy."""
+    copy = next((c["path"] for c in skills.get(KIND_SKILL, []) if c["source"] == KIND_SOURCE), None)
+    read = next((e for e in events for r in reads_of(e) if r.get("class") in SKILL_CLASSES
+                 and r.get("skill") == KIND_SKILL and r.get("source") == KIND_SOURCE), None)
+    quote = quoted(events)
+    verdict = {"skill": KIND_SKILL, "source": KIND_SOURCE, "copy": copy, "readSeq": read["seq"] if read else None,
+               "quote": quote, "asked": quote_line(copy) if copy else None}
+    if not copy:
+        reason = f"the view's {KIND_SOURCE} snapshot holds no {KIND_SKILL}"
+    elif not read:
+        reason = f"no read of {KIND_SKILL} from the {KIND_SOURCE} snapshot"
+    elif not quote_in(quote, copy):
+        reason = f"the quoted line {quote[:120]!r} is no line of the {KIND_SOURCE} copy"
+    else:
+        reason = None
+    return dict(verdict, passed=reason is None, reason=reason)
+
+
+def native_kind_verdict(events: list, home: str) -> dict:
+    """The agent reads the Grove kind skill natively, and quotes a line of a native copy."""
+    copies = native_copies(home, KIND_SKILL)
+    real = {os.path.realpath(p) for p in copies}
+
+    def native_read(event: dict) -> bool:
+        if event.get("tool") == "Skill":
+            return bare(str(event.get("target") or "")) == KIND_SKILL and not event.get("error")
+        paths = [r.get("path") for r in reads_of(event)] + list(event.get("paths") or [])
+        return any(p and os.path.realpath(p) in real for p in paths) or any(
+            c.get("path") in real for c in event.get("contentReads") or [])
+
+    read = next((e for e in events if native_read(e)), None)
+    quote = quoted(events)
+    matched = [p for p in copies if quote_in(quote, p)]
+    verdict = {"skill": KIND_SKILL, "copies": copies, "readSeq": read["seq"] if read else None,
+               "readTool": read.get("tool") if read else None, "quote": quote, "quotedCopies": matched,
+               "asked": quote_line(copies[0]) if copies else None}
+    if not copies:
+        reason = f"HOME holds no native copy of {KIND_SKILL}"
+    elif not read:
+        reason = f"no native read of {KIND_SKILL}"
+    elif not matched:
+        reason = f"the quoted line {quote[:120]!r} is no line of a native copy"
+    else:
+        reason = None
+    return dict(verdict, passed=reason is None, reason=reason)
+
+
+def testanyware_verdict(events: list) -> dict:
+    """The agent reads using-testanyware from its source and runs the command reference and doctor."""
+    read = next((e for e in events for r in reads_of(e) if r.get("class") in SKILL_CLASSES
+                 and r.get("skill") == TESTANYWARE_SKILL and r.get("source") == TESTANYWARE_SOURCE), None)
+    runs = {}
+    for label, pattern in TESTANYWARE_COMMANDS.items():
+        hit = next((e for e in events if e.get("tool") in ht.SHELL_TOOLS and pattern.search(str(e.get("target")))),
+                   None)
+        runs[label] = hit["seq"] if hit else None
+    missing = [label for label, seq in runs.items() if seq is None]
+    verdict = {"readSeq": read["seq"] if read else None, "commands": runs}
+    if not read:
+        reason = f"no read of {TESTANYWARE_SKILL} from the {TESTANYWARE_SOURCE} snapshot"
+    elif missing:
+        reason = "the agent did not run " + " or ".join(f"testanyware {m}" for m in missing)
+    else:
+        reason = None
+    return dict(verdict, passed=reason is None, reason=reason)
+
+
+def hooks_verdict(stream: list) -> dict:
+    """Claude Code ran the technical-communication SessionStart hook: its response holds the instruction."""
+    responses = [e for e in stream if e.get("type") == "system" and e.get("subtype") == "hook_response"]
+    shown = [{"event": e.get("hook_event"), "name": e.get("hook_name"), "exit": e.get("exit_code"),
+              "outcome": e.get("outcome"), "marked": HOOK_MARK in str(e.get("output") or "")} for e in responses]
+    hit = [s for s in shown if s["event"] == "SessionStart" and s["marked"] and s["exit"] == 0]
+    reason = None if hit else (f"no SessionStart hook response held {HOOK_MARK!r}; responses: "
+                               + json.dumps(shown)[:600])
+    return {"responses": shown, "passed": reason is None, "reason": reason}
+
+
+def listing_verdict(listed: list, superseded: set, route: str) -> dict:
+    """The ravel route lists no superseded skill. The native route lists the kind skill."""
+    hits = sorted({bare(n) for n in listed} & superseded)
+    verdict = {"count": len(listed), "listedSuperseded": hits}
+    if not listed:
+        reason = "the session shows no native skill listing, so discovery cannot be judged"
+    elif route == "ravel" and hits:
+        reason = f"native discovery listed superseded skills {hits}"
+    elif route == "native" and KIND_SKILL not in {bare(n) for n in listed}:
+        reason = f"native discovery did not list {KIND_SKILL}"
+    else:
+        reason = None
+    return dict(verdict, passed=reason is None, reason=reason)
+
+
+def digest_verdict(view: dict, accepted: dict, mandatory: list) -> dict:
+    """The launch's sources are exactly the accepted sources with their digests, and it names the mandatory file."""
+    skills = view.get("skills") or {}
+    found = {s.get("id"): s.get("resourceDigest") for s in skills.get("sources") or [] if isinstance(s, dict)}
+    problems = []
+    for sid in sorted(set(found) | set(accepted)):
+        want = (accepted.get(sid) or {}).get("resourceDigest")
+        if sid not in found:
+            problems.append(f"the accepted source {sid} is missing")
+        elif want is None:
+            problems.append(f"the source {sid} is not an accepted source")
+        elif found[sid] != want:
+            problems.append(f"the source {sid} gives resourceDigest {found[sid]}, not the accepted {want}")
+    listed = {(m.get("source"), os.path.basename(os.path.dirname(m.get("path") or ""))) for m in
+              skills.get("mandatory") or [] if isinstance(m, dict)}
+    for want in mandatory:
+        if (want.get("source"), os.path.basename(os.path.dirname(want.get("path") or ""))) not in listed:
+            problems.append(f"the launch names no mandatory file {want.get('source')}:{want.get('path')}")
+    return {"sources": found, "passed": not problems, "reason": "; ".join(problems) or None}
+
+
+def session_verdicts(harness: str, route: str, desc: dict, view: dict, stream: list, plan: dict, home: str,
+                     prompt: str) -> dict:
+    """Each observation of one session: {name: verdict}. The native route needs no Ravel view."""
+    events = main_events(desc)
+    superseded = plan_superseded(plan)
+    out = {}
+    if route == "ravel":
+        skills = view_skills(view)
+        superseded |= set(skills)
+        mandatory_skills = {os.path.basename(os.path.dirname(m.get("path") or ""))
+                            for m in (view.get("skills") or {}).get("mandatory") or []}
+        out["mandatoryFirst"] = mandatory_verdict(events, mandatory_skills)
+        out["craftSkill"] = craft_verdict(events, skills, prompt)
+        out["kindSkill"] = kind_verdict(events, skills)
+        out["testanyware"] = testanyware_verdict(events)
+        if harness == "claude":
+            out["hooks"] = hooks_verdict(stream)
+        out["listing"] = listing_verdict(native_listing(desc), superseded, route)
+        out["digests"] = digest_verdict(view, plan["accepted"]["sources"], plan_mandatory(plan))
+    else:
+        out["listing"] = listing_verdict(native_listing(desc), superseded, route)
+        out["kindSkill"] = native_kind_verdict(events, home)
+    return out
+
+
+def skill_roots(home: str) -> dict:
+    """Each ordinary child of the native skill roots as {root: {"entries": {name: identity}, ...}}.
+
+    Only the exact platform-managed subtree of a root is skipped, and only
+    while it is a real folder ("Concurrent writers").
+    """
+    out = {}
+    for rel, skipped in COMPARED_ROOTS.items():
+        base = os.path.join(home, rel)
+        entries, skips = {}, []
+        if os.path.isdir(base):
+            for name in sorted(os.listdir(base)):
+                path = os.path.join(base, name)
+                if name == skipped and os.path.isdir(path) and not os.path.islink(path):
+                    skips.append(name)
+                    continue
+                entries[name] = osw.identity(path)
+        out[rel] = {"present": os.path.lexists(base),
+                    "link": os.readlink(base) if os.path.islink(base) else None,
+                    "entries": entries, "skipped": skips}
+    return out
+
+
+def root_changes(before: dict, after: dict) -> list:
+    """Each difference between two readings of the native skill roots."""
+    changes = []
+    for rel in COMPARED_ROOTS:
+        b, a = before.get(rel) or {}, after.get(rel) or {}
+        if (b.get("present"), b.get("link")) != (a.get("present"), a.get("link")):
+            changes.append({"path": rel, "change": "root"})
+        old, new = b.get("entries") or {}, a.get("entries") or {}
+        for name in sorted(set(old) | set(new)):
+            if name not in old:
+                changes.append({"path": f"{rel}/{name}", "change": "added"})
+            elif name not in new:
+                changes.append({"path": f"{rel}/{name}", "change": "removed"})
+            elif old[name] != new[name]:
+                changes.append({"path": f"{rel}/{name}", "change": "changed"})
+    return changes
+
+
+def file_state(home: str) -> dict:
+    """{relative path: (type, size, mtime_ns, inode, mode, link)} below each written-file root of HOME."""
+    state = {}
+
+    def add(path: str) -> None:
+        try:
+            st = os.lstat(path)
+        except OSError:
+            return
+        link = os.readlink(path) if os.path.islink(path) else None
+        kind = "link" if link is not None else "dir" if os.path.isdir(path) else "file"
+        state[os.path.relpath(path, home)] = (kind, 0 if kind == "dir" else st.st_size,
+                                              0 if kind == "dir" else st.st_mtime_ns, st.st_ino, st.st_mode, link)
+
+    for name in os.listdir(home):
+        add(os.path.join(home, name))
+    for rel in WRITE_ROOTS:
+        top = os.path.join(home, rel)
+        if not os.path.isdir(top) or os.path.islink(top):
+            add(top)
+            continue
+        for folder, dirs, files in os.walk(top):
+            for name in dirs + files:
+                add(os.path.join(folder, name))
+    return state
+
+
+def written(before: dict, after: dict) -> dict:
+    """Each entry that a session added, changed or removed, and whether a skill copy or agent definition is one."""
+    changes = []
+    for rel in sorted(set(before) | set(after)):
+        if before.get(rel) == after.get(rel):
+            continue
+        change = "added" if rel not in before else "removed" if rel not in after else "changed"
+        kind = (after.get(rel) or before.get(rel))[0]
+        changes.append({"path": rel, "change": change, "type": kind})
+    skills = [c["path"] for c in changes if any(inside(c["path"], r) for r in NATIVE_SKILL_ROOTS)]
+    agents = [c["path"] for c in changes if any(inside(c["path"], r) for r in AGENT_ROOTS)]
+    return {"scope": ["each top-level entry of HOME", *WRITE_ROOTS], "changes": changes,
+            "skillCopiesChanged": skills, "agentDefinitionsChanged": agents}
+
+
+def session_prompt(route: str) -> str:
+    return RAVEL_PROMPT if route == "ravel" else NATIVE_PROMPT
+
+
+def compact_events(events: list) -> list:
+    """The record of each event, without any result text."""
+    keys = ("seq", "tool", "class", "skill", "source", "error")
+    return [dict({k: e.get(k) for k in keys if e.get(k) is not None}, target=str(e.get("target") or "")[:160],
+                 **({"contentReads": [f"{c.get('source')}:{c.get('skill')}" for c in e["contentReads"]]}
+                    if e.get("contentReads") else {})) for e in events]
+
+
+def session_command(args) -> dict:
+    home = probe_home()
+    plan = load_plan(args.plan)
+    prompt = session_prompt(args.route)
+    model, effort = SESSION_DEFAULTS[args.harness]
+    roots_before = skill_roots(home)
+    files_before = file_state(home)
+    work = make_work(home)
+    launch = None
+    try:
+        launch = Launch(args.harness, args.route, prompt, home, work, model, effort, timeout=args.timeout)
+        result = launch.run()
+        stdout, stderr = launch.output()
+        try:
+            with open(launch.stream_path(), "rb") as f:
+                raw = f.read()
+        except OSError:
+            raw = b""
+        view = {}
+        if args.route == "ravel":
+            try:
+                with open(launch.view_path()) as f:
+                    view = json.load(f) or {}
+            except (OSError, ValueError):
+                view = {}
+        stream = ht.read_jsonl_bytes(raw)
+        adapter = ht.adapter_named(args.harness)
+        desc = adapter.describe("probe", view, {}, stream, hashlib.sha256(raw).hexdigest(), ht.Path(home),
+                                ht.Path(work), {}, prompt=prompt)
+        files = [dict(c, skill=name) for name, copies in view_skills(view).items() for c in copies]
+        files += [{"source": "native", "skill": KIND_SKILL, "path": os.path.realpath(p)}
+                  for p in native_copies(home, KIND_SKILL)]
+        mark_reads(desc, files)
+        observations = session_verdicts(args.harness, args.route, desc, view, stream, plan, home, prompt)
+        program = shutil.which(harness_argv(args.harness, model, effort, "")[0], path=launch.env["PATH"])
+        version = first_line([program, "--version"], launch.env, work) if program else "unavailable"
+    finally:
+        if not args.keep and not (launch is not None and launch.keep_work):
+            shutil.rmtree(work, ignore_errors=True)
+    roots = root_changes(roots_before, skill_roots(home))
+    writes = written(files_before, file_state(home))
+    problems = list(result["problems"])
+    leader = result["leader"]
+    if leader["exit"] != 0:
+        problems.append(f"the leader exited {leader['exit']}")
+    if args.route == "ravel" and stdout.strip().splitlines()[-1:] != ["harness-exit-0"]:
+        problems.append(f"Ravel did not end the session with harness-exit-0: {stdout.strip()[-300:]!r}")
+    for name, verdict in observations.items():
+        if not verdict["passed"]:
+            problems.append(f"{name}: {verdict['reason']}")
+    for change in roots:
+        problems.append(f"the native skill root entry {change['path']} was {change['change']} during the probe")
+    return {"probe": "session", "harness": args.harness, "route": args.route, "home": home, "model": model,
+            "effort": effort, "harnessVersion": version, "prompt": prompt, "planDigest": plan["_digest"],
+            "launch": {k: result[k] for k in ("argv", "leader", "events", "owned", "survivors", "cleanup",
+                                              "unattributed", "reparentedWithoutRecord", "journal")},
+            "view": {"kind": view.get("kind"), "sources": (observations.get("digests") or {}).get("sources")},
+            "sessionId": desc.get("sessionId"),
+            "transcripts": [{k: t.get(k) for k in ("file", "sha256", "main")} for t in desc.get("transcripts") or []],
+            "events": compact_events(main_events(desc)), "listing": native_listing(desc),
+            "observations": observations, "rootChanges": roots,
+            "rootsCompared": {rel: {"entries": len(r["entries"]), "skipped": r["skipped"]}
+                              for rel, r in roots_before.items()},
+            "writes": writes, "work": work, "kept": bool(args.keep), "droppedNames": dropped_names(),
+            "stderrTail": stderr[-2000:], "problems": problems, "ok": not problems}
+
+
 # --- entry ------------------------------------------------------------------------
 
 def parser() -> argparse.ArgumentParser:
@@ -795,10 +1400,12 @@ def parser() -> argparse.ArgumentParser:
     r = sub.add_parser("resolve", help="ravel skills resolve with HOME's configuration")
     r.add_argument("--expect", choices=("switched", "disabled"), required=True)
     r.add_argument("--plan")
-    s = sub.add_parser("session", help="one harness session probe (session-probes-k281)")
+    s = sub.add_parser("session", help="one harness session probe and its observations")
     s.add_argument("--harness", choices=("claude", "codex"), required=True)
     s.add_argument("--route", choices=("ravel", "native"), required=True)
     s.add_argument("--plan")
+    s.add_argument("--timeout", type=float, default=LAUNCH_TIMEOUT)
+    s.add_argument("--keep", action="store_true", help="keep the work directory")
     m = sub.add_parser("launch", help="one measured harness launch")
     m.add_argument("--harness", choices=("claude", "codex"), required=True)
     m.add_argument("--route", choices=("ravel", "native"), required=True)
@@ -815,12 +1422,9 @@ def parser() -> argparse.ArgumentParser:
 
 def main(argv=None) -> int:
     args = parser().parse_args(argv)
-    if args.command == "session":
-        emit({"probe": "session", "ok": False, "problems": ["session-probes-k281 adds the session probes; "
-                                                            "this version of the probe program has none"]})
-        return 2
+    commands = {"resolve": resolve_command, "session": session_command, "launch": launch_command}
     try:
-        result = resolve_command(args) if args.command == "resolve" else launch_command(args)
+        result = commands[args.command](args)
     except Fail as e:
         note(f"{args.command}: {e}")
         emit({"probe": args.command, "ok": False, "problems": [str(e)]})

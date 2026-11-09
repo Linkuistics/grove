@@ -190,9 +190,11 @@ NOOP_WORKER = "/usr/bin/true"
 # when another Claude Code file of the clone still names the staging HOME.
 CLONE_REWRITES = (".claude/settings.json", ".claude/plugins/installed_plugins.json",
                   ".claude/plugins/known_marketplaces.json")
-# The directories of a clone's `.claude` that hold session records or
-# plugin bytes, which can quote any path. The path check skips them.
-CLONE_UNCHECKED = (".claude/projects", ".claude/plugins/cache", ".claude/plugins/marketplaces")
+# The directories of a clone's `.claude` that hold session records, plugin
+# bytes or an earlier session's shell snapshot, which can quote any path. The
+# path check skips them. Each new session writes its own shell snapshot.
+CLONE_UNCHECKED = (".claude/projects", ".claude/plugins/cache", ".claude/plugins/marketplaces",
+                   ".claude/shell-snapshots")
 # The plugin subjects of the retained staging HOME. A guidance case must not
 # change one of them.
 RETAINED_SUBJECTS = CLONE_REWRITES + (".claude/plugins/marketplaces", PLUGIN_CACHE)
@@ -1157,7 +1159,12 @@ def clone_home(home: Path, clone: Path) -> dict[str, Any]:
     done = subprocess.run(["/bin/cp", "-cRP", str(home), str(clone)], capture_output=True, text=True, check=False)
     if done.returncode != 0:
         raise TrialFailure(f"cp -cRP {home} {clone} failed: {done.stderr.strip()[-600:]}")
-    shutil.rmtree(clone / ".cache" / "ravel", ignore_errors=True)
+    # Ravel's snapshots are read-only, so the folders become writable first.
+    # A removal that fails refuses: the clone must take new snapshots.
+    cache = clone / ".cache" / "ravel"
+    if cache.exists():
+        subprocess.run(["/bin/chmod", "-R", "u+w", str(cache)], check=True)
+        shutil.rmtree(cache)
     old, new = str(home), str(clone)
     rewritten = []
     for rel in CLONE_REWRITES:

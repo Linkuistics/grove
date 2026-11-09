@@ -553,6 +553,22 @@ tasks:
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/probe_lifecycle.py resolve --out "{{.OUT}}"
 
+  # The staging pass of the probe's four session modes: each mode once where
+  # it must pass and once against a wrong layout where it must fail. Each case
+  # runs in a `cp -c` clone of the staging HOME, with the plan draft and the
+  # accepted Ravel 2.0 build. It spends subscription usage, so no gate runs
+  # it. Run nothing else that starts Claude Code or Codex meanwhile: the probe
+  # fails for a harness process that it did not start. OUT is a new
+  # directory. ONLY limits the cases to labels that match a regular
+  # expression. For example:
+  #   task owner:probes:sessions OUT="$SCRATCH/sessions"
+  owner:probes:sessions:
+    desc: Run each session probe mode in clones of the staging HOME, once with the right layout and once with a wrong one, writing OUT/sessions.json (spends subscription usage)
+    requires:
+      vars: [OUT]
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/probe_lifecycle.py sessions --out "{{.OUT}}" {{if .ONLY}}--only "{{.ONLY}}"{{end}}
+
   # The owner switch program's fixture suite ("Test seams" of
   # docs/specs/owner-skill-delivery.md). OUT is a new directory outside every
   # working copy. ONLY limits the controls to the names that match a regular

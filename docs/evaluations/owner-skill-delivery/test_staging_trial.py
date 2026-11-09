@@ -4,6 +4,7 @@ verdict passes on a conforming session and fails on a mutated one."""
 
 from __future__ import annotations
 
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -581,7 +582,12 @@ class GuidanceVerdicts(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir="/private/tmp") as tmp:
             home = Path(tmp) / "home"
             (home / ".claude" / "plugins").mkdir(parents=True)
-            (home / ".cache" / "ravel").mkdir(parents=True)
+            # A read-only snapshot, as Ravel writes it.
+            snapshot = home / ".cache" / "ravel" / "snapshots" / "d" / "tree"
+            snapshot.mkdir(parents=True)
+            (snapshot / "SKILL.md").write_text("x")
+            for path in (snapshot / "SKILL.md", snapshot, snapshot.parent):
+                path.chmod(0o444 if path.is_file() else 0o555)
             (home / ".claude.json").write_text("{}")
             for rel in staging_trial.CLONE_REWRITES:
                 (home / rel).write_text(f'{{"path": "{home}/.claude/x"}}')
@@ -593,6 +599,7 @@ class GuidanceVerdicts(unittest.TestCase):
             (home / ".claude" / "agents.json").write_text(str(home))
             with self.assertRaises(staging_trial.TrialFailure):
                 staging_trial.clone_home(home, Path(tmp) / "clone-2")
+            subprocess.run(["/bin/chmod", "-R", "u+w", tmp], check=True)
 
 
 class RealHomeCheck(unittest.TestCase):

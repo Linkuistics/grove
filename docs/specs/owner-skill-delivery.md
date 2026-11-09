@@ -264,6 +264,12 @@ Nobody edits a keg or runs a tool inside it. Homebrew leaves `libexec` files
 writable, and Ravel would capture an edit. Development happens in the working
 copy of each pack under `~/Development/AgenticOrchestration`.
 
+The hooks plugin of [Native residue](#native-residue) is the one tool that
+runs inside a keg. Its hooks write nothing there, so the `writing` source
+keeps its accepted digest through each session. The technical-communication
+specification of WritingSkills owns that rule, and its script
+`scripts/hook-writes.py` enforces it.
+
 An advance unlinks the earlier keg, installs the new keg and links it, as
 Ravel's specification states. A capture therefore reads one complete keg, or
 it finds the source absent. Each Homebrew installation or upgrade of a skill

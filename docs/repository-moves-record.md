@@ -3997,10 +3997,22 @@ of an earlier section. The earlier sections describe the state after each move.
 
 | Subject | Value |
 | --- | --- |
-| Candidate commit | `7b113a28a96621217c16154d4f44eba667236132`, the commit of `homebrew-delivery-guidance-k237` |
+| Candidate commit | `ef8a79dd7621a437177982e24d8ec27831b4add4`, the commit of `tc-hook-bytecode-k284` |
 | Tree ID of `plugins/grove` | `885051a94eddaa81fa7a1a9900c3ac4db775aa84` |
-| Blob ID of `plugins/packs.json` | `e00c67b74939542db0b7af2428d918a3458d73a4` |
+| Blob ID of `plugins/packs.json` | `2cebaf5f062d08b50b22d058bd8c4db3d412f8a6` |
 | Published line | The bookmark `gh-issue-25` of `https://github.com/Linkuistics/grove.git` |
+
+`tc-hook-bytecode-k284` revised the candidate and the `writing` row on
+2026-11-10. WritingSkills `578f84d1f5a9` stops the hooks from writing Python
+bytecode into the source. The earlier values were the candidate
+`7b113a28a96621217c16154d4f44eba667236132`, the blob ID
+`e00c67b74939542db0b7af2428d918a3458d73a4`, and the `writing` commit
+`b9240e0138df7d9f1d6926b77737668463dcfdfb` with the tree ID
+`8c476d7b082ee4af6b621eb6d94bfda0e79e8b01` and the `resourceDigest`
+`2dea55cd72d0d56032c04419bfd438b62b321563573a09fffcab2f2c692ecade`. The
+tree ID of `plugins/grove` and the digest of each other source are
+unchanged. The section "Session probes" of
+`docs/owner-skill-delivery-evidence.md` records the new measurement.
 
 The candidate is the last commit of this line that changes `plugins/grove` or
 `plugins/packs.json`. The jj revset `files("plugins/grove") |
@@ -4027,7 +4039,7 @@ finish.
 | `design` | `grove` | `https://github.com/Linkuistics/DesignSkills.git` | `aa088156d1a55e28dd9b59f0330f4ab9f1f3d330` | `plugins/design` | `craft`, `skills` | `dd04e268aeb5eba82c527755b1f52bee3565a216` | `d8ad3a2af1b5029bc0de93747f4d7297038651180f6877fbd738d94fcbf6aa14` |
 | `engineering` | `grove` | `https://github.com/Linkuistics/EngineeringSkills.git` | `8d1a2bc3e07bec4ce57e0391a6aa778dff63a017` | `plugins/engineering` | `craft`, `skills` | `d8a891cd5c13e9866f7937537afc7979fb3ef0f7` | `7e70b280e7a932489a048d108d4dae2bc63b387cf8fc6b37298663336e0fcc66` |
 | `research` | `grove` | `https://github.com/Linkuistics/ResearchSkills.git` | `8f321f2e99e09a8ba5e60fa4a08871727e84df62` | `plugins/research` | `skills` | `79dc2a530cd2d30cd088073423437bb18d61b401` | `7fb3d473f66feafb49afd8846fd94cf3e1fb7b01c584d4ad5f0e54814a8b3fdb` |
-| `writing` | `grove` | `https://github.com/Linkuistics/WritingSkills.git` | `b9240e0138df7d9f1d6926b77737668463dcfdfb` | `plugins/writing` | `craft`, `skills` | `8c476d7b082ee4af6b621eb6d94bfda0e79e8b01` | `2dea55cd72d0d56032c04419bfd438b62b321563573a09fffcab2f2c692ecade` |
+| `writing` | `grove` | `https://github.com/Linkuistics/WritingSkills.git` | `578f84d1f5a9bb04573a704bca639530d93b6bca` | `plugins/writing` | `craft`, `skills` | `ce8f4633533f9f550d414a474561a77f92cebba0` | `56bcd07b87f46a7b9ff92eed5a5a128f10d3ce64be2f7d934be898e058782212` |
 | `personal` | `personal` | `https://github.com/Linkuistics/PersonalSkills.git` | `cddcfde901cdaf8069e2aac6f3b6bc5aba9fe925` | `plugins/personal` | `craft` | `f66e0792b9507194842e5b7d44457cf12d70dd98` | `dc1f26eafe9b7db6f750c95db38a7876beb29b067d829eaf63203323b89d61b6` |
 | `testanyware` | `testanyware` | `https://github.com/Linkuistics/TestAnyware.git` | `1809a49068a23d9d276913f3a90227dbefb98a82`, tag `v2.8.0` | `plugins/testanyware` | `skills` | `0701492a5dae89e5b967e0122a5f1085cccec291` | `3e9d7929eddd8988a6bebd9433b7f343a19e673993b3c81e8a1ce9ba913b72c6` |
 | `superpowers` | `superpowers` | `https://github.com/obra/superpowers.git` | `bb92a77741419a4ab5f06e711a283343f1ada0c3`, tag `v7.0.0` | The repository root | `skills` | `4ac675daa3415bc836f707c7e60237ac7b66c7d5`, the root tree | `be1ce6e3c25064b83ba2999b37972deb7f73ce88a5f5dbbba990d88037b17230` |

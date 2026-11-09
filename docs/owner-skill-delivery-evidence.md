@@ -3607,6 +3607,7 @@ These paths stay until the switch writes its receipt. The plan's
 | Accepted Ravel 2.0 build | `/Users/antony/.local/state/owner-staging/ravel-2.0` |
 | Isolation record | `/Users/antony/.local/state/owner-staging/isolation-2/record.json` |
 | Record of the first run | `/Users/antony/.local/state/owner-staging/isolation-1/record.json` |
+| Replaced candidate keg, removable | `/Users/antony/.local/state/owner-staging/candidate-2dea55cd` |
 
 The staging HOME contains no source, and no source contains it. The tool
 checks both before it writes.
@@ -3619,12 +3620,14 @@ empty working copy, filled the Ravel prefix. Its `bin/ravel` has the SHA-256
 `scripts/harness-trials/builds.json` pins. The prefix holds no `libexec`.
 
 `task owner:candidate-keg` built the candidate keg from
-`7b113a28a96621217c16154d4f44eba667236132`, which `origin/gh-issue-25`
+`ef8a79dd7621a437177982e24d8ec27831b4add4`, which `origin/gh-issue-25`
 holds. Its `plugins/grove` has the tree ID
 `885051a94eddaa81fa7a1a9900c3ac4db775aa84`, and its `plugins/packs.json`
-has the blob ID `e00c67b74939542db0b7af2428d918a3458d73a4`. The unreleased
+has the blob ID `2cebaf5f062d08b50b22d058bd8c4db3d412f8a6`. The unreleased
 archive `grove-v22.8.0-aarch64-apple-darwin.tar.xz` has the SHA-256
-`3d31f84441701bf5f4013b7ccacbb4945eb39e875fd7ec2deb8f779321048241`.
+`fcb7603d70ccadcb3fcb071c5c2f79da165c807656f4723620142acab577546b`.
+[The hook bytecode fix](#the-hook-bytecode-fix) replaced the first candidate,
+`7b113a28a966`, and records its values.
 
 Homebrew installed the three tap formulae with `HOMEBREW_NO_AUTO_UPDATE`,
 `HOMEBREW_NO_INSTALL_CLEANUP`, `HOMEBREW_NO_INSTALL_UPGRADE` and
@@ -3650,7 +3653,7 @@ under `env -i` with a new HOME. Each `resourceDigest` equals the value of
 | `grove-core` | Candidate | `8d92cd58fca8f21a87361a9d956af7e5a38e88751e25cbaff5e2384554806b51` |
 | `requirements` | Candidate | `07b2d25e8bd20259c71f7419092329368d8ae48bec6ca973343a601a8ec515c8` |
 | `research` | Candidate | `7fb3d473f66feafb49afd8846fd94cf3e1fb7b01c584d4ad5f0e54814a8b3fdb` |
-| `writing` | Candidate | `2dea55cd72d0d56032c04419bfd438b62b321563573a09fffcab2f2c692ecade` |
+| `writing` | Candidate | `56bcd07b87f46a7b9ff92eed5a5a128f10d3ce64be2f7d934be898e058782212` |
 | `personal` | `/opt/homebrew/Cellar/personal/2026-11-06` | `dc1f26eafe9b7db6f750c95db38a7876beb29b067d829eaf63203323b89d61b6` |
 | `quint` | `/opt/homebrew/Cellar/quint-llm-kit/1.0.0` | `0a8b945fbc6732d5b7b3041a966d26cdf718ca884bd5f3fb8435297d7258edef` |
 | `superpowers` | `/opt/homebrew/Cellar/superpowers/7.0.0` | `be1ce6e3c25064b83ba2999b37972deb7f73ce88a5f5dbbba990d88037b17230` |
@@ -4975,6 +4978,7 @@ removal. In the real switch, the Claude Code probe of step 7 makes the same
 write. The Codex probe and `mac-check` would then report a source digest
 that is not the accepted digest. tc-hook-bytecode-k284 takes the fix, ahead
 of the hooks staging leaf.
+[The hook bytecode fix](#the-hook-bytecode-fix) records that fix.
 
 ### Fixture controls
 
@@ -5037,3 +5041,131 @@ changed scripts.
   fails it.
 - The stored plan draft still names the producer's program digest.
   owner-switch-plan-k254 writes the draft again.
+
+## The hook bytecode fix
+
+`tc-hook-bytecode-k284` delivered this section on 2026-11-10. It removes the
+write that [The bytecode write of the hooks](#the-bytecode-write-of-the-hooks)
+found. Step 2 of
+[The switch inside finish](specs/owner-skill-delivery.md#the-switch-inside-finish)
+states the revision that a changed released source needs.
+
+### The defect and the fix
+
+Every hook event wrote the bytecode, not only the document gate. The core's
+`main` loads the checker before it reads the off file, and the import of
+`ste-lint.py` wrote `scripts/__pycache__/ste-lint.cpython-315.pyc`. A scratch
+copy showed the write for the `prompt` event.
+
+WritingSkills `578f84d1f5a9bb04573a704bca639530d93b6bca` makes two changes:
+
+- `tc-hook` runs Python with `-I -B`. `-I` ignores
+  `PYTHONDONTWRITEBYTECODE`, so the flag stops the write itself.
+- `tc_hook.py` sets `sys.dont_write_bytecode` before it loads the checker.
+  This covers a run without the guard.
+
+The core writes only its state directory. The section "Harness mapping" of
+the WritingSkills specification `docs/specs/technical-communication.md` now
+states that no entry writes inside the source.
+
+### The control
+
+The WritingSkills script `scripts/hook-writes.py` runs as
+`task check:hook-writes`, inside `task check`. It copies the `writing`
+source twice and makes one copy read-only. It runs each command that the
+Claude Code and Codex hooks files declare, and each core event of the Pi
+extension. That is 17 commands. It also loads the Pi extension in a real Pi.
+
+Each command must do its event's work. The gate must report a finding, and
+the reply log must hold a start record and a reply record. The writable
+copy's tree digest must stay the same. The read-only copy must give the same
+output.
+
+| Subject | Result |
+| --- | --- |
+| The source before the fix | Failed: the writable copy gained `scripts/__pycache__/ste-lint.cpython-315.pyc` |
+| The source after the fix | Passed, with the Pi load |
+| Mutant without the fix | Failed, as required |
+| Mutant whose core appends `scripts/hook.log` | Failed, as required |
+
+The first version of the control found only three of Pi's five events,
+because two calls put the event name on the next line. The pattern now allows
+white space there, and the control runs all five.
+
+### The candidate keg
+
+Grove `ef8a79dd7621a437177982e24d8ec27831b4add4` pins the fixed commit in
+`plugins/packs.json`. The human allowed the pushes. jj pushed WritingSkills
+`main` and Grove's `gh-issue-25` bookmark. `git ls-remote` then named
+`578f84d1f5a9` as WritingSkills `main`.
+
+The earlier candidate keg moved to
+`/Users/antony/.local/state/owner-staging/candidate-2dea55cd`.
+`task owner:candidate-keg` then built the new one at the retained path.
+The build fetched WritingSkills from GitHub, because this session removed
+the local pack checkout first. The script reported that `origin/gh-issue-25`
+holds the commit.
+
+| Subject | Earlier candidate | This candidate |
+| --- | --- | --- |
+| Grove commit | `7b113a28a96621217c16154d4f44eba667236132` | `ef8a79dd7621a437177982e24d8ec27831b4add4` |
+| Tree ID of `plugins/grove` | `885051a94eddaa81fa7a1a9900c3ac4db775aa84` | The same |
+| Blob ID of `plugins/packs.json` | `e00c67b74939542db0b7af2428d918a3458d73a4` | `2cebaf5f062d08b50b22d058bd8c4db3d412f8a6` |
+| WritingSkills commit | `b9240e0138df7d9f1d6926b77737668463dcfdfb` | `578f84d1f5a9bb04573a704bca639530d93b6bca` |
+| Archive SHA-256 | `3d31f84441701bf5f4013b7ccacbb4945eb39e875fd7ec2deb8f779321048241` | `fcb7603d70ccadcb3fcb071c5c2f79da165c807656f4723620142acab577546b` |
+| `writing` `resourceDigest` | `2dea55cd72d0d56032c04419bfd438b62b321563573a09fffcab2f2c692ecade` | `56bcd07b87f46a7b9ff92eed5a5a128f10d3ce64be2f7d934be898e058782212` |
+
+The other five Grove sources gave their accepted digests. The keg holds no
+`__pycache__`. Before the pushes, a provisional keg of the same commit in a
+scratch folder gave the same six digests. Each Claude Code hook event ran in
+place from that keg, and Ravel then gave the same `writing` digest.
+
+The table "The ten Ravel sources" of
+[the moves record](repository-moves-record.md#the-ten-ravel-sources) holds
+the new `writing` row and names the earlier values. The plan draft's
+`accepted.sources` takes its digests from that table. The draft received the
+new `writing` digest, and its sources equal the table again.
+
+### The affected staging trials
+
+Only the source trials and the session probes compare the `writing` digest
+or run the hooks. The discovery trials read skill text, which the fix
+leaves unchanged. The staging HOME registers no hooks plugin. The dry run of
+`owner-switch-rehearsal-k255` has not run yet, so no dry run needs repeating.
+
+- `task owner:staging:sources` passed from 06:04:25Z to 06:04:29Z. The
+  record is `~/.local/state/owner-staging/trials/sources-2/record.json`,
+  SHA-256 `bd89a3af1a2199560ce338ec0b6ce71378222684eaeb0cef17f0de1e14ba91e1`.
+  It holds the new `writing` digest and not the earlier one.
+- `task owner:probes:sessions` ran its eight cases from 06:04:48Z to
+  06:12:22Z, and each gave its wanted result. The table of
+  [The staging pass](#the-staging-pass) holds the same results and failed
+  observations. The record is
+  `~/.local/state/owner-staging/trials/probe-sessions-2/sessions.json`,
+  SHA-256 `fb82f59b674313db7c5ef2b3b626d2f9e0b4fdb4616317197eaeea8de84f30bb`.
+  It names the probe program, SHA-256
+  `176d89c865de1b9dcc22580e52bdeef0cb08aa8bf1026730144b32bc21933488`. The
+  program, `owner_switch_probes.py`, `harness_trial.py`, `owner_switch.py`
+  and the plan draft had the same digests before and after the run.
+
+The runner still removes each `__pycache__` from the candidate keg before
+each case and records each removal. Each of the eight cases recorded none.
+Three Claude Code cases ran with the hooks installed. A later case checked
+the keg after each of them, and the keg held no `__pycache__` after the last
+case. The ravel cases saw only the new `writing` digest. A removal in a
+later run now shows a regression of the fix.
+
+### Limits
+
+- `task owner:switch-plan:check` refused the revised draft, because
+  `.claude/plugins/known_marketplaces.json` in the real HOME changed after
+  the draft. Automatic marketplace updates change that file until
+  owner-marketplace-freeze-k253 freezes them. The stored
+  `switch-plan-check.json` and `switch-plan-report.txt` therefore still
+  name the earlier draft's digest. `owner-switch-plan-k254` writes the draft
+  again from the real HOME.
+- Each probe case ran once.
+- The control runs each command with a synthetic payload. A real session
+  of each harness ran only in the probes, which cover Claude Code's hooks.
+  No real Codex session ran with the Codex hooks plugin, which the switch
+  keeps absent.

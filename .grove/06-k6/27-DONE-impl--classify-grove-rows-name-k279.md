@@ -27,3 +27,10 @@ fails on the name `GROVE_ROWS` in `scripts/owner_switch_rehearsal.py`.
 
 A rename to a name without the `GROVE_` prefix is the smaller change. It
 keeps the classifier's list for real environment names.
+
+## Decisions (running log)
+
+- Rename `GROVE_ROWS` to `KEG_ROWS_OF_GROVE`. The name follows the
+  module's `FORMULA_OF_GROVE` convention. The classifier matches a name
+  only at an identifier boundary, so a `GROVE` after `_` is no match.
+  `ROLES` stays limited to real environment names.

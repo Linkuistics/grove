@@ -3376,7 +3376,7 @@ def release_grove_keg(case) -> str:
     return released
 
 
-GROVE_ROWS = ["tool:grove"] + [f"source:{sid}" for sid in KEGS["grove"][1]]
+KEG_ROWS_OF_GROVE = ["tool:grove"] + [f"source:{sid}" for sid in KEGS["grove"][1]]
 
 
 def c_dry_run_full(case):
@@ -3451,7 +3451,7 @@ def c_dry_run_declared_prefix(case):
     code, text, record = dry_compare(case, "--prefix", f"grove-keg={released}")
     expect(code == 0 and record.get("equal"), f"equal content at the declared prefix failed: {text[-2500:]}")
     v = verdicts(record)
-    wrong = [(k, v[k]["verdict"]) for k in GROVE_ROWS if v[k]["verdict"] != "substituted grove-keg"]
+    wrong = [(k, v[k]["verdict"]) for k in KEG_ROWS_OF_GROVE if v[k]["verdict"] != "substituted grove-keg"]
     expect(not wrong, f"these rows are not the declared substitution: {wrong}")
 
 
@@ -3462,8 +3462,8 @@ def c_dry_run_unknown_substitution(case):
     release_grove_keg(case)
     code, text, record = dry_compare(case)
     v = verdicts(record)
-    unknown = [k for k in GROVE_ROWS if any("unknown substitution" in r for r in v[k]["reasons"])]
-    expect(code == 1 and unknown == GROVE_ROWS, f"an undeclared prefix passed (exit {code}): {unknown}: {text[-1500:]}")
+    unknown = [k for k in KEG_ROWS_OF_GROVE if any("unknown substitution" in r for r in v[k]["reasons"])]
+    expect(code == 1 and unknown == KEG_ROWS_OF_GROVE, f"an undeclared prefix passed (exit {code}): {unknown}: {text[-1500:]}")
     code, text, _ = dry_compare(case, "--prefix", f"brew={case.root}", name="undeclared-name")
     expect(code == 2 and "not a declared substitution" in text, f"an unknown name was accepted: {text[-800:]}")
     code, text, _ = dry_compare(case, "--prefix", f"ravel={case.root}", name="undeclared-ravel")

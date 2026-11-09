@@ -65,7 +65,12 @@ skill-loading-replan-k80 cut four implementation leaves here:
    `owner-settings-drafts-k246`, `owner-switch-plan-draft-k247`,
    `owner-staging-setup-k248`, `owner-staging-discovery-k249`,
    `owner-staging-hooks-k251`, `owner-staging-capabilities-k250` and
-   `owner-staging-acceptance-k252`.
+   `owner-staging-acceptance-k252`. owner-staging-discovery-k249 delivered
+   the runner `staging_trial.py` and `task owner:staging:case`. A later
+   staging trial adds its case to that runner. "Rerun commands" of the
+   evidence section "Staging discovery trials" names each command for the
+   plan's `accepted.trials`. Its guidance case found that a staging HOME does
+   not isolate SSH: OpenSSH reads the account's real `~/.ssh`.
 4. `owner-pack-checkouts-k93`: in cutover order 6, Homebrew installs the
    owner's sources in the real HOME at the accepted commits. `mac-check`
    reports their status.

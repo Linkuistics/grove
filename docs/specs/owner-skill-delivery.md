@@ -440,7 +440,8 @@ does not document the reader inspection.
 
 Disabling a plugin is neither an update nor an uninstall, so it writes no
 orphan marker. A running session also keeps the plugin set that it loaded
-until a reload.
+until a reload. The [guidance probe case](../owner-skill-delivery-evidence.md#the-guidance-probe-case)
+of the staging trials observed both with Claude Code 2.1.319.
 
 The reader inspection changes no cutover rule. Codex and Pi write no such marker,
 and another Claude Code version can change the inspection. A missing marker

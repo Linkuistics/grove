@@ -617,8 +617,9 @@ three subjects had the same digests before and after the run:
 - Claude Code's treatment of a root-level `SKILL.md` inside a skill-free
   plugin.
 - The effect of disabling a plugin on a Claude Code session that is already
-  running. The loading reference says that the session keeps its loaded set,
-  but no trial observed it.
+  running. staging-guidance-probe-k278 measured it with Claude Code 2.1.319
+  in [The guidance probe case](#the-guidance-probe-case). The session kept
+  its loaded set, and the disabled version directory gained no orphan marker.
 - Codex sign-in from a separate `CODEX_HOME` that reuses only the
   authentication file, including a token refresh. owner-staging-setup-k248
   measured it in
@@ -626,8 +627,16 @@ three subjects had the same digests before and after the run:
 - Which tree Codex reads for an enabled bundled plugin: the installed cache or
   the marketplace source. The baseline records both.
 - Whether Claude Code under the owner policy reads snapshot paths outside its
-  working directory without a permission prompt.
-- Codex's handling of one skill name in both user roots.
+  working directory without a permission prompt. The staging discovery trials
+  did not measure it. Each Claude Code trial ran with
+  `--permission-mode bypassPermissions`. The owner's policy passes no
+  permission flag, and the owner's settings select the `auto` mode.
+  `trials/discovery-claude-no-add-dir-1` showed only that a read of a
+  snapshot needs no `--add-dir` in the bypass mode.
+- Codex's handling of one skill name in both user roots. The stale-copy
+  case measured project roots, not user roots: Codex 0.167.0 lists
+  `.codex/skills` and `.agents/skills` of its working directory or Git root,
+  and not `.claude/skills`.
 - Pi's startup with a dangling extension link.
 - Built-in Claude Code skills on disk. The baseline lists them from the
   session's skill listing.
@@ -637,7 +646,8 @@ three subjects had the same digests before and after the run:
 - Ravel's capture of a pack checkout that mise wrote.
 
 The staging trials in the design's cutover contract own each of these
-measurements before the switch.
+measurements before the switch. Of these items, the staging discovery trials
+of owner-staging-discovery-k249 measured only the plugin disable.
 
 The rehearsal of order 6 owns two more:
 
@@ -3777,13 +3787,18 @@ trials and the discovery case on both harnesses.
 delegate case on the same day, and ran each on both harnesses.
 `staging-compaction-stale-trials-k277` added the compaction case and the
 stale-copy case on the same day, and ran each on both harnesses.
+`staging-guidance-probe-k278` added the guidance probe case on the same day,
+and ran it on Claude Code.
 
 ### Rerun commands
 
 Each trial runs with HOME set to the staging HOME and `CODEX_HOME` set to
-its `.codex` tree. Each launch runs `ravel start-session` of the accepted 2.0
-build with `--config`, so no trial writes the retained `config.rhai`. After a
-released source changes, the operator runs these commands with a new `OUT`:
+its `.codex` tree. The guidance probe case is the one exception. It runs with
+HOME set to a clone of the staging HOME at `OUT/home`, and `CODEX_HOME` set
+to the clone's `.codex` tree. Each launch runs `ravel start-session` of the
+accepted 2.0 build with `--config`, so no trial writes the retained
+`config.rhai`. After a released source changes, the operator runs these
+commands with a new `OUT`:
 
 ```sh
 S=~/.local/state/owner-staging
@@ -3810,7 +3825,13 @@ task owner:staging:case CASE=stale-copy HARNESS=claude STAGING=$S/home \
   RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/stale-copy-claude-N
 task owner:staging:case CASE=stale-copy HARNESS=codex STAGING=$S/home \
   RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/stale-copy-codex-N
+task owner:staging:case CASE=guidance-probe HARNESS=claude STAGING=$S/home \
+  RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/guidance-claude-N
 ```
+
+The guidance probe case runs only on Claude Code. It installs
+`grove@linkuistics` from GitHub, so it needs the network and the owner's
+GitHub access through SSH.
 
 The Claude Code compaction case runs with `claude-opus-5-5` at high effort,
 which the owner's policy gives an `impl` session. With the staging default,
@@ -4121,6 +4142,101 @@ differently wrapped line. A unique line now must not occur anywhere in the
 other file. `staging_trial.py rejudge` on the unchanged launch records then
 showed a read of Ravel's copy only.
 
+### The guidance probe case
+
+The case reproduces finish's guidance in the switch. Finish loads its
+guidance from absolute plugin-cache paths, and the switch disables that
+plugin. Finish then reads its guidance again after the probes. "The final session and
+new launches" and "The switch inside finish" of the
+[owner specification](specs/owner-skill-delivery.md#the-final-session-and-new-launches)
+state that order.
+
+The retained staging HOME holds no superseded plugin, and it must keep that
+state. So the runner clones the staging HOME into `OUT/home` with `cp -c`.
+
+Three Claude Code files of the staging HOME name its absolute path:
+`settings.json`, `installed_plugins.json` and `known_marketplaces.json`. The
+runner rewrites that path in the clone. It refuses the clone when another
+Claude Code file still names the staging HOME, outside session records and
+plugin bytes. The clone drops `.cache/ravel`, so Ravel takes new snapshots
+there. Claude Code's own `plugin marketplace add Linkuistics/grove` and
+`plugin install grove@linkuistics` then install the plugin in the clone. The
+owner's registry names that GitHub marketplace.
+
+The runner plans the nested probe before the launch. The probe is a
+`ravel start-session` of the same 2.0 build, with its own route and work
+directory. Its allow-listed environment holds no `RAVEL_*` name and no
+loop-control name, as step 7 of the switch requires of a probe. The prompt
+gives the agent the command `staging_trial.py probe --plan FILE`, which runs
+exactly that plan.
+
+The prompt asks the agent for six steps:
+
+1. Load `grove:grove` through the Skill tool, and note the absolute path of
+   its `SKILL.md`.
+2. Run `claude plugin disable grove@linkuistics`.
+3. Load `grove:configure-grove` through the Skill tool.
+4. Run the probe command.
+5. Read the `SKILL.md` of step 1 again by its absolute path.
+6. Run the end command.
+
+The verdicts require these facts:
+
+- The session's native listing holds skills of `grove@linkuistics`, so the
+  plugin's guidance was loaded. The listing holds no other superseded name.
+- The load, the disable, the probe and the reread occur in that order. The
+  reread's result holds the skill's `name:` line and its first heading.
+- The probe recorded one launch and ended with Ravel exit 0 and the result
+  `probe-ok`. Its native listing holds no superseded name and no skill of the
+  disabled plugin.
+- After the session, the installed version directory is unchanged without
+  `.in_use`, holds no `.orphaned_at`, is still registered and is disabled.
+- The plugin subjects of the retained staging HOME and the real-HOME
+  subjects are unchanged.
+
+The record keeps the result of the step 3 load without a judgement. That
+result measures whether a running session keeps the plugin set that it
+loaded.
+
+| Harness | Model and effort | Record | Result |
+| --- | --- | --- | --- |
+| Claude Code 2.1.319 | `claude-sonnet-5-5`, low | `trials/guidance-claude-1` | Passed. The mandatory read was event 2. The Skill tool loaded `grove:grove` at event 6, from `cache/linkuistics/grove/238c3a839ab4/skills/grove`. The disable at event 8 printed "Successfully disabled plugin: grove (scope: user)". The Skill tool loaded `grove:configure-grove` at event 9 without an error. The probe ran at event 11 and printed `probe ended: Ravel exit 0, result 'probe-ok'`. The Read tool returned the whole `SKILL.md` at event 12. The session ended with `staging-ok`. |
+
+The trial ran from 07:05:53Z to 07:06:42Z. The marketplace clone was at
+`238c3a839ab4b30b101fbe3cc5212d66091df28a`, the version that the owner has
+installed. The installed `skills/grove/SKILL.md` had the SHA-256
+`5fd30f0d…` before and after the session. The version directory held 89
+entries without `.in_use`, and its digest did not change.
+
+These observations answer two claims of
+[Resource lifetime](specs/owner-skill-delivery.md#resource-lifetime) for
+Claude Code 2.1.319:
+
+- **A disable writes no orphan marker.** After the disable and a new Claude
+  Code launch in the same HOME, the version directory held no
+  `.orphaned_at`. It was still registered in `installed_plugins.json`, and
+  `enabledPlugins` held `false` for it.
+- **A running session keeps the plugin set that it loaded.** After the
+  disable, the Skill tool of the running session still loaded
+  `grove:configure-grove`, which it had not loaded before. The skill's body
+  came from the same version directory. No change to the skill listing
+  reached the session.
+
+The probe ran from 07:06:17Z to 07:06:33Z. Its native listing held 40 names,
+the same names as the native listing of `trials/discovery-claude-1`. No name
+began with `grove:`. The trial session's own listing held those 40 names and
+the 25 skills of `grove@linkuistics`. Ravel's operation reports of the probe held
+`stop attempt 3` and `stop attempt 4` with "Operation not permitted", as each
+earlier staging launch did.
+
+The marketplace add cloned `git@github.com:Linkuistics/grove.git` through
+SSH. The clone has no `.ssh`. OpenSSH finds `~/.ssh` through the account
+record, which names `/Users/antony`, and not through HOME. So this command
+read the owner's real SSH configuration. It changed no real-HOME subject.
+
+A staging HOME therefore does not isolate SSH. The isolation trial did not
+cover it, because no earlier staging command used SSH.
+
 ### Limits
 
 - The real HOME's `.claude.json` has no digest comparison, for the reason
@@ -4164,3 +4280,20 @@ showed a read of Ravel's copy only.
   copy.
 - The stale-copy case needs the owner's real stale copy. After the switch
   deactivates it, the case refuses.
+- The guidance probe case ran once, with `claude-sonnet-5-5` at low effort.
+  Its steps are explicit, so it measures Claude Code's behaviour rather than
+  the agent's choice of skill.
+- The guidance probe case runs in a clone of the staging HOME, not in the
+  retained HOME. The clone differs only in its own path in three files and
+  in the absent Ravel cache, and Ravel resolved the same ten digests there.
+- Finish runs in an interactive Claude Code session that Ravel 1.1.0 and
+  `policy.ts` launch. The case runs `claude -p` through Ravel 2.0. The plugin
+  cache, the registry and the Skill tool are the same in both modes, but the
+  case does not measure the interactive mode.
+- The agent disabled the plugin with `claude plugin disable`. The switch
+  program writes `enabledPlugins` with an ordinary write instead. Both end
+  with the value `false`. The case does not measure the switch's own write.
+- The nested probe is one Claude Code launch. The switch's step 7 also runs
+  a source probe and a Codex probe, which this case does not run.
+- The marketplace add read the owner's real SSH configuration, as the
+  section above states.

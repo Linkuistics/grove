@@ -10,6 +10,7 @@ staging launcher's rules. This runner adds the trials themselves.
     staging_trial.py case --name NAME --harness claude|codex --home HOME --ravel PREFIX --out DIR
                           [--model M] [--effort E]
     staging_trial.py rejudge --out DIR
+    staging_trial.py probe --plan FILE
 
 `sources` runs the trials that launch no model:
 
@@ -62,8 +63,27 @@ of the session file. The verdicts are:
   planted copy, Ravel's copy from the named source, or both. It fails when
   the agent reads neither, or when the native listing does not hold the
   planted name. The staging HOME holds no copy of that name before or after.
+- `guidancePlugin`: Claude Code only. The runner clones the retained
+  staging HOME into `OUT/home` with `cp -c`, rewrites the clone's path into
+  the three Claude Code files that name the staging HOME, and drops
+  `.cache/ravel`. Claude Code's own `plugin marketplace add` and
+  `plugin install` then install the named plugin in the clone, never in the
+  retained HOME. The runner plans a nested probe: a `ravel start-session` of
+  the same build, with an allow-listed environment that holds no `RAVEL_*`
+  name. The prompt's `{probe}` becomes the command `staging_trial.py probe`
+  on that plan. The agent loads the named skill through the Skill tool,
+  disables the plugin with `claude plugin disable`, loads the `later` skill
+  through the Skill tool, runs the probe and reads the plugin-cache
+  `SKILL.md` again by its absolute path. The verdict requires that order,
+  a reread whose result holds the skill's `name:` line and first heading, a
+  probe with Ravel exit 0, the `probeResult` and no superseded name in its
+  listing, and an installed version directory that stays unchanged without
+  `.in_use`, without `.orphaned_at`, registered and disabled. The result of
+  the `later` load is kept without a judgement. The plugin subjects of the
+  retained HOME must not change.
 - The native skill listing of the session holds no superseded name. The
-  planted name of `staleCopy` is the one exception.
+  planted name of `staleCopy` and the skills of the `guidancePlugin`, by
+  their plugin prefix, are the exceptions.
 - No real-HOME subject changed, and the real `.claude.json` names no
   staging path. The real plugin cache is compared without the `.in_use`
   reader markers of its version directories. Each marker that the trial
@@ -76,6 +96,10 @@ case, and fails it only when the case sets `mandatoryFirst`.
 
 `rejudge` extracts and judges a finished case again from its unchanged
 launch records, after a change to the extraction or the verdicts.
+
+`probe` runs one planned nested probe of a `guidancePlugin` case, with
+exactly the plan's argument vector and environment, and writes its result
+beside the plan. The agent of that case runs it.
 
 A case is a small JSON object. A field that the runner does not know
 refuses, so a later leaf adds the field and its verdict together.
@@ -94,6 +118,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import shutil
 import socket
 import subprocess
@@ -123,7 +148,8 @@ CASES = HERE / "staging-cases"
 OFF_SETTINGS = ROOT / "docs" / "owner-cutover" / "settings-off.json"
 TREES = CASES / "trees"
 CASE_FIELDS = {"schemaVersion", "name", "purpose", "kind", "prompt", "mandatoryFirst", "requires",
-               "timeoutMinutes", "tree", "kindSkill", "delegate", "compaction", "staleCopy"}
+               "timeoutMinutes", "tree", "kindSkill", "delegate", "compaction", "staleCopy", "guidancePlugin"}
+GUIDANCE_FIELDS = {"marketplace", "plugin", "skill", "later", "probePrompt", "probeResult"}
 # The project skill roots that each harness lists, below its working
 # directory. Codex 0.167.0 lists `.codex/skills` and `.agents/skills` of the
 # working directory or its Git root, and not `.claude/skills`, as `codex debug
@@ -155,7 +181,24 @@ LIVE_SUBJECTS = {".claude.json"}
 # plugin row of inventory.py does, and the check reads each marker instead.
 PLUGIN_CACHE = ".claude/plugins/cache"
 READER_MARKER = ".in_use"
+# Claude Code marks a plugin version that no installation names any more,
+# and its cleanup removes the directory 14 days later.
+ORPHAN_MARKER = ".orphaned_at"
 NOOP_WORKER = "/usr/bin/true"
+# The Claude Code files of the staging HOME that name its absolute path, as
+# owner-staging-setup-k248 wrote them. A clone rewrites each, and refuses
+# when another Claude Code file of the clone still names the staging HOME.
+CLONE_REWRITES = (".claude/settings.json", ".claude/plugins/installed_plugins.json",
+                  ".claude/plugins/known_marketplaces.json")
+# The directories of a clone's `.claude` that hold session records or
+# plugin bytes, which can quote any path. The path check skips them.
+CLONE_UNCHECKED = (".claude/projects", ".claude/plugins/cache", ".claude/plugins/marketplaces")
+# The plugin subjects of the retained staging HOME. A guidance case must not
+# change one of them.
+RETAINED_SUBJECTS = CLONE_REWRITES + (".claude/plugins/marketplaces", PLUGIN_CACHE)
+PROBE_KIND = "staging-probe"
+PROBE_COMMAND = "staging_trial.py probe"
+PROBE_TIMEOUT = 600
 
 
 class TrialFailure(Exception):
@@ -200,6 +243,13 @@ def load_case(name: str) -> dict[str, Any]:
             raise TrialFailure(f"case {name}: staleCopy is {{source, skill, from, treeSha256}}, not {spec!r}")
         if Path(spec["from"]).is_absolute() or ".." in Path(spec["from"]).parts:
             raise TrialFailure(f"case {name}: staleCopy.from is a path relative to the real HOME, not {spec['from']}")
+    if "guidancePlugin" in case:
+        spec = case["guidancePlugin"]
+        if not isinstance(spec, dict) or set(spec) != GUIDANCE_FIELDS or "@" not in str(spec.get("plugin")):
+            raise TrialFailure(f"case {name}: guidancePlugin is {{{', '.join(sorted(GUIDANCE_FIELDS))}}} with a "
+                               f"plugin@marketplace id, not {spec!r}")
+        if "{probe}" not in case.get("prompt", ""):
+            raise TrialFailure(f"case {name}: a guidancePlugin prompt names {{probe}}, the probe command")
     return case
 
 
@@ -280,15 +330,16 @@ def check_inputs(home: Path, ravel: Path) -> dict[str, Any]:
             "ravelBuild": builds["ravel2"]["buildCommit"]}
 
 
-def plugin_cache_digest(cache: Path) -> dict[str, Any]:
+def plugin_cache_digest(cache: Path, depth: int = 3) -> dict[str, Any]:
     """The plugin cache without the top-level `.in_use` of each version
     directory, and the content of each such marker by its path. A nested
-    `.in_use` stays in the digest."""
+    `.in_use` stays in the digest. A version directory is `depth` levels
+    below `cache`: 3 for the whole cache, 0 for one version directory."""
     digest, count, markers = hashlib.sha256(), 0, {}
     for directory, names, files in os.walk(cache):
         here = Path(directory)
         rel_dir = here.relative_to(cache)
-        if len(rel_dir.parts) == 3 and READER_MARKER in names:
+        if len(rel_dir.parts) == depth and READER_MARKER in names:
             names.remove(READER_MARKER)
             for marker in sorted((here / READER_MARKER).iterdir()):
                 markers[str(marker.relative_to(cache))] = marker.read_text(errors="replace")[:200]
@@ -626,21 +677,26 @@ def skill_marks(snapshot: Path, skill: str) -> tuple[str, str] | None:
     the first heading after its front matter. A listing of front matter
     holds the first line but not the second."""
     files = sorted(snapshot.glob(f"*/{skill}/SKILL.md"))
-    if not files:
-        return None
-    text = files[0].read_text()
+    return file_marks(files[0], skill) if files else None
+
+
+def file_marks(path: Path, skill: str) -> tuple[str, str] | None:
+    """The two marks of one `SKILL.md`, as skill_marks gives them."""
+    text = path.read_text()
     body = text.split("---", 2)[2] if text.startswith("---") else text
     heading = next((line.strip() for line in body.splitlines() if line.startswith("# ")), None)
     return (f"name: {skill}", heading) if heading else None
 
 
 def mark_content_reads(launch: dict[str, Any], requires: list[dict[str, str]],
-                       copies: dict[str, list[str]] | None = None) -> None:
+                       copies: dict[str, list[str]] | None = None,
+                       files: dict[str, tuple[str, str]] | None = None) -> None:
     """Add `contentReads` to each event whose result holds both marks of a
     named skill's snapshot copy. With `copies`, add `copyReads` with each
-    label whose distinct lines the result holds. Then replace each full
-    result with its digest and length, so the record keeps no copy of a
-    skill."""
+    label whose distinct lines the result holds. With `files`, add
+    `markReads` with each label whose two marks the result holds. Then
+    replace each full result with its digest and length, so the record keeps
+    no copy of a skill."""
     roots = {source["id"]: Path(source["snapshotRoot"]) for source in launch.get("sources", [])
              if source.get("snapshotRoot")}
     marks = {(item["source"], item["skill"]): skill_marks(roots[item["source"]], item["skill"])
@@ -657,6 +713,9 @@ def mark_content_reads(launch: dict[str, Any], requires: list[dict[str, str]],
             labels = sorted(label for label, lines in (copies or {}).items() if any(line in result for line in lines))
             if labels:
                 event["copyReads"] = labels
+            marked = sorted(label for label, pair in (files or {}).items() if all(mark in result for mark in pair))
+            if marked:
+                event["markReads"] = marked
             event["result"] = {"sha256": harness_trial.sha256_bytes(result.encode()), "chars": len(result)}
 
 
@@ -859,7 +918,77 @@ def stale_verdict(events: list[dict[str, Any]], spec: dict[str, Any], listed: li
     return verdict
 
 
-def judge(case: dict[str, Any], launches: list[dict[str, Any]], superseded: set[str]) -> dict[str, Any]:
+def plugin_prefix(spec: dict[str, Any]) -> str:
+    """The prefix of a plugin's skills in Claude Code's listing, such as
+    `grove:` for `grove@linkuistics`."""
+    return spec["plugin"].split("@")[0] + ":"
+
+
+def guidance_verdict(events: list[dict[str, Any]], spec: dict[str, Any], facts: dict[str, Any],
+                     listed: list[str]) -> dict[str, Any]:
+    """The agent loads the guidance skill through the Skill tool, disables its
+    plugin, runs the probe and reads the plugin-cache `SKILL.md` again by its
+    absolute path, in that order. The probe lists no superseded skill, and
+    the installed version directory stays unchanged, registered and
+    disabled. The load of the `later` skill after the disable is recorded
+    without a judgement."""
+    def skill_tool(name: str) -> Any:
+        return lambda e: e.get("class") == "native-skill-tool" and bare(str(e.get("target", ""))) == name
+    def after(event: dict[str, Any] | None) -> list[dict[str, Any]]:
+        return [e for e in events if event is not None and e["seq"] > event["seq"]]
+    disabling = re.compile(rf"claude\s+plugin\s+disable\s+(?:--\S+\s+)*{re.escape(spec['plugin'])}(?![\w@.-])")
+    skill_file = os.path.realpath(facts["install"]["skillFile"])
+    def rereads(event: dict[str, Any]) -> bool:
+        return "plugin" in event.get("markReads", []) and any(
+            r.get("path") and os.path.realpath(r["path"]) == skill_file for r in reads_of(event))
+    load = next((e for e in events if skill_tool(spec["skill"])(e) and not e.get("error")), None)
+    disable = next((e for e in after(load) if e.get("tool") in harness_trial.SHELL_TOOLS
+                    and disabling.search(str(e.get("target", "")))), None)
+    later = next((e for e in after(disable) if skill_tool(spec["later"])(e)), None)
+    probe = next((e for e in after(disable) if PROBE_COMMAND in str(e.get("target", ""))), None)
+    reread = next((e for e in after(probe) if rereads(e)), None)
+    probe_facts, end = facts.get("probe") or {}, facts.get("after") or {}
+    prefix = plugin_prefix(spec)
+    verdict: dict[str, Any] = {
+        "plugin": spec["plugin"], "skill": spec["skill"], "skillFile": facts["install"]["skillFile"],
+        "pluginListed": sorted(name for name in listed if name.startswith(prefix)),
+        "loadSeq": load["seq"] if load else None, "disableSeq": disable["seq"] if disable else None,
+        "laterSeq": later["seq"] if later else None, "laterError": later.get("error") if later else None,
+        "laterResult": (later.get("resultText") or "")[:300] if later else None,
+        "probeSeq": probe["seq"] if probe else None, "rereadSeq": reread["seq"] if reread else None,
+        "probe": {key: probe_facts.get(key) for key in ("records", "exit", "result", "listedSuperseded",
+                                                        "pluginListed")},
+        "after": end,
+    }
+    reasons = []
+    if not verdict["pluginListed"]:
+        reasons.append(f"the session's listing holds no skill of {spec['plugin']}, so it loaded no plugin guidance")
+    if not load:
+        reasons.append(f"no successful Skill tool load of {prefix}{spec['skill']}")
+    elif not disable:
+        reasons.append(f"no `claude plugin disable {spec['plugin']}` after the load")
+    elif not probe:
+        reasons.append("no run of the probe after the disable")
+    elif not reread:
+        reasons.append(f"no read of {skill_file} after the probe whose result holds the skill's marks")
+    if probe_facts.get("records") != 1:
+        reasons.append(f"the probe recorded {probe_facts.get('records')} launches, not one")
+    elif probe_facts.get("exit") != 0 or probe_facts.get("result") != spec["probeResult"]:
+        reasons.append(f"the probe ended with Ravel exit {probe_facts.get('exit')} and result "
+                       f"{probe_facts.get('result')!r}, not 0 and {spec['probeResult']!r}")
+    if probe_facts.get("listedSuperseded"):
+        reasons.append(f"the probe's native listing held superseded skills {probe_facts['listedSuperseded']}")
+    if probe_facts.get("pluginListed"):
+        reasons.append(f"the probe's native listing held skills of the disabled plugin {probe_facts['pluginListed']}")
+    for key, wanted in (("enabled", False), ("registered", True), ("treeUnchanged", True), ("orphaned", False)):
+        if end.get(key) is not wanted:
+            reasons.append(f"after the session, {key} of the installed version is {end.get(key)!r}, not {wanted}")
+    verdict.update(passed=not reasons, reason="; ".join(reasons) or None)
+    return verdict
+
+
+def judge(case: dict[str, Any], launches: list[dict[str, Any]], superseded: set[str],
+          guidance: dict[str, Any] | None = None) -> dict[str, Any]:
     failures: list[str] = []
     if len(launches) != 1:
         return {"failures": [f"the case recorded {len(launches)} launches, not one"]}
@@ -888,13 +1017,23 @@ def judge(case: dict[str, Any], launches: list[dict[str, Any]], superseded: set[
     listed = native_listing(launch)
     verdict["nativeListing"] = listed
     planted = {case["staleCopy"]["skill"]} if "staleCopy" in case else set()
-    verdict["listedSuperseded"] = sorted({bare(name) for name in listed} & superseded - planted)
+    # The guidance plugin's own skills are what the case loads.
+    prefix = plugin_prefix(case["guidancePlugin"]) if "guidancePlugin" in case else None
+    judged = [name for name in listed if not (prefix and name.startswith(prefix))]
+    verdict["listedSuperseded"] = sorted({bare(name) for name in judged} & superseded - planted)
     if verdict["listedSuperseded"]:
         failures.append(f"native discovery listed superseded skills {verdict['listedSuperseded']}")
     if "staleCopy" in case:
         verdict["staleCopy"] = stale_verdict(events, case["staleCopy"], listed)
         if not verdict["staleCopy"]["passed"]:
             failures.append(f"stale copy: {verdict['staleCopy']['reason']}")
+    if "guidancePlugin" in case:
+        if guidance is None:
+            failures.append("guidance: the runner gathered no facts of the plugin and the probe")
+        else:
+            verdict["guidancePlugin"] = guidance_verdict(events, case["guidancePlugin"], guidance, listed)
+            if not verdict["guidancePlugin"]["passed"]:
+                failures.append(f"guidance: {verdict['guidancePlugin']['reason']}")
     failures += launch.get("control", [])
     verdict["failures"] = failures
     return verdict
@@ -907,7 +1046,7 @@ def render(record: dict[str, Any]) -> str:
              (f"- Started {record['started']}, ended {record['ended']}, Ravel exit {record['launch']['exit']}, "
               f"result {record['launch']['result']!r}"),
              f"- Failures: {record['verdict'].get('failures') or 'none'}"]
-    for key in ("compaction", "staleCopy"):
+    for key in ("compaction", "staleCopy", "guidancePlugin"):
         if key in record["verdict"]:
             shown = {k: v for k, v in record["verdict"][key].items() if k not in ("source", "skill")}
             lines.append(f"- {key}: {json.dumps(shown)}")
@@ -966,20 +1105,173 @@ def compaction_context(adapter: Any, record: Path, launch: dict[str, Any], home:
             **facts}
 
 
+def probe_facts(adapter: Any, guidance: dict[str, Any], home: Path, environ: dict[str, str],
+                superseded: set[str]) -> dict[str, Any]:
+    """The nested probe of a guidance case: its result and its native
+    listing, from the probe's own launch records."""
+    probe = Path(guidance["probe"]["dir"])
+    plan = json.loads((probe / "plan.json").read_text())
+    result = json.loads((probe / "result.json").read_text()) if (probe / "result.json").exists() else {}
+    paths = harness_trial.launch_records(probe / "records")
+    launches = [harness_trial.describe_launch(adapter, path, home, Path(plan["cwd"]), environ) for path in paths]
+    for described in launches:
+        mark_content_reads(described, [])
+    listed = sorted({name for described in launches for name in native_listing(described)})
+    prefix = plugin_prefix(guidance["spec"])
+    return {"records": len(launches), "exit": result.get("exit"), "result": (result.get("stdout") or "").strip(),
+            "started": result.get("started"), "ended": result.get("ended"), "listing": listed,
+            "pluginListed": [name for name in listed if name.startswith(prefix)],
+            "listedSuperseded": sorted({bare(name) for name in listed} & superseded), "launches": launches}
+
+
 def extract_and_judge(case: dict[str, Any], adapter: Any, records: Path, home: Path, work: Path,
-                      environ: dict[str, str], stale: dict[str, Any] | None
+                      environ: dict[str, str], stale: dict[str, Any] | None, guidance: dict[str, Any] | None = None
                       ) -> tuple[list[dict[str, Any]], dict[str, Any], list[dict[str, Any]] | None]:
     """The launches of a case from its records, its verdict and, for a
-    compaction case, the context after each compaction."""
+    compaction case, the context after each compaction. A guidance case also
+    extracts its probe into `guidance["probe"]`."""
     turns = "compaction" in case
+    superseded = staging_home.superseded_names()
     paths = harness_trial.launch_records(records)
     launches = [harness_trial.describe_launch(adapter, path, home, work, environ, turns=turns) for path in paths]
+    files = None
+    if guidance is not None:
+        marks = file_marks(Path(guidance["install"]["skillFile"]), guidance["spec"]["skill"])
+        files = {"plugin": marks} if marks else None
+        guidance["probe"].update(probe_facts(adapter, guidance, home, environ, superseded))
     for described in launches:
         copies = copy_lines(described, case["staleCopy"], stale["plants"][adapter.name]) if stale else None
-        mark_content_reads(described, named_skills(case), copies)
+        mark_content_reads(described, named_skills(case), copies, files)
     context = [compaction_context(adapter, path, described, home)
                for path, described in zip(paths, launches)] if turns else None
-    return launches, judge(case, launches, staging_home.superseded_names()), context
+    return launches, judge(case, launches, superseded, guidance), context
+
+
+def clone_home(home: Path, clone: Path) -> dict[str, Any]:
+    """A disposable clone of the staging HOME, so a guidance case installs
+    its plugin outside the retained HOME. `cp -c` clones each file on APFS
+    and copies each link as a link. The clone names itself in place of the
+    staging HOME, and takes new Ravel snapshots."""
+    if staging_home.inside(clone, home):
+        raise TrialFailure(f"the clone {clone} lies inside the staging HOME {home}")
+    done = subprocess.run(["/bin/cp", "-cRP", str(home), str(clone)], capture_output=True, text=True, check=False)
+    if done.returncode != 0:
+        raise TrialFailure(f"cp -cRP {home} {clone} failed: {done.stderr.strip()[-600:]}")
+    shutil.rmtree(clone / ".cache" / "ravel", ignore_errors=True)
+    old, new = str(home), str(clone)
+    rewritten = []
+    for rel in CLONE_REWRITES:
+        path = clone / rel
+        if path.is_file() and old in path.read_text():
+            path.write_text(path.read_text().replace(old, new))
+            rewritten.append(rel)
+    skipped = [clone / rel for rel in CLONE_UNCHECKED]
+    leftovers = [".claude.json"] if old.encode() in (clone / ".claude.json").read_bytes() else []
+    for directory, names, files in os.walk(clone / ".claude"):
+        here = Path(directory)
+        names[:] = [n for n in names if here / n not in skipped]
+        for name in files:
+            entry = here / name
+            if entry.is_file() and not entry.is_symlink() and entry.stat().st_size < 4_000_000 \
+                    and old.encode() in entry.read_bytes():
+                leftovers.append(str(entry.relative_to(clone)))
+    if leftovers:
+        raise TrialFailure(f"the clone's {leftovers} still name the staging HOME {home}")
+    return {"from": old, "clone": new, "rewritten": rewritten}
+
+
+def installed_entry(home: Path, plugin: str) -> dict[str, Any] | None:
+    registry = json.loads((home / ".claude" / "plugins" / "installed_plugins.json").read_text())
+    entries = registry.get("plugins", {}).get(plugin) or []
+    return entries[0] if entries else None
+
+
+def enabled_value(home: Path, plugin: str) -> Any:
+    return json.loads((home / ".claude" / "settings.json").read_text()).get("enabledPlugins", {}).get(plugin)
+
+
+def install_guidance(clone: Path, ravel: Path, spec: dict[str, Any], program: Path) -> dict[str, Any]:
+    """The guidance plugin, through Claude Code's own commands in the clone."""
+    env = staging_home.staged_env(clone, ravel)
+    cwd = staging_home.work_directory(clone)
+    log: list[dict[str, Any]] = []
+    staging_home.run([str(program), "plugin", "marketplace", "add", spec["marketplace"]], env, cwd, log)
+    staging_home.run([str(program), "plugin", "install", spec["plugin"]], env, cwd, log)
+    entry = installed_entry(clone, spec["plugin"])
+    if not entry:
+        raise TrialFailure(f"claude plugin install {spec['plugin']} registered nothing in {clone}")
+    install = Path(entry["installPath"])
+    skill = install / "skills" / spec["skill"] / "SKILL.md"
+    if not staging_home.inside(install, clone / PLUGIN_CACHE) or not skill.is_file():
+        raise TrialFailure(f"{spec['plugin']} installed at {install}, which holds no {skill} in the clone's cache")
+    enabled = enabled_value(clone, spec["plugin"])
+    if enabled is not True:
+        raise TrialFailure(f"after the install, enabledPlugins[{spec['plugin']}] is {enabled!r}, not true")
+    marketplace = spec["plugin"].split("@")[1]
+    clone_dir = clone / ".claude" / "plugins" / "marketplaces" / marketplace
+    head = subprocess.run(["git", "-C", str(clone_dir), "rev-parse", "HEAD"], capture_output=True, text=True,
+                          check=False).stdout.strip()
+    return {"log": log, "entry": entry, "installPath": str(install), "skillFile": str(skill),
+            "skillSha256": staging_home.sha256_file(skill), "marketplaceHead": head,
+            "tree": {k: v for k, v in plugin_cache_digest(install, depth=0).items() if k != "readerMarkers"}}
+
+
+def guidance_after(clone: Path, install: dict[str, Any], plugin: str) -> dict[str, Any]:
+    """The installed version directory after the session."""
+    path = Path(install["installPath"])
+    entry = installed_entry(clone, plugin)
+    tree = {k: v for k, v in plugin_cache_digest(path, depth=0).items() if k != "readerMarkers"} \
+        if path.is_dir() else None
+    return {"enabled": enabled_value(clone, plugin),
+            "registered": bool(entry) and entry.get("installPath") == install["installPath"],
+            "treeUnchanged": tree == install["tree"], "orphaned": (path / ORPHAN_MARKER).exists(),
+            "skillSha256": staging_home.sha256_file(Path(install["skillFile"]))
+            if Path(install["skillFile"]).is_file() else None}
+
+
+def retained_subjects(home: Path) -> dict[str, Any]:
+    return {rel: plugin_cache_digest(home / rel) if rel == PLUGIN_CACHE else staging_home.tree_digest(home / rel)
+            for rel in RETAINED_SUBJECTS}
+
+
+def plan_probe(out: Path, clone: Path, ravel: Path, adapter: Any, program: Path, model: str, effort: str,
+               spec: dict[str, Any]) -> dict[str, Any]:
+    """The nested probe: its route, its argument vector and its environment.
+    The allow-listed environment holds no `RAVEL_*` name and no loop-control
+    name, as step 7 of the switch requires of a probe."""
+    probe = out / "probe"
+    records = probe / "records"
+    records.mkdir(parents=True)
+    route = {"wrapper": str(harness_trial.WRAPPER), "records": str(records),
+             **adapter.launch({}, records, program, model, effort), "model": model, "effort": effort}
+    config = write_config(probe, "probe", PROBE_KIND, route)
+    work = staging_home.work_directory(clone)
+    plan = {"argv": [str(ravel / "bin" / "ravel"), "start-session", "--kind", PROBE_KIND, "--config", str(config),
+                     "--prompt", spec["probePrompt"], "--json"],
+            "env": staging_home.staged_env(clone, ravel), "cwd": str(work), "timeout": PROBE_TIMEOUT}
+    (probe / "plan.json").write_text(json.dumps(plan, indent=2) + "\n")
+    command = shlex.join([sys.executable, "-I", str(HERE / "staging_trial.py"), "probe", "--plan",
+                          str(probe / "plan.json")])
+    return {"dir": str(probe), "command": command}
+
+
+def run_probe(plan_path: Path) -> dict[str, Any]:
+    """One planned probe, with exactly the plan's argument vector and
+    environment. It runs once: a second run refuses."""
+    plan = json.loads(plan_path.read_text())
+    result = plan_path.parent / "result.json"
+    if result.exists():
+        raise TrialFailure(f"{result} exists; the probe of this plan ran already")
+    started = now()
+    try:
+        done = subprocess.run(plan["argv"], env=plan["env"], cwd=plan["cwd"], capture_output=True, text=True,
+                              timeout=plan["timeout"], check=False)
+        exit_code, stdout, stderr = done.returncode, done.stdout, done.stderr
+    except subprocess.TimeoutExpired as error:
+        exit_code, stdout, stderr = None, str(error.stdout or ""), f"timed out after {plan['timeout']} s"
+    record = {"started": started, "ended": now(), "exit": exit_code, "stdout": stdout, "stderr": stderr[-6000:]}
+    result.write_text(json.dumps(record, indent=2) + "\n")
+    return record
 
 
 def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, environ: dict[str, str],
@@ -987,10 +1279,20 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
     case = load_case(name)
     staging_home.refuse_inherited(environ, home)
     inputs = check_inputs(home, ravel)
+    spec = case.get("guidancePlugin")
+    if spec and harness != "claude":
+        raise TrialFailure(f"case {name} disables a Claude Code plugin, so it runs on claude, not {harness}")
     if out.exists():
         raise TrialFailure(f"{out} exists; name a new directory")
     out.mkdir(parents=True)
+    # Before the clone and the plugin installation, so the check covers them.
+    before = real_subjects()
     adapter = harness_trial.adapter_named(harness)
+    retained, guidance, prompt = home, None, case["prompt"]
+    if spec:
+        retained_before = retained_subjects(home)
+        guidance = {"spec": spec, "clone": clone_home(home, out / "home"), "retainedBefore": retained_before}
+        home = out / "home"
     env = staging_home.staged_env(home, ravel)
     found = shutil.which(harness, path=env["PATH"])
     if not found:
@@ -1008,6 +1310,10 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
              "model": model, "effort": effort}
     if compaction:
         write_turns(out, adapter, compaction)
+    if guidance is not None:
+        guidance["install"] = install_guidance(home, ravel, spec, program)
+        guidance["probe"] = plan_probe(out, home, ravel, adapter, program, model, effort, spec)
+        prompt = prompt.replace("{probe}", guidance["probe"]["command"])
     config = write_config(out, "trial", case["kind"], route)
     work = staging_home.work_directory(home)
     stale = None
@@ -1017,20 +1323,25 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
     tree = plant_tree(work, case["tree"], env) if "tree" in case else None
     version = subprocess.run([str(program), "--version"], env=env, cwd=work, capture_output=True, text=True,
                              check=False).stdout.strip().splitlines()[0]
-    before = real_subjects()
-    launch = start(ravel, config, case["kind"], case["prompt"], work, env, case.get("timeoutMinutes", 20) * 60)
+    launch = start(ravel, config, case["kind"], prompt, work, env, case.get("timeoutMinutes", 20) * 60)
     (out / "ravel.stderr").write_text(launch["stderr"])
     isolation = isolation_problems(before, real_subjects(), home)
+    if guidance is not None:
+        guidance["after"] = guidance_after(home, guidance["install"], spec["plugin"])
+        guidance["retainedAfter"] = retained_subjects(retained)
+        isolation += [f"the retained staging HOME's {rel} changed" for rel in RETAINED_SUBJECTS
+                      if guidance["retainedBefore"][rel] != guidance["retainedAfter"][rel]]
     if stale is not None:
         stale["homeAfter"] = home_copies(home, case["staleCopy"]["skill"])
         isolation += [f"the staging HOME holds a copy of {case['staleCopy']['skill']} at {path} {when}"
                       for when in ("before", "after") for path in stale[f"home{when.title()}"]]
-    launches, verdict, context = extract_and_judge(case, adapter, records, home, work, environ, stale)
+    launches, verdict, context = extract_and_judge(case, adapter, records, home, work, environ, stale, guidance)
     verdict["isolation"] = isolation
     verdict["failures"] = verdict.get("failures", []) + isolation
     record = {
         "schemaVersion": 1, "case": name, "purpose": case.get("purpose"), "started": launch["started"],
-        "ended": launch["ended"], "home": str(home), "work": str(work), "tree": tree, "inputs": inputs,
+        "ended": launch["ended"], "home": str(home), "retainedHome": str(retained), "work": str(work),
+        "tree": tree, "inputs": inputs, "prompt": prompt, "guidance": guidance,
         "harness": {"name": harness, "program": str(program), "version": version, "model": model, "effort": effort},
         "config": config.read_text(), "environment": sorted(env), "launch": launch, "launches": launches,
         "stale": stale, "compactionContext": context, "verdict": verdict,
@@ -1051,10 +1362,11 @@ def rejudge(trial: Path, environ: dict[str, str]) -> dict[str, Any]:
     home, work = Path(record["home"]), Path(record["work"])
     adapter = harness_trial.adapter_named(record["harness"]["name"])
     launches, verdict, context = extract_and_judge(case, adapter, trial / "records", home, work, environ,
-                                                   record.get("stale"))
+                                                   record.get("stale"), record.get("guidance"))
     verdict["isolation"] = record["verdict"].get("isolation", [])
     verdict["failures"] = verdict.get("failures", []) + verdict["isolation"]
-    record.update(launches=launches, verdict=verdict, compactionContext=context, rejudged=now())
+    record.update(launches=launches, verdict=verdict, compactionContext=context, rejudged=now(),
+                  guidance=record.get("guidance"))
     (trial / "record.json").write_text(json.dumps(record, indent=2) + "\n")
     (trial / "record.md").write_text(render(record))
     if verdict["failures"]:
@@ -1081,8 +1393,18 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--effort")
     r = sub.add_parser("rejudge", help="extract and judge a finished case again, without a launch")
     r.add_argument("--out", type=Path, required=True, help="the trial directory of the case")
+    p = sub.add_parser("probe", help="run the planned nested probe of a guidance case")
+    p.add_argument("--plan", type=Path, required=True)
     args = parser.parse_args(argv)
     environ = dict(os.environ)
+    if args.command == "probe":
+        try:
+            done = run_probe(args.plan.resolve())
+        except TrialFailure as error:
+            print(f"probe refused: {error}", file=sys.stderr)
+            return 1
+        print(f"probe ended: Ravel exit {done['exit']}, result {done['stdout'].strip()!r}")
+        return 0 if done["exit"] == 0 else 1
     try:
         if args.command == "sources":
             sources(args.home.resolve(), args.candidate.resolve(), args.ravel.resolve(), args.out.resolve(),

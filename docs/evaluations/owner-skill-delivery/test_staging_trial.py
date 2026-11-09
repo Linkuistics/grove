@@ -467,6 +467,134 @@ class StaleCopyVerdicts(unittest.TestCase):
             self.assertEqual(staging_trial.home_copies(home, "grove"), [str(home / ".agents/skills/grove")])
 
 
+SKILL_FILE = "/none/home/.claude/plugins/cache/linkuistics/grove/abc/skills/grove/SKILL.md"
+GUIDANCE_CASE = {"guidancePlugin": {"marketplace": "Linkuistics/grove", "plugin": "grove@linkuistics",
+                                    "skill": "grove", "later": "configure-grove",
+                                    "probePrompt": "p", "probeResult": "probe-ok"}}
+
+
+def guidance_facts(**changes: dict) -> dict:
+    facts = {"spec": GUIDANCE_CASE["guidancePlugin"], "install": {"skillFile": SKILL_FILE},
+             "probe": {"records": 1, "exit": 0, "result": "probe-ok", "listedSuperseded": [], "pluginListed": []},
+             "after": {"enabled": False, "registered": True, "treeUnchanged": True, "orphaned": False}}
+    for key, value in changes.items():
+        facts[key] = {**facts[key], **value}
+    return facts
+
+
+def skill_tool(seq: int, name: str, error: bool = False) -> dict:
+    return {**event(seq, "native-skill-tool", target=name), "tool": "Skill", "error": error}
+
+
+def bash(seq: int, command: str) -> dict:
+    return {**event(seq, "command", target=command), "tool": "Bash"}
+
+
+def reread(seq: int, marked: bool = True) -> dict:
+    return {**event(seq, "native", "grove", None, SKILL_FILE), "tool": "Read", "path": SKILL_FILE,
+            **({"markReads": ["plugin"]} if marked else {})}
+
+
+GUIDED = [
+    skill_tool(1, "grove:grove"),
+    bash(2, "claude plugin disable grove@linkuistics"),
+    skill_tool(3, "grove:configure-grove", error=True),
+    bash(4, "/usr/bin/python3 -I /x/staging_trial.py probe --plan /x/probe/plan.json"),
+    reread(5),
+    {**event(6, "ending", target="ravel end-session staging-ok"), "tool": "Bash"},
+]
+LISTED = ["grove:grove", "grove:configure-grove", "guardrail:guardrail"]
+
+
+class GuidanceVerdicts(unittest.TestCase):
+    def judge(self, events: list[dict], facts: dict | None = None, listed: list[str] | None = None) -> dict:
+        return staging_trial.judge(GUIDANCE_CASE, [launch(events, LISTED if listed is None else listed)],
+                                   {"grove", "configure-grove"}, guidance_facts() if facts is None else facts)
+
+    def test_conforming_session_passes(self) -> None:
+        verdict = self.judge(GUIDED)
+        self.assertEqual(verdict["failures"], [])
+        self.assertEqual(verdict["guidancePlugin"]["laterSeq"], 3)
+        self.assertTrue(verdict["guidancePlugin"]["laterError"])
+        self.assertEqual(verdict["listedSuperseded"], [])
+
+    def test_a_superseded_name_outside_the_plugin_still_fails(self) -> None:
+        verdict = self.judge(GUIDED, listed=[*LISTED, "grove"])
+        self.assertEqual(verdict["listedSuperseded"], ["grove"])
+
+    def test_no_plugin_skill_in_the_listing_fails(self) -> None:
+        verdict = self.judge(GUIDED, listed=["guardrail:guardrail"])
+        self.assertIn("loaded no plugin guidance", verdict["guidancePlugin"]["reason"])
+
+    def test_a_failed_load_fails(self) -> None:
+        verdict = self.judge([skill_tool(1, "grove:grove", error=True), *GUIDED[1:]])
+        self.assertIn("no successful Skill tool load", verdict["guidancePlugin"]["reason"])
+
+    def test_a_disable_of_another_plugin_fails(self) -> None:
+        verdict = self.judge([GUIDED[0], bash(2, "claude plugin disable grove@other"), *GUIDED[2:]])
+        self.assertIn("plugin disable", verdict["guidancePlugin"]["reason"])
+
+    def test_a_probe_before_the_disable_fails(self) -> None:
+        events = [GUIDED[0], {**GUIDED[3], "seq": 2}, {**GUIDED[1], "seq": 3}, {**GUIDED[4], "seq": 4}]
+        verdict = self.judge(events)
+        self.assertIn("no run of the probe", verdict["guidancePlugin"]["reason"])
+
+    def test_a_reread_before_the_probe_fails(self) -> None:
+        events = [GUIDED[0], GUIDED[1], reread(3), {**GUIDED[3], "seq": 4}]
+        verdict = self.judge(events)
+        self.assertIn("after the probe", verdict["guidancePlugin"]["reason"])
+
+    def test_a_reread_without_the_body_fails(self) -> None:
+        verdict = self.judge([*GUIDED[:4], reread(5, marked=False)])
+        self.assertIn("after the probe", verdict["guidancePlugin"]["reason"])
+
+    def test_a_failed_probe_fails(self) -> None:
+        for change in ({"exit": 1}, {"result": ""}, {"records": 0}, {"listedSuperseded": ["grove"]},
+                       {"pluginListed": ["grove:grove"]}):
+            with self.subTest(change=change):
+                verdict = self.judge(GUIDED, guidance_facts(probe=change))
+                self.assertFalse(verdict["guidancePlugin"]["passed"])
+
+    def test_a_changed_installation_fails(self) -> None:
+        for change in ({"enabled": True}, {"registered": False}, {"treeUnchanged": False}, {"orphaned": True}):
+            with self.subTest(change=change):
+                verdict = self.judge(GUIDED, guidance_facts(after=change))
+                self.assertFalse(verdict["guidancePlugin"]["passed"])
+
+    def test_the_case_file_loads_and_a_missing_field_refuses(self) -> None:
+        case = staging_trial.load_case("guidance-probe")
+        self.assertEqual(case["guidancePlugin"]["plugin"], "grove@linkuistics")
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            broken = dict(case, guidancePlugin={k: v for k, v in case["guidancePlugin"].items() if k != "later"})
+            (Path(tmp) / "guidance-probe.json").write_text(json.dumps(broken))
+            saved, staging_trial.CASES = staging_trial.CASES, Path(tmp)
+            try:
+                with self.assertRaises(staging_trial.TrialFailure):
+                    staging_trial.load_case("guidance-probe")
+            finally:
+                staging_trial.CASES = saved
+
+    def test_the_clone_names_itself_and_refuses_a_leftover(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory(dir="/private/tmp") as tmp:
+            home = Path(tmp) / "home"
+            (home / ".claude" / "plugins").mkdir(parents=True)
+            (home / ".cache" / "ravel").mkdir(parents=True)
+            (home / ".claude.json").write_text("{}")
+            for rel in staging_trial.CLONE_REWRITES:
+                (home / rel).write_text(f'{{"path": "{home}/.claude/x"}}')
+            facts = staging_trial.clone_home(home, Path(tmp) / "clone")
+            self.assertEqual(facts["rewritten"], list(staging_trial.CLONE_REWRITES))
+            self.assertIn(str(Path(tmp) / "clone"), (Path(tmp) / "clone" / ".claude/settings.json").read_text())
+            self.assertFalse((Path(tmp) / "clone" / ".cache" / "ravel").exists())
+            # The control: another file that names the staging HOME refuses.
+            (home / ".claude" / "agents.json").write_text(str(home))
+            with self.assertRaises(staging_trial.TrialFailure):
+                staging_trial.clone_home(home, Path(tmp) / "clone-2")
+
+
 class RealHomeCheck(unittest.TestCase):
     def tree(self, root: Path) -> Path:
         cache = root / "cache"

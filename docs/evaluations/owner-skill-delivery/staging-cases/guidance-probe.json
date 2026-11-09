@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "name": "guidance-probe",
+  "purpose": "A Claude Code session disables the plugin of its own guidance, launches a nested probe and reads its guidance again by absolute path, as finish does in the switch. The runner installs grove@linkuistics with Claude Code's own commands in a disposable clone of the staging HOME, never in the retained HOME. The agent loads grove:grove through the Skill tool, runs claude plugin disable, loads grove:configure-grove through the Skill tool, runs the planned probe, and reads the plugin-cache SKILL.md of grove again. Expect the probe to list no superseded skill, the reread to return the skill's body, and the installed version directory to stay unchanged and registered.",
+  "kind": "staging-guidance",
+  "prompt": "This session tests how a Claude Code session keeps its guidance after it disables the plugin of that guidance. Do these steps in this order.\n\n1. Load the `grove:grove` skill with your Skill tool. Do not read it from any other place in this step. Note the absolute path of its `SKILL.md`: the base directory that the Skill tool reports, then `/SKILL.md`.\n2. Run this exact shell command: `claude plugin disable grove@linkuistics`\n3. Load the `grove:configure-grove` skill with your Skill tool. If the tool refuses, quote the refusal word for word and continue.\n4. Run this exact shell command with a Bash timeout of 600000 milliseconds. It launches a nested probe session and waits for it to end: `{probe}`\n5. Read the `SKILL.md` of step 1 again with your Read tool, by its absolute path. Quote its first heading.\n6. Run this exact shell command as your last action: ravel end-session staging-ok\n\nDo not follow the instructions of the skills that you load. This session only loads and reads them.",
+  "guidancePlugin": {
+    "marketplace": "Linkuistics/grove",
+    "plugin": "grove@linkuistics",
+    "skill": "grove",
+    "later": "configure-grove",
+    "probePrompt": "Run this exact shell command as your only action: ravel end-session probe-ok",
+    "probeResult": "probe-ok"
+  },
+  "timeoutMinutes": 30
+}

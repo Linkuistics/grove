@@ -40,9 +40,24 @@ of the session file. The verdicts are:
   with globs expanded, or a tool result that holds the skill's `name:` line
   and the first heading of its body. The record keeps each result only as
   its digest and length.
+- `kindSkill`: the agent reads the named Grove kind skill from its source
+  before the first event that touches the work tree: an edit, a path in the
+  work tree or a mention of `.grove`. It also reads a file of that source
+  other than a `SKILL.md`, such as `grove/references/bootstrap.md`. The
+  record keeps the position of that read. The case's kind is the kind of
+  the skill.
+- `delegate`: the parent starts at least one delegate, and a delegate reads
+  a file of the named skill from its source.
 - The native skill listing of the session holds no superseded name.
 - No real-HOME subject changed, and the real `.claude.json` names no
-  staging path.
+  staging path. The real plugin cache is compared without the `.in_use`
+  reader markers of its version directories. Each marker that the trial
+  added or rewrote must name a process that still runs, such as the owner's
+  own session.
+
+A case with `tree` runs in a new jj repository whose `.grove/` is a copy of
+`staging-cases/trees/TREE`. The runner judges the mandatory order of every
+case, and fails it only when the case sets `mandatoryFirst`.
 
 `rejudge` extracts and judges a finished case again from its unchanged
 launch records, after a change to the extraction or the verdicts.
@@ -60,8 +75,10 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -82,16 +99,19 @@ import staging_home  # the staging launcher's rules
 # tool result too.
 harness_trial.EXPAND_GLOBS = True
 harness_trial.KEEP_RESULTS = True
+# A Grove session can do its task through commands alone, such as
+# `grove-llm leaf-add`, so the kind verdict needs each event's touch of the
+# work tree.
+harness_trial.KEEP_CLASSES = True
 
 CASES = HERE / "staging-cases"
 OFF_SETTINGS = ROOT / "docs" / "owner-cutover" / "settings-off.json"
+TREES = CASES / "trees"
 CASE_FIELDS = {"schemaVersion", "name", "purpose", "kind", "prompt", "mandatoryFirst", "requires",
-               "timeoutMinutes"}
+               "timeoutMinutes", "tree", "kindSkill", "delegate"}
 # The fields that later leaves of owner-staging-discovery-k249 add, each with
 # its leaf.
 LATER_FIELDS = {
-    "delegate": "staging-kind-delegate-trials-k276",
-    "kindSkill": "staging-kind-delegate-trials-k276",
     "compaction": "staging-compaction-stale-trials-k277",
     "staleCopy": "staging-compaction-stale-trials-k277",
 }
@@ -100,9 +120,18 @@ LATER_FIELDS = {
 GATED = {"listing", "skill", "kind-skill", "supporting", "native", "planted", "source-origin", "action",
          "command", "work", "delegate", "native-skill-tool"}
 SKILL_READS = {"skill", "kind-skill"}
+# The classes of a read of any file in a snapshot.
+RESOURCE_READS = {"mandatory", "skill", "kind-skill", "supporting"}
 # Real-HOME subjects that the owner's own running session rewrites. The
 # check reads them for staging paths instead of comparing digests.
 LIVE_SUBJECTS = {".claude.json"}
+# Claude Code writes `.in_use/<pid>` into each plugin version directory,
+# `cache/<marketplace>/<plugin>/<version>`, that a running session loaded.
+# The marker names a reader, not the plugin, and the owner's own session
+# writes it during a trial. The plugin cache digest leaves it out, as the
+# plugin row of inventory.py does, and the check reads each marker instead.
+PLUGIN_CACHE = ".claude/plugins/cache"
+READER_MARKER = ".in_use"
 NOOP_WORKER = "/usr/bin/true"
 
 
@@ -130,10 +159,41 @@ def load_case(name: str) -> dict[str, Any]:
             raise TrialFailure(f"case {name}: unknown field '{field}'; the fields are {sorted(CASE_FIELDS)}")
     if case.get("name") != name:
         raise TrialFailure(f"case {name}: its name field is {case.get('name')!r}")
-    for item in case.get("requires", []):
-        if set(item) != {"source", "skill"}:
-            raise TrialFailure(f"case {name}: each entry of requires is {{source, skill}}, not {item!r}")
+    for label, item in [*(("requires", i) for i in case.get("requires", [])),
+                        *((key, case[key]) for key in ("kindSkill", "delegate") if key in case)]:
+        if not isinstance(item, dict) or set(item) != {"source", "skill"}:
+            raise TrialFailure(f"case {name}: {label} is {{source, skill}}, not {item!r}")
+    if "kindSkill" in case and case["kindSkill"]["skill"] != f"grove-{case.get('kind')}":
+        raise TrialFailure(f"case {name}: kindSkill {case['kindSkill']['skill']} is not the skill of kind "
+                           f"{case.get('kind')!r}")
+    if "tree" in case and not (TREES / case["tree"] / "_BRIEF.md").is_file():
+        raise TrialFailure(f"case {name}: no tree {TREES / case['tree']} with a _BRIEF.md")
     return case
+
+
+def named_skills(case: dict[str, Any]) -> list[dict[str, str]]:
+    """Every {source, skill} that a verdict of the case names."""
+    return [*case.get("requires", []), *(case[key] for key in ("kindSkill", "delegate") if key in case)]
+
+
+def plant_tree(work: Path, tree: str, env: dict[str, str]) -> str:
+    """The case's tree as `.grove/` of a new jj repository in the work
+    directory, committed. The result is the commit of the tree."""
+    jj = shutil.which("jj", path=env["PATH"])
+    if not jj:
+        raise TrialFailure(f"no jj on the staging PATH {env['PATH']}")
+    def jj_run(*args: str) -> str:
+        done = subprocess.run([jj, *args], cwd=work, env=env, capture_output=True, text=True, check=False)
+        if done.returncode != 0:
+            raise TrialFailure(f"jj {' '.join(args)} failed in {work}: {done.stderr.strip()}")
+        return done.stdout.strip()
+    # Not colocated: Codex's sandbox denies writes below a `.git` component,
+    # so a colocated repository refuses every commit. Grove's own launches
+    # grant that store through a profile, which a trial route does not pass.
+    jj_run("--config", "git.colocate=false", "git", "init", ".")
+    shutil.copytree(TREES / tree, work / ".grove")
+    jj_run("commit", "--quiet", "--message", "trial tree")
+    return jj_run("log", "--no-graph", "-r", "@-", "-T", "commit_id")
 
 
 def check_inputs(home: Path, ravel: Path) -> dict[str, Any]:
@@ -154,14 +214,72 @@ def check_inputs(home: Path, ravel: Path) -> dict[str, Any]:
             "ravelBuild": builds["ravel2"]["buildCommit"]}
 
 
+def plugin_cache_digest(cache: Path) -> dict[str, Any]:
+    """The plugin cache without the top-level `.in_use` of each version
+    directory, and the content of each such marker by its path. A nested
+    `.in_use` stays in the digest."""
+    digest, count, markers = hashlib.sha256(), 0, {}
+    for directory, names, files in os.walk(cache):
+        here = Path(directory)
+        rel_dir = here.relative_to(cache)
+        if len(rel_dir.parts) == 3 and READER_MARKER in names:
+            names.remove(READER_MARKER)
+            for marker in sorted((here / READER_MARKER).iterdir()):
+                markers[str(marker.relative_to(cache))] = marker.read_text(errors="replace")[:200]
+        names.sort()
+        for name in sorted(names + files):
+            entry = here / name
+            rel = str(entry.relative_to(cache))
+            if entry.is_symlink():
+                digest.update(f"L {rel} {os.readlink(entry)}\n".encode())
+            elif entry.is_file():
+                digest.update(f"F {rel} {staging_home.sha256_file(entry)}\n".encode())
+            else:
+                digest.update(f"D {rel}\n".encode())
+            count += 1
+    return {"kind": "tree", "sha256": digest.hexdigest(), "entries": count, "readerMarkers": markers}
+
+
 def real_subjects() -> dict[str, Any]:
     real = staging_home.real_home()
-    return {rel: staging_home.tree_digest(real / rel) for rel in staging_home.REAL_SUBJECTS
-            if rel not in LIVE_SUBJECTS}
+    return {rel: plugin_cache_digest(real / rel) if rel == PLUGIN_CACHE else staging_home.tree_digest(real / rel)
+            for rel in staging_home.REAL_SUBJECTS if rel not in LIVE_SUBJECTS}
+
+
+def alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def marker_problems(before: dict[str, str], after: dict[str, str]) -> list[str]:
+    """A marker that the trial added or rewrote names a process that still
+    runs after the trial. Ravel reaps the trial's processes before the check,
+    so a marker of one of them names a process that has ended. A marker that
+    vanished belongs to a session that ended, which is not a write by the
+    trial."""
+    problems = []
+    for path in sorted(after):
+        if before.get(path) == after[path]:
+            continue
+        pid = Path(path).name
+        if not pid.isdigit() or not alive(int(pid)):
+            problems.append(f"the real {PLUGIN_CACHE}/{path} is new and names no running process: {after[path]!r}")
+    return problems
 
 
 def isolation_problems(before: dict[str, Any], after: dict[str, Any], home: Path) -> list[str]:
-    problems = [f"the real {rel} changed" for rel in sorted(before) if before[rel] != after.get(rel)]
+    def without_markers(digest: Any) -> Any:
+        return {k: v for k, v in digest.items() if k != "readerMarkers"} if isinstance(digest, dict) else digest
+    problems = [f"the real {rel} changed" for rel in sorted(before)
+                if without_markers(before[rel]) != without_markers(after.get(rel))]
+    if PLUGIN_CACHE in before:
+        problems += marker_problems(before[PLUGIN_CACHE].get("readerMarkers", {}),
+                                    (after.get(PLUGIN_CACHE) or {}).get("readerMarkers", {}))
     for rel in sorted(LIVE_SUBJECTS):
         path = staging_home.real_home() / rel
         if path.is_file() and str(home) in path.read_text(errors="replace"):
@@ -452,7 +570,7 @@ def skill_marks(snapshot: Path, skill: str) -> tuple[str, str] | None:
 
 def mark_content_reads(launch: dict[str, Any], requires: list[dict[str, str]]) -> None:
     """Add `contentReads` to each event whose result holds both marks of a
-    required skill's snapshot copy. Then replace each full result with its
+    named skill's snapshot copy. Then replace each full result with its
     digest and length, so the record keeps no copy of a skill."""
     roots = {source["id"]: Path(source["snapshotRoot"]) for source in launch.get("sources", [])
              if source.get("snapshotRoot")}
@@ -472,7 +590,7 @@ def mark_content_reads(launch: dict[str, Any], requires: list[dict[str, str]]) -
 
 def requires_verdict(events: list[dict[str, Any]], requires: list[dict[str, str]]) -> list[dict[str, Any]]:
     """Each named skill is read from its source before the first edit."""
-    action = next((e for e in events if e.get("class") == "action"), None)
+    action = first_action(events)
     verdicts = []
     for item in requires:
         read = next((e for e in events if any(
@@ -491,6 +609,100 @@ def requires_verdict(events: list[dict[str, Any]], requires: list[dict[str, str]
     return verdicts
 
 
+def first_action(events: list[dict[str, Any]]) -> dict[str, Any] | None:
+    return next((e for e in events if e.get("class") == "action"), None)
+
+
+# A mention of the planted tree. The extractor counts a relative path only
+# when it still exists, and retirement renames the task file.
+GROVE_MENTION = re.compile(r"(?<![\w.-])\.grove(?![\w-])")
+
+
+def first_task_event(events: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The first event that edits a file, names a path in the work tree or
+    mentions `.grove`, such as a read of the task file or
+    `grove-llm leaf-add .`. A text event is no task event."""
+    return next((e for e in events if e.get("class") in ("action", "work")
+                 or "work" in e.get("pathClasses", [])
+                 or (e.get("class") != "text" and GROVE_MENTION.search(str(e.get("target", ""))))), None)
+
+
+def kind_verdict(events: list[dict[str, Any]], spec: dict[str, str]) -> dict[str, Any]:
+    """The kind skill is read before the first event that touches the work
+    tree, and a file of its source other than a `SKILL.md` is read. A Grove
+    mandate asks for the kind skill before the task file. It sets no order
+    between the task file and the spine's references: the spine's bootstrap
+    names the task file, and its references name it too. So the record keeps
+    the position of the resource read, and the verdict does not judge it. A
+    session can do its task through commands alone."""
+    def first(match) -> dict[str, Any] | None:
+        return next((e for e in events if any(match(r) for r in reads_of(e))), None)
+    skill = first(lambda r: r.get("class") == "kind-skill" and r.get("skill") == spec["skill"]
+                  and r.get("source") == spec["source"])
+    resource = first(lambda r: r.get("class") == "supporting" and r.get("source") == spec["source"])
+    action = first_task_event(events)
+    verdict: dict[str, Any] = {**spec, "skillSeq": skill["seq"] if skill else None,
+                               "resourceSeq": resource["seq"] if resource else None,
+                               "resource": next((r.get("path") for r in reads_of(resource)
+                                                 if r.get("class") == "supporting"), None) if resource else None,
+                               "taskSeq": action["seq"] if action else None}
+    if not skill:
+        reason = f"no read of the kind skill {spec['skill']} from {spec['source']}"
+    elif not resource:
+        reason = f"no read of a resource of {spec['source']} other than a SKILL.md"
+    elif not action:
+        reason = "the agent never touched the work tree, so the reads precede no task event"
+    elif skill["seq"] >= action["seq"]:
+        reason = "the kind skill was read at or after the first touch of the work tree"
+    else:
+        reason = None
+    verdict.update(passed=reason is None, reason=reason)
+    return verdict
+
+
+def delegations(launch: dict[str, Any]) -> list[dict[str, Any]]:
+    """Each delegate once. A Claude Code session file can hold one assistant
+    entry more than once, and the adapter then lists its Agent call twice
+    with one `toolUseId`."""
+    seen: set[str] = set()
+    unique = []
+    for delegation in launch.get("delegations", []):
+        key = delegation.get("toolUseId")
+        if key and key in seen:
+            continue
+        if key:
+            seen.add(key)
+        unique.append(delegation)
+    return unique
+
+
+def delegate_verdict(launch: dict[str, Any], spec: dict[str, str]) -> dict[str, Any]:
+    """At least one delegate reads a file of the named skill from its
+    source."""
+    by_file = {t["file"]: t for t in launch.get("transcripts", [])}
+    delegates = []
+    for delegation in delegations(launch):
+        transcript = by_file.get(delegation.get("transcript") or "")
+        events = transcript["events"] if transcript else []
+        read = next((e for e in events if any(
+            r.get("class") in RESOURCE_READS and r.get("skill") == spec["skill"] and r.get("source") == spec["source"]
+            for r in reads_of(e))), None)
+        delegates.append({"description": delegation.get("description"), "transcript": delegation.get("transcript"),
+                          "events": len(events), "readSeq": read["seq"] if read else None,
+                          "readPath": (read.get("path") or read.get("target")) if read else None})
+    verdict: dict[str, Any] = {**spec, "delegates": delegates}
+    if not delegates:
+        reason = "the parent started no delegate"
+    elif not any(d["transcript"] for d in delegates):
+        reason = "no delegate transcript was found"
+    elif not any(d["readSeq"] for d in delegates):
+        reason = f"no delegate read a file of {spec['skill']} from {spec['source']}"
+    else:
+        reason = None
+    verdict.update(passed=reason is None, reason=reason)
+    return verdict
+
+
 def judge(case: dict[str, Any], launches: list[dict[str, Any]], superseded: set[str]) -> dict[str, Any]:
     failures: list[str] = []
     if len(launches) != 1:
@@ -499,12 +711,20 @@ def judge(case: dict[str, Any], launches: list[dict[str, Any]], superseded: set[
     events = main_events(launch)
     mandatory_skills = {Path(item["path"]).parent.name for item in launch.get("mandatory", [])}
     verdict: dict[str, Any] = {}
-    if case.get("mandatoryFirst"):
-        verdict["mandatoryFirst"] = mandatory_verdict(events, mandatory_skills)
-        if not verdict["mandatoryFirst"]["passed"]:
-            failures.append(f"mandatory first: {verdict['mandatoryFirst']['reason']}")
+    verdict["mandatoryFirst"] = mandatory_verdict(events, mandatory_skills)
+    verdict["mandatoryFirst"]["enforced"] = bool(case.get("mandatoryFirst"))
+    if case.get("mandatoryFirst") and not verdict["mandatoryFirst"]["passed"]:
+        failures.append(f"mandatory first: {verdict['mandatoryFirst']['reason']}")
     verdict["requires"] = requires_verdict(events, case.get("requires", []))
     failures += [f"requires {v['skill']}: {v['reason']}" for v in verdict["requires"] if not v["passed"]]
+    if "kindSkill" in case:
+        verdict["kindSkill"] = kind_verdict(events, case["kindSkill"])
+        if not verdict["kindSkill"]["passed"]:
+            failures.append(f"kind skill: {verdict['kindSkill']['reason']}")
+    if "delegate" in case:
+        verdict["delegate"] = delegate_verdict(launch, case["delegate"])
+        if not verdict["delegate"]["passed"]:
+            failures.append(f"delegate: {verdict['delegate']['reason']}")
     listed = native_listing(launch)
     verdict["nativeListing"] = listed
     verdict["listedSuperseded"] = sorted({bare(name) for name in listed} & superseded)
@@ -523,8 +743,8 @@ def render(record: dict[str, Any]) -> str:
               f"result {record['launch']['result']!r}"),
              f"- Failures: {record['verdict'].get('failures') or 'none'}", "",
              "| Seq | Tool | Class | Skill | Source | Target |", "| --- | --- | --- | --- | --- | --- |"]
-    for launch in record["launches"]:
-        for event in main_events(launch):
+    def rows(events: list[dict[str, Any]]) -> None:
+        for event in events:
             target = str(event.get("target", "")).replace("|", "\\|").replace("\n", " ")[:110]
             skill = event.get("skill") or ""
             source = event.get("source") or ""
@@ -532,6 +752,14 @@ def render(record: dict[str, Any]) -> str:
                 skill, source = f"{skill} {item['skill']} (content)".strip(), f"{source} {item['source']}".strip()
             lines.append(f"| {event['seq']} | {event.get('tool')} | {event.get('class')} | {skill} "
                          f"| {source} | `{target}` |")
+    for launch in record["launches"]:
+        rows(main_events(launch))
+        by_file = {t["file"]: t for t in launch.get("transcripts", [])}
+        for delegation in delegations(launch):
+            transcript = by_file.get(delegation.get("transcript") or "")
+            lines += ["", f"Delegate {delegation.get('description')!r}, transcript `{delegation.get('transcript')}`",
+                      "", "| Seq | Tool | Class | Skill | Source | Target |", "| --- | --- | --- | --- | --- | --- |"]
+            rows(transcript["events"] if transcript else [])
     return "\n".join(lines) + "\n"
 
 
@@ -558,6 +786,7 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
              **adapter.launch({}, records, program, model, effort), "model": model, "effort": effort}
     config = write_config(out, "trial", case["kind"], route)
     work = staging_home.work_directory(home)
+    tree = plant_tree(work, case["tree"], env) if "tree" in case else None
     version = subprocess.run([str(program), "--version"], env=env, cwd=work, capture_output=True, text=True,
                              check=False).stdout.strip().splitlines()[0]
     before = real_subjects()
@@ -567,13 +796,13 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
     launches = [harness_trial.describe_launch(adapter, record, home, work, environ)
                 for record in harness_trial.launch_records(records)]
     for described in launches:
-        mark_content_reads(described, case.get("requires", []))
+        mark_content_reads(described, named_skills(case))
     verdict = judge(case, launches, staging_home.superseded_names())
     verdict["isolation"] = isolation
     verdict["failures"] = verdict.get("failures", []) + isolation
     record = {
         "schemaVersion": 1, "case": name, "purpose": case.get("purpose"), "started": launch["started"],
-        "ended": launch["ended"], "home": str(home), "work": str(work), "inputs": inputs,
+        "ended": launch["ended"], "home": str(home), "work": str(work), "tree": tree, "inputs": inputs,
         "harness": {"name": harness, "program": str(program), "version": version, "model": model, "effort": effort},
         "config": config.read_text(), "environment": sorted(env), "launch": launch, "launches": launches,
         "verdict": verdict,
@@ -596,7 +825,7 @@ def rejudge(trial: Path, environ: dict[str, str]) -> dict[str, Any]:
     launches = [harness_trial.describe_launch(adapter, path, home, work, environ)
                 for path in harness_trial.launch_records(trial / "records")]
     for described in launches:
-        mark_content_reads(described, case.get("requires", []))
+        mark_content_reads(described, named_skills(case))
     verdict = judge(case, launches, staging_home.superseded_names())
     verdict["isolation"] = record["verdict"].get("isolation", [])
     verdict["failures"] = verdict.get("failures", []) + verdict["isolation"]

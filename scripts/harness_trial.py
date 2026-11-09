@@ -719,6 +719,12 @@ KEEP_RESULTS = False
 # reextraction gives their events unchanged. The staging trial runner
 # (docs/evaluations/owner-skill-delivery/staging_trial.py) turns it on.
 EXPAND_GLOBS = False
+# Whether extract_events keeps the class of every path that a tool call
+# names, as `pathClasses`. The event's own class keeps only its first read,
+# so without it a command that reads a skill and a task file shows no touch
+# of the work tree. It is off for the same reason as EXPAND_GLOBS, and the
+# staging trial runner turns it on.
+KEEP_CLASSES = False
 GLOB_CHARS = re.compile(r"[*?\[]")
 
 
@@ -919,6 +925,8 @@ def extract_events(entries: list[dict[str, Any]], classifier: Classifier) -> lis
                 event["marker"] = marker_places(classifier.marker, tool_input, results.get(block.get("id", ""), ""))
             if KEEP_RESULTS:
                 event["resultFull"] = results.get(block.get("id", ""), "")
+            if KEEP_CLASSES:
+                event["pathClasses"] = sorted({item[0] for item in classes})
             reads = [item for item in classes if item[0] in READ_CLASSES]
             if reads and name not in EDIT_TOOLS:
                 event["class"], event["skill"], event["path"] = reads[0]

@@ -3772,6 +3772,8 @@ and its cases are in
 [`staging-cases`](evaluations/owner-skill-delivery/staging-cases).
 `staging-trial-runner-k275` built the tool on 2026-11-09. It ran the source
 trials and the discovery case on both harnesses.
+`staging-kind-delegate-trials-k276` added the kind skill case and the
+delegate case on the same day, and ran each on both harnesses.
 
 ### Rerun commands
 
@@ -3788,6 +3790,14 @@ task owner:staging:case CASE=discovery HARNESS=claude STAGING=$S/home \
   RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/discovery-claude-N
 task owner:staging:case CASE=discovery HARNESS=codex STAGING=$S/home \
   RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/discovery-codex-N
+task owner:staging:case CASE=kind-skill HARNESS=claude STAGING=$S/home \
+  RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/kind-skill-claude-N
+task owner:staging:case CASE=kind-skill HARNESS=codex STAGING=$S/home \
+  RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/kind-skill-codex-N
+task owner:staging:case CASE=delegate HARNESS=claude STAGING=$S/home \
+  RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/delegate-claude-N
+task owner:staging:case CASE=delegate HARNESS=codex STAGING=$S/home \
+  RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/delegate-codex-N
 ```
 
 `task owner:staging:trial-tests` tests the verdicts on synthetic events.
@@ -3865,16 +3875,137 @@ The `requires` verdict also reads each further read of one command. A new
 extraction of the same unchanged launch records then passed on both
 harnesses.
 
+### The kind skill case
+
+The case resembles a Grove mandate. Its prompt names `grove-planning` and
+the planning leaf `word-tools-k1` of a small planted grove. The prompt
+gives the end command `ravel end-session staging-ok`. The session runs
+through `ravel start-session --kind planning`, not through the `grove`
+driver. The runner copies `staging-cases/trees/kind-skill` to `.grove/` of
+a new jj repository in the work directory, and commits it.
+
+The case names `grove-planning` because the kind skill must come from the
+`grove-core` source. That source holds `grove`, `configure-grove`,
+`grove-finish` and the three planning kinds. The `engineering` source holds
+`grove-impl`.
+
+The verdicts require these facts:
+
+- The agent reads `grove-planning` from the `grove-core` snapshot before
+  the first event that touches the work tree. Such an event edits a file,
+  names a path in the work tree or mentions `.grove`. The Grove mandate
+  sets this order.
+- The agent reads a file of the `grove-core` snapshot other than a
+  `SKILL.md`. Each such file is a resource that the kind skill or the spine
+  names by a relative path, such as `grove/TASK-FORMAT.md` or
+  `grove/references/bootstrap.md`. The record keeps the position of the
+  read, and the verdict does not judge it.
+- The native listing holds no superseded name, and the real HOME is
+  unchanged.
+
+The runner records the mandatory order of this case, and does not enforce
+it. A Grove mandate tells the agent to load the kind skill first.
+
+| Harness | Model and effort | Record | Result |
+| --- | --- | --- | --- |
+| Claude Code 2.1.319 | `claude-sonnet-5-5`, low | `trials/kind-skill-claude-3` | Passed with the final runner. The mandatory read was event 1. The kind skill was event 5 and the spine event 6. Event 8 read the task file, and event 9 read `grove/TASK-FORMAT.md` and other spine files. The agent added two leaves with `grove-llm leaf-add` at event 12, wrote them through the shell, retired its leaf and committed. The session ended with `staging-ok`. |
+| Codex 0.167.0 | `gpt-6.1-sol`, low | `trials/kind-skill-codex-2` | Passed. The mandatory read was event 2. The kind skill was event 5. Event 8 read `grove/references/{execute,decompose,retire,commit,grove}.md` through a shell brace. Event 9 read the task file. The agent added two leaves, edited them with `apply_patch`, retired its leaf and committed. The session ended with `staging-ok`. |
+
+Both agents read the mandatory file before the kind skill, although the
+prompt asked for the kind skill first. Neither listing held a superseded
+name.
+
+### The delegate case
+
+The case asks for two Bash scripts in an empty work directory. It asks the
+parent to write `count.sh` itself and to delegate `check-count.sh` through
+the harness's agent tool. The parent must tell the delegate to find and
+read the skill for Bash style, which the prompt does not name. The case
+enforces the mandatory order of the parent. The delegate verdict requires a
+delegate transcript with a read of a file of `coding-style-bash` from the
+`engineering` snapshot.
+
+| Harness | Model and effort | Record | Result |
+| --- | --- | --- | --- |
+| Claude Code 2.1.319 | `claude-sonnet-5-5`, low | `trials/delegate-claude-1` | Passed. The parent read the mandatory file at event 1 and launched one `general-purpose` delegate. The delegate prompt gave the absolute path of `coding-style-bash/SKILL.md` and the descriptor path. The delegate read that file at its event 1 and wrote `check-count.sh` at its event 3. The session ended with `staging-ok`. |
+| Codex 0.167.0 | `gpt-6.1-sol`, low | `trials/delegate-codex-1` | Passed. The parent read the mandatory file at event 2 and launched one delegate with `spawn_agent`. Its message is encrypted in the session file. The delegate read the mandatory file at its event 1 and the descriptor at its event 2. A Python script listed the skills at its event 3, and the delegate read `coding-style-bash/SKILL.md` at its event 4. Its first edit was its event 6. The session ended with `staging-ok`. |
+
+Each delegate inherited `RAVEL_EXIT_FILE`, and neither ran an end command.
+The Claude Code parent found the skill itself and passed its path, so that
+delegate shows access to the snapshot, not discovery. The Codex delegate
+found the skill through the descriptor.
+
+### Repairs of the kind verdict and the real-HOME check
+
+The first kind trials found defects in the instrument. None was a defect of
+a source.
+
+- **A colocated plant.** The first plant was a colocated jj repository.
+  Codex's workspace sandbox denies writes below `.git`, so the Codex agent
+  of `trials/kind-skill-codex-1` could not commit. It sent no result, and
+  Ravel reported `session_result_missing`. Grove's own launches grant the
+  store through the `grove-jj` profile, which a trial route does not pass.
+  The plant is now not colocated, as the common-loading plant is.
+- **No edit tool.** The Claude Code agent of `trials/kind-skill-claude-1`
+  did its planning through `grove-llm leaf-add` and shell writes. The first
+  verdict ordered the reads against the first edit, and found none. The
+  order point is now the first touch of the work tree. A new flag of
+  `harness_trial.py`, `KEEP_CLASSES`, keeps the class of every path of a
+  command. A command that reads a skill and a task file then shows both. The
+  flag is off there, so the common-loading records extract unchanged. The
+  extractor counts a relative path only when it still exists. Retirement
+  renames the task file, so a mention of `.grove` also counts as a touch.
+- **An order for the resource.** The first two versions of the order point
+  also required the resource read before or with the first touch of the
+  work tree. `trials/kind-skill-claude-2` read the task file at event 8 and
+  `grove/references/bootstrap.md` at event 9, before its first write at
+  event 12. The spine's bootstrap names the task file, so this order is
+  Grove's procedure. The mandate sets an order only for the kind skill, and
+  the done-when of the case sets none. The verdict now records the position
+  of the resource read without a judgement.
+- **Reader markers in the real plugin cache.** The real-HOME check of
+  `trials/kind-skill-claude-1` reported a changed `.claude/plugins/cache`.
+  The changed files were `.in_use/81902` markers. Process 81902 was the
+  owner's own Claude Code session, which ran this leaf. Its process
+  began before the trial. The check now digests the cache without the top-level
+  `.in_use` of each version directory, as the plugin row of
+  `inventory.py` does. It fails when the trial adds or rewrites a marker
+  that names a process that has ended. Ravel reaps the trial's processes
+  before the check, so a marker of a trial process names an ended process.
+- **One delegate listed twice.** The Claude Code session file of
+  `trials/delegate-claude-1` holds the parent's Agent call twice, with one
+  tool-use ID. The verdict and the rendered record now count a delegate
+  once by that ID.
+
+`staging_trial.py rejudge` judged `trials/kind-skill-claude-2`, both Codex
+records and `trials/delegate-claude-1` again with the final runner, from
+unchanged launch records. Each passed. `trials/kind-skill-claude-3` ran
+after the last change to the kind verdict, and it passed without a second
+reading. A later reading cannot repeat a real-HOME check, so
+`trials/kind-skill-claude-1` keeps its original failure of that check.
+
 ### Limits
 
 - The real HOME's `.claude.json` has no digest comparison, for the reason
   above.
-- Each case runs once on each harness. A single run shows that the
-  behaviour occurs. It does not measure how often it occurs.
+- Each case has one passing record on each harness that the final runner
+  judges. A single run shows that the behaviour occurs. It does not measure
+  how often it occurs.
 - A content read proves that the agent received the skill's body. It does
   not identify the path that the script opened. Only the design source
   holds `cli-tool-design`, so the source is not in doubt here.
-- The model cases ran with the runner before the two repairs. Their
+- The discovery cases ran with the runner before the two repairs. Their
   verdicts come from `rejudge` with the final runner, on unchanged launch
   records. The source trials ran once, with the runner before the repairs,
   which touch no part of them.
+- The kind case runs through `ravel start-session` with a prompt shaped like
+  Grove's launch prompt. It does not run Grove's driver, its launch prompt
+  or its session admission.
+- The order point of the kind case sees a touch of the work tree in three
+  forms. They are an edit, a path that exists at extraction and a mention of
+  `.grove`.
+  It cannot see a read of the task file inside a script that names neither. In
+  each passing record, the touch that the verdict found is a plain read of
+  the task file.
+- The marker rule of the real plugin cache trusts that a running process is
+  not a trial process. Ravel reaps the trial's group before the check.

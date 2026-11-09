@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "name": "kind-skill",
+  "purpose": "A task names a Grove kind skill, as a Grove mandate does. The prompt names grove-planning and one planning leaf of a planted grove. Expect a read of grove-planning from the grove-core snapshot, and a read of a resource of the same source other than a SKILL.md, such as grove/BRIEF-FORMAT.md or grove/references/execute.md, before the first edit.",
+  "kind": "planning",
+  "prompt": "**Load the `grove-planning` skill now.** Your kind is `planning`. Grove resolved that before this session existed, so there is no selection for you to make.\n\nDo this **first**, before anything else you might reach for: before reading the task file, before looking at `.grove/`, before inspecting the working tree.\n\nGrove mandate: the leaf selected for this session is `word-tools-k1`. Its task file is `.grove/01-planning--word-tools-k1.md`.\n\nVersion control: this working tree is jj-enabled. Its workspace root is the current directory.\n\n**Signal.** After retirement and commit, run this exact command as your **last action**, then do nothing else: `ravel end-session staging-ok`",
+  "tree": "kind-skill",
+  "kindSkill": { "source": "grove-core", "skill": "grove-planning" },
+  "timeoutMinutes": 30
+}

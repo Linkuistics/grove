@@ -95,6 +95,10 @@ reparents to launchd.
     probe ends the leader's group the same way and then runs the cleanup.
     The probe signals the leader's group only while the leader is its
     unreaped child, so the group ID cannot name another process.
+    When the probe itself fails, as when the process table cannot be read,
+    it still ends the leader's group, reaps the leader and runs the cleanup.
+    It keeps the original error. An owned process that still runs then
+    appears in the failure, and the work folder stays, with the journal.
 """
 
 from __future__ import annotations
@@ -138,7 +142,6 @@ POLL_SECONDS = 0.05
 LAUNCH_TIMEOUT = 1800.0
 SETTLE_SECONDS = 3.0
 INTERRUPT_GRACE = 20.0
-CLEANUP_ROUNDS = 3
 CODEX_SANDBOX = "workspace-write"
 CODEX_APPROVAL = "never"
 
@@ -431,23 +434,11 @@ class Tracker:
         procs = process_table()
         if self.leader is None:
             return procs
-        children = {}
-        for pid, p in procs.items():
-            children.setdefault(p["ppid"], []).append(pid)
-        stack = [(key[0], key[1], rec["relation"]) for key, rec in self.records.items()
+        roots = [(key[0], key[1], rec["relation"]) for key, rec in self.records.items()
                  if osw.process_start(key[0]) == key[1]]
         if self.leader_unreaped():
-            stack.append((self.leader, osw.process_start(self.leader), "leader"))
-        seen = {}
-        while stack:
-            pid, start, relation = stack.pop()
-            if pid in seen or pid not in procs or start is None:
-                continue
-            seen[pid] = (relation, start)
-            for child in children.get(pid, []):
-                child_start = osw.process_start(child)
-                if child_start is not None and float(start) <= float(child_start) <= snapshot:
-                    stack.append((child, child_start, "descendant"))
+            roots.append((self.leader, osw.process_start(self.leader), "leader"))
+        seen = osw.descendants(procs, roots, snapshot)
         if self.leader_unreaped():
             for pid, p in procs.items():
                 if p["pgid"] == self.leader and pid not in seen:
@@ -601,6 +592,8 @@ class Launch:
         self.env = tool_env(home)
         self.signalled = None
         self.events = []
+        # Set when a failure of the probe leaves an owned process unresolved: the work folder stays.
+        self.keep_work = False
 
     def argv(self) -> list:
         if self.route == "native":
@@ -643,25 +636,23 @@ class Launch:
 
         A survivor can create a child during its grace period. Each round
         reads the process table again for a second, so such a child gains a
-        record and the next round ends it. The rounds stop at CLEANUP_ROUNDS.
+        record and the next round ends it (owner_switch.end_in_rounds, which
+        the switch uses too).
         """
-        signalled, remaining = [], []
-        for _ in range(CLEANUP_ROUNDS):
+        return osw.end_in_rounds(self.tracker.owned, self.tracker.poll)
+
+    def failure_cleanup(self) -> list:
+        """After a failure of the probe itself: end each owned process that still runs; return each that remains.
+
+        When the rounds cannot run, as when the process table cannot be
+        read, the recorded processes are ended without a watch.
+        """
+        try:
+            return self.cleanup()["remaining"]
+        except Exception as e:
+            note(f"launch: the cleanup rounds failed ({e}); the recorded processes are ended without a watch")
             survivors = [dict(r) for r in self.tracker.owned() if osw.owned_state(r) != "gone"]
-            if not survivors:
-                remaining = []
-                break
-            outcome = osw.end_owned(survivors, watch=self.tracker.poll)
-            signalled += outcome["signalled"]
-            remaining = outcome["remaining"]
-            deadline = time.monotonic() + 1.0
-            while time.monotonic() < deadline:
-                self.tracker.poll()
-                time.sleep(POLL_SECONDS)
-        else:
-            remaining = [dict(r, state=osw.owned_state(r)) for r in self.tracker.owned()
-                         if osw.owned_state(r) != "gone"]
-        return {"signalled": signalled, "remaining": remaining}
+            return osw.end_owned(survivors)["remaining"]
 
     def run(self) -> dict:
         journal = os.environ.get(JOURNAL_VAR) or os.path.join(self.work, "journal.jsonl")
@@ -713,8 +704,9 @@ class Launch:
             cleanup = self.cleanup()
             procs = self.tracker.poll()
             unattributed = self.tracker.unattributed(procs, self.home, self.work)
-        except BaseException:
-            # A failure of the probe itself still ends the leader's group and reaps the leader.
+        except BaseException as e:
+            # A failure of the probe itself still ends the leader's group, reaps the leader and ends
+            # each owned process, so a recorded service outside the group does not survive it.
             if leader is not None and leader.poll() is None:
                 try:
                     self.end_group(leader)
@@ -727,6 +719,19 @@ class Launch:
                     except OSError:
                         pass
                 leader.wait()
+            try:
+                remaining = self.failure_cleanup()
+            except Exception as cleanup:
+                remaining = [{"pid": "?", "executable": f"the cleanup failed: {cleanup}", "state": "unknown"}]
+            if remaining:
+                # The journal is the only record of these processes when it lies in the work folder.
+                self.keep_work = True
+                report = ("; after it, these owned processes still run: "
+                          + ", ".join(f"{r['pid']} ({r['executable']}, {r['state']})" for r in remaining)
+                          + f". The journal {journal} keeps their records")
+                note(f"launch: {report[2:]}")
+                if isinstance(e, Fail):
+                    raise Fail(f"{e}{report}") from e
             raise
         finally:
             for s, handler in previous.items():
@@ -766,6 +771,7 @@ class Launch:
 def launch_command(args) -> dict:
     home = probe_home()
     work = make_work(home)
+    launch = None
     try:
         launch = Launch(args.harness, args.route, args.prompt, home, work, args.model, args.effort,
                         timeout=args.timeout, settle=args.settle, interrupt_after=args.interrupt_after,
@@ -774,7 +780,7 @@ def launch_command(args) -> dict:
         stdout, stderr = launch.output()
         version = first_line([result["argv"][0], "--version"], launch.env, work)
     finally:
-        if not args.keep:
+        if not args.keep and not (launch is not None and launch.keep_work):
             shutil.rmtree(work, ignore_errors=True)
     result.update(probe="launch", version=version, droppedNames=dropped_names(), kept=bool(args.keep),
                   stdoutTail=stdout[-4000:], stderrTail=stderr[-4000:], ok=not result["problems"])

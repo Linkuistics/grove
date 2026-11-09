@@ -1445,8 +1445,9 @@ PROBE_TIMEOUT, PROBE_STOP_GRACE = 3600.0, 180.0
 def run_probe(layout: Layout, plan: dict, command: dict, step: str, journal: str) -> dict:
     """Run one probe with JOURNAL. An interrupt or the timeout sends the probe SIGTERM, so it cleans up.
 
-    After an interrupt, each record of the journal is ended too, and the
-    interrupt continues. After the timeout, the probe counts as failed.
+    After an interrupt, the probe is stopped and the interrupt continues:
+    run_probes then ends the records of this probe and of each earlier one.
+    After the timeout, the probe counts as failed.
     """
     hook(layout, f"command:{command['name']}")
     env = command_env(layout, step, plan)
@@ -1466,10 +1467,6 @@ def run_probe(layout: Layout, plan: dict, command: dict, step: str, journal: str
                 p.kill()
                 p.wait()
             if not isinstance(e, subprocess.TimeoutExpired):
-                try:
-                    end_probe_services(layout, journal_records(journal, launched))
-                except Unresolved as cleanup:
-                    log(f"  after the interrupt: {cleanup}")
                 raise
             log(f"command {command['name']}: ran longer than {PROBE_TIMEOUT:.0f} seconds, and received SIGTERM")
             code = 124
@@ -1496,11 +1493,32 @@ def created_after(rec: dict, launched: float) -> bool:
 
 
 def run_probes(layout: Layout, plan: dict, commands: list, step: str):
-    """Run the probes of STEP, each with a new journal in <state>/probes, and keep each journal's records."""
+    """Run the probes of STEP, each with a new journal in <state>/probes, and keep each journal's records.
+
+    When a probe raises, as on an interrupt or a command that cannot start,
+    the records of every probe started so far are ended before the error
+    continues: the completed probes' results and journals, and the current
+    probe's journal. A cleanup failure then leaves recovery incomplete. It
+    replaces an ordinary error, so the switch cannot restore beside a live
+    service. An interrupt continues after the logged failure.
+    """
     folder = os.path.join(layout.state, "probes")
     os.makedirs(folder, exist_ok=True)
-    results = [run_probe(layout, plan, c, step, os.path.join(folder, f"{step}-{c['name']}-{time.time_ns()}.jsonl"))
-               for c in commands]
+    results, current = [], None
+    try:
+        for c in commands:
+            current = (os.path.join(folder, f"{step}-{c['name']}-{time.time_ns()}.jsonl"), time.time())
+            results.append(run_probe(layout, plan, c, step, current[0]))
+            current = None
+    except BaseException as e:
+        owned = probe_owned(results) + (journal_records(*current) if current else [])
+        try:
+            end_probe_services(layout, owned)
+        except Unresolved as cleanup:
+            if isinstance(e, Exception):
+                raise cleanup from e
+            log(f"  after the interrupt: {cleanup}")
+        raise
     failed = [r for r in results if r["exit"] != 0]
     return results, failed
 
@@ -2856,9 +2874,16 @@ def assertion_problems(results: list) -> list:
 
 
 def owned_record(rec) -> bool:
-    """A record that can name an owned process: a PID above 1, a creation time, an executable and a HOME field."""
+    """A record that can name an owned process: a PID above 1, a creation time, an executable and a HOME field.
+
+    The executable is null when the probe could not read it. Such a record
+    keeps its cleanup obligation: owned_state calls it "changed", so it
+    authorises no signal, and the switch reports recovery incomplete while
+    it runs.
+    """
     return (isinstance(rec, dict) and type(rec.get("pid")) is int and rec["pid"] > 1
-            and isinstance(rec.get("start"), str) and isinstance(rec.get("executable"), str) and "home" in rec)
+            and isinstance(rec.get("start"), str) and "executable" in rec
+            and (rec["executable"] is None or isinstance(rec["executable"], str)) and "home" in rec)
 
 
 def probe_owned(results: list) -> list:
@@ -2979,16 +3004,110 @@ def end_owned(records: list, term_grace: float = TERM_GRACE, kill_grace: float =
             "remaining": [dict(rec, state=state) for rec, state in states if state != "gone"]}
 
 
+def descendants(procs: dict, roots, snapshot: float) -> dict:
+    """{pid: (relation, start)} for each root and each process created after its parent and before SNAPSHOT.
+
+    PROCS is a process table read at SNAPSHOT, and ROOTS gives (pid, start,
+    relation) for each process whose identity the caller confirmed. A child
+    counts only when its creation time lies between its parent's and the
+    reading, so a PID reused between the table and the identity read never
+    counts ("Probe process lifetime").
+    """
+    children = {}
+    for pid, p in procs.items():
+        children.setdefault(p["ppid"], []).append(pid)
+    stack, seen = list(roots), {}
+    while stack:
+        pid, start, relation = stack.pop()
+        if pid in seen or pid not in procs or start is None:
+            continue
+        seen[pid] = (relation, start)
+        for child in children.get(pid, []):
+            child_start = process_start(child)
+            if child_start is not None and float(start) <= float(child_start) <= snapshot:
+                stack.append((child, child_start, "descendant"))
+    return seen
+
+
+def descendant_watch(records: list):
+    """A WATCH for end_owned: append to RECORDS each child that a recorded process created after itself.
+
+    A root is a record whose PID still has its recorded creation time. The
+    switch uses this when it ends a probe's records after the probe, so a
+    child that a service starts while it ends gains a record and a later
+    round ends it. A failed process listing raises Stop.
+    """
+    uid = os.getuid()
+
+    def watch() -> None:
+        snapshot = time.time()
+        procs = process_table()
+        known = {(r["pid"], r["start"]) for r in records}
+        roots = [(r["pid"], r["start"], "record") for r in records if process_start(r["pid"]) == r["start"]]
+        for pid, (relation, start) in descendants(procs, roots, snapshot).items():
+            p = procs[pid]
+            if (pid, start) in known or p["uid"] != uid or p["zombie"]:
+                continue
+            launch, argv, home = process_arguments(pid)
+            rec = {"pid": pid, "start": start, "executable": executable_path(pid) or launch, "home": home,
+                   "argv": (argv or [])[:12], "ppid": p["ppid"], "relation": relation}
+            if process_start(pid) != start:
+                continue
+            records.append(rec)
+            log(f"  recorded probe-owned process {pid} ({rec['executable']}), a child of {p['ppid']}")
+    return watch
+
+
+# How many rounds of ending a cleanup takes while each finds a new survivor,
+# and how long it watches for new children after each round.
+CLEANUP_ROUNDS, CLEANUP_OBSERVE = 3, 1.0
+
+
+def end_in_rounds(current, watch, rounds: int = CLEANUP_ROUNDS, observe: float = CLEANUP_OBSERVE) -> dict:
+    """End each running record that CURRENT returns, in rounds, until a round finds no running one.
+
+    WATCH records each child that a process creates. It runs before each
+    round, during each wait and for OBSERVE seconds after each round, so a
+    child created during a grace period gains a record and the next round
+    ends it. The rounds stop at ROUNDS. Each record that is not "gone" at
+    the end remains, with its state.
+    """
+    signalled = []
+    for _ in range(rounds):
+        watch()
+        survivors = [dict(r) for r in current() if owned_state(r) == "running"]
+        if not survivors:
+            break
+        signalled += end_owned(survivors, watch=watch)["signalled"]
+        deadline = time.monotonic() + observe
+        while time.monotonic() < deadline:
+            watch()
+            time.sleep(0.05)
+    remaining = []
+    for r in current():
+        state = owned_state(r)
+        if state != "gone":
+            remaining.append(dict(r, state=state))
+    return {"signalled": signalled, "remaining": remaining}
+
+
 def end_probe_services(layout: Layout, owned: list) -> None:
     """"Probe process lifetime": end each probe-owned process that still runs, and verify its exit.
 
     Each probe reports the processes that it created, in its result and in
     its journal. The probe ends them itself. A record that still runs here
-    is ended through end_owned, which never signals a reused PID. A process
-    that still runs afterwards, or whose identity is not confirmed, leaves
-    recovery incomplete.
+    is ended through end_owned, which never signals a reused PID, in rounds
+    that record each child a recorded process creates (descendant_watch). A
+    process that still runs afterwards, or whose identity is not confirmed,
+    leaves recovery incomplete, and so does a cleanup that cannot read the
+    process table.
     """
-    outcome = end_owned(owned)
+    records = [dict(r) for r in owned]
+    try:
+        outcome = end_in_rounds(lambda: records, descendant_watch(records))
+    except Stop as e:
+        raise Unresolved(f"the program cannot follow the probe-owned processes while it ends them ({e}); the "
+                         "owner ends each recorded process through its owning interface before restore") from e
     for r in outcome["signalled"]:
         log(f"  sent {r['signal']} to probe-owned process {r['pid']} ({r['executable']}, HOME {r['home']})")
     for r in outcome["remaining"]:
@@ -2996,7 +3115,7 @@ def end_probe_services(layout: Layout, owned: list) -> None:
     if outcome["remaining"]:
         raise Unresolved("a probe-owned process still runs after the probes and their cleanup; the owner ends "
                          "it through its owning interface before restore")
-    log(f"probe-owned processes: {len(owned)} recorded, none runs")
+    log(f"probe-owned processes: {len(records)} recorded, none runs")
 
 
 def recheck_reader_list(layout: Layout, readers: list) -> dict:

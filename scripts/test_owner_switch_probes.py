@@ -296,6 +296,63 @@ class LauncherControls(Fixture):
         self.assertIn(self.service_pids()[0], {r["pid"] for r in records})
 
 
+    def failing_launch(self, confuse: bool):
+        """Run the launcher in-process; its process table fails once after the leader is reaped.
+
+        With CONFUSE, each record's executable differs after the failure, so
+        no record authorises a signal and each one stays unresolved.
+        """
+        self.fake("claude", {"kind": "service", "delay": 0.5})
+        work = os.path.join(self.root, "work")
+        os.makedirs(work)
+        failures = []
+
+        class FailingTracker(probes.Tracker):
+            def poll(self):
+                if self.leader_proc is not None and self.leader_proc.returncode is not None and not failures:
+                    failures.append(time.time())
+                    raise probes.Fail("the process listing failed: fixture")
+                procs = super().poll()
+                if confuse and failures:
+                    # poll follows an exec to a new executable, so the change is made again after each poll.
+                    for rec in self.records.values():
+                        rec["executable"] = "/nonexistent/fixture"
+                return procs
+
+        class FixtureLaunch(probes.Launch):
+            def argv(self):
+                return [os.path.join(self.env["PATH"].split(":")[0], "claude")]
+
+        saved, saved_path = probes.Tracker, os.environ.get("PATH")
+        probes.Tracker = FailingTracker
+        os.environ["PATH"] = self.bin + ":/usr/bin:/bin"
+        try:
+            launch = FixtureLaunch("claude", "native", "fixture", self.home, work, settle=1)
+            with self.assertRaises(probes.Fail) as raised:
+                launch.run()
+        finally:
+            probes.Tracker = saved
+            os.environ["PATH"] = saved_path
+        self.assertTrue(failures, "the control never failed the process table")
+        self.assertIn("fixture", str(raised.exception), "the original error was lost")
+        service = self.service_pids()[0]
+        self.assertIn(service, [r["pid"] for r in launch.tracker.owned()], "the control recorded no service")
+        return launch, str(raised.exception), service
+
+    def test_a_failure_after_the_leader_is_reaped_still_ends_the_recorded_service(self):
+        """L4: a process-table failure in the settle interval keeps the original error and ends the owned service."""
+        launch, message, service = self.failing_launch(confuse=False)
+        self.assertFalse(alive(service), "the exception path left the recorded service alive")
+        self.assertFalse(launch.keep_work, "a resolved cleanup kept the work folder")
+
+    def test_a_failure_that_leaves_a_record_unresolved_reports_it_and_keeps_the_journal(self):
+        """L4: an owned process that the cleanup cannot end appears in the failure, and the journal stays."""
+        launch, message, service = self.failing_launch(confuse=True)
+        self.assertTrue(alive(service), "the cleanup signalled a record whose identity it could not confirm")
+        self.assertIn(f"{service} (/nonexistent/fixture, changed)", message)
+        self.assertTrue(launch.keep_work, "the failure dropped the work folder that holds the journal")
+        self.assertTrue(os.path.exists(os.path.join(launch.work, "journal.jsonl")))
+
 class TrackerControls(unittest.TestCase):
 
     def test_a_reaped_leaders_pid_is_never_a_root(self):
@@ -428,6 +485,75 @@ class EndOwnedControls(unittest.TestCase):
         self.assertEqual(sorted(owned, key=lambda r: r["pid"]), [later, other])
 
 
+    def test_unreadable_executable_keeps_its_cleanup_obligation(self):
+        """L1: a record whose executable could not be read reaches the switch, which leaves recovery incomplete."""
+        p, rec = self.start()
+        rec = dict(rec, executable=None, home="/h")
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root)
+        journal = os.path.join(root, "j.jsonl")
+        with open(journal, "w") as f:
+            f.write(json.dumps(rec) + "\n")
+        self.assertEqual(osw.read_journal(journal), [rec])
+        owned = osw.probe_owned([{"launched": float(rec["start"]), "result": {"owned": [rec]}, "journal": [rec]}])
+        self.assertEqual(owned, [rec])
+        with self.assertRaises(osw.Unresolved):
+            osw.end_probe_services(None, owned)
+        self.assertTrue(alive(p.pid), "the switch signalled a process whose identity it could not confirm")
+
+    def test_switch_records_a_child_created_during_shutdown(self):
+        """L2: a journaled service starts a detached child on SIGTERM; the switch records and ends it too."""
+        root = os.path.realpath(tempfile.mkdtemp(dir="/private/tmp"))
+        self.addCleanup(shutil.rmtree, root)
+        pids = os.path.join(root, "pids")
+        p = subprocess.Popen([PY, "-I", "-c", SPAWNER, pids], start_new_session=True)
+        self.addCleanup(lambda: (kill_quietly(p.pid), p.wait()))
+        time.sleep(0.3)
+        rec = {"pid": p.pid, "start": osw.process_start(p.pid), "executable": osw.executable_path(p.pid),
+               "home": None}
+        try:
+            osw.end_probe_services(None, [rec])
+        finally:
+            with open(pids) as f:
+                started = [int(line) for line in f.read().split()]
+            for pid in started:
+                self.addCleanup(kill_quietly, pid)
+        grandchild = started[-1]
+        self.assertNotEqual(grandchild, p.pid, "the spawner started no child")
+        self.assertFalse(alive(grandchild), "the switch left the child that the service created while it ended")
+
+    def test_switch_cleanup_without_a_process_table_is_unresolved(self):
+        """L2: when the switch cannot follow descendants, it reports recovery incomplete rather than Stop."""
+        p, rec = self.start()
+        saved = osw.process_table
+
+        def broken():
+            raise osw.Stop("the process listing failed: fixture")
+        osw.process_table = broken
+        try:
+            with self.assertRaises(osw.Unresolved):
+                osw.end_probe_services(None, [rec])
+        finally:
+            osw.process_table = saved
+
+
+# A service that, on SIGTERM, starts /bin/sleep in a new session, stays half
+# a second and exits. It writes its own PID and then the child's to argv[1].
+SPAWNER = r"""
+import os, signal, subprocess, sys, time
+def note(pid):
+    with open(sys.argv[1], "a") as f:
+        f.write(str(pid) + "\n")
+def stop(*_):
+    g = subprocess.Popen(["/bin/sleep", "300"], start_new_session=True)
+    note(g.pid)
+    time.sleep(0.5)
+    os._exit(0)
+signal.signal(signal.SIGTERM, stop)
+note(os.getpid())
+time.sleep(300)
+"""
+
 # A fake probe for run_probe: it starts a service, journals it, and sleeps
 # until SIGTERM, which it answers by ending the service and exiting 1.
 FAKE_PROBE = r'''
@@ -441,6 +567,8 @@ with open(os.environ["OWNER_SWITCH_PROBE_JOURNAL"], "a") as f:
     f.write(json.dumps(rec) + "\n")
 with open(sys.argv[2], "w") as f:
     f.write(str(service.pid))
+if sys.argv[3] == "exits":
+    sys.exit(1)
 def stop(*_):
     if sys.argv[3] == "cleans":
         service.terminate()
@@ -454,16 +582,30 @@ time.sleep(300)
 class RunProbeControls(Fixture):
     """owner_switch.run_probe: an interrupt or the timeout lets the probe clean up, and the journal remains."""
 
-    def run_probe(self, mode: str):
+    def command(self, mode: str, name: str = "fake") -> tuple:
         import types
         script = os.path.join(self.root, "fake_probe.py")
         with open(script, "w") as f:
             f.write(FAKE_PROBE)
-        pidfile = os.path.join(self.root, "service.pid")
+        pidfile = os.path.join(self.root, f"{name}.pid")
         layout = types.SimpleNamespace(home=self.home, state=os.path.join(self.home, "state"))
-        command = {"name": "fake", "argv": [PY, "-I", script, HERE, pidfile, mode]}
-        journal = os.path.join(self.root, "journal.jsonl")
-        return layout, command, journal, pidfile
+        return layout, {"name": name, "argv": [PY, "-I", script, HERE, pidfile, mode]}, pidfile
+
+    def run_probe(self, mode: str):
+        layout, command, pidfile = self.command(mode)
+        return layout, command, os.path.join(self.root, "journal.jsonl"), pidfile
+
+    def interrupted(self, layout, commands) -> None:
+        def interrupt(*_):
+            raise KeyboardInterrupt
+        previous = signal.signal(signal.SIGALRM, interrupt)
+        signal.setitimer(signal.ITIMER_REAL, 2.0)
+        try:
+            with self.assertRaises(KeyboardInterrupt):
+                osw.run_probes(layout, {"_path": "plan", "_digest": "0"}, commands, "7")
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, previous)
 
     def service(self, pidfile: str) -> int:
         for _ in range(100):
@@ -487,21 +629,21 @@ class RunProbeControls(Fixture):
         self.assertFalse(alive(service), "the probe did not clean up after SIGTERM")
 
     def test_interrupt_ends_the_journal_records_and_continues(self):
-        layout, command, journal, pidfile = self.run_probe("leaves")
-
-        def interrupt(*_):
-            raise KeyboardInterrupt
-        previous = signal.signal(signal.SIGALRM, interrupt)
-        signal.setitimer(signal.ITIMER_REAL, 2.0)
-        try:
-            with self.assertRaises(KeyboardInterrupt):
-                osw.run_probe(layout, {"_path": "plan", "_digest": "0"}, command, "7", journal)
-        finally:
-            signal.setitimer(signal.ITIMER_REAL, 0)
-            signal.signal(signal.SIGALRM, previous)
+        layout, command, pidfile = self.command("leaves")
+        self.interrupted(layout, [command])
         service = self.service(pidfile)
         self.started.append(service)
         self.assertFalse(alive(service), "the program did not end the journal's service after the interrupt")
+
+    def test_interrupt_of_a_later_probe_ends_the_earlier_probes_records(self):
+        """L3: the first probe dies and leaves a journaled service; an interrupt of the second ends both."""
+        layout, first, first_pid = self.command("exits", "first")
+        _, second, second_pid = self.command("leaves", "second")
+        self.interrupted(layout, [first, second])
+        services = [self.service(first_pid), self.service(second_pid)]
+        self.started.extend(services)
+        self.assertEqual([alive(pid) for pid in services], [False, False],
+                         "the interrupted sequence left a probe's journaled service")
 
 
 class ResolveControls(Fixture):

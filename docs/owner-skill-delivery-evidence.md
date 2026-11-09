@@ -4398,9 +4398,12 @@ after the probe began. The probe's output goes to files, and the switch
 waits for the probe process alone.
 
 An interrupt of the switch sends the probe SIGTERM, so that the probe ends
-its harness. The switch then ends each journal record and continues the
-interrupt. After an outer bound of 3,600 seconds, the probe receives SIGTERM
-and counts as failed.
+its harness. The switch then ends the records of every probe that it started
+and continues the interrupt. After an outer bound of 3,600 seconds, the probe
+receives SIGTERM and counts as failed. The switch ends its records in rounds,
+and records each child that a recorded process creates. The
+[review integration](#probe-service-lifecycle-review-integration) states
+these two rules.
 
 ### The in-session review
 
@@ -4719,3 +4722,101 @@ an entirely absent observer on the fallback path, and L1, L3 and L4 lose
 already captured evidence; accepting the sampling limit does not settle
 those findings. This review does not certify that the measured launches
 bound every possible service lifecycle.
+
+## Probe service lifecycle review integration
+
+`probe-service-lifecycle-k283` integrated the four findings of
+[the implementation review](#probe-service-lifecycle-implementation-review)
+on 2026-11-09. Each finding reproduced from the source at the producer
+commit. Each one is a real issue, and none needs a redesign. The table
+gives each disposition and its change.
+
+| Finding | Disposition | Change |
+| --- | --- | --- |
+| L1 | Real issue | `owned_record` accepts a null executable. `owned_state` calls the record `changed`, so it receives no signal and leaves recovery incomplete. |
+| L2 | Real issue | The switch ends its records in rounds and records each child of a recorded process. A failed process listing during that cleanup leaves recovery incomplete. |
+| L3 | Real issue | `run_probes` ends the records of every started probe on each exit path. A cleanup failure replaces an ordinary error. An interrupt continues after a logged failure. |
+| L4 | Real issue | The launcher's exception path runs the cleanup and keeps the original error. An unresolved record appears in a `Fail`, and the work folder keeps the journal. |
+
+### The changes
+
+[`scripts/owner_switch.py`](../scripts/owner_switch.py) now holds three
+shared parts. `descendants` is the walk from confirmed roots. A child counts
+only when the kernel created it after its parent and before the table
+reading. `end_in_rounds` ends each running record in up to three rounds. It
+watches for new children before each round, during each grace period and
+for one second after each round. A round that finds no running record ends
+the loop.
+
+The launcher's `Tracker.poll` and `Launch.cleanup` use these two parts. The
+switch's `end_probe_services` uses them through `descendant_watch`. That
+watcher treats each record with its recorded creation time as a root. It
+appends a record for each new child. The child's record names its PID,
+creation time, executable, HOME, argument vector, parent and relation.
+
+`run_probe` now only stops its probe on an interrupt. `run_probes` holds
+the obligations of the completed probes and the journal of the current
+probe. It discharges them before any error continues.
+
+[`scripts/owner_switch_probes.py`](../scripts/owner_switch_probes.py) adds
+`Launch.failure_cleanup`. The exception path calls it after it ends the
+leader's group. When the rounds cannot run, it ends the recorded processes
+without a watch. `launch_command` keeps the work folder while a record stays
+unresolved.
+
+### Verification
+
+`task owner:probes:controls` now runs 31 controls. Six are new or changed:
+
+- L1: a journaled record with a null executable survives `read_journal`
+  and `probe_owned`. `end_probe_services` then raises `Unresolved`, and the
+  process stays alive.
+- L2: a recorded service starts `/bin/sleep` in a new session on SIGTERM.
+  It stays half a second and exits. The switch records and ends the child.
+- L2: a process listing that fails during switch-side cleanup raises
+  `Unresolved`, not `Stop`.
+- L3: the first of two probes exits and leaves a journaled service. An
+  interrupt during the second probe ends both services. The single-probe
+  interrupt control now runs through `run_probes`.
+- L4: the process table fails once after the launcher reaps the leader. The
+  original error remains, the recorded service ends and the work folder goes.
+- L4: the same failure with an unconfirmable record names that record in
+  the error. The process receives no signal, and the work folder and its
+  journal stay.
+
+Before the fixes, each of the five new controls failed for its predicted
+reason. The L1 control's journal reader returned no record. The L2 controls
+left the child alive and raised no `Unresolved`. The L3 control left the
+first service alive, and the L4 control left the recorded service alive.
+
+This session wrote the sixth control after the fixes. It depends on
+`keep_work`, which the producer did not have.
+
+`task owner:switch:rehearse` passed 157 of 157 controls. The five
+`serial-probe-owned-*` cases are among them. Its record names the program
+with SHA-256
+`b75a7bd4e72ae00a1ced7245ac01f474f89eb236fca14d7448fb3036421b85a0`, which is
+the committed `scripts/owner_switch.py`. The probe program's SHA-256 is now
+`6ffbbea92d4c0b9133dad4665c57db057344e5b65e07bf7d7621a32f8510b389`.
+
+Pyflakes-class rules (`ruff --select F,E9`) pass on the three changed
+scripts.
+
+### Limits
+
+- The L2 watcher sees a child only while its parent link lasts at least one
+  reading. A child whose parent exits within one reading interval keeps the
+  sampling limit of the launcher.
+- The switch watcher adopts any child of a recorded process that the kernel
+  created after its parent. This is the same rule as the launcher's, so it
+  rests on the same order of creation times.
+- When the process table cannot be read, the launcher's fallback sends
+  signals without a watch. A child created during that shutdown has no
+  record.
+- The stored files `switch-plan-draft.json`, `switch-plan-check.json` and
+  `switch-plan-report.txt` still name the producer's program digests. This session did not regenerate them, because
+  the draft reads the real HOME. `session-probes-k281` changes the probe
+  program again, and `owner-switch-plan-k254` writes the draft again.
+- These fixes ran only against fixtures. No real harness session ran in this
+  session, and the lifecycle measurements of
+  [Probe service lifecycle](#probe-service-lifecycle) were not repeated.

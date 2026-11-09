@@ -709,13 +709,35 @@ def separate_lines(command: str) -> str:
     return "".join(out)
 
 
+# Whether extract_events keeps the full result text of each tool call. A
+# read inside a script, such as a Python heredoc, names no path, so only its
+# result shows what the agent received. It is off for the same reason as
+# EXPAND_GLOBS below, and the staging trial runner turns it on.
+KEEP_RESULTS = False
+# Whether bash_paths expands a glob token as the shell does. The accepted
+# common-loading records were extracted without it, so it is off here and a
+# reextraction gives their events unchanged. The staging trial runner
+# (docs/evaluations/owner-skill-delivery/staging_trial.py) turns it on.
+EXPAND_GLOBS = False
+GLOB_CHARS = re.compile(r"[*?\[]")
+
+
+def glob_matches(token: str, here: str) -> list[str]:
+    """The paths that a glob token matches, in the shell's sorted order. An
+    unmatched glob stays literal in the shell, so it names no path."""
+    import glob
+
+    return sorted(glob.glob(token if token.startswith("/") else os.path.join(here, token)))
+
+
 def bash_paths(command: str, cwd: str) -> list[str]:
     """The paths that a Bash command names, in order. A `cd` changes the
     directory against which later relative paths resolve. A plain assignment
     `NAME=value` at the start of a command sets a variable, and a later
     `$NAME` or `${NAME}` takes its value. A relative token counts when it
-    exists and is `.`, `..`, holds a slash or ends in `.md`. A token with any
-    other shell expansion counts not at all."""
+    exists and is `.`, `..`, holds a slash or ends in `.md`. With
+    EXPAND_GLOBS, a glob token counts as each path that it matches. A token
+    with any other shell expansion counts not at all."""
     import shlex
 
     try:
@@ -747,6 +769,15 @@ def bash_paths(command: str, cwd: str) -> list[str]:
             pending_cd = token == "cd"
             continue
         if token is None or token.startswith("-"):
+            continue
+        if EXPAND_GLOBS and GLOB_CHARS.search(token):
+            matches = glob_matches(token, here)
+            if pending_cd:
+                pending_cd = False
+                if len(matches) == 1:
+                    here = os.path.normpath(matches[0])
+                continue
+            paths += [os.path.normpath(match) for match in matches]
             continue
         if pending_cd:
             pending_cd = False
@@ -886,6 +917,8 @@ def extract_events(entries: list[dict[str, Any]], classifier: Classifier) -> lis
                 event["cwd"], event["paths"] = cwd, paths
             if classifier.marker:
                 event["marker"] = marker_places(classifier.marker, tool_input, results.get(block.get("id", ""), ""))
+            if KEEP_RESULTS:
+                event["resultFull"] = results.get(block.get("id", ""), "")
             reads = [item for item in classes if item[0] in READ_CLASSES]
             if reads and name not in EDIT_TOOLS:
                 event["class"], event["skill"], event["path"] = reads[0]

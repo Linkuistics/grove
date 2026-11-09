@@ -3038,5 +3038,23 @@ class HarnessTrialTest(unittest.TestCase):
         self.broken(self.check_codex_compaction, "CODEX.stream_ids", lambda stream: (None, None))
 
 
+class GlobExpansionTest(unittest.TestCase):
+    """EXPAND_GLOBS is off by default, so accepted records reextract
+    unchanged. On, a glob token names each path it matches, after a `cd`."""
+
+    def test_glob_tokens_name_paths_only_when_enabled(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            skill = Path(scratch) / "d8ad01" / "tree" / "craft" / "cli-tool-design"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("x")
+            command = f"cd {scratch}; cat d8ad*/tree/craft/cli-tool-design/SKILL.md; ls /nonexistent/*"
+            # Off, the relative glob names nothing and the absolute token counts
+            # literally, as in every accepted record.
+            self.assertEqual(trial.bash_paths(command, "/"), ["/nonexistent/*"])
+            with mock.patch.object(trial, "EXPAND_GLOBS", True):
+                self.assertEqual(trial.bash_paths(command, "/"),
+                                 [os.path.normpath(str(skill / "SKILL.md"))])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

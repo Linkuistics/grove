@@ -489,6 +489,38 @@ tasks:
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/staging_home.py launch --home "{{.STAGING}}" --ravel "{{.RAVEL_2_0_PREFIX}}" --harness "{{.HARNESS}}" --out "{{.OUT}}" --prompt "{{.PROMPT}}" {{if .MODEL}}--model "{{.MODEL}}"{{end}} {{if .EFFORT}}--effort "{{.EFFORT}}"{{end}}
 
+  # The staging source trials, which launch no model: the off value, the
+  # same directories with and without a network, and a moved candidate-keg
+  # source. SOURCE names the source to move, by default research. The
+  # trial moves it back before it ends. OUT is a new directory. For example:
+  #   task owner:staging:sources STAGING=~/.local/state/owner-staging/home \
+  #     CANDIDATE=~/.local/state/owner-staging/candidate \
+  #     RAVEL_2_0_PREFIX=~/.local/state/owner-staging/ravel-2.0 OUT="$SCRATCH/sources"
+  owner:staging:sources:
+    desc: Run the staging source trials that launch no model, writing OUT/record.json
+    requires:
+      vars: [STAGING, CANDIDATE, RAVEL_2_0_PREFIX, OUT]
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/staging_trial.py sources --home "{{.STAGING}}" --candidate "{{.CANDIDATE}}" --ravel "{{.RAVEL_2_0_PREFIX}}" --out "{{.OUT}}" {{if .SOURCE}}--source "{{.SOURCE}}"{{end}}
+
+  # One staging model case of docs/evaluations/owner-skill-delivery/staging-cases
+  # on one HARNESS, claude or codex. It spends subscription usage, so no gate
+  # runs it. OUT is a new directory. For example:
+  #   task owner:staging:case CASE=discovery HARNESS=codex STAGING=... \
+  #     RAVEL_2_0_PREFIX=... OUT="$SCRATCH/discovery-codex"
+  owner:staging:case:
+    desc: Run one staging model case CASE on HARNESS in the staging HOME, writing OUT/record.json and OUT/record.md (spends subscription usage)
+    requires:
+      vars: [CASE, HARNESS, STAGING, RAVEL_2_0_PREFIX, OUT]
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/staging_trial.py case --name "{{.CASE}}" --harness "{{.HARNESS}}" --home "{{.STAGING}}" --ravel "{{.RAVEL_2_0_PREFIX}}" --out "{{.OUT}}" {{if .MODEL}}--model "{{.MODEL}}"{{end}} {{if .EFFORT}}--effort "{{.EFFORT}}"{{end}}
+
+  # The verdict tests of the staging trial runner, on synthetic events.
+  owner:staging:trial-tests:
+    desc: Test the verdicts of the staging trial runner without a launch
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/test_staging_trial.py
+
   # The owner switch program's fixture suite ("Test seams" of
   # docs/specs/owner-skill-delivery.md). OUT is a new directory outside every
   # working copy. ONLY limits the controls to the names that match a regular

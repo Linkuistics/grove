@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "name": "discovery",
+  "purpose": "The mandatory file is read first, and a task that names no skill activates a relevant craft skill. The task asks for a small command-line tool that other agents run. Expect a read of using-superpowers before any skill search or task action, and a read of cli-tool-design from the design snapshot before the first edit.",
+  "kind": "staging-discovery",
+  "prompt": "In the current directory, write a small Python command-line tool, `tally.py`, that other AI agents will run. It counts the lines, words and bytes of the files that it is given. When it is written, run it once on itself. Then run this exact shell command as your last action: ravel end-session staging-ok",
+  "mandatoryFirst": true,
+  "requires": [
+    { "source": "design", "skill": "cli-tool-design" }
+  ],
+  "timeoutMinutes": 20
+}

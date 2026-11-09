@@ -3761,3 +3761,120 @@ first, and the second run built it again.
 - Codex daemons of earlier trials still run for six disposable HOMEs under
   `/private/tmp`, and the real HOME's daemon still runs. The trial signalled
   none of them.
+
+## Staging discovery trials
+
+`owner-staging-discovery-k249` runs the discovery trials of the staging HOME.
+"Test seams" and "Cutover contract" of the
+[owner specification](specs/owner-skill-delivery.md#test-seams) own them.
+The tool is [`staging_trial.py`](evaluations/owner-skill-delivery/staging_trial.py),
+and its cases are in
+[`staging-cases`](evaluations/owner-skill-delivery/staging-cases).
+`staging-trial-runner-k275` built the tool on 2026-11-09. It ran the source
+trials and the discovery case on both harnesses.
+
+### Rerun commands
+
+Each trial runs with HOME set to the staging HOME and `CODEX_HOME` set to
+its `.codex` tree. Each launch runs `ravel start-session` of the accepted 2.0
+build with `--config`, so no trial writes the retained `config.rhai`. After a
+released source changes, the operator runs these commands with a new `OUT`:
+
+```sh
+S=~/.local/state/owner-staging
+task owner:staging:sources STAGING=$S/home CANDIDATE=$S/candidate \
+  RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/sources-N
+task owner:staging:case CASE=discovery HARNESS=claude STAGING=$S/home \
+  RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/discovery-claude-N
+task owner:staging:case CASE=discovery HARNESS=codex STAGING=$S/home \
+  RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/discovery-codex-N
+```
+
+`task owner:staging:trial-tests` tests the verdicts on synthetic events.
+`staging_trial.py rejudge --out DIR` extracts and judges a finished case
+again from its unchanged launch records.
+
+### Source trials
+
+The source trials ran from 05:24:59Z to 05:25:03Z. Their record is
+`~/.local/state/owner-staging/trials/sources-1/record.json`. The Ravel
+build was `ff14cba826b0`, with the pinned `bin/ravel` SHA-256
+`3a9a9129…`. The staging settings had the SHA-256 `d8a49f06…`.
+
+| Trial | Result | Control |
+| --- | --- | --- |
+| Off value | In a disposable HOME, `docs/owner-cutover/settings-off.json` resolved as `{"schemaVersion":1,"status":"disabled"}` with exit 0. | The staging settings resolved as `resolved` with ten sources in another disposable HOME. The `disabled` check failed on them. |
+| Offline launch | A launch under the profile `(deny network*)` received the same descriptor path, 13 directories, mandatory file and ten source identities as a launch with a network. | An unguarded probe reached a local listener with exit 0, and the guarded probe failed with exit 1. The comparison reported `directories` for a view without its last directory. |
+| Missing source | With the keg directory of `research` moved away, Ravel exited 3 with `skill_source_missing` at the stage `skills`, for `skills.sources[6].path`. The route wrapper recorded no launch. | The launches with the source present each recorded one launch. |
+| Restored source | The tree digest of the keg directory was the same before the move and after the return. The launch after the return received `7fb3d473…`, the accepted `resourceDigest` of `research`. | The launch before the move received the same digest. |
+
+Each source launch ran `/usr/bin/true` behind the route wrapper. The wrapper
+records the request view before the worker runs, so no model ran. Ravel then
+reported `session_result_missing` with exit 1, as expected for a worker that
+sends no result. The offline launch found every snapshot already in the
+staging cache. Ravel copies the current bytes of each local source on each
+resolution, and a local source needs no network.
+
+### The discovery case
+
+The case asks for a small Python command-line tool that other agents run,
+and it names no skill. The verdicts require these facts:
+
+- The agent reads the mandatory file `using-superpowers` before it looks for
+  another skill and before any task action.
+- The agent reads `cli-tool-design` from the design snapshot before its
+  first edit.
+- The native skill listing of the session holds no superseded name.
+- No real-HOME subject changes. The owner's own session rewrites the real
+  `.claude.json`, so the check requires only that it names no staging path.
+
+| Harness | Model and effort | Record | Result |
+| --- | --- | --- | --- |
+| Claude Code 2.1.319 | `claude-sonnet-5-5`, low | `trials/discovery-claude-1` | Passed. The mandatory read was event 1 and a supporting file event 2. The listing of the search directories was event 3. The read of `cli-tool-design` was event 5, and the first write was event 6. The session ended with `staging-ok`. |
+| Codex 0.167.0 | `gpt-6.1-sol`, low | `trials/discovery-codex-1` | Passed. The mandatory read was event 2 and a supporting file event 3, after one text event. A Python script printed the front matter of every skill at event 6. Another script printed the whole of `cli-tool-design/SKILL.md` from the design snapshot at event 7. The first edit was event 10. The session ended with `staging-ok`. |
+
+Claude Code's native listing held built-in skills, the skill-free plugins'
+commands and `guardrail:guardrail`. Codex listed `imagegen`, `openai-docs`,
+`skill-creator` and `skill-installer`, which are its system skills. Neither
+listing held a superseded name.
+
+The staging PATH holds `python3` but no `python`. Codex first tried
+`python`, reported it missing and used `python3`.
+
+### Two extraction repairs
+
+The first extraction of each trial failed its `requires` verdict, although
+each agent had read the skill before its first edit. Both failures were
+defects of the instrument. Two flags of `harness_trial.py` now repair them.
+Each flag is off there, so the accepted common-loading records extract
+unchanged. The staging runner turns both on.
+
+- **Globs.** Claude Code read the skill with
+  `cd …/snapshots; cat d8ad*/tree/craft/cli-tool-design/SKILL.md`. The path
+  extractor did not expand a glob, so it classified that read as a plain
+  command. `EXPAND_GLOBS` expands a glob token as the shell does.
+- **Reads inside a script.** Codex read the skill inside a
+  `python3 - <<'PY'` script, which names no path on its command line.
+  `KEEP_RESULTS` keeps each tool result during extraction. The staging
+  verdict counts a read when a result holds the skill's `name:` line and
+  the first heading of its body. The listing at event 6 held the first line
+  but not the heading, so it did not count. The record keeps each result
+  only as its digest and length.
+
+The `requires` verdict also reads each further read of one command. A new
+extraction of the same unchanged launch records then passed on both
+harnesses.
+
+### Limits
+
+- The real HOME's `.claude.json` has no digest comparison, for the reason
+  above.
+- Each case runs once on each harness. A single run shows that the
+  behaviour occurs. It does not measure how often it occurs.
+- A content read proves that the agent received the skill's body. It does
+  not identify the path that the script opened. Only the design source
+  holds `cli-tool-design`, so the source is not in doubt here.
+- The model cases ran with the runner before the two repairs. Their
+  verdicts come from `rejudge` with the final runner, on unchanged launch
+  records. The source trials ran once, with the runner before the repairs,
+  which touch no part of them.

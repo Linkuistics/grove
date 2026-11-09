@@ -1,4 +1,4 @@
-# owner-staging-discovery-k249
+# owner-staging-discovery-k249 — brief
 
 ## Goal
 
@@ -69,3 +69,28 @@ decompose it by harness or by case.
 
 A failure is a finding for the owner design or for a pack, not a reason to
 weaken a case. Record a scope decision only with the owner's agreement.
+
+## Decomposition
+
+The first session found that this work needs a trial runner and about
+fifteen real sessions. It split the work by case into four leaves:
+
+1. `staging-trial-runner-k275` builds the scripted staging trial runner.
+   It runs the source trials, which launch no model. It also runs the
+   discovery case on both harnesses: the mandatory read first and the
+   implicit craft read.
+2. `staging-kind-delegate-trials-k276` adds the Grove kind skill case with
+   a relative resource, and the delegate case, on both harnesses.
+3. `staging-compaction-stale-trials-k277` adds the compaction case and the
+   stale-copy coexistence case on both harnesses.
+4. `staging-guidance-probe-k278` runs the Claude Code trial that disables
+   the plugin of its own guidance. It then reconciles "Not measured" and
+   closes the evidence of this node.
+
+Each model case also reads the native skill listing of its session. A
+superseded name fails the case. The stale-copy case is the one exception.
+It plants its stale copy in the working directory, never in the staging
+HOME. It expects that one name.
+
+Each leaf adds its cases to the runner of the first leaf. Each leaf records
+its own trials in the evidence section of this node.

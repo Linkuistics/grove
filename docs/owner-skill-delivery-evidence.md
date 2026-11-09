@@ -3770,10 +3770,13 @@ first, and the second run built it again.
 The tool is [`staging_trial.py`](evaluations/owner-skill-delivery/staging_trial.py),
 and its cases are in
 [`staging-cases`](evaluations/owner-skill-delivery/staging-cases).
+
 `staging-trial-runner-k275` built the tool on 2026-11-09. It ran the source
 trials and the discovery case on both harnesses.
 `staging-kind-delegate-trials-k276` added the kind skill case and the
 delegate case on the same day, and ran each on both harnesses.
+`staging-compaction-stale-trials-k277` added the compaction case and the
+stale-copy case on the same day, and ran each on both harnesses.
 
 ### Rerun commands
 
@@ -3798,7 +3801,23 @@ task owner:staging:case CASE=delegate HARNESS=claude STAGING=$S/home \
   RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/delegate-claude-N
 task owner:staging:case CASE=delegate HARNESS=codex STAGING=$S/home \
   RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/delegate-codex-N
+task owner:staging:case CASE=compaction HARNESS=claude STAGING=$S/home \
+  RAVEL_2_0_PREFIX=$S/ravel-2.0 MODEL=claude-opus-5-5 EFFORT=high \
+  OUT=$S/trials/compaction-claude-opus-N
+task owner:staging:case CASE=compaction HARNESS=codex STAGING=$S/home \
+  RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/compaction-codex-N
+task owner:staging:case CASE=stale-copy HARNESS=claude STAGING=$S/home \
+  RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/stale-copy-claude-N
+task owner:staging:case CASE=stale-copy HARNESS=codex STAGING=$S/home \
+  RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/stale-copy-codex-N
 ```
+
+The Claude Code compaction case runs with `claude-opus-5-5` at high effort,
+which the owner's policy gives an `impl` session. With the staging default,
+`claude-sonnet-5-5` at low effort, it failed in each of five runs. The
+section "The compaction case" below gives the reason. The stale-copy case
+copies the owner's real `~/.claude/skills/grove`. The switch deactivates that
+copy, so the case runs only while native delivery holds it.
 
 `task owner:staging:trial-tests` tests the verdicts on synthetic events.
 `staging_trial.py rejudge --out DIR` extracts and judges a finished case
@@ -3984,6 +4003,124 @@ after the last change to the kind verdict, and it passed without a second
 reading. A later reading cannot repeat a real-HOME check, so
 `trials/kind-skill-claude-1` keeps its original failure of that check.
 
+### The compaction case
+
+The case runs three turns in one managed process, through the feeder
+`harness_trial.py turns`. The first turn asks for a small Python tool and
+then a stop. The second turn is the harness's default compaction. The third
+turn asks for a Bash script and the end command, and it names no skill. The
+case enforces the mandatory order of the first turn.
+
+The case measures the harness's own compaction, not a chosen loss. Claude
+Code compacts with a bare `/compact`. Codex compacts with
+`thread/compact/start`, and its provider uses remote compaction. No turn has
+a gate. The common-loading cases measured the losses of the path and of the
+whole preamble. The section "Compaction" of
+[the acceptance record](common-loading-acceptance-record.md#compaction) holds
+those results.
+
+The verdicts require these facts:
+
+- The session holds a compaction boundary.
+- After the boundary, the agent reads `coding-style-bash` from the
+  `engineering` snapshot before its first edit after the boundary.
+- The native listing holds no superseded name, and the real HOME is
+  unchanged.
+
+The record also keeps what the context after compaction still holds of
+Ravel's preamble. The verdict does not judge it.
+
+| Harness | Model and effort | Record | Result |
+| --- | --- | --- | --- |
+| Codex 0.167.0 | `gpt-6.1-sol`, low | `trials/compaction-codex-1` | Passed. The boundary was event 14. The agent read the descriptor at event 17, the mandatory file again at event 18 and `coding-style-bash` at event 23. Its first edit after the boundary was event 26. The session ended with `staging-ok`. |
+| Claude Code 2.1.319 | `claude-opus-5-5`, high | `trials/compaction-claude-opus-1` | Passed. The boundary was event 21. The agent read the descriptor at event 24 and listed the search directories at event 25. It read `coding-style-bash` at event 27, before its first edit at event 28. The session ended with `staging-ok`. |
+| Claude Code 2.1.319 | `claude-opus-5-5`, high | `trials/compaction-claude-opus-2` | Passed. The boundary was event 17. The agent read the descriptor at event 20 and the mandatory file again at event 21. It wrote that it read the skills again because the harness compacted the context. It read `coding-style-bash` at event 23, before its first edit at event 25. The session ended with `staging-ok`. |
+| Claude Code 2.1.319 | `claude-sonnet-5-5`, low | `trials/compaction-claude-1` to `-5` | Failed in each of five runs. In each, the agent read the mandatory file and then wrote `tally.py` with no skill search. After the boundary, it wrote `lines.sh` with no skill read. Each session ended with `staging-ok`. |
+
+The Codex context after compaction kept the whole preamble: 15 preamble paths
+and 27 long preamble lines. Remote compaction keeps each user message word for
+word. Each Claude Code summary kept the descriptor path and two snapshot paths.
+Claude Code also restored `using-superpowers/SKILL.md` and its supporting file
+after the boundary. So in no run did compaction remove the means of discovery.
+
+### The failures at low effort
+
+The five low-effort failures on Claude Code are a finding about skill search
+in the feeder's input mode, not about compaction. The first turn skipped the
+search too, before any compaction. Two diagnostics outside the case files
+separated three causes. Each ran with `claude-sonnet-5-5` at low effort and
+with no snapshot root as `--add-dir`.
+
+| Diagnostic | Record | Result |
+| --- | --- | --- |
+| The discovery case, without snapshot `--add-dir` | `trials/discovery-claude-no-add-dir-1` | Passed. The agent listed the search directories at event 3 and read `cli-tool-design` at event 5, before its first write at event 7. |
+| The first-turn prompt of the compaction case, in plain `-p` mode without the feeder | `trials/compaction-prompt-plain-claude-1` | The discovery verdicts passed. The agent listed the search directories at event 3 and read `cli-tool-design` at event 5, before its first write at event 6. Ravel exited 1, because this prompt sends no end command. |
+
+The owner's real Claude Code policy passes no snapshot root as `--add-dir`. So
+the first diagnostic also shows discovery with the owner's launch shape. The
+trial routes of the discovery, kind and delegate cases pass the snapshot roots,
+as the Rhai sample does.
+
+Neither `--add-dir` nor the prompt caused the failures. The remaining
+difference is the feeder's `--input-format stream-json` mode. The compaction
+case needs that mode to send three turns into one process.
+
+The first model request of a plain run and of a feeder run hold the same
+messages and the same parameters. Only Ravel's caller-block nonce differs.
+Their tool lists differ only in the default of one background timeout. Each
+run also received Claude Code's notice that the `context7` MCP server needs
+authentication. No difference in the model's input explains the result.
+
+The owner's policy routes no kind to `claude-sonnet-5-5` at low effort. Each
+Grove kind that runs on Claude Code uses `claude-opus-5-5` at medium effort or
+higher. Only the standalone `release-notes` kind uses `claude-sonnet-5-5`, at
+medium effort. At the setting of an `impl` session, both runs passed. The cause
+of the low-effort failures stays unknown.
+
+### The stale-copy case
+
+The case copies the owner's real stale copy, `~/.claude/skills/grove`, into
+the work directory. It puts one copy in `.claude/skills` and one in
+`.codex/skills`. That copy is an older provisioned spine. It holds a table of
+kinds and `references/planning.md`, which the current spine does not have. It
+matches no single commit, so the case pins its tree digest `d9ae18c2…` and
+refuses a changed or missing copy. The staging HOME never holds the copy.
+
+`codex debug prompt-input` in the staging environment measured where Codex
+0.167.0 reads a project skill. It lists `.codex/skills` and `.agents/skills`
+of its working directory, or of the Git root above it. It does not list
+`.claude/skills`. Claude Code reads `.claude/skills` in each parent folder of
+its working directory. So each harness lists exactly one planted copy.
+
+The prompt is the planning mandate of the kind case, on the same planted
+tree. A Grove mandate leads the agent to the `grove` spine. The verdict
+records which copy the agent reads:
+
+- A stale read names a path of a planted copy, loads `grove` through the
+  native Skill tool, or returns a line that only the stale `SKILL.md` holds.
+- A Ravel read is a classified read from the `grove-core` snapshot, or
+  returns a line that only the current `SKILL.md` holds.
+
+The case fails when the agent reads neither copy, or when the native listing
+does not hold the planted `grove`. The planted name is the one exception to
+the rule that the listing holds no superseded name.
+
+| Harness | Model and effort | Record | Result |
+| --- | --- | --- | --- |
+| Claude Code 2.1.319 | `claude-sonnet-5-5`, low | `trials/stale-copy-claude-1` | Passed. The native listing held `grove`. The agent read `grove-planning` at event 5 and the snapshot's `grove/SKILL.md` at event 6, then spine references at events 9 to 11. It did not use the Skill tool, and it read no file of the planted copy. Copy read: Ravel's only. |
+| Codex 0.167.0 | `gpt-6.1-sol`, low | `trials/stale-copy-codex-1` | Passed. The native listing held `grove`. The agent printed skill files through a script at event 5, which returned lines of Ravel's copy. It read `grove-planning` at event 6, the snapshot's `grove/SKILL.md` at event 8 and spine references after that. It read no file of the planted copy. Copy read: Ravel's only. |
+
+In both records the staging HOME held no `grove` copy before or after, and
+the real-HOME check found no change.
+
+The first reading of `trials/stale-copy-codex-1` reported a stale read at
+event 8. That was a defect of the instrument. A unique line was then one that
+no whole line of the other file equals, but the match tests a substring. The
+current `SKILL.md` holds `compressed technical shorthand.` inside a longer,
+differently wrapped line. A unique line now must not occur anywhere in the
+other file. `staging_trial.py rejudge` on the unchanged launch records then
+showed a read of Ravel's copy only.
+
 ### Limits
 
 - The real HOME's `.claude.json` has no digest comparison, for the reason
@@ -4009,3 +4146,21 @@ reading. A later reading cannot repeat a real-HOME check, so
   the task file.
 - The marker rule of the real plugin cache trusts that a running process is
   not a trial process. Ravel reaps the trial's group before the check.
+- The Claude Code compaction case passes with `claude-opus-5-5` at high
+  effort, in two of two runs. With `claude-sonnet-5-5` at low effort, it
+  failed in five of five runs, and the cause is unknown. A Claude Code session
+  of the owner that runs with less effort than its policy gives is not
+  measured.
+- Each compaction is the harness's default. Each context after compaction
+  kept the descriptor path, so the case does not measure recovery after the
+  loss of the preamble. That loss stays the gap of the common-loading record.
+- The compaction case runs through the feeder in one managed process. The
+  owner's interactive sessions compact automatically when the context fills,
+  and no trial measures that trigger.
+- In both stale-copy records the agent read Ravel's copy only. One run on
+  each harness shows that this choice occurs. It does not show that an agent
+  never reads the stale copy. The verdict finds a content read by lines that
+  only one copy holds, so a script that prints only shared lines shows no
+  copy.
+- The stale-copy case needs the owner's real stale copy. After the switch
+  deactivates it, the case refuses.

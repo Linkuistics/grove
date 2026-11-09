@@ -615,9 +615,12 @@ export const policy = {{
 fn a_timed_out_selection_launches_nothing_and_publishes_nothing() {
     let fixture = Fixture::new("");
     fixture.policy(&stalled(&fixture.root.join("selecting")));
+    // The timeout must let `select` start under the full parallel suite and
+    // still end before the 25-second stall. One second was too short: under
+    // load the 1.1 policy had not written its marker when the timeout fired.
     fs::write(
         fixture.dispatch_file("settings.json"),
-        r#"{ "timeoutMs": 1000 }"#,
+        r#"{ "timeoutMs": 10000 }"#,
     )
     .unwrap();
 

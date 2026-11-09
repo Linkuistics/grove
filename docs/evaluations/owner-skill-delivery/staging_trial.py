@@ -48,7 +48,22 @@ of the session file. The verdicts are:
   the skill.
 - `delegate`: the parent starts at least one delegate, and a delegate reads
   a file of the named skill from its source.
-- The native skill listing of the session holds no superseded name.
+- `compaction`: the session runs three turns in one managed process, through
+  the feeder `harness_trial.py turns`. They are the prompt, the harness's
+  default compaction and the case's `answer`. Claude Code compacts with a
+  bare `/compact`, and Codex with `thread/compact/start`. The agent reads the
+  named skill from its source after the compaction boundary and before the
+  first edit after it. The record keeps what the context after compaction
+  still holds of Ravel's preamble, without a judgement.
+- `staleCopy`: the runner copies the named stale native copy from the real
+  HOME into each project skill root of the work directory, `.claude/skills`
+  for Claude Code and `.codex/skills` for Codex. Its tree digest must equal
+  the case's pin. The verdict records which copy the agent reads: the
+  planted copy, Ravel's copy from the named source, or both. It fails when
+  the agent reads neither, or when the native listing does not hold the
+  planted name. The staging HOME holds no copy of that name before or after.
+- The native skill listing of the session holds no superseded name. The
+  planted name of `staleCopy` is the one exception.
 - No real-HOME subject changed, and the real `.claude.json` names no
   staging path. The real plugin cache is compared without the `.in_use`
   reader markers of its version directories. Each marker that the trial
@@ -108,13 +123,21 @@ CASES = HERE / "staging-cases"
 OFF_SETTINGS = ROOT / "docs" / "owner-cutover" / "settings-off.json"
 TREES = CASES / "trees"
 CASE_FIELDS = {"schemaVersion", "name", "purpose", "kind", "prompt", "mandatoryFirst", "requires",
-               "timeoutMinutes", "tree", "kindSkill", "delegate"}
-# The fields that later leaves of owner-staging-discovery-k249 add, each with
-# its leaf.
-LATER_FIELDS = {
-    "compaction": "staging-compaction-stale-trials-k277",
-    "staleCopy": "staging-compaction-stale-trials-k277",
-}
+               "timeoutMinutes", "tree", "kindSkill", "delegate", "compaction", "staleCopy"}
+# The project skill roots that each harness lists, below its working
+# directory. Codex 0.167.0 lists `.codex/skills` and `.agents/skills` of the
+# working directory or its Git root, and not `.claude/skills`, as `codex debug
+# prompt-input` showed in the staging environment
+# (staging-compaction-stale-trials-k277). A stale case plants one copy in the
+# root of each harness, so each harness lists exactly one.
+PROJECT_ROOTS = {"claude": ".claude/skills", "codex": ".codex/skills"}
+# The native user roots of the staging HOME. None may hold the planted name.
+HOME_ROOTS = (".claude/skills", ".codex/skills", ".agents/skills")
+# The key of Codex's default compaction in harness_trial.CODEX_COMPACTION:
+# remote compaction, which keeps each user message word for word.
+DEFAULT_COMPACTION = {"mode": "path"}
+# A line of a SKILL.md this long or longer can tell two copies apart.
+DISTINCT_LINE_CHARS = 30
 # The classes of an event that looks for a skill or acts on the task. The
 # mandatory obligation of Ravel's discovery instructions comes before each.
 GATED = {"listing", "skill", "kind-skill", "supporting", "native", "planted", "source-origin", "action",
@@ -153,8 +176,6 @@ def load_case(name: str) -> dict[str, Any]:
         raise TrialFailure(f"no staging case {name}; the cases are {known}")
     case = json.loads(path.read_text())
     for field in case:
-        if field in LATER_FIELDS:
-            raise TrialFailure(f"case {name}: the runner has no verdict for '{field}' yet ({LATER_FIELDS[field]})")
         if field not in CASE_FIELDS:
             raise TrialFailure(f"case {name}: unknown field '{field}'; the fields are {sorted(CASE_FIELDS)}")
     if case.get("name") != name:
@@ -168,12 +189,57 @@ def load_case(name: str) -> dict[str, Any]:
                            f"{case.get('kind')!r}")
     if "tree" in case and not (TREES / case["tree"] / "_BRIEF.md").is_file():
         raise TrialFailure(f"case {name}: no tree {TREES / case['tree']} with a _BRIEF.md")
+    if "compaction" in case:
+        spec = case["compaction"]
+        if not isinstance(spec, dict) or set(spec) != {"answer", "after"} or not isinstance(spec["answer"], str) \
+                or not isinstance(spec["after"], dict) or set(spec["after"]) != {"source", "skill"}:
+            raise TrialFailure(f"case {name}: compaction is {{answer, after: {{source, skill}}}}, not {spec!r}")
+    if "staleCopy" in case:
+        spec = case["staleCopy"]
+        if not isinstance(spec, dict) or set(spec) != {"source", "skill", "from", "treeSha256"}:
+            raise TrialFailure(f"case {name}: staleCopy is {{source, skill, from, treeSha256}}, not {spec!r}")
+        if Path(spec["from"]).is_absolute() or ".." in Path(spec["from"]).parts:
+            raise TrialFailure(f"case {name}: staleCopy.from is a path relative to the real HOME, not {spec['from']}")
     return case
 
 
 def named_skills(case: dict[str, Any]) -> list[dict[str, str]]:
     """Every {source, skill} that a verdict of the case names."""
-    return [*case.get("requires", []), *(case[key] for key in ("kindSkill", "delegate") if key in case)]
+    return [*case.get("requires", []), *(case[key] for key in ("kindSkill", "delegate") if key in case),
+            *([case["compaction"]["after"]] if "compaction" in case else [])]
+
+
+def plant_stale(work: Path, spec: dict[str, Any]) -> dict[str, Any]:
+    """The stale native copy in each project skill root of the work
+    directory, copied from the real HOME without its links followed. A copy
+    whose tree digest differs from the pin refuses, so each run plants the
+    same bytes."""
+    origin = staging_home.real_home() / spec["from"]
+    digest = staging_home.tree_digest(origin)
+    if digest.get("sha256") != spec["treeSha256"]:
+        raise TrialFailure(f"the stale copy {origin} has tree digest {digest}, not the pinned {spec['treeSha256']}; "
+                           f"a changed or missing copy changes what the case measures")
+    plants = {}
+    for harness, root in PROJECT_ROOTS.items():
+        target = work / root / spec["skill"]
+        shutil.copytree(origin, target, symlinks=True)
+        plants[harness] = str(target)
+    return {"origin": str(origin), "tree": digest, "plants": plants}
+
+
+def home_copies(home: Path, skill: str) -> list[str]:
+    """Each native user root of the staging HOME that holds the skill."""
+    return [str(home / root / skill) for root in HOME_ROOTS if os.path.lexists(home / root / skill)]
+
+
+def distinct_lines(one: Path, other: Path) -> list[str]:
+    """The long lines of one file that the other does not hold anywhere. A
+    result that holds one of them shows a read of that file's copy. The test
+    is a substring test, because the match is one: a line that the other
+    file holds inside a longer, differently wrapped line is no mark."""
+    theirs = other.read_text()
+    return sorted({line.strip() for line in one.read_text().splitlines()
+                   if len(line.strip()) >= DISTINCT_LINE_CHARS and line.strip() not in theirs})
 
 
 def plant_tree(work: Path, tree: str, env: dict[str, str]) -> str:
@@ -568,10 +634,13 @@ def skill_marks(snapshot: Path, skill: str) -> tuple[str, str] | None:
     return (f"name: {skill}", heading) if heading else None
 
 
-def mark_content_reads(launch: dict[str, Any], requires: list[dict[str, str]]) -> None:
+def mark_content_reads(launch: dict[str, Any], requires: list[dict[str, str]],
+                       copies: dict[str, list[str]] | None = None) -> None:
     """Add `contentReads` to each event whose result holds both marks of a
-    named skill's snapshot copy. Then replace each full result with its
-    digest and length, so the record keeps no copy of a skill."""
+    named skill's snapshot copy. With `copies`, add `copyReads` with each
+    label whose distinct lines the result holds. Then replace each full
+    result with its digest and length, so the record keeps no copy of a
+    skill."""
     roots = {source["id"]: Path(source["snapshotRoot"]) for source in launch.get("sources", [])
              if source.get("snapshotRoot")}
     marks = {(item["source"], item["skill"]): skill_marks(roots[item["source"]], item["skill"])
@@ -585,7 +654,22 @@ def mark_content_reads(launch: dict[str, Any], requires: list[dict[str, str]]) -
                      if pair and all(mark in result for mark in pair)]
             if found:
                 event["contentReads"] = found
+            labels = sorted(label for label, lines in (copies or {}).items() if any(line in result for line in lines))
+            if labels:
+                event["copyReads"] = labels
             event["result"] = {"sha256": harness_trial.sha256_bytes(result.encode()), "chars": len(result)}
+
+
+def copy_lines(launch: dict[str, Any], spec: dict[str, Any], plant: str) -> dict[str, list[str]]:
+    """The distinct lines of the planted stale `SKILL.md` and of Ravel's
+    snapshot copy of the same skill."""
+    root = next((Path(s["snapshotRoot"]) for s in launch.get("sources", [])
+                 if s.get("id") == spec["source"] and s.get("snapshotRoot")), None)
+    current = sorted(root.glob(f"*/{spec['skill']}/SKILL.md")) if root else []
+    stale = Path(plant) / "SKILL.md"
+    if not current or not stale.is_file():
+        return {}
+    return {"stale": distinct_lines(stale, current[0]), "ravel": distinct_lines(current[0], stale)}
 
 
 def requires_verdict(events: list[dict[str, Any]], requires: list[dict[str, str]]) -> list[dict[str, Any]]:
@@ -703,6 +787,78 @@ def delegate_verdict(launch: dict[str, Any], spec: dict[str, str]) -> dict[str, 
     return verdict
 
 
+def compaction_verdict(events: list[dict[str, Any]], spec: dict[str, Any]) -> dict[str, Any]:
+    """A compaction boundary exists, and after it the agent reads the named
+    skill from its source before its first edit after the boundary."""
+    after = spec["after"]
+    boundary = next((i for i, e in enumerate(events) if e.get("class") == "compaction"), None)
+    verdict: dict[str, Any] = {**after, "boundarySeq": events[boundary]["seq"] if boundary is not None else None}
+    if boundary is None:
+        verdict.update(passed=False, reason="the session holds no compaction boundary")
+        return verdict
+    def reads(event: dict[str, Any]) -> bool:
+        return any(r.get("class") in SKILL_READS and r.get("skill") == after["skill"]
+                   and r.get("source") == after["source"] for r in reads_of(event))
+    before = next((e for e in events[:boundary] if reads(e)), None)
+    rest = events[boundary + 1:]
+    read = next((e for e in rest if reads(e)), None)
+    action = first_action(rest)
+    verdict.update(readBeforeSeq=before["seq"] if before else None, readSeq=read["seq"] if read else None,
+                   actionSeq=action["seq"] if action else None,
+                   mandatoryAfterSeq=next((e["seq"] for e in rest if e.get("class") == "mandatory"), None))
+    if not read:
+        reason = f"no read of {after['skill']} from {after['source']} after the compaction"
+    elif not action:
+        reason = "the agent made no edit after the compaction, so the read precedes no action"
+    elif read["seq"] >= action["seq"]:
+        reason = "the read after the compaction came after the first edit after it"
+    else:
+        reason = None
+    verdict.update(passed=reason is None, reason=reason)
+    return verdict
+
+
+# A path of a planted stale copy, relative or absolute.
+def stale_pattern(skill: str) -> re.Pattern[str]:
+    roots = "|".join(re.escape(root) for root in PROJECT_ROOTS.values())
+    return re.compile(rf"(?:{roots})/{re.escape(skill)}(?![\w-])")
+
+
+def stale_verdict(events: list[dict[str, Any]], spec: dict[str, Any], listed: list[str]) -> dict[str, Any]:
+    """Which copy the agent reads. A stale read names a path of a planted
+    copy, loads the name through the native Skill tool, or returns a line
+    that only the stale `SKILL.md` holds. A Ravel read is a classified read
+    from the named source, or returns a line that only Ravel's copy holds."""
+    skill, pattern = spec["skill"], stale_pattern(spec["skill"])
+    real = str(staging_home.real_home())
+    def stale(event: dict[str, Any]) -> bool:
+        target = str(event.get("target", ""))
+        by_path = bool(pattern.search(target)) and not any(f"{real}/{root}" in target for root in HOME_ROOTS)
+        native = event.get("class") == "native-skill-tool" and bare(target) == skill and not event.get("error")
+        return by_path or native or "stale" in event.get("copyReads", [])
+    def ravel(event: dict[str, Any]) -> bool:
+        return "ravel" in event.get("copyReads", []) or any(
+            r.get("class") in RESOURCE_READS and r.get("skill") == skill and r.get("source") == spec["source"]
+            for r in reads_of(event))
+    stale_seqs = [e["seq"] for e in events if stale(e)]
+    ravel_seqs = [e["seq"] for e in events if ravel(e)]
+    copy = {(True, True): "both", (True, False): "stale", (False, True): "ravel"}.get(
+        (bool(stale_seqs), bool(ravel_seqs)))
+    verdict: dict[str, Any] = {"source": spec["source"], "skill": skill, "staleSeqs": stale_seqs,
+                               "ravelSeqs": ravel_seqs, "copy": copy,
+                               "first": None if not copy else ("stale" if not ravel_seqs or (
+                                   stale_seqs and stale_seqs[0] < ravel_seqs[0]) else "ravel"),
+                               "listed": skill in {bare(name) for name in listed}}
+    if not verdict["listed"]:
+        reason = f"the native listing does not hold the planted {skill}, so no copy coexisted"
+    elif not copy:
+        reason = f"the agent read neither copy of {skill}"
+    else:
+        reason = None
+    verdict.update(passed=reason is None, reason=reason)
+    return verdict
+
+
 def judge(case: dict[str, Any], launches: list[dict[str, Any]], superseded: set[str]) -> dict[str, Any]:
     failures: list[str] = []
     if len(launches) != 1:
@@ -725,11 +881,20 @@ def judge(case: dict[str, Any], launches: list[dict[str, Any]], superseded: set[
         verdict["delegate"] = delegate_verdict(launch, case["delegate"])
         if not verdict["delegate"]["passed"]:
             failures.append(f"delegate: {verdict['delegate']['reason']}")
+    if "compaction" in case:
+        verdict["compaction"] = compaction_verdict(events, case["compaction"])
+        if not verdict["compaction"]["passed"]:
+            failures.append(f"compaction: {verdict['compaction']['reason']}")
     listed = native_listing(launch)
     verdict["nativeListing"] = listed
-    verdict["listedSuperseded"] = sorted({bare(name) for name in listed} & superseded)
+    planted = {case["staleCopy"]["skill"]} if "staleCopy" in case else set()
+    verdict["listedSuperseded"] = sorted({bare(name) for name in listed} & superseded - planted)
     if verdict["listedSuperseded"]:
         failures.append(f"native discovery listed superseded skills {verdict['listedSuperseded']}")
+    if "staleCopy" in case:
+        verdict["staleCopy"] = stale_verdict(events, case["staleCopy"], listed)
+        if not verdict["staleCopy"]["passed"]:
+            failures.append(f"stale copy: {verdict['staleCopy']['reason']}")
     failures += launch.get("control", [])
     verdict["failures"] = failures
     return verdict
@@ -741,8 +906,16 @@ def render(record: dict[str, Any]) -> str:
               f"effort {record['harness']['effort']}"),
              (f"- Started {record['started']}, ended {record['ended']}, Ravel exit {record['launch']['exit']}, "
               f"result {record['launch']['result']!r}"),
-             f"- Failures: {record['verdict'].get('failures') or 'none'}", "",
-             "| Seq | Tool | Class | Skill | Source | Target |", "| --- | --- | --- | --- | --- | --- |"]
+             f"- Failures: {record['verdict'].get('failures') or 'none'}"]
+    for key in ("compaction", "staleCopy"):
+        if key in record["verdict"]:
+            shown = {k: v for k, v in record["verdict"][key].items() if k not in ("source", "skill")}
+            lines.append(f"- {key}: {json.dumps(shown)}")
+    for context in record.get("compactionContext") or []:
+        after = context.get("afterBoundary") or {}
+        lines.append(f"- Context after compaction: {len(after.get('paths', []))} preamble paths, "
+                     f"{len(after.get('lines', []))} preamble lines, variable named: {after.get('variable')}")
+    lines += ["", "| Seq | Tool | Class | Skill | Source | Target |", "| --- | --- | --- | --- | --- | --- |"]
     def rows(events: list[dict[str, Any]]) -> None:
         for event in events:
             target = str(event.get("target", "")).replace("|", "\\|").replace("\n", " ")[:110]
@@ -750,6 +923,8 @@ def render(record: dict[str, Any]) -> str:
             source = event.get("source") or ""
             for item in event.get("contentReads", []):
                 skill, source = f"{skill} {item['skill']} (content)".strip(), f"{source} {item['source']}".strip()
+            for label in event.get("copyReads", []):
+                skill = f"{skill} {label} copy (content)".strip()
             lines.append(f"| {event['seq']} | {event.get('tool')} | {event.get('class')} | {skill} "
                          f"| {source} | `{target}` |")
     for launch in record["launches"]:
@@ -761,6 +936,50 @@ def render(record: dict[str, Any]) -> str:
                       "", "| Seq | Tool | Class | Skill | Source | Target |", "| --- | --- | --- | --- | --- | --- |"]
             rows(transcript["events"] if transcript else [])
     return "\n".join(lines) + "\n"
+
+
+def write_turns(out: Path, adapter: Any, spec: dict[str, Any]) -> dict[str, Any]:
+    """The feeder's plan, beside the records directory, where
+    `harness_trial.feeder_route` names it: the harness's default compaction,
+    then the answer. No turn has a gate, because the case measures the
+    harness's own compaction, not a chosen loss."""
+    compact = adapter.compact_turn({"instructions": ""})
+    if "text" in compact:
+        compact = {"text": compact["text"].strip()}
+    plan = {"harness": adapter.name, "turns": [compact, {"text": spec["answer"]}]}
+    (out / "turns.json").write_text(json.dumps(plan, indent=2) + "\n")
+    return plan
+
+
+def compaction_context(adapter: Any, record: Path, launch: dict[str, Any], home: Path) -> dict[str, Any]:
+    """What the context after the last compaction still holds of Ravel's
+    preamble: its paths, digests, long lines and the descriptor variable.
+    The feeder's turns come from its `trial-turn` lines."""
+    prompt = (record / "prompt").read_text() if (record / "prompt").exists() else ""
+    stderr = (record / "stderr").read_text(errors="replace") if (record / "stderr").exists() else ""
+    marks = harness_trial.preamble_marks(prompt)
+    path = adapter.session_file(home, launch["sessionId"]) if launch.get("sessionId") else None
+    facts, _ = adapter.compaction_facts(harness_trial.read_jsonl(path) if path else [], marks,
+                                        DEFAULT_COMPACTION["mode"])
+    return {"turns": harness_trial.trial_lines(stderr, "turn"),
+            "preamble": {"paths": len(marks["paths"]), "digests": len(marks["digests"]), "lines": len(marks["lines"])},
+            **facts}
+
+
+def extract_and_judge(case: dict[str, Any], adapter: Any, records: Path, home: Path, work: Path,
+                      environ: dict[str, str], stale: dict[str, Any] | None
+                      ) -> tuple[list[dict[str, Any]], dict[str, Any], list[dict[str, Any]] | None]:
+    """The launches of a case from its records, its verdict and, for a
+    compaction case, the context after each compaction."""
+    turns = "compaction" in case
+    paths = harness_trial.launch_records(records)
+    launches = [harness_trial.describe_launch(adapter, path, home, work, environ, turns=turns) for path in paths]
+    for described in launches:
+        copies = copy_lines(described, case["staleCopy"], stale["plants"][adapter.name]) if stale else None
+        mark_content_reads(described, named_skills(case), copies)
+    context = [compaction_context(adapter, path, described, home)
+               for path, described in zip(paths, launches)] if turns else None
+    return launches, judge(case, launches, staging_home.superseded_names()), context
 
 
 def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, environ: dict[str, str],
@@ -782,10 +1001,19 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
     model, effort = model or defaults[0], effort or defaults[1]
     records = out / "records"
     records.mkdir()
+    compaction = case.get("compaction")
     route = {"wrapper": str(harness_trial.WRAPPER), "records": str(records),
-             **adapter.launch({}, records, program, model, effort), "model": model, "effort": effort}
+             **adapter.launch({"compaction": DEFAULT_COMPACTION} if compaction else {}, records, program, model,
+                              effort),
+             "model": model, "effort": effort}
+    if compaction:
+        write_turns(out, adapter, compaction)
     config = write_config(out, "trial", case["kind"], route)
     work = staging_home.work_directory(home)
+    stale = None
+    if "staleCopy" in case:
+        stale = plant_stale(work, case["staleCopy"])
+        stale["homeBefore"] = home_copies(home, case["staleCopy"]["skill"])
     tree = plant_tree(work, case["tree"], env) if "tree" in case else None
     version = subprocess.run([str(program), "--version"], env=env, cwd=work, capture_output=True, text=True,
                              check=False).stdout.strip().splitlines()[0]
@@ -793,11 +1021,11 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
     launch = start(ravel, config, case["kind"], case["prompt"], work, env, case.get("timeoutMinutes", 20) * 60)
     (out / "ravel.stderr").write_text(launch["stderr"])
     isolation = isolation_problems(before, real_subjects(), home)
-    launches = [harness_trial.describe_launch(adapter, record, home, work, environ)
-                for record in harness_trial.launch_records(records)]
-    for described in launches:
-        mark_content_reads(described, named_skills(case))
-    verdict = judge(case, launches, staging_home.superseded_names())
+    if stale is not None:
+        stale["homeAfter"] = home_copies(home, case["staleCopy"]["skill"])
+        isolation += [f"the staging HOME holds a copy of {case['staleCopy']['skill']} at {path} {when}"
+                      for when in ("before", "after") for path in stale[f"home{when.title()}"]]
+    launches, verdict, context = extract_and_judge(case, adapter, records, home, work, environ, stale)
     verdict["isolation"] = isolation
     verdict["failures"] = verdict.get("failures", []) + isolation
     record = {
@@ -805,7 +1033,7 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
         "ended": launch["ended"], "home": str(home), "work": str(work), "tree": tree, "inputs": inputs,
         "harness": {"name": harness, "program": str(program), "version": version, "model": model, "effort": effort},
         "config": config.read_text(), "environment": sorted(env), "launch": launch, "launches": launches,
-        "verdict": verdict,
+        "stale": stale, "compactionContext": context, "verdict": verdict,
     }
     (out / "record.json").write_text(json.dumps(record, indent=2) + "\n")
     (out / "record.md").write_text(render(record))
@@ -822,14 +1050,11 @@ def rejudge(trial: Path, environ: dict[str, str]) -> dict[str, Any]:
     case = load_case(record["case"])
     home, work = Path(record["home"]), Path(record["work"])
     adapter = harness_trial.adapter_named(record["harness"]["name"])
-    launches = [harness_trial.describe_launch(adapter, path, home, work, environ)
-                for path in harness_trial.launch_records(trial / "records")]
-    for described in launches:
-        mark_content_reads(described, named_skills(case))
-    verdict = judge(case, launches, staging_home.superseded_names())
+    launches, verdict, context = extract_and_judge(case, adapter, trial / "records", home, work, environ,
+                                                   record.get("stale"))
     verdict["isolation"] = record["verdict"].get("isolation", [])
     verdict["failures"] = verdict.get("failures", []) + verdict["isolation"]
-    record.update(launches=launches, verdict=verdict, rejudged=now())
+    record.update(launches=launches, verdict=verdict, compactionContext=context, rejudged=now())
     (trial / "record.json").write_text(json.dumps(record, indent=2) + "\n")
     (trial / "record.md").write_text(render(record))
     if verdict["failures"]:

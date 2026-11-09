@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "name": "compaction",
+  "purpose": "A compaction occurs, and the agent still reads skills afterwards. The first turn asks for a small Python tool and then a stop. The harness's default compaction follows: a bare /compact on Claude Code, and thread/compact/start with remote compaction on Codex. The turn after the compaction asks for a Bash script and the end command, and it names no skill. Expect a read of coding-style-bash from the engineering snapshot after the compaction boundary and before the first edit after it.",
+  "kind": "staging-compaction",
+  "prompt": "In the current directory, write a small Python command-line tool, `tally.py`, that other AI agents will run. It counts the lines, words and bytes of the files that it is given. When it is written, run it once on itself. Then reply with the single line `FIRST TASK DONE` and stop. Do not run any end command yet, because another instruction follows.",
+  "mandatoryFirst": true,
+  "compaction": {
+    "answer": "Next task. In the current directory, write a Bash script, `lines.sh`, that prints the line count of each file that it is given, one line for each file, as the count, a space and the file name. With no argument, it prints the line count of its standard input. Run it once on `tally.py`. Then run this exact shell command as your last action: ravel end-session staging-ok",
+    "after": {
+      "source": "engineering",
+      "skill": "coding-style-bash"
+    }
+  },
+  "timeoutMinutes": 30
+}

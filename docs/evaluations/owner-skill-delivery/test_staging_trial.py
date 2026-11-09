@@ -292,6 +292,181 @@ class KindAndDelegateVerdicts(unittest.TestCase):
                 staging_trial.CASES = original
 
 
+COMPACTION_CASE = {"mandatoryFirst": True,
+                   "compaction": {"answer": "a", "after": {"source": "engineering", "skill": "coding-style-bash"}}}
+COMPACTION_GOOD = [
+    event(1, "prompt"),
+    event(2, "mandatory", "using-superpowers", "superpowers"),
+    event(3, "action"),
+    event(4, "prompt", target="/compact"),
+    event(5, "compaction"),
+    event(6, "prompt", target="Next task."),
+    event(7, "skill", "coding-style-bash", "engineering"),
+    event(8, "action"),
+]
+STALE_SPEC = {"source": "grove-core", "skill": "grove", "from": ".claude/skills/grove", "treeSha256": "d"}
+STALE_CASE = {"staleCopy": STALE_SPEC}
+
+
+class CompactionVerdicts(unittest.TestCase):
+    def test_read_after_compaction_passes(self) -> None:
+        verdict = staging_trial.judge(COMPACTION_CASE, [launch(COMPACTION_GOOD)], set())
+        self.assertEqual(verdict["failures"], [])
+        self.assertEqual((verdict["compaction"]["boundarySeq"], verdict["compaction"]["readSeq"]), (5, 7))
+
+    def test_no_boundary_fails(self) -> None:
+        events = [e for e in COMPACTION_GOOD if e["class"] != "compaction"]
+        verdict = staging_trial.judge(COMPACTION_CASE, [launch(events)], set())
+        self.assertTrue(any("no compaction boundary" in f for f in verdict["failures"]))
+
+    def test_read_only_before_compaction_fails(self) -> None:
+        events = [*COMPACTION_GOOD[:2], event(3, "skill", "coding-style-bash", "engineering"),
+                  *COMPACTION_GOOD[2:6], event(9, "action")]
+        verdict = staging_trial.judge(COMPACTION_CASE, [launch(events)], set())
+        self.assertTrue(any("after the compaction" in f for f in verdict["failures"]))
+        self.assertEqual(verdict["compaction"]["readBeforeSeq"], 3)
+
+    def test_read_after_the_first_edit_after_compaction_fails(self) -> None:
+        events = [*COMPACTION_GOOD[:6], event(7, "action"), event(8, "skill", "coding-style-bash", "engineering")]
+        verdict = staging_trial.judge(COMPACTION_CASE, [launch(events)], set())
+        self.assertTrue(any("came after the first edit" in f for f in verdict["failures"]))
+
+    def test_read_of_other_source_fails(self) -> None:
+        events = [*COMPACTION_GOOD[:6], event(7, "skill", "coding-style-bash", "personal"), event(8, "action")]
+        verdict = staging_trial.judge(COMPACTION_CASE, [launch(events)], set())
+        self.assertTrue(any("no read of coding-style-bash" in f for f in verdict["failures"]))
+
+    def test_no_edit_after_compaction_fails(self) -> None:
+        verdict = staging_trial.judge(COMPACTION_CASE, [launch(COMPACTION_GOOD[:7])], set())
+        self.assertTrue(any("no edit after the compaction" in f for f in verdict["failures"]))
+
+    def test_turns_plan_has_a_bare_compaction_and_no_gate(self) -> None:
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as scratch:
+            claude = staging_trial.write_turns(Path(scratch), staging_trial.harness_trial.adapter_named("claude"),
+                                               COMPACTION_CASE["compaction"])
+            self.assertEqual(claude["turns"], [{"text": "/compact"}, {"text": "a"}])
+            self.assertEqual(json.loads((Path(scratch) / "turns.json").read_text()), claude)
+            codex = staging_trial.write_turns(Path(scratch), staging_trial.harness_trial.adapter_named("codex"),
+                                              COMPACTION_CASE["compaction"])
+            self.assertEqual(codex["turns"], [{"compact": True}, {"text": "a"}])
+
+    def test_compaction_and_stale_cases_load(self) -> None:
+        self.assertEqual(staging_trial.load_case("compaction")["compaction"]["after"]["skill"], "coding-style-bash")
+        self.assertEqual(staging_trial.load_case("stale-copy")["staleCopy"]["skill"], "grove")
+
+
+class StaleCopyVerdicts(unittest.TestCase):
+    def test_planted_name_is_the_one_listing_exception(self) -> None:
+        events = [event(1, "skill", "grove", "grove-core")]
+        verdict = staging_trial.judge(STALE_CASE, [launch(events, ["grove", "guardrail:guardrail"])], {"grove"})
+        self.assertEqual(verdict["failures"], [])
+        self.assertEqual(verdict["staleCopy"]["copy"], "ravel")
+        # The control: another superseded name still fails.
+        verdict = staging_trial.judge(STALE_CASE, [launch(events, ["grove", "grove-impl"])], {"grove", "grove-impl"})
+        self.assertEqual(verdict["listedSuperseded"], ["grove-impl"])
+        # Without the stale case, the planted name fails too.
+        self.assertTrue(staging_trial.judge(CASE, [launch(GOOD, ["grove"])], {"grove"})["failures"])
+
+    def test_unlisted_plant_fails(self) -> None:
+        verdict = staging_trial.judge(STALE_CASE, [launch([event(1, "skill", "grove", "grove-core")])], {"grove"})
+        self.assertTrue(any("does not hold the planted grove" in f for f in verdict["failures"]))
+
+    def test_stale_reads_by_path_native_tool_and_content(self) -> None:
+        for stale in (event(1, "work", target="/private/tmp/owner-staging-x/.claude/skills/grove/SKILL.md"),
+                      event(1, "command", target="sed -n 1,80p .codex/skills/grove/references/planning.md"),
+                      event(1, "native-skill-tool", target="grove"),
+                      dict(event(1, "command", target="python3 - <<'PY'"), copyReads=["stale"])):
+            verdict = staging_trial.judge(STALE_CASE, [launch([stale], ["grove"])], {"grove"})
+            self.assertEqual(verdict["staleCopy"]["copy"], "stale", stale)
+            self.assertEqual(verdict["failures"], [])
+
+    def test_near_names_and_failed_loads_are_no_stale_read(self) -> None:
+        for other in (event(1, "command", target="cat .claude/skills/grove-planning/SKILL.md"),
+                      event(1, "native-skill-tool", target="grove-planning"),
+                      dict(event(1, "native-skill-tool", target="grove"), error=True),
+                      event(1, "command", target="cat /Users/antony/.claude/skills/grove/SKILL.md")):
+            verdict = staging_trial.judge(STALE_CASE, [launch([other], ["grove"])], {"grove"})
+            self.assertIsNone(verdict["staleCopy"]["copy"], other)
+            self.assertTrue(any("read neither copy" in f for f in verdict["failures"]))
+
+    def test_both_copies_record_the_first(self) -> None:
+        events = [event(1, "native-skill-tool", target="grove"), event(2, "supporting", "grove", "grove-core")]
+        verdict = staging_trial.judge(STALE_CASE, [launch(events, ["grove"])], {"grove"})
+        self.assertEqual((verdict["staleCopy"]["copy"], verdict["staleCopy"]["first"]), ("both", "stale"))
+        reordered = [dict(e, seq=n) for n, e in enumerate(reversed(events), 1)]
+        verdict = staging_trial.judge(STALE_CASE, [launch(reordered, ["grove"])], {"grove"})
+        self.assertEqual(verdict["staleCopy"]["first"], "ravel")
+
+    def test_ravel_read_of_other_source_is_no_ravel_read(self) -> None:
+        verdict = staging_trial.judge(STALE_CASE, [launch([event(1, "skill", "grove", "personal")], ["grove"])],
+                                      {"grove"})
+        self.assertIsNone(verdict["staleCopy"]["copy"])
+
+    def test_copy_lines_tell_the_copies_apart(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            shared = "# grove — hierarchical, self-extending workstreams\n"
+            (root / "snap" / "skills" / "grove").mkdir(parents=True)
+            (root / "snap" / "skills" / "grove" / "SKILL.md").write_text(
+                f"---\nname: grove\n---\n\n{shared}\nYour prompt named one kind skill; open it before you act.\n")
+            (root / "plant" ).mkdir()
+            (root / "plant" / "SKILL.md").write_text(
+                f"---\nname: grove\n---\n\n{shared}\n| `planning` | `references/planning.md` |\n")
+            launch_ = launch([dict(event(1, "command"), resultFull="x | `planning` | `references/planning.md` | y"),
+                              dict(event(2, "command"), resultFull="Your prompt named one kind skill; open it before you act."),
+                              dict(event(3, "command"), resultFull=shared)])
+            launch_["sources"] = [{"id": "grove-core", "snapshotRoot": str(root / "snap")}]
+            copies = staging_trial.copy_lines(launch_, STALE_SPEC, str(root / "plant"))
+            staging_trial.mark_content_reads(launch_, [], copies)
+            events = launch_["transcripts"][0]["events"]
+            self.assertEqual([e.get("copyReads") for e in events], [["stale"], ["ravel"], None])
+
+    def test_a_line_inside_a_longer_line_is_no_mark(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as scratch:
+            stale, current = Path(scratch) / "stale.md", Path(scratch) / "current.md"
+            stale.write_text("so the reader is not left decoding\ncompressed technical shorthand.\n")
+            current.write_text("the reader must not be left decoding compressed technical shorthand.\n")
+            self.assertEqual(staging_trial.distinct_lines(stale, current), ["so the reader is not left decoding"])
+            # The control: a line that the other file does not hold stays.
+            current.write_text("nothing shared here at all, not one line\n")
+            self.assertEqual(len(staging_trial.distinct_lines(stale, current)), 2)
+
+    def test_plant_refuses_a_changed_copy(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as scratch:
+            original = staging_trial.staging_home.real_home
+            staging_trial.staging_home.real_home = lambda: Path(scratch) / "real"
+            try:
+                origin = Path(scratch) / "real" / ".claude" / "skills" / "grove"
+                origin.mkdir(parents=True)
+                (origin / "SKILL.md").write_text("old")
+                pin = staging_trial.staging_home.tree_digest(origin)["sha256"]
+                work = Path(scratch) / "work"
+                work.mkdir()
+                planted = staging_trial.plant_stale(work, dict(STALE_SPEC, treeSha256=pin))
+                self.assertEqual(sorted(planted["plants"]), ["claude", "codex"])
+                self.assertEqual((work / ".codex/skills/grove/SKILL.md").read_text(), "old")
+                # The control: one changed byte refuses.
+                (origin / "SKILL.md").write_text("olD")
+                with self.assertRaises(staging_trial.TrialFailure):
+                    staging_trial.plant_stale(Path(scratch) / "work2", dict(STALE_SPEC, treeSha256=pin))
+            finally:
+                staging_trial.staging_home.real_home = original
+
+    def test_home_copies(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as scratch:
+            home = Path(scratch)
+            self.assertEqual(staging_trial.home_copies(home, "grove"), [])
+            (home / ".agents" / "skills").mkdir(parents=True)
+            (home / ".agents" / "skills" / "grove").symlink_to("/nowhere")
+            self.assertEqual(staging_trial.home_copies(home, "grove"), [str(home / ".agents/skills/grove")])
+
+
 class RealHomeCheck(unittest.TestCase):
     def tree(self, root: Path) -> Path:
         cache = root / "cache"

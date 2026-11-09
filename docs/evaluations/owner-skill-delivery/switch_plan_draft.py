@@ -226,7 +226,8 @@ def inputs():
 
     A prepared file that preparation copies from the repository carries the
     digest of its repository source until owner-switch-plan-k254 copies it.
-    The probe program has no source yet; owner-switch-probes-k257 supplies it.
+    The probe program's source is scripts/owner_switch_probes.py. Without it,
+    the inputs do not name the probe program.
     """
     mac_check = os.path.join(HOME, ".local/bin/mac-check")
     rows = [{"role": "program", "path": "$program", "digest": file_digest(PROGRAM)},

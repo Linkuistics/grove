@@ -55,10 +55,13 @@ through backup and restore, failed reads and changed copies before
 publication, and changed backup records. They cover interrupted and failed
 restores, the off-value exception, an interrupted later restore and the
 owner's restore after finish. They also cover Claude Code command failures,
-an unwritable manual, a live probe-owned service and changes during the
-probes. The hook action "append-glob" changes each file that a pattern names.
-The fixture flag "probe_owned" makes the switched probe leave a service
-running. The off-value controls make their backup through the program's own
+an unwritable manual, probe-owned services and changes during the probes.
+The hook action "append-glob" changes each file that a pattern names. The
+fixture flag "probe_owned" makes the switched probe leave a service running:
+"live" in a new session, "reparent" reparented to launchd, "moved" and
+"reused" with a record whose executable or creation time differs, and
+"journal" named only in the probe's journal by a probe that dies before its
+result line. The off-value controls make their backup through the program's own
 `create_backup`, because the switch refuses without the off value.
 
 The gate controls run the switch with the evidence of steps 4 to 7 and the
@@ -487,14 +490,39 @@ def cmd_fixture(name: str) -> int:
         return 0
     ravel = load(os.path.join(home, ".config/ravel/settings.json"), {}).get("skills")
     link = os.path.lexists(os.path.join(home, ".codex/skills/grove"))
-    if name == "probe-switched" and load(os.path.join(root, "control.json"), {}).get("probe_owned"):
+    owned_mode = load(os.path.join(root, "control.json"), {}).get("probe_owned")
+    if name == "probe-switched" and owned_mode:
         # A service that the probe proves it created and leaves running: "Probe process lifetime".
-        p = subprocess.Popen([PY, "-I", "-c", SLEEP], start_new_session=True, stdin=subprocess.DEVNULL,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        record_pid(root, p.pid)
-        start = program_module(os.path.join(HERE, "owner_switch.py")).process_start(p.pid)
-        print("owner-switch-result: " + json.dumps({"owned": [
-            {"pid": p.pid, "start": start, "executable": os.path.realpath(PY), "home": home}]}))
+        # "reparent" starts it through an intermediate that exits, so its parent becomes launchd.
+        # "moved" and "reused" report a record whose executable or creation time differs, as for a
+        # reused PID. "journal" writes the record only to the journal, and the probe dies without
+        # its result line.
+        if owned_mode == "reparent":
+            code = ("import subprocess, sys; p = subprocess.Popen([sys.executable, '-I', '-c', sys.argv[1]], "
+                    "start_new_session=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, "
+                    "stderr=subprocess.DEVNULL); print(p.pid)")
+            pid = int(subprocess.run([PY, "-I", "-c", code, SLEEP], capture_output=True, text=True,
+                                     check=True).stdout)
+        else:
+            pid = subprocess.Popen([PY, "-I", "-c", SLEEP], start_new_session=True, stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).pid
+        record_pid(root, pid)
+        with open(os.path.join(root, "probe-owned"), "w") as f:
+            f.write(f"{pid}\n")
+        start = program_module(os.path.join(HERE, "owner_switch.py")).process_start(pid)
+        rec = {"pid": pid, "start": start, "executable": os.path.realpath(PY), "home": home}
+        if owned_mode == "moved":
+            rec["executable"] = "/nonexistent/python3"
+        elif owned_mode == "reused":
+            # A creation time after the probe began but not the process's own, as for a reused PID.
+            seconds, micros = start.split(".")
+            rec["start"] = f"{int(seconds) + 1}.{micros}"
+        if owned_mode == "journal":
+            with open(os.environ["OWNER_SWITCH_PROBE_JOURNAL"], "a") as f:
+                f.write(json.dumps(rec) + "\n")
+            print("probe-switched: died before its result line")
+            return 1
+        print("owner-switch-result: " + json.dumps({"owned": [rec]}))
     if name == "probe-switched":
         ok = ravel == SWITCHED and not link
     elif name == "probe-native":
@@ -2040,14 +2068,39 @@ def serial_manual_pending(point: str, success: bool):
     return fn
 
 
-def c_serial_probe_owned(case):
+def probe_owned_pid(case) -> int:
+    with open(os.path.join(case.root, "probe-owned")) as f:
+        return int(f.read())
+
+
+def serial_probe_owned_ended(mode: str):
+    """A probe-owned service that the probe leaves running: the switch ends it and succeeds."""
+    def fn(case):
+        case.serial_plan()
+        note = case.attempt()
+        case.set_control({"probe_owned": mode})
+        out = expect_exit(case.switch(note), 0, "sent SIGTERM to probe-owned process")
+        pid = probe_owned_pid(case)
+        expect(not alive(pid), f"the probe-owned service {pid} still runs after the switch")
+        expect("probe-owned processes: 1 recorded, none runs" in out, f"no cleanup verdict: {out[-1500:]}")
+        expect_switched(case)
+        expect(os.path.lexists(receipt_file(case, note)), "the switch wrote no receipt")
+        return f"the switch ends a {mode} probe-owned service by its record and verifies its exit"
+    return fn
+
+
+def c_serial_probe_owned_moved(case):
+    """A record whose executable differs: the program signals nothing and stops with 4."""
     case.serial_plan()
     before = serial_view(case)
     note = case.attempt()
-    case.set_control({"probe_owned": True})
-    out = expect_exit(case.switch(note), 4, "remaining probe-owned service")
+    case.set_control({"probe_owned": "moved"})
+    out = expect_exit(case.switch(note), 4, "remaining probe-owned process")
+    pid = probe_owned_pid(case)
+    expect(alive(pid), "the program signalled a process whose executable differs from its record")
+    expect("sent SIG" not in out, f"the program sent a signal: {out[-1500:]}")
     expect("restore: native delivery verified" not in out and "restored:" not in out,
-           f"the switch restored while a probe-owned service ran: {out[-1500:]}")
+           f"the switch restored while a probe-owned process ran: {out[-1500:]}")
     expect_switched(case)
     expect(os.path.isdir(note["backup"]) and not os.path.lexists(receipt_file(case, note)),
            "the backup is missing, or a receipt was written")
@@ -2056,7 +2109,34 @@ def c_serial_probe_owned(case):
     case.set_control({})
     expect_exit(case.literal(note["restore"]), 0, "restore: immediate")
     expect_view(case, before, "after the owner's restore")
-    return "a live probe-owned service stops the switch with 4 and no restore"
+    return "a record with another executable authorises no signal, and the switch stops with 4 and no restore"
+
+
+def c_serial_probe_owned_reused(case):
+    """A record whose creation time differs, as for a reused PID: no signal, and the record counts as ended."""
+    case.serial_plan()
+    note = case.attempt()
+    case.set_control({"probe_owned": "reused"})
+    out = expect_exit(case.switch(note), 0, "probe-owned processes: 1 recorded, none runs")
+    pid = probe_owned_pid(case)
+    expect(alive(pid), "the program signalled a reused PID")
+    expect("sent SIG" not in out, f"the program sent a signal: {out[-1500:]}")
+    case.kill()
+    return "a reused PID authorises no signal: the recorded process counts as ended"
+
+
+def c_serial_probe_owned_journal(case):
+    """A probe that dies before its result line: its journal still names its service."""
+    case.serial_plan()
+    before = serial_view(case)
+    note = case.attempt()
+    case.set_control({"probe_owned": "journal"})
+    out = expect_exit(case.switch(note), 5, "sent SIGTERM to probe-owned process")
+    pid = probe_owned_pid(case)
+    expect(not alive(pid), f"the journal's service {pid} still runs")
+    expect("probe failed: probe-switched" in out, f"the failed probe did not stop the switch: {out[-1500:]}")
+    expect_view(case, before, "after the switch restored")
+    return "the journal of a probe that died names its service, which the switch ends before it restores"
 
 
 def serial_probe_change(action: dict, text: str, extra=None):
@@ -2452,7 +2532,11 @@ def serial_controls() -> list:
                         check=no_command("plugin install")), SERIAL_ARGS),
         ("serial-manual-unwritable", serial_manual_pending("receipt:written", False), SERIAL_ARGS),
         ("serial-manual-correction-pending", serial_manual_pending("switch:final", True), SERIAL_ARGS),
-        ("serial-probe-owned-live", c_serial_probe_owned, SERIAL_ARGS),
+        ("serial-probe-owned-live", serial_probe_owned_ended("live"), SERIAL_ARGS),
+        ("serial-probe-owned-reparented", serial_probe_owned_ended("reparent"), SERIAL_ARGS),
+        ("serial-probe-owned-moved", c_serial_probe_owned_moved, SERIAL_ARGS),
+        ("serial-probe-owned-reused", c_serial_probe_owned_reused, SERIAL_ARGS),
+        ("serial-probe-owned-journal", c_serial_probe_owned_journal, SERIAL_ARGS),
         ("serial-probe-changes-setting",
          serial_probe_change({"do": "write-key", "path": SETTINGS, "key": HOOKS_PLUGIN, "value": False},
                              r"the assertion \.claude/settings\.json"), SERIAL_ARGS),

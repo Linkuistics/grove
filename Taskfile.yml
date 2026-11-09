@@ -521,6 +521,38 @@ tasks:
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/test_staging_trial.py
 
+  # The fixture controls of the probe program and of the switch's
+  # probe-service cleanup ("Probe process lifetime" of
+  # docs/specs/owner-skill-delivery.md). Fake harnesses only, so no usage.
+  owner:probes:controls:
+    desc: Test the probe launcher, resolve and end_owned against fake harnesses and processes
+    cmds:
+      - python3 -I scripts/test_owner_switch_probes.py
+
+  # The lifecycle measurement of the probe launcher with real Claude Code and
+  # Codex launches in fresh HOMEs and in the staging HOME. It spends
+  # subscription usage, so no gate runs it. OUT is a new directory. ONLY limits
+  # the launches to labels that match a regular expression. For example:
+  #   task owner:probes:lifecycle OUT="$SCRATCH/lifecycle"
+  owner:probes:lifecycle:
+    desc: Measure which processes outlive each probe launch, for normal exit, failure, interrupt and crash, writing OUT/record.json and OUT/summary.md (spends subscription usage)
+    requires:
+      vars: [OUT]
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/probe_lifecycle.py run --out "{{.OUT}}" {{if .ONLY}}--only "{{.ONLY}}"{{end}}
+
+  # The staging pass of the probe's `resolve`: each mode once where it must
+  # pass and once against a wrong layout where it must fail, with the plan
+  # draft and the accepted Ravel 2.0 build. It launches no harness. OUT is a
+  # new directory. For example:
+  #   task owner:probes:resolve OUT="$SCRATCH/resolve"
+  owner:probes:resolve:
+    desc: Run the probe's resolve in the staging HOME and in disposable HOMEs with wrong layouts, writing OUT/resolve.json
+    requires:
+      vars: [OUT]
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/probe_lifecycle.py resolve --out "{{.OUT}}"
+
   # The owner switch program's fixture suite ("Test seams" of
   # docs/specs/owner-skill-delivery.md). OUT is a new directory outside every
   # working copy. ONLY limits the controls to the names that match a regular

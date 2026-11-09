@@ -160,6 +160,6 @@ path	type	original	key	switched	inventory_line	class	disposition
 .claude/settings.json	file	f66e2a8b1903737efa53447ea92cc71b3a772645a34e71b8d88748fabf77a5ff	enabledPlugins.quint-llm-kit@quint-llm-kit	false	75	third-party-pack	disable
 .claude/settings.json	file	f66e2a8b1903737efa53447ea92cc71b3a772645a34e71b8d88748fabf77a5ff	enabledPlugins.technical-communication-hooks@writing-hooks	true		native residue	installed disabled before the switch; enabled at step 6
 .claude/settings.json	file	f66e2a8b1903737efa53447ea92cc71b3a772645a34e71b8d88748fabf77a5ff	enabledPlugins.guardrail@personal	true		native residue	installed disabled before the switch; enabled at step 6
-.claude/plugins/known_marketplaces.json	file	a17e74f21db8ebadcfcd23a746a0f837a0ea02710a1e43306df55099a695aeb9				Claude Code registry	written by the hooks installation's commands
+.claude/plugins/known_marketplaces.json	file	0759a2735259a506dc23516640af2e32d1f01f510ec445bdae5f76f143deeb82				Claude Code registry	written by the hooks installation's commands
 .claude/plugins/installed_plugins.json	file	5f75f2124720e5eacb4540de31fd5a400723dff1e0637d31ef1ada5b9e413104				Claude Code registry	written by the hooks installation's commands
 .config/ravel/settings.json	file	absent	skills	settings-switched.json		Ravel settings	native-off writes the off value before the switch; the switch writes the switched value last

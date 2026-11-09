@@ -1143,7 +1143,7 @@
       "path": ".claude/plugins/known_marketplaces.json",
       "type": "file",
       "original": {
-        "identity": "a17e74f21db8ebadcfcd23a746a0f837a0ea02710a1e43306df55099a695aeb9"
+        "identity": "0759a2735259a506dc23516640af2e32d1f01f510ec445bdae5f76f143deeb82"
       }
     },
     {
@@ -1609,7 +1609,7 @@
     {
       "role": "program",
       "path": "$program",
-      "digest": "d2806f928c0b4687d79861be5a65405aac1edc64bc86593c5a211eca83988097"
+      "digest": "a2ae5654b5727798d2a7e83fc6de70e94aecfb66641b13421aff9527e55ca7af"
     },
     {
       "role": "baseline instrument",
@@ -1625,6 +1625,11 @@
       "role": "mac-check helper",
       "path": "/Users/antony/.local/lib/machine-config/check.py",
       "digest": "5c7a3bd43c08e43e02859c6c0c22edcb59e0bf0b38dcbe7b040784be247e9201"
+    },
+    {
+      "role": "probe program",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "digest": "f3b4ed1e8f9527282566e864c204e0a96c3ce4bb60572a57585913761f49eab2"
     }
   ],
   "assertions": [

@@ -4297,3 +4297,305 @@ cover it, because no earlier staging command used SSH.
   a source probe and a Codex probe, which this case does not run.
 - The marketplace add read the owner's real SSH configuration, as the
   section above states.
+
+## Probe service lifecycle
+
+`owner-switch-probes-k257` proved too large for one session and became a
+node. Its first child, `probe-service-lifecycle-k280`, delivered this section
+on 2026-11-09. The sections
+[Probe process lifetime](specs/owner-skill-delivery.md#probe-process-lifetime)
+and [Test seams](specs/owner-skill-delivery.md#test-seams) own the rules.
+`probe-service-lifecycle-k282` reviews the result. The last child,
+`session-probes-k281`, adds the four session probes.
+
+### The probe program
+
+[`scripts/owner_switch_probes.py`](../scripts/owner_switch_probes.py) is the
+program that the plan runs as
+`$python -I <state>/prepared/owner_switch_probes.py`. Its docstring states
+each entry, the environment rule and the exit codes.
+
+- `resolve --expect switched|disabled` runs
+  `$(brew --prefix)/bin/ravel skills resolve --json` with HOME's
+  configuration. `switched` requires the status `resolved`, exactly the
+  plan's ten accepted sources with their accepted `resourceDigest` values,
+  and the plan's mandatory file below its source's snapshot. `disabled`
+  requires the status `disabled`.
+- `launch` is the measured launcher, which the session probes use. The
+  lifecycle measurement below runs it alone.
+- `session` refuses with exit 2 in this version.
+
+The probe finds `brew` on PATH, as the switch program does. A staging run
+puts a stub `brew` first on PATH, whose prefix holds the accepted 2.0 build.
+The interface of the plan draft therefore stays unchanged.
+
+Each command runs in a new folder under `/private/tmp`. The probe refuses a
+folder that overlaps HOME, or one with `.grove`, `.jj` or a project skill
+root in it or in an ancestor. Each harness, Ravel and tool receives an
+allow-listed environment and `DISABLE_AUTOUPDATER=1`.
+
+### The launcher
+
+The native route runs the headless form of each harness: `claude -p
+--output-format stream-json` and `codex exec --json`. The ravel route runs
+`ravel start-session --config` with a headless probe script, never the
+owner's `config.rhai`. The owner's script launches the interactive Codex
+TUI, and the TUI can launch Codex's app-server daemon by itself.
+
+The script selects `/bin/sh -c`, which runs the harness and then
+`ravel end-session harness-exit-<status>`. Ravel 2.0 fails a session whose
+managed process exits without a result, with the code
+`session_result_missing`. The first measurement met that failure on both
+harnesses.
+
+The launcher puts the leader in a new session and process group. It reads
+the process table every 50 ms. It owns a process that did not exist before
+the launch. It must see that process as the leader, as a child of an owned
+process or as a member of the leader's group.
+
+Three rules keep a reused PID out of the records:
+
+- An owned process is a root only while its PID has its recorded creation
+  time.
+- The leader and its group count only while the leader is the launcher's
+  unreaped child.
+- A child counts only when the kernel created it after its parent and before
+  the launcher read the table.
+
+Each record names the PID, creation time, canonical executable, HOME,
+`CODEX_HOME`, parent, group, argument vector, folder and relation. Each new
+or changed record goes at once to the journal that
+`OWNER_SWITCH_PROBE_JOURNAL` names. A record stays after its process
+reparents to launchd. A Claude Code or Codex process of the same
+configuration HOME before the launch refuses it without a signal.
+
+After the leader exits, the launcher waits three seconds. It then ends each
+owned process that still runs, and it reads the table during each grace
+period. Cleanup repeats, up to three rounds, while a reading finds a new
+survivor. A new process without a record is unattributed when it names one
+of the four tools. It is also unattributed when it runs from a configuration
+folder of HOME or works in the work folder. Such a process fails the probe,
+and nothing signals it.
+
+### The switch's cleanup
+
+`owner_switch.end_owned` serves both the probe and the switch. It sends
+SIGTERM and then SIGKILL, with grace periods of 20 and 10 seconds. Before
+each signal it reads the PID's creation time and executable again. It
+signals only an exact match.
+
+- A record whose creation time differs counts as ended, because its PID now
+  names another process.
+- A record whose executable differs, or cannot be read, stays unconfirmed
+  and receives no signal.
+- A PID that exists but that this account cannot read stays unconfirmed
+  too. A setuid program can cause that state.
+
+Step 7 and restore run each probe through `run_probe`. It gives the probe a
+new journal in `<state>/probes`, and it keeps the journal's records with the
+result's records. It accepts only a record with a PID above 1, created
+after the probe began. The probe's output goes to files, and the switch
+waits for the probe process alone.
+
+An interrupt of the switch sends the probe SIGTERM, so that the probe ends
+its harness. The switch then ends each journal record and continues the
+interrupt. After an outer bound of 3,600 seconds, the probe receives SIGTERM
+and counts as failed.
+
+### The in-session review
+
+The leaf spent its one in-session reviewer on the signal code. The reviewer
+received the code and the contract, and reported ten findings. Each finding
+has one of three classifications:
+
+| Finding | Classification | Change |
+| --- | --- | --- |
+| A reaped leader stayed a root, so a reused PID could gain a record | valid | The roots and group rules above |
+| A PID reused between the table and the identity read gained a record | valid | The child must predate the table |
+| A process could append a forged record to the journal | valid in part | A PID above 1, created after the probe began. A hostile agent is outside the quiet-interval model. |
+| A child that a survivor created during its grace period escaped | valid | Readings during each grace period, and the rounds |
+| An interrupt of the switch killed the probe before its cleanup | valid | `run_probe` sends SIGTERM and ends the journal records |
+| A setuid exec read as an ended process | valid | An unreadable live PID stays unconfirmed |
+| The exception path could leave the leader unreaped | valid | The path always reaps the leader |
+| `PermissionError` stopped the signal loop | valid | Each failed signal skips its record |
+| An escape faster than the reading, from `/`, stays unseen | trade-off | A record of new launchd children with HOME, as evidence only |
+| The unattributed check excluded by PID only | valid | It excludes by PID and creation time |
+
+One fixed control then exposed another defect. The switch waited for the
+end of the probe's output pipes, and a leftover service that inherited a pipe
+held it open. The control took 300 seconds, the life of its service.
+`run_probe` now uses files. The fixes were substantive, so
+`probe-service-lifecycle-k282` reviews them.
+
+### Lifecycle measurement
+
+`task owner:probes:lifecycle` ran 20 launches one at a time, from 09:26:31Z
+to 09:39:13Z, on the final program. Claude Code was 2.1.319 and Codex was
+0.167.0. The models were `claude-sonnet-5-5` and `gpt-6.1-sol`, both at low
+effort. The three homes were:
+
+- **bare**: a new HOME with only the sign-in links.
+- **package**: bare with a clone of the owner's Codex daemon package, as
+  the real HOME holds it after the owner stops the daemon. The clone has no
+  pidfile, lock or socket.
+- **staging**: the retained staging HOME, with the owner's MCP servers and
+  residue plugins.
+
+Two scenarios were a normal answer and a model that does not exist. The
+other two ran `sleep 120`. One sent SIGINT to the leader's group, and one
+sent SIGKILL to the leader alone.
+
+| Launch | Leader | Owned | Survivors that cleanup ended |
+| --- | --- | --- | --- |
+| bare, Claude Code, normal | exit 0 | 1 | none |
+| bare, Claude Code, failure | exit 1 | 1 | none |
+| bare, Claude Code, interrupt | exit 0 | 3 | none |
+| bare, Claude Code, crash | signal 9 | 3 | `zsh`, `sleep` |
+| bare, Codex, normal | exit 0 | 1 | none |
+| bare, Codex, failure | exit 1 | 1 | none |
+| bare, Codex, interrupt | exit 1 | 3 | none |
+| bare, Codex, crash | signal 9 | 3 | `sleep` |
+| package, Codex, normal | exit 0 | 1 | none |
+| package, Codex, interrupt | exit 1 | 3 | none |
+| staging, Claude Code, normal | exit 0 | 8 | none |
+| staging, Claude Code, interrupt | exit 0 | 10 | none |
+| staging, Claude Code, crash | signal 9 | 10 | `zsh`, `sleep` |
+| staging, Codex, normal | exit 0 | 6 | none |
+| staging, Codex, interrupt | exit 1 | 8 | none |
+| staging, Codex, crash | signal 9 | 8 | `sleep` |
+| staging, Claude Code, ravel, normal | exit 0 | 10 | none |
+| staging, Claude Code, ravel, interrupt | signal 2 | 16 | none |
+| staging, Codex, ravel, normal | exit 0 | 8 | none |
+| staging, Codex, ravel, interrupt | signal 2 | 10 | none |
+
+Each launch passed, with no unattributed process, no process that remained
+after cleanup and no new launchd child without a record. Both normal Ravel
+launches printed `harness-exit-0`. The four results are:
+
+- **No launch led to a Codex daemon.** That includes the package home. An
+  independent `ps` listing, at once and 10 seconds after each launch, found
+  no process that named the launch's HOME.
+- **Normal exit, failure and interrupt leave nothing.** Each owned process
+  ended with its leader. These included `codebase-memory-mcp`, the Quint and
+  Playwright Node servers, the codebase-memory hooks, `node_repl` and
+  `codex-code-mode-host`.
+- **A crash leaves only the orphaned shell command.** The MCP servers and
+  Codex's helper ended by themselves. The launcher recorded the orphans
+  before the crash, kept their records after they reparented, and ended
+  them with SIGTERM.
+- **The measured mode prevents persistent services.** The headless command
+  of each harness leaves none, and the launcher ends crash orphans by their
+  records. The measurement establishes ownership and cleanup, so this leaf
+  records no blocking finding.
+
+The record is
+`~/.local/state/owner-staging/trials/probe-lifecycle-3/record.json`, with
+SHA-256 `425ca39f5e89d20fdc559dc9ea10a106691a96673dc52c0051a799e2f8f898b8`.
+Its folder holds the digests of the three subjects before and after the run,
+and they are equal. The probe program's digest is
+`f3b4ed1e8f9527282566e864c204e0a96c3ce4bb60572a57585913761f49eab2`, which the
+plan draft names. Two earlier runs, `probe-lifecycle-1` and
+`probe-lifecycle-2`, measured earlier versions of the program. Their
+outcomes agree with the table, apart from the Ravel failures of the first run.
+
+### The resolve staging pass
+
+`task owner:probes:resolve` ran the final probe with the plan draft and the
+accepted 2.0 build.
+
+| Case | HOME | Expected | Result |
+| --- | --- | --- | --- |
+| `switched` | staging | pass | exit 0 |
+| `switched-quint` | staging settings without quint | fail | exit 1, "the accepted source quint is missing" |
+| `switched-off` | the off value | fail | exit 1, "the status is 'disabled', not 'resolved'" |
+| `disabled` | the off value | pass | exit 0 |
+| `disabled-staging` | staging | fail | exit 1, "the status is 'resolved', not 'disabled'" |
+
+The record is `~/.local/state/owner-staging/trials/probe-resolve-2/resolve.json`,
+with SHA-256 `b9c5564ce6948d5ccd85cbd77ddaf0c89dd55ca179b18395e933c8c4c6d160b4`.
+
+### Fixture controls
+
+`task owner:probes:controls` runs 25 controls against fake harnesses and
+processes. They cover a reparented service that the launcher records and
+ends, and an unrecorded escape that nothing signals. They cover an
+interrupt, a crash with a member that ignores SIGTERM, and a child that a
+survivor creates during cleanup. They cover a signal to the probe, an
+existing harness of the same HOME and a reaped leader's PID.
+
+The controls also cover the allow-listed environment, the journal and the
+work folder. They cover PID reuse, a changed, unknown or unreadable
+identity, record validation and the journal merge. Two controls run
+`run_probe` with its timeout and with an interrupt. Four controls cover
+`resolve`.
+
+The rehearsal's `probe_owned` flag now has five cases: `live`, `reparent`,
+`moved`, `reused` and `journal`. The switch ends the first two and succeeds.
+It signals nothing for `moved` and stops with 4, and it signals nothing for
+`reused` and succeeds. For `journal` it ends the service from the journal
+and restores with 5. `task owner:switch:rehearse` passed 157 of 157
+controls on the final program.
+
+Each of 13 mutations of the final program, in a scratch copy, turned its
+control red:
+
+| Mutation | Control that failed |
+| --- | --- |
+| `owned_state` ignores the creation time | `test_reused_pid_is_never_signalled` |
+| `owned_state` ignores the executable | `test_changed_executable_is_never_signalled` |
+| The check for an existing harness finds none | `test_existing_harness_of_the_home_refuses_without_a_signal` |
+| The tracker records no child of an owned process | `test_reparented_service_is_recorded_and_ended` |
+| A reaped leader stays a root | `test_a_reaped_leaders_pid_is_never_a_root` |
+| Cleanup reads no table during a grace period | `test_child_created_during_cleanup_is_ended` |
+| `resolve` skips the digest comparison | `test_switched_fails_for_a_wrong_layout` |
+| The unattributed check finds none | `test_unrecorded_escape_is_never_signalled` |
+| The harness inherits the whole environment | `test_harness_environment_is_allow_listed` |
+| The switch accepts records from before the probe | `test_records_need_a_real_pid_created_after_the_probe_began` |
+| An interrupt of the switch ends no journal record | `test_interrupt_ends_the_journal_records_and_continues` |
+| The switch ignores the journal | `serial-probe-owned-journal` |
+| The switch signals without the identity check | `serial-probe-owned-moved` and `serial-probe-owned-reused` |
+
+### The regenerated draft
+
+`task owner:switch-plan:draft` regenerated the plan draft. Its inputs now
+name the probe program, and the program digest is new. One original changed
+in the real HOME: `.claude/plugins/known_marketplaces.json` has another
+identity than in the previous draft. Automatic marketplace updates can
+change that file until owner-marketplace-freeze-k253 freezes them.
+`task owner:switch-plan:check` passed, and the three stored outputs in
+`docs/owner-cutover/` hold its new result.
+
+### Measurement incidents
+
+- The first measurement's Ravel launches failed with
+  `session_result_missing`, as "The launcher" states.
+- The digest step of the second measurement named its three subjects in one
+  quoted word. `shasum` found no such file, so that step compared two empty
+  listings. The third measurement passed each path separately.
+- Once, the leader of a Codex launch gave no executable and no argument
+  vector for its whole life. Four repeats, two of them first launches in a
+  new HOME, read both. The cause is unknown. Such a record now has an
+  unconfirmed identity, and nothing signals it.
+
+### Limits
+
+- Each scenario of the final program ran once. A single run shows that a
+  behaviour occurs. It does not measure how often it occurs.
+- No launch ran in the real HOME. The package home stands for the real
+  HOME's stopped daemon, and the staging HOME for its MCP servers.
+- The staging settings name the ten sources. The real switched settings omit
+  `sources`, so the promoted Ravel resolves its default folder. The finish
+  handoff repeats the resolution after the Ravel cut.
+- The accepted 2.0 build reports `ravel 1.1.0` until the cut.
+- An escape faster than the 50 ms reading, outside the leader's group, has
+  no record. The probe fails when the escape names a tool, runs from a
+  configuration folder or works in the work folder. Otherwise only the list
+  of new launchd children with HOME shows it. No real launch produced one.
+- macOS offers no process handle that pins a PID. A short interval remains
+  between the identity check and the signal. A PID would have to be reused
+  within that interval.
+- No control reproduces a PID that the kernel reuses between the table and
+  the identity read. The rule rests on the order of creation times.
+- The session probes run `testanyware llm-instructions` and
+  `testanyware doctor`, and no measurement here covers their services.
+  session-probes-k281 runs them through the same launcher.

@@ -263,10 +263,16 @@ backup, and its attempt note names the restore.
                    erase it. Write the values of each file's "set", the
                    Ravel settings last. Each write keeps the file's other
                    keys and metadata, and the program rereads it.
-              7    Run the probes. A probe result {"owned": [{"pid",
-                   "start", "executable", "home"}]} names its services.
-                   One that still runs stops the switch with 4, and the
-                   backup stays. Inspect the processes again.
+              7    Run the probes. Each probe names the processes that it
+                   created, as {"owned": [{"pid", "start", "executable",
+                   "home"}]} in its result and as one such object per line
+                   in the journal that OWNER_SWITCH_PROBE_JOURNAL names,
+                   in <state>/probes. Send SIGTERM, then SIGKILL, to each
+                   record that still runs, and only while its PID,
+                   creation time and executable still equal the record.
+                   One that still runs, or whose executable changed,
+                   stops the switch with 4, and the backup stays. Inspect
+                   the processes again.
               8    Run mac_check and the gate of step 6 again. Evaluate the
                    delivery assertions, the expected inventory after the
                    switch, the reader evidence and the guidance digests.
@@ -369,9 +375,11 @@ import secrets
 import shlex
 import stat
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 
 PLAN_SCHEMA = "owner-switch-plan/2"
 ABSENT = {"$absent": True}
@@ -1356,7 +1364,7 @@ def subject_env(base: dict) -> dict:
 
 def command_env(layout: Layout, step: str, plan=None, admitted=None) -> dict:
     env = {k: v for k, v in subject_env(os.environ).items()
-           if k not in (HOOK_VAR, PLAN_VAR, PLAN_DIGEST_VAR, ADMITTED_VAR)}
+           if k not in (HOOK_VAR, PLAN_VAR, PLAN_DIGEST_VAR, ADMITTED_VAR, JOURNAL_VAR)}
     env.update(HOME=layout.home, OWNER_SWITCH_HOME=layout.home, OWNER_SWITCH_STATE=layout.state,
                OWNER_SWITCH_STEP=step)
     if plan is not None:
@@ -1386,23 +1394,29 @@ def command_result(stdout: str):
     return None
 
 
-def run_command_full(layout: Layout, command: dict, step: str, plan=None, admitted=None):
+def run_command_full(layout: Layout, command: dict, step: str, plan=None, admitted=None, extra=None):
     """Run one command of a plan, and return its evidence and its standard output."""
     hook(layout, f"command:{command['name']}")
-    result = subprocess.run(command_argv(command["argv"]), cwd=layout.home,
-                            env=command_env(layout, step, plan, admitted), capture_output=True, text=True)
-    output = (result.stdout + result.stderr)[-20000:]
-    log(f"command {command['name']} (step {step}): exit {result.returncode}")
-    parsed = command_result(result.stdout)
-    if result.returncode != 0 or parsed is not None:
+    env = command_env(layout, step, plan, admitted)
+    env.update(extra or {})
+    result = subprocess.run(command_argv(command["argv"]), cwd=layout.home, env=env, capture_output=True, text=True)
+    return command_evidence(command, step, result.returncode, result.stdout, result.stderr), result.stdout
+
+
+def command_evidence(command: dict, step: str, code: int, stdout: str, stderr: str) -> dict:
+    """The evidence of one finished command, with its tail in the log when it failed or reported."""
+    output = (stdout + stderr)[-20000:]
+    log(f"command {command['name']} (step {step}): exit {code}")
+    parsed = command_result(stdout)
+    if code != 0 or parsed is not None:
         # A failed command's tail, and a gate's report without its result line.
         lines = [x for x in output.strip().splitlines() if not x.startswith(RESULT_MARK)]
         for line in lines[-40:]:
             log(f"  | {line}")
-    evidence = {"name": command["name"], "argv": command["argv"], "exit": result.returncode, "output": output}
+    evidence = {"name": command["name"], "argv": command["argv"], "exit": code, "output": output}
     if parsed is not None:
         evidence["result"] = parsed
-    return evidence, result.stdout
+    return evidence
 
 
 def run_command(layout: Layout, command: dict, step: str, plan=None, admitted=None) -> dict:
@@ -1411,6 +1425,82 @@ def run_command(layout: Layout, command: dict, step: str, plan=None, admitted=No
 
 def run_commands(layout: Layout, plan: dict, commands: list, step: str, admitted=None):
     results = [run_command(layout, c, step, plan, admitted) for c in commands]
+    failed = [r for r in results if r["exit"] != 0]
+    return results, failed
+
+
+# "Probe process lifetime": each probe writes a record of each process that
+# it creates to the journal that this variable names, as soon as it sees the
+# process. The program reads the journal after the probe, so a probe that
+# dies before its result line still leaves its records.
+JOURNAL_VAR = "OWNER_SWITCH_PROBE_JOURNAL"
+
+
+# A probe ends its own launch within LAUNCH_TIMEOUT (1800 s) and its cleanup
+# grace. PROBE_TIMEOUT is a generous outer bound, and PROBE_STOP_GRACE is the
+# time that a probe receives after SIGTERM to end its harness and clean up.
+PROBE_TIMEOUT, PROBE_STOP_GRACE = 3600.0, 180.0
+
+
+def run_probe(layout: Layout, plan: dict, command: dict, step: str, journal: str) -> dict:
+    """Run one probe with JOURNAL. An interrupt or the timeout sends the probe SIGTERM, so it cleans up.
+
+    After an interrupt, each record of the journal is ended too, and the
+    interrupt continues. After the timeout, the probe counts as failed.
+    """
+    hook(layout, f"command:{command['name']}")
+    env = command_env(layout, step, plan)
+    env[JOURNAL_VAR] = journal
+    launched = time.time()
+    # Files rather than pipes: a service that inherited a pipe would hold it
+    # open after the probe exits, and the program waits for the probe alone.
+    with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
+        p = subprocess.Popen(command_argv(command["argv"]), cwd=layout.home, env=env, stdout=out, stderr=err)
+        try:
+            code = p.wait(timeout=PROBE_TIMEOUT)
+        except BaseException as e:
+            p.send_signal(signal.SIGTERM)
+            try:
+                p.wait(timeout=PROBE_STOP_GRACE)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                p.wait()
+            if not isinstance(e, subprocess.TimeoutExpired):
+                try:
+                    end_probe_services(layout, journal_records(journal, launched))
+                except Unresolved as cleanup:
+                    log(f"  after the interrupt: {cleanup}")
+                raise
+            log(f"command {command['name']}: ran longer than {PROBE_TIMEOUT:.0f} seconds, and received SIGTERM")
+            code = 124
+        out.seek(0)
+        err.seek(0)
+        stdout = out.read().decode(errors="replace")
+        stderr = err.read().decode(errors="replace")
+    evidence = command_evidence(command, step, code, stdout, stderr)
+    evidence["launched"] = launched
+    evidence["journal"] = journal_records(journal, launched)
+    return evidence
+
+
+def journal_records(journal: str, launched: float) -> list:
+    """The records of a probe's journal for processes created after the probe started."""
+    return [r for r in read_journal(journal) if created_after(r, launched)]
+
+
+def created_after(rec: dict, launched: float) -> bool:
+    try:
+        return float(rec["start"]) >= launched - 1.0
+    except (TypeError, ValueError):
+        return False
+
+
+def run_probes(layout: Layout, plan: dict, commands: list, step: str):
+    """Run the probes of STEP, each with a new journal in <state>/probes, and keep each journal's records."""
+    folder = os.path.join(layout.state, "probes")
+    os.makedirs(folder, exist_ok=True)
+    results = [run_probe(layout, plan, c, step, os.path.join(folder, f"{step}-{c['name']}-{time.time_ns()}.jsonl"))
+               for c in commands]
     failed = [r for r in results if r["exit"] != 0]
     return results, failed
 
@@ -2765,31 +2855,148 @@ def assertion_problems(results: list) -> list:
             f"{show(a['observed'])}" for a in results if not a["holds"]]
 
 
+def owned_record(rec) -> bool:
+    """A record that can name an owned process: a PID above 1, a creation time, an executable and a HOME field."""
+    return (isinstance(rec, dict) and type(rec.get("pid")) is int and rec["pid"] > 1
+            and isinstance(rec.get("start"), str) and isinstance(rec.get("executable"), str) and "home" in rec)
+
+
 def probe_owned(results: list) -> list:
-    """The probe-owned service records that the probes' results report as {"owned": [...]}."""
-    owned = []
+    """The probe-owned process records of the probes: each result's "owned" list and each probe's journal.
+
+    A later record of the same PID and creation time replaces an earlier
+    one, because a process can exec another executable after the probe
+    first saw it.
+    """
+    owned = {}
     for r in results:
-        for rec in (r.get("result") or {}).get("owned") or []:
-            if isinstance(rec, dict) and all(k in rec for k in ("pid", "start", "executable", "home")):
-                owned.append(rec)
-    return owned
+        for rec in list((r.get("result") or {}).get("owned") or []) + list(r.get("journal") or []):
+            # A process that existed before the probe started is never the probe's.
+            if owned_record(rec) and ("launched" not in r or created_after(rec, r["launched"])):
+                owned[(rec["pid"], rec["start"])] = rec
+    return list(owned.values())
+
+
+def read_journal(path: str) -> list:
+    """The process records of a probe journal: one JSON object per line. A torn last line is skipped."""
+    records = []
+    try:
+        with open(path, "rb") as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return []
+    for line in lines:
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        if owned_record(rec):
+            records.append(rec)
+    return records
+
+
+# "Probe process lifetime": how long an owned process may take to end after
+# SIGTERM, and after SIGKILL. A generous margin keeps a loaded machine from
+# turning a slow exit into recovery incomplete.
+TERM_GRACE, KILL_GRACE = 20.0, 10.0
+
+
+def owned_state(rec: dict) -> str:
+    """"gone", "running" or "changed" for one probe-owned record.
+
+    "gone": no live process has the PID with the recorded creation time. The
+    process ended, is a zombie, or the PID now names another process.
+    "running": the process has the recorded PID, creation time and
+    executable. "changed": it has the PID and creation time, but its
+    executable differs or cannot be read, so its identity is not confirmed.
+    """
+    pid = rec["pid"]
+    start = process_start(pid)
+    if start is None:
+        # The PID names no process, or one that this account cannot read, as
+        # after an exec of a setuid program. Only the first is gone.
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return "gone"
+        except PermissionError:
+            return "changed"
+        return "gone" if zombie(pid) else "changed"
+    if start != rec["start"] or process_status(pid) == SZOMB:
+        return "gone"
+    executable = executable_path(pid) or process_arguments(pid)[0]
+    # An executable that cannot be read, now or when the probe recorded the
+    # process, confirms nothing. A Codex 0.167.0 leader once read as
+    # unreadable for its whole life (owner-switch-probes-k257).
+    if executable is None or rec.get("executable") is None:
+        return "changed"
+    return "running" if executable == rec["executable"] else "changed"
+
+
+def zombie(pid: int) -> bool:
+    out = subprocess.run(["/bin/ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True).stdout
+    return "Z" in out or not out.strip()
+
+
+def end_owned(records: list, term_grace: float = TERM_GRACE, kill_grace: float = KILL_GRACE,
+              send=os.kill, watch=None) -> dict:
+    """End each running probe-owned process, and verify its exit.
+
+    The identity of a record is checked again immediately before each
+    signal, so PID reuse never authorises one: a PID with another creation
+    time or another executable is never signalled. SIGTERM comes first, then
+    SIGKILL after TERM_GRACE. A process that still runs after KILL_GRACE,
+    and a "changed" one, remains. SEND is the signal call, a test seam.
+    WATCH, when given, runs during each wait, so the probe records a child
+    that a process creates while it ends.
+    """
+    signalled = []
+
+    def signal_running(sig) -> None:
+        for rec in records:
+            if owned_state(rec) == "running":
+                try:
+                    send(rec["pid"], sig)
+                except OSError:
+                    # Gone, or another account's process since the check: either way not this record.
+                    continue
+                signalled.append(dict(rec, signal=signal.Signals(sig).name))
+
+    def wait(seconds: float) -> None:
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline and any(owned_state(r) == "running" for r in records):
+            if watch is not None:
+                watch()
+            time.sleep(0.05)
+
+    signal_running(signal.SIGTERM)
+    wait(term_grace)
+    signal_running(signal.SIGKILL)
+    wait(kill_grace)
+    states = [(rec, owned_state(rec)) for rec in records]
+    return {"signalled": signalled,
+            "ended": [rec for rec, state in states if state == "gone"],
+            "remaining": [dict(rec, state=state) for rec, state in states if state != "gone"]}
 
 
 def end_probe_services(layout: Layout, owned: list) -> None:
-    """The seam of "Probe process lifetime": no probe-owned service may outlive the probes.
+    """"Probe process lifetime": end each probe-owned process that still runs, and verify its exit.
 
-    A probe reports each service that it proves it created. The measured
-    shutdown route of each launcher belongs to owner-switch-probes-k257.
-    Here, each record whose PID still has the recorded creation time is a
-    remaining service. PID reuse never authorises a signal, so the program
-    signals nothing.
+    Each probe reports the processes that it created, in its result and in
+    its journal. The probe ends them itself. A record that still runs here
+    is ended through end_owned, which never signals a reused PID. A process
+    that still runs afterwards, or whose identity is not confirmed, leaves
+    recovery incomplete.
     """
-    remaining = [r for r in owned if process_start(int(r["pid"])) == r["start"]]
-    for r in remaining:
-        log(f"  remaining probe-owned service {r['pid']} ({r['executable']}, HOME {r['home']})")
-    if remaining:
-        raise Unresolved("a probe-owned service still runs after the probes; the owner ends it through its "
-                         "owning interface before restore")
+    outcome = end_owned(owned)
+    for r in outcome["signalled"]:
+        log(f"  sent {r['signal']} to probe-owned process {r['pid']} ({r['executable']}, HOME {r['home']})")
+    for r in outcome["remaining"]:
+        log(f"  remaining probe-owned process {r['pid']} ({r['executable']}, HOME {r['home']}): {r['state']}")
+    if outcome["remaining"]:
+        raise Unresolved("a probe-owned process still runs after the probes and their cleanup; the owner ends "
+                         "it through its owning interface before restore")
+    log(f"probe-owned processes: {len(owned)} recorded, none runs")
 
 
 def recheck_reader_list(layout: Layout, readers: list) -> dict:
@@ -3029,7 +3236,7 @@ def apply_switch(layout: Layout, plan: dict, note: dict, backup: dict, ctx: dict
     for rel, cells in switched_cells(plan):
         write_cells(layout, rel, cells)
     hook(layout, "probes")
-    probes, failed = run_commands(layout, plan, plan["probes"], "7")
+    probes, failed = run_probes(layout, plan, plan["probes"], "7")
     end_probe_services(layout, probe_owned(probes))
     if failed:
         raise Stop("probe failed: " + ", ".join(f["name"] for f in failed))
@@ -3224,7 +3431,7 @@ def restore_from(layout: Layout, backup: dict, note: dict, reason: str, operator
         return EXIT_INCOMPLETE
     try:
         hook(layout, "restore:native-probes")
-        probes, probe_failed = run_commands(layout, plan, plan["native_probe"], "restore")
+        probes, probe_failed = run_probes(layout, plan, plan["native_probe"], "restore")
         end_probe_services(layout, probe_owned(probes))
         process_gate(layout, "the end of restore")
     except (Stop, Unresolved) as e:

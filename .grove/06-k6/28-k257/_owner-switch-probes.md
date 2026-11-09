@@ -1,4 +1,4 @@
-# owner-switch-probes-k257
+# owner-switch-probes-k257 — brief
 
 ## Goal
 
@@ -74,3 +74,15 @@ incidental write is a finding for the plan's expected inventories.
 
 If the measured launcher cannot establish ownership or cleanup, no real
 switch is possible. Record that as a blocking finding for the owner.
+
+## Decomposition
+
+The first session found the work too large for one session. Two children
+take its parts:
+
+1. `probe-service-lifecycle-k280`: the measured launcher, `resolve`, the
+   switch-side cleanup and the fixture controls.
+2. `probe-service-lifecycle-k282`: a review of the launcher and the
+   cleanup, after an in-session read found ten defects that k280 fixed.
+3. `session-probes-k281`: the four session modes on that launcher, their
+   staging passes, the native root comparisons and the write record.

@@ -1,7 +1,7 @@
 {
   "plan": "docs/owner-cutover/switch-plan-draft.json",
-  "plan_digest": "33f97f5cb3f1bd412fb7a1b6234aacfa8f3f3dbbd5cf4f0f381c485a15d33772",
-  "program_digest": "d2806f928c0b4687d79861be5a65405aac1edc64bc86593c5a211eca83988097",
+  "plan_digest": "a6c9c372ac7b9ebce1e231237d29cb0b57bf1ac4851069604c1a5a8d6ddb7d46",
+  "program_digest": "a2ae5654b5727798d2a7e83fc6de70e94aecfb66641b13421aff9527e55ca7af",
   "python": "3.15.1",
   "writes_copied": 158,
   "inventory_entries_copied": 170,
@@ -100,11 +100,11 @@
   "processes": {
     "admitted": [
       {
-        "pid": 8907,
+        "pid": 52598,
         "tool": "Ravel"
       },
       {
-        "pid": 8911,
+        "pid": 52607,
         "tool": "Claude Code"
       },
       {
@@ -112,10 +112,11 @@
         "tool": "Grove"
       }
     ],
-    "other": 17,
+    "other": 18,
     "review": 11,
     "forms": [
       "Claude Code: versioned executable",
+      "Codex: helper executable",
       "Codex: native executable",
       "Grove: native executable",
       "Ravel: native executable"

@@ -1,5 +1,5 @@
-program: d2806f928c0b4687d79861be5a65405aac1edc64bc86593c5a211eca83988097
-plan: /Users/antony/Development/AgenticOrchestration/grove.gh-issue-25/docs/owner-cutover/switch-plan-draft.json (33f97f5cb3f1bd412fb7a1b6234aacfa8f3f3dbbd5cf4f0f381c485a15d33772)
+program: a2ae5654b5727798d2a7e83fc6de70e94aecfb66641b13421aff9527e55ca7af
+plan: /Users/antony/Development/AgenticOrchestration/grove.gh-issue-25/docs/owner-cutover/switch-plan-draft.json (a6c9c372ac7b9ebce1e231237d29cb0b57bf1ac4851069604c1a5a8d6ddb7d46)
 home: <OUT>/home
 writes, in plan order:
   entry .claude/skills/grove: original efc6ef16bc9727d2f548cb723e03648613e9ea9670541502155fec835c331ef0; now its original
@@ -318,7 +318,7 @@ writes, in plan order:
     set enabledPlugins.quint-llm-kit@quint-llm-kit: now true, switched false
     set enabledPlugins.technical-communication-hooks@writing-hooks: now (absent), switched true
     set enabledPlugins.guardrail@personal: now (absent), switched true
-  file .claude/plugins/known_marketplaces.json: original a17e74f21db8ebadcfcd23a746a0f837a0ea02710a1e43306df55099a695aeb9; now its original
+  file .claude/plugins/known_marketplaces.json: original 0759a2735259a506dc23516640af2e32d1f01f510ec445bdae5f76f143deeb82; now its original
   file .claude/plugins/installed_plugins.json: original 5f75f2124720e5eacb4540de31fd5a400723dff1e0637d31ef1ada5b9e413104; now its original
   file .config/ravel/settings.json: original absent; now its original
     set skills: now (absent), switched {"mandatory":[{"path":"skills/using-superpowers/SKILL.md","source":"superpowers"}],"schemaVersion":1}
@@ -500,6 +500,7 @@ command inputs:
   baseline instrument /Users/antony/.local/state/owner-switch/prepared/inventory.py: differs: unreadable
   mac-check command /Users/antony/.local/bin/mac-check: its planned digest
   mac-check helper /Users/antony/.local/lib/machine-config/check.py: its planned digest
+  probe program /Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py: differs: unreadable
 held Claude Code: 2.1.319 (Claude Code)
 commands:
   step 3 inventory: /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3 -I .local/state/owner-switch/prepared/inventory.py

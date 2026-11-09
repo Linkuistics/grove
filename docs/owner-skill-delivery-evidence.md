@@ -620,7 +620,9 @@ three subjects had the same digests before and after the run:
   running. The loading reference says that the session keeps its loaded set,
   but no trial observed it.
 - Codex sign-in from a separate `CODEX_HOME` that reuses only the
-  authentication file, including a token refresh.
+  authentication file, including a token refresh. owner-staging-setup-k248
+  measured it in
+  [Staging setup and isolation trial](#staging-setup-and-isolation-trial).
 - Which tree Codex reads for an enabled bundled plugin: the installed cache or
   the marketplace source. The baseline records both.
 - Whether Claude Code under the owner policy reads snapshot paths outside its
@@ -3571,3 +3573,191 @@ after.
   names the source HOME. The source watch fails a run that writes there.
 - Every result in this section is a fixture result. None of them supplies
   real-harness acceptance.
+
+## Staging setup and isolation trial
+
+`owner-staging-setup-k248` built the retained staging HOME and ran its
+isolation trial on 2026-11-09. The sections
+[Settings isolation and the staging HOME](specs/owner-skill-delivery.md#settings-isolation-and-the-staging-home)
+and [Cutover contract](specs/owner-skill-delivery.md#cutover-contract) own
+the rules. The tool is
+[`staging_home.py`](evaluations/owner-skill-delivery/staging_home.py).
+`task owner:staging:isolation` runs the trial, and
+`task owner:staging:launch` runs one staging session.
+
+### Retained paths
+
+These paths stay until the switch writes its receipt. The plan's
+`accepted.staging` names the first two.
+
+| Subject | Absolute path |
+| --- | --- |
+| Staging HOME | `/Users/antony/.local/state/owner-staging/home` |
+| Candidate keg | `/Users/antony/.local/state/owner-staging/candidate` |
+| Accepted Ravel 2.0 build | `/Users/antony/.local/state/owner-staging/ravel-2.0` |
+| Isolation record | `/Users/antony/.local/state/owner-staging/isolation-2/record.json` |
+| Record of the first run | `/Users/antony/.local/state/owner-staging/isolation-1/record.json` |
+
+The staging HOME contains no source, and no source contains it. The tool
+checks both before it writes.
+
+### The accepted inputs
+
+`task install` in `Ravel.skill-directory-delivery`, at `ff14cba826b0` with an
+empty working copy, filled the Ravel prefix. Its `bin/ravel` has the SHA-256
+`3a9a9129573e4d827a317f6b793ba990044080a31a7b667b64cc153a2f974a0b`, which
+`scripts/harness-trials/builds.json` pins. The prefix holds no `libexec`.
+
+`task owner:candidate-keg` built the candidate keg from
+`7b113a28a96621217c16154d4f44eba667236132`, which `origin/gh-issue-25`
+holds. Its `plugins/grove` has the tree ID
+`885051a94eddaa81fa7a1a9900c3ac4db775aa84`, and its `plugins/packs.json`
+has the blob ID `e00c67b74939542db0b7af2428d918a3458d73a4`. The unreleased
+archive `grove-v22.8.0-aarch64-apple-darwin.tar.xz` has the SHA-256
+`3d31f84441701bf5f4013b7ccacbb4945eb39e875fd7ec2deb8f779321048241`.
+
+Homebrew installed the three tap formulae with `HOMEBREW_NO_AUTO_UPDATE`,
+`HOMEBREW_NO_INSTALL_CLEANUP`, `HOMEBREW_NO_INSTALL_UPGRADE` and
+`HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK` set. None has a dependency. `ravel`
+1.1.0 and `grove` 22.8.0 stayed installed and unchanged.
+
+| Formula | Installed version | Archive commit | Source |
+| --- | --- | --- | --- |
+| `personal` | 2026-11-06 | `cddcfde901cdaf8069e2aac6f3b6bc5aba9fe925` | `personal` |
+| `superpowers` | 7.0.0 | `bb92a77741419a4ab5f06e711a283343f1ada0c3` | `superpowers` |
+| `quint-llm-kit` | 1.0.0 | `cc75369f741af7d490936f82002c2d28e3b3d78d` | `quint` |
+| `testanyware` | 2.8.0, installed earlier | Release `v2.8.0`, `1809a49068a23d9d276913f3a90227dbefb98a82` | `testanyware` |
+
+The accepted 2.0 build resolved `docs/owner-cutover/settings-staging.json`
+under `env -i` with a new HOME. Each `resourceDigest` equals the value of
+[The handoff to the owner cutover](repository-moves-record.md#the-handoff-to-the-owner-cutover).
+`originPath` names the versioned keg of each source.
+
+| Source | Keg | `resourceDigest` |
+| --- | --- | --- |
+| `design` | Candidate | `d8ad3a2af1b5029bc0de93747f4d7297038651180f6877fbd738d94fcbf6aa14` |
+| `engineering` | Candidate | `7e70b280e7a932489a048d108d4dae2bc63b387cf8fc6b37298663336e0fcc66` |
+| `grove-core` | Candidate | `8d92cd58fca8f21a87361a9d956af7e5a38e88751e25cbaff5e2384554806b51` |
+| `requirements` | Candidate | `07b2d25e8bd20259c71f7419092329368d8ae48bec6ca973343a601a8ec515c8` |
+| `research` | Candidate | `7fb3d473f66feafb49afd8846fd94cf3e1fb7b01c584d4ad5f0e54814a8b3fdb` |
+| `writing` | Candidate | `2dea55cd72d0d56032c04419bfd438b62b321563573a09fffcab2f2c692ecade` |
+| `personal` | `/opt/homebrew/Cellar/personal/2026-11-06` | `dc1f26eafe9b7db6f750c95db38a7876beb29b067d829eaf63203323b89d61b6` |
+| `quint` | `/opt/homebrew/Cellar/quint-llm-kit/1.0.0` | `0a8b945fbc6732d5b7b3041a966d26cdf718ca884bd5f3fb8435297d7258edef` |
+| `superpowers` | `/opt/homebrew/Cellar/superpowers/7.0.0` | `be1ce6e3c25064b83ba2999b37972deb7f73ce88a5f5dbbba990d88037b17230` |
+| `testanyware` | `/opt/homebrew/Cellar/testanyware/2.8.0` | `3e9d7929eddd8988a6bebd9433b7f343a19e673993b3c81e8a1ce9ba913b72c6` |
+
+Both staging sessions captured the same ten digests.
+
+### The link layout of the first skill formula
+
+The first resolution refused as `skill_resource_invalid`. TestAnyware's
+`.claude-plugin/plugin.json` in the default directory was a link to
+`../../../../../Cellar/testanyware/2.8.0/...`, which leaves the source.
+
+Before the installation, TestAnyware was the only keg with `share/ravel`, so
+Homebrew linked that whole directory. Linking `personal` made Homebrew call
+`Keg#resolve_any_conflicts`. That method relinks the displaced keg with
+`keg.link_dir(src, ...) { :mkpath }`, in `Library/Homebrew/keg.rb` of
+Homebrew 7.0.12 at `3ccfa1d07143`. Every directory of the displaced source
+became a real directory, and every file became a link. Ravel keeps only
+relative links that stay inside the source, so it refused the source and the
+whole resolution.
+
+`brew unlink testanyware` and `brew link testanyware` then made one directory
+link, because `share/ravel/skills` was by then a real directory. The ten
+digests matched after the relink. "The keg layout" of
+`docs/specs/codex-skill-provisioning.md` describes a link of each entry
+instead, which is wrong for the first skill formula on any machine.
+`skill-keg-link-layout-k274` owns the design repair.
+
+### The staging HOME
+
+| Item | Content |
+| --- | --- |
+| `.config/ravel/config.rhai` | A copy of the owner's installed file, SHA-256 `0ccd5cdaa954cf3f7cce10e162a1aa42695141181bf1040910e46a7aba28efa7` |
+| `.config/ravel/settings.json` | `docs/owner-cutover/settings-staging.json`, SHA-256 `d8a49f066310b0976cb4e13674c524d96d31b6aa0ba5bfc6923fc0b097623145` |
+| `.claude/settings.json` | The owner's settings with `enabledPlugins` and `extraKnownMarketplaces` replaced. Real `.claude/` paths in commands name the staging `.claude`. |
+| `.claude/hooks`, `.claude/agents`, `.claude/skills/codebase-memory`, the status line | Copies of the tool-managed residue |
+| `.claude.json` | Onboarding done, automatic updates off, and the owner's MCP entries `quint-kb` and `codebase-memory-mcp` |
+| `.codex/config.toml` | The owner's file without `[projects.*]`, `[hooks.state*]`, `[marketplaces.*]`, `[plugins.*]`, `[desktop*]` and `notify`. Its MCP entries are `node_repl`, `context7`, `openaiDeveloperDocs`, `quint-kb`, `codebase-memory-mcp` and `computer-use`. |
+| `.codex/hooks.json`, `herdr-agent-state.sh`, `AGENTS.md`, `instructions.md` | Copies, with real `.codex/` paths moved to the staging tree |
+
+The owner's installed `config.rhai` is not the committed candidate
+`owner-config.rhai`, SHA-256 `bbde65ef…`. Since 2026-11-08 18:21 its `lead`
+selects `sol` and its `review` selects `sonnet`. The staging HOME copies the
+installed file, because the owner chose it. The switch plan identifies its
+inputs by content, so owner-switch-plan-k254 reads the installed digest.
+
+Claude Code's own commands registered the plugins, with HOME the staging
+HOME. They added `claude-plugins-official` and installed `commit-commands`
+1.0.1, `context7` `0412be76f50a`, `explanatory-output-style` 1.0.1,
+`feature-dev` 1.0.1, `playwright` `0412be76f50a` and `swift-lsp` 1.0.0. They
+added the `personal` marketplace as the directory `/opt/homebrew/opt/personal`
+and installed `guardrail@personal`, which loads from
+`/opt/homebrew/opt/personal/libexec/plugins/guardrail`. No superseded plugin
+or skill is installed, and `writing-hooks` is not registered.
+
+### The isolation trial
+
+The trial ran from 05:04:05Z to 05:04:49Z with Claude Code 2.1.319 and Codex
+0.167.0. It digested 18 real subjects before `build` and after the token
+refresh. The subjects are the user settings, `settings.local.json`,
+`.claude.json`, the Claude Code hooks, agents, plugin registries, marketplace
+clones, plugin cache and skill root. They are also Codex's `config.toml`,
+`hooks.json`, hook helper, `AGENTS.md`, plugin tree and skill root, the
+`~/.agents/skills` root and `~/.config/ravel`.
+
+| Step | Result |
+| --- | --- |
+| 1. Links | Before any session, `Library/Keychains` and `.codex/auth.json` were the only links. After the sessions, they were the only links that lead out of the staging HOME. npm added three `.bin` links in `.npm/_npx/9833c18b2d85bc59/node_modules/.bin`, which resolve inside the staging HOME, when Claude Code started the Playwright MCP server. |
+| 2. Superseded entries | `.codex/skills` held only `.system`. `.agents/skills` held nothing. `.claude/skills` held `codebase-memory` and the account's `synced` folder. Claude Code's listing held no superseded name. Codex's `debug prompt-input` listed `imagegen`, `openai-docs`, `skill-creator` and `skill-installer`, which are its system skills. |
+| 3. Configuration | `claude auth status` named `/Users/antony/.local/state/owner-staging/home/.claude`. Codex's skill root was `/Users/antony/.local/state/owner-staging/home/.codex/skills/.system`. No `CODEX_HOME` was inherited. The Codex overrides were `-c model_reasoning_effort="low"`, `--sandbox workspace-write` and `-c approval_policy="never"`. Each of the five Claude Code variables refused, and a `CODEX_HOME` in the real HOME refused. A working directory in the real HOME or in the staging HOME refused, and one in `/private/tmp` was admitted. |
+| 4. Sessions and digests | Claude Code with `claude-sonnet-5-5` and Codex with `gpt-6.1-sol` each ran through `ravel start-session` of the 2.0 build and returned `isolation-ok`. No digest of the 18 subjects changed, `.claude.json` included. |
+| 5. Token refresh | An app-server session sent `account/read` with `refreshToken: true`. `last_refresh` in the real `auth.json` moved from 05:01:53Z to 05:04:48Z. The real file stayed a regular file with mode 0600, and the staging `.codex/auth.json` stayed a link to it. The real HOME's `codex login status` printed "Logged in using ChatGPT". |
+
+Each staging launch received only `CODEX_HOME`, `DISABLE_AUTOUPDATER`,
+`HOME`, `LANG`, `LOGNAME`, `PATH`, `TERM`, `TMPDIR` and `USER`. No Codex
+app-server daemon of the staging `CODEX_HOME` was running after the trial.
+
+Codex 0.167.0 resolves a link chain before it saves `auth.json`. It writes
+the replacement beside the resolved target and renames it there, and it
+takes the target's lock. `storage_file.rs`, `storage.rs` and
+`storage_commit.rs` in `codex-rs/login/src/auth` at `rust-v0.167.0` hold
+this code. Codex refreshes by itself only in two cases: within five minutes
+of the access token's expiry, or eight days after the last refresh. The trial
+therefore asked for the refresh explicitly.
+
+### The first run
+
+The first run, in `isolation-1`, failed two checks:
+
+- Its sessions ran in a folder under the staging HOME. Claude Code listed
+  `grove`, the stale copy in the real `~/.claude/skills`. Claude Code reads
+  `.claude/skills` in each parent folder of its working directory, and the
+  staging HOME lies inside the real HOME. The specification and the launcher
+  now require a working directory outside the real HOME, and the second run
+  listed no superseded skill.
+- Codex refused `gpt-6.1-luna` for a ChatGPT account, so its session ended
+  without a result. The tool now uses `gpt-6.1-sol`.
+
+The first run also refreshed the token once, through the same link. Its
+digests showed no change either. The tool removed that staging HOME, links
+first, and the second run built it again.
+
+### Limits
+
+- Claude Code reported `plugin:context7:context7` as `needs-auth` and
+  `codebase-memory-mcp` as `failed` in the staging HOME. `quint-kb` and the
+  Playwright server connected. The staging HOME copies no credential.
+  owner-staging-capabilities-k250 owns MCP use.
+- The residue plugins came from the marketplace's current state. Their
+  versions can differ from the owner's installed versions.
+- Ravel's operation reports held `stop attempt 3` and `stop attempt 4` with
+  "signal 9: Operation not permitted" against each ended session's group.
+  Both sessions still returned their results with exit 0.
+- Homebrew updated its own checkout to `bc63375ac3a4` at 04:51:53Z, during
+  this leaf. The trigger was not identified. The cited `keg.rb` call is
+  unchanged there, and no formula changed version.
+- Codex daemons of earlier trials still run for six disposable HOMEs under
+  `/private/tmp`, and the real HOME's daemon still runs. The trial signalled
+  none of them.

@@ -19,6 +19,10 @@ hooks still work through Ravel delivery.
   `docs/repository-moves-record.md` names each source's tools.
 - owner-staging-hooks-k251 leaves the hooks plugin installed in the staging
   HOME. owner-staging-setup-k248 installed `guardrail`.
+- In the isolation trial of owner-staging-setup-k248, Claude Code reported
+  `codebase-memory-mcp` as `failed` and the Context7 plugin server as
+  `needs-auth`. `quint-kb` and the Playwright server connected. The staging
+  HOME copies no credential.
 
 ## Done when
 

@@ -458,6 +458,37 @@ tasks:
     cmds:
       - bash scripts/candidate-keg.sh "{{.COMMIT}}" "{{.OUT}}" "{{.RAVEL_2_0_PREFIX}}" {{if .ACCEPTED}}"{{.ACCEPTED}}"{{end}}
 
+  # The retained staging HOME and its isolation trial ("Settings isolation
+  # and the staging HOME" of docs/specs/owner-skill-delivery.md). STAGING
+  # names a new directory outside every source, CANDIDATE the candidate keg
+  # and RAVEL_2_0_PREFIX the accepted 2.0 build. The trial builds STAGING
+  # inside its measured interval, runs one real session on each harness and
+  # refreshes the Codex token through the linked auth.json, so it spends
+  # subscription usage and no gate runs it. OUT is a new directory. For
+  # example:
+  #   task owner:staging:isolation STAGING=~/.local/state/owner-staging/home \
+  #     CANDIDATE=~/.local/state/owner-staging/candidate \
+  #     RAVEL_2_0_PREFIX=~/.local/state/owner-staging/ravel-2.0 OUT="$SCRATCH/isolation"
+  owner:staging:isolation:
+    desc: Build the staging HOME STAGING and run its five-step isolation trial with real Claude Code and Codex sessions, writing OUT/record.json (spends subscription usage)
+    requires:
+      vars: [STAGING, CANDIDATE, RAVEL_2_0_PREFIX, OUT]
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/staging_home.py isolation --home "{{.STAGING}}" --candidate "{{.CANDIDATE}}" --ravel "{{.RAVEL_2_0_PREFIX}}" --out "{{.OUT}}"
+
+  # One staging launch through the accepted 2.0 build, with HOME and
+  # CODEX_HOME set to STAGING. It refuses Claude Code's five location
+  # variables and a foreign CODEX_HOME. MODEL and EFFORT override the
+  # defaults. For example:
+  #   task owner:staging:launch STAGING=... RAVEL_2_0_PREFIX=... HARNESS=codex \
+  #     OUT="$SCRATCH/launch" PROMPT='Run ravel end-session done'
+  owner:staging:launch:
+    desc: Launch one real HARNESS session in the staging HOME STAGING through ravel start-session of the 2.0 build, writing OUT/launch.json (spends subscription usage)
+    requires:
+      vars: [STAGING, RAVEL_2_0_PREFIX, HARNESS, OUT, PROMPT]
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/staging_home.py launch --home "{{.STAGING}}" --ravel "{{.RAVEL_2_0_PREFIX}}" --harness "{{.HARNESS}}" --out "{{.OUT}}" --prompt "{{.PROMPT}}" {{if .MODEL}}--model "{{.MODEL}}"{{end}} {{if .EFFORT}}--effort "{{.EFFORT}}"{{end}}
+
   # The owner switch program's fixture suite ("Test seams" of
   # docs/specs/owner-skill-delivery.md). OUT is a new directory outside every
   # working copy. ONLY limits the controls to the names that match a regular

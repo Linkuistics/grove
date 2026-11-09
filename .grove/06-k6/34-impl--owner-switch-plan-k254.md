@@ -25,6 +25,12 @@ in the owner's prepared folder.
 - "The native settings inside finish", "The switch inside finish" and
   "Resuming the switch" of `docs/specs/owner-skill-delivery.md` state what
   finish and the owner need before mutation.
+- The owner's installed `~/.config/ravel/config.rhai` has the SHA-256
+  `0ccd5cdaa954…`, not that of the committed `owner-config.rhai`. The owner
+  changed `lead` and `review` on 2026-11-08. The staging HOME copies the
+  installed file. The section "Staging setup and isolation trial" of
+  `docs/owner-skill-delivery-evidence.md` names the paths for
+  `accepted.staging`.
 
 ## Done when
 

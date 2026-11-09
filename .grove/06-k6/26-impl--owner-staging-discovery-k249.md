@@ -26,6 +26,13 @@ there.
 - These trials prove the sources in staging. The one switch dry run of
   owner-switch-rehearsal-k255 proves the plan in a disposable copy of HOME.
   Keep the two apart.
+- owner-staging-setup-k248 retained the staging HOME, the candidate keg
+  and the 2.0 build under `/Users/antony/.local/state/owner-staging`.
+  `task owner:staging:launch` runs one staging session. The section
+  "Staging setup and isolation trial" of
+  `docs/owner-skill-delivery-evidence.md` records them. A staging session
+  runs in a working directory outside the real HOME. Otherwise Claude Code
+  reads the stale `grove` copy in the real `~/.claude/skills`.
 
 ## Done when
 

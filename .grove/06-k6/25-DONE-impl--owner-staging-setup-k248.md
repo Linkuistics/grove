@@ -72,3 +72,36 @@ then chooses a separate sign-in inside the staging `CODEX_HOME`.
 Use the accepted 2.0 build that `scripts/harness-trials/builds.json` names.
 Each staging launch sets `CODEX_HOME` to the staging `.codex` tree and
 inherits none of Claude Code's five location variables.
+
+## Decisions (running log)
+
+- Homebrew installed `personal` 2026-11-06, `superpowers` 7.0.0 and
+  `quint-llm-kit` 1.0.0 with automatic update, cleanup and dependent
+  upgrades off. `ravel` 1.1.0 and `grove` 22.8.0 stayed unchanged.
+- The retained paths live under `/Users/antony/.local/state/owner-staging`:
+  `candidate` (the candidate keg), `ravel-2.0` (the accepted 2.0 build,
+  `bin/ravel` SHA-256 `3a9a9129…`) and `home` (the staging HOME).
+- Finding: the second skill formula's link made Homebrew relink TestAnyware
+  with `{ :mkpath }` (`Keg#resolve_any_conflicts`). Every directory became
+  real and every file a link that leaves the source. Ravel refused the
+  source as `skill_resource_invalid`. `brew unlink testanyware && brew link
+  testanyware` restored one directory link. The keg-layout claim in
+  `docs/specs/codex-skill-provisioning.md` is wrong for the first skill
+  formula on any machine. A separate leaf owns that design repair.
+- The staging HOME copies the owner's installed `config.rhai`
+  (`0ccd5cdaa954…`), not the committed candidate. The owner changed it on
+  2026-11-08, and owner-switch-plan-k254 reads that digest.
+- Staging sessions run headless through a trial selection script, as the
+  real trials do. Codex runs `gpt-6.1-sol` at low effort, because Codex
+  refused `gpt-6.1-luna` for a ChatGPT account.
+- Step 5 forced the refresh with app-server `account/read` and
+  `refreshToken: true`. Codex 0.167.0 resolves the link and replaces the
+  real target, so the link survives. Both refreshes kept it.
+- The first run listed the stale `grove` because Claude Code reads
+  `.claude/skills` in each parent folder of its working directory. The
+  specification and the launcher now require a working directory outside
+  the real HOME.
+- npm's `.bin` links of the Playwright `npx` package resolve inside the
+  staging HOME. The specification's step 1 now requires that only the two
+  sign-in links lead out, and lists internal links with their owner. This
+  is a contract clarification for the owner to confirm.

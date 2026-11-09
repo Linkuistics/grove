@@ -503,10 +503,19 @@ harness configuration have different owners, so no link may join them.
   `CODEX_HOME` to it. Only the sign-in file `auth.json` comes from the real
   HOME, through a link to that one file.
 
+The staging HOME lies inside the real HOME, so each staging launch runs in a
+working directory outside the real HOME. Claude Code reads `.claude/skills` in
+every parent folder of its working directory. A working directory in the real
+HOME therefore reaches the real native skills, even when it lies in the
+staging HOME. The staging launcher refuses such a working directory.
+
 The first staging trial proves this isolation before any other trial runs:
 
-1. List every link in the staging HOME. The list holds `Library/Keychains` and
-   `.codex/auth.json` only.
+1. List every link in the staging HOME. Before any session, the list holds
+   `Library/Keychains` and `.codex/auth.json` only. After the sessions, only
+   these two links lead out of the staging HOME. A tool can create a link that
+   resolves inside the staging HOME, such as npm's `.bin` link of an `npx`
+   package. Such a link joins no owner, so the trial lists it with its owner.
 2. Show that `$CODEX_HOME/skills` and the staging `~/.agents/skills` hold no
    superseded entry, and that neither harness lists a superseded skill.
 3. Record the effective configuration directory of each harness and every

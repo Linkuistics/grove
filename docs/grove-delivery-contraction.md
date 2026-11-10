@@ -3,7 +3,9 @@
 Grove archives contain `bin/grove`, `bin/grove-llm`, `LICENSE`, `README.md`
 and the complete readable `assets/ravel-policy` tree installed at
 `libexec/ravel-policy`. They also hold core and the five domain packs in
-`share/ravel/skills/`, one Ravel source each. The formula depends on `linkuistics/taps/ravel`. Ravel
+`share/ravel/skills/`, one Ravel source each.
+
+The formula depends on `linkuistics/taps/ravel`. Ravel
 provides its own public front, private worker, SDK, examples and runtime notices
 from its own prefix and release version. No Ravel Rust library crosses the seam.
 Grove launches `ravel` as an ordinary child process. One shared function of
@@ -48,6 +50,7 @@ QEMU header admission includes every ELF from both projects before registering
 the CPU model. Existing glibc and above-CPU-floor controls remain shared with
 Ravel's independent target runner. `task release:registration:test ARCHIVES=... RAVEL_ARCHIVES=...` checks real
 combined ELF headers and missing/escape controls.
+
 `task release:formula:test ARCHIVE=... RAVEL_1_1_PREFIX=... RAVEL_2_0_PREFIX=... OLD=...`
 runs Homebrew itself in a private prefix, with the TypeScript set against the
 1.1 build and the Rhai set against the 2.0 build. It compares each keg

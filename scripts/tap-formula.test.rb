@@ -2,7 +2,9 @@
 # in a prefix that this script owns. scripts/tap-formula.test.sh calls it.
 #
 #   brew ruby tap-formula.test.rb source FORMULA
-#     prints the formula's name, version, URL and sha256, tab-separated
+#     prints the formula's name, full package version, URL and sha256,
+#     tab-separated. The full package version holds the revision, such as
+#     2026-11-06_1, and Homebrew names the keg by it.
 #   brew ruby tap-formula.test.rb install FORMULA SOURCE KEG TESTPATH
 #     runs the formula's install method in SOURCE, its buildpath, with its
 #     prefix at KEG, then its test method in TESTPATH, then prints its caveats
@@ -27,7 +29,7 @@ case mode
 when "source"
   raise "expected source FORMULA" unless ARGV.empty?
 
-  puts [formula.name, formula.version, formula.stable.url, formula.stable.checksum.hexdigest].join("\t")
+  puts [formula.name, formula.pkg_version, formula.stable.url, formula.stable.checksum.hexdigest].join("\t")
 when "install"
   raise "expected install FORMULA SOURCE KEG TESTPATH" unless ARGV.length == 3
 

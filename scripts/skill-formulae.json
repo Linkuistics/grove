@@ -9,17 +9,17 @@
     },
     "personal": {
       "sources": ["personal"],
-      "layout": "direct",
+      "layout": "projected",
       "published": "direct"
     },
     "superpowers": {
       "sources": ["superpowers"],
-      "layout": "direct",
+      "layout": "projected",
       "published": "direct"
     },
     "quint-llm-kit": {
       "sources": ["quint"],
-      "layout": "direct",
+      "layout": "projected",
       "published": "direct"
     },
     "testanyware": {

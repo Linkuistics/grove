@@ -6,34 +6,56 @@
 #
 # FORMULA is the formula file, such as Formula/personal.rb of the tap. REPO_URL
 # and SHA name the commit that the formula installs. Each ID=PATH names one
-# Ravel source of the keg, share/ravel/skills/ID, and its source directory PATH
-# in that commit. PATH . names the repository root. The roots of each source
-# are those of `skills` and `craft` that its directory holds.
+# Ravel source of the keg and its source directory PATH in that commit. PATH .
+# names the repository root. The roots of each source are those of `skills`
+# and `craft` that its directory holds. scripts/skill-formulae.json declares
+# the sources and the layout of the formula:
+#
+# - projected: the source is a private payload, libexec/skill-sources/ID, and
+#   share/ravel/skills/ID is a relative directory symlink to it.
+# - direct: the source is a real directory, share/ravel/skills/ID. Only a
+#   formula that is not yet projected keeps this layout.
 #
 # 1. The script downloads the formula's URL and compares its sha256 with the
 #    formula's. Homebrew's own install and test methods of the formula then run
 #    in the private prefix (scripts/tap-formula.test.rb). The keg lies in
-#    Cellar/<name>/<version>, an `opt` link names it, and a relative link in
-#    the prefix's share/ravel/skills names each source, as `brew link` makes.
-# 2. Each keg source holds the files of PATH in a plain checkout of SHA, each
-#    with its Git mode.
+#    Cellar/<name>/<full package version>, an `opt` link names it, and a
+#    relative link in the prefix's share/ravel/skills names each source, as
+#    `brew link` makes. The keg holds each source in its declared layout.
+# 2. The payload of each source holds the files of PATH in a plain checkout of
+#    SHA, each with its Git mode. Each regular file of the commit is a regular
+#    file of the payload, and the payload holds no other type of entry.
 # 3. Ravel 2.0 resolves each source through the prefix's share/ravel/skills,
-#    with no settings. Its originPath lies in the keg, its directories are its
-#    roots, and its resourceDigest equals that of the plain checkout.
+#    with no settings. Its originPath is the payload in the keg, its
+#    directories are its roots, and its resourceDigest equals that of the
+#    plain checkout.
 # 4. When the keg root holds .claude-plugin/marketplace.json, `claude plugin
 #    validate` accepts the keg. In an isolated Claude Code home, the documented
 #    commands register the marketplace by its `opt` path and install each
 #    plugin that it lists.
-# 5. scripts/shared-directory-seam.sh links the formula's actual output with
+# 5. When the keg holds a native-only plugin in libexec/plugins or a
+#    marketplace file, its accepted subject is the keg of the formula on the
+#    published main of the tap. The install and test methods of that formula
+#    make that keg in a second private prefix. The files, permission modes,
+#    links and contents of each native-only plugin and each marketplace file
+#    equal those of the accepted keg. Hook declarations lie in those files,
+#    and the script names each declaring file. A different payload needs the
+#    capability trials of the plugin. "Skill formulae" of
+#    docs/specs/owner-skill-delivery.md states that rule.
+# 6. scripts/shared-directory-seam.sh links the formula's actual output with
 #    Homebrew's own linker into private prefixes, beside Ravel's keg and the
 #    seam's fixture formulae. Each source must keep the digest and roots of
 #    its plain checkout. When FORMULA lies in a Git working copy, the seam
-#    reads the formula's published version from that tap's origin/main.
+#    reads the formula's published version from that tap's origin/main. Each
+#    other declared formula of the working copy also takes part, in its
+#    declared layout, as `release:formula:test` runs the seam. A direct
+#    formula takes part only in the failure control.
 #    RAVEL_FORMULA is Ravel's formula or its template, and RAVEL_ARCHIVE is
 #    the recorded Ravel archive that it installs.
 #
 # "The keg layout" and "Hook adapters" of docs/specs/codex-skill-provisioning.md
-# state the contract.
+# state the contract. TAP_BASE overrides the published revision of the tap,
+# which is origin/main as the last fetch of the tap recorded it.
 set -euo pipefail
 IFS=$'\n\t'
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -71,8 +93,19 @@ mkdir "$scratch/download" "$scratch/source" "$scratch/test" "$scratch/tmp"
 brew_ruby() {
   HOMEBREW_NO_AUTO_UPDATE=1 brew ruby "$root/scripts/tap-formula.test.rb" "$@"
 }
+# version is the full package version, with the revision of the formula.
 IFS=$'\t' read -r name version url expected_sha < <(brew_ruby source "$formula") ||
   fail "Homebrew cannot read $formula"
+# The declared layout and sources of the formula.
+IFS=$'\t' read -r layout declared_ids < <(python3 -I -c '
+import json, sys
+formulae = json.load(open(sys.argv[1]))["formulae"]
+if sys.argv[2] not in formulae:
+    sys.exit(f"{sys.argv[2]} has no declaration in {sys.argv[1]}")
+entry = formulae[sys.argv[2]]
+print(entry["layout"] + "\t" + " ".join(sorted(entry["sources"])))
+' "$root/scripts/skill-formulae.json" "$name") || fail "scripts/skill-formulae.json declares no layout for $name"
+[[ "$layout" == projected || "$layout" == direct ]] || fail "$name has the unknown layout $layout"
 case "$url" in
   "${repo_url%.git}/archive/"*)
     [[ "$url" == "${repo_url%.git}/archive/$sha.tar.gz" ]] || fail "the formula's URL $url names no archive of $sha"
@@ -96,15 +129,44 @@ brew_ruby install "$formula" "$source_dir" "$keg" "$scratch/test" >"$scratch/cav
   fail "Homebrew's install or test method of $name failed"
 echo "tap-formula: Homebrew installed and tested $name $version in a private prefix"
 ln -s "../Cellar/$name/$version" "$brew_prefix/opt/$name"
+expected_ids="$(for spec in "${sources[@]}"; do echo "${spec%%=*}"; done | LC_ALL=C sort)"
+[[ "${expected_ids//$'\n'/ }" == "$declared_ids" ]] ||
+  fail "SOURCES names '${expected_ids//$'\n'/ }', but scripts/skill-formulae.json declares '$declared_ids' for $name"
+# payload ID: the canonical directory of source ID in the keg.
+payload() {
+  if [[ "$layout" == projected ]]; then
+    echo "$keg/libexec/skill-sources/$1"
+  else
+    echo "$keg/share/ravel/skills/$1"
+  fi
+}
 for spec in "${sources[@]}"; do
   id="${spec%%=*}"
-  [[ -d "$keg/share/ravel/skills/$id" ]] || fail "the keg holds no share/ravel/skills/$id"
+  alias="$keg/share/ravel/skills/$id"
+  if [[ "$layout" == projected ]]; then
+    [[ -L "$alias" ]] || fail "the keg's share/ravel/skills/$id is not a symlink, so $name is not projected"
+    [[ "$(readlink "$alias")" == "../../../libexec/skill-sources/$id" ]] ||
+      fail "the keg's share/ravel/skills/$id names $(readlink "$alias"), not ../../../libexec/skill-sources/$id"
+    [[ -d "$(payload "$id")" && ! -L "$(payload "$id")" ]] ||
+      fail "the keg's libexec/skill-sources/$id is not a real directory"
+    [[ "$(cd "$alias" && pwd -P)" == "$(payload "$id")" ]] ||
+      fail "the keg's share/ravel/skills/$id leaves its private source"
+    echo "tap-formula: the keg's share/ravel/skills/$id is a relative alias of its private payload libexec/skill-sources/$id"
+  else
+    [[ -d "$alias" && ! -L "$alias" ]] || fail "the keg's share/ravel/skills/$id is not a real directory, so $name is not direct"
+    [[ ! -e "$keg/libexec/skill-sources/$id" ]] || fail "the direct keg holds libexec/skill-sources/$id"
+    echo "tap-formula: the keg's share/ravel/skills/$id is a real directory, as the direct layout of $name declares"
+  fi
   ln -s "../../../Cellar/$name/$version/share/ravel/skills/$id" "$brew_prefix/share/ravel/skills/$id"
 done
 actual_ids="$(find "$keg/share/ravel/skills" -mindepth 1 -maxdepth 1 -exec basename {} \; | LC_ALL=C sort)"
-expected_ids="$(for spec in "${sources[@]}"; do echo "${spec%%=*}"; done | LC_ALL=C sort)"
 [[ "$actual_ids" == "$expected_ids" ]] ||
   fail "the keg holds the sources '${actual_ids//$'\n'/ }', not '${expected_ids//$'\n'/ }'"
+if [[ "$layout" == projected ]]; then
+  actual_ids="$(find "$keg/libexec/skill-sources" -mindepth 1 -maxdepth 1 -exec basename {} \; | LC_ALL=C sort)"
+  [[ "$actual_ids" == "$expected_ids" ]] ||
+    fail "the keg's libexec/skill-sources holds '${actual_ids//$'\n'/ }', not '${expected_ids//$'\n'/ }'"
+fi
 
 # 2. The plain checkout, and each keg source's files and modes.
 pack_checkout "$scratch/checkout" "$repo_url" "$sha" >/dev/null || fail "cannot check out $sha from $repo_url"
@@ -132,14 +194,19 @@ for spec in "${sources[@]}"; do
       print f[1] "\t" $2
     }' | LC_ALL=C sort)"
   [[ -n "$expected" ]] || fail "the commit holds no file under $path"
+  # A payload entry that is no regular file, link or directory has no Git
+  # mode. The comparison below gives a regular file of the commit only to a
+  # regular file of the payload.
+  others="$(cd "$(payload "$id")" && find . ! -type f ! -type l ! -type d)"
+  [[ -z "$others" ]] || fail "the keg's $id holds entries that are no file, link or directory: ${others//$'\n'/ }"
   # Both lists sort as whole lines, mode first.
-  actual="$(cd "$keg/share/ravel/skills/$id" && find . \( -type f -o -type l \) | sed 's|^\./||' |
+  actual="$(cd "$(payload "$id")" && find . \( -type f -o -type l \) | sed 's|^\./||' |
     while IFS= read -r entry; do printf '%s\t%s\n' "$(keg_mode "$entry")" "$entry"; done | LC_ALL=C sort)"
   if [[ "$actual" != "$expected" ]]; then
     diff -u <(echo "$expected") <(echo "$actual") >&2 || true
     fail "the keg's $id differs in its files or Git modes from $path at $sha; see the diff above"
   fi
-  echo "tap-formula: the keg's $id holds the files of $path with their Git modes"
+  echo "tap-formula: the payload of the keg's $id holds the files of $path with their Git modes, and each regular file is regular"
 done
 
 # 3. Ravel 2.0 resolutions. resolve RAVEL HOME prints the id, resourceDigest,
@@ -184,7 +251,7 @@ resolve "$scratch/keg-ravel/bin/ravel" "$scratch/keg-home" | LC_ALL=C sort >"$sc
 [[ "$(cut -f1 "$scratch/keg")" == "$expected_ids" ]] ||
   fail "Ravel resolves the sources '$(cut -f1 "$scratch/keg" | tr '\n' ' ')', not '${expected_ids//$'\n'/ }'"
 while IFS=$'\t' read -r id digest origin roots; do
-  [[ "$origin" == "$keg/share/ravel/skills/$id" ]] || fail "source $id lies outside the keg: $origin"
+  [[ "$origin" == "$(payload "$id")" ]] || fail "source $id has originPath $origin, not its payload $(payload "$id")"
   reference="$(awk -F '\t' -v id="$id" '$1 == id { print $2 "\t" $4 }' "$scratch/reference")"
   [[ "$digest"$'\t'"$roots" == "$reference" ]] ||
     fail "the keg's $id has digest $digest and roots $roots, but its plain checkout has ${reference//$'\t'/ and roots }"
@@ -218,11 +285,99 @@ if not any(p.get("id") == wanted and p.get("enabled") for p in plugins):
   done < <(python3 -I -c 'import json, sys; print("\n".join(p["name"] for p in json.load(open(sys.argv[1]))["plugins"]))' "$marketplace")
 fi
 
-# 5. The shared default directory seam, with the formula's own download.
-seam_tap=()
-if tap_root="$(git -C "$(dirname "$formula")" rev-parse --show-toplevel 2>/dev/null)"; then
-  seam_tap=(--tap "$tap_root")
+# 5. The native-only payload against its accepted subject, the keg of the
+# formula on the published main of the tap.
+tap_root="$(git -C "$(dirname "$formula")" rev-parse --show-toplevel 2>/dev/null)" || tap_root=''
+tap_base="${TAP_BASE:-origin/main}"
+native=()
+[[ ! -d "$keg/libexec/plugins" ]] || native+=(libexec/plugins)
+for file in .claude-plugin/marketplace.json .agents/plugins/marketplace.json; do
+  [[ ! -e "$keg/$file" ]] || native+=("$file")
+done
+# IFS starts with a newline, so the message joins the entries itself.
+native_list="$(printf '%s ' "${native[@]+"${native[@]}"}")"
+native_list="${native_list% }"
+if ((${#native[@]})); then
+  [[ -n "$tap_root" ]] ||
+    fail "$name has the native-only payload '$native_list', but $formula lies in no tap with a published formula to accept it"
+  mkdir "$scratch/accepted-formula" "$scratch/accepted-download" "$scratch/accepted-source" "$scratch/accepted-test"
+  git -C "$tap_root" show "$tap_base:Formula/$name.rb" >"$scratch/accepted-formula/$name.rb" ||
+    fail "the tap's $tap_base holds no Formula/$name.rb, the accepted subject of the native-only payload"
+  IFS=$'\t' read -r _ accepted_version accepted_url accepted_sha < <(brew_ruby source "$scratch/accepted-formula/$name.rb") ||
+    fail "Homebrew cannot read $tap_base:Formula/$name.rb"
+  if [[ "$accepted_sha" == "$expected_sha" ]]; then
+    cp "$scratch/download/archive" "$scratch/accepted-download/archive"
+  else
+    curl --fail --silent --show-error --location --output "$scratch/accepted-download/archive" "$accepted_url" ||
+      fail "cannot download $accepted_url"
+    actual_sha="$(shasum -a 256 "$scratch/accepted-download/archive" | cut -d' ' -f1)"
+    [[ "$actual_sha" == "$accepted_sha" ]] || fail "the archive of $accepted_url has sha256 $actual_sha, not $accepted_sha"
+  fi
+  tar -xf "$scratch/accepted-download/archive" -C "$scratch/accepted-source"
+  accepted_source="$scratch/accepted-source"
+  entries=("$accepted_source"/*)
+  if ((${#entries[@]} == 1)) && [[ -d "${entries[0]}" ]]; then
+    accepted_source="${entries[0]}"
+  fi
+  accepted_keg="$scratch/accepted-brew/Cellar/$name/$accepted_version"
+  mkdir -p "$accepted_keg"
+  brew_ruby install "$scratch/accepted-formula/$name.rb" "$accepted_source" "$accepted_keg" "$scratch/accepted-test" \
+    >/dev/null || fail "Homebrew's install or test method of $tap_base:Formula/$name.rb failed"
+  echo "tap-formula: the accepted subject is $name $accepted_version of $tap_base:Formula/$name.rb, installed in a second private prefix"
+  # native_inventory KEG: one line for each entry of the native-only payload,
+  # with its type and its permission mode, link target or SHA-256.
+  native_inventory() {
+    local entry
+    (cd "$1" && find "${native[@]}" -print) | LC_ALL=C sort | while IFS= read -r entry; do
+      if [[ -L "$1/$entry" ]]; then
+        printf '%s\tlink\t%s\n' "$entry" "$(readlink "$1/$entry")"
+      elif [[ -d "$1/$entry" ]]; then
+        printf '%s\tdirectory\t%s\n' "$entry" "$(stat -f '%Lp' "$1/$entry")"
+      elif [[ -f "$1/$entry" ]]; then
+        printf '%s\tfile\t%s\t%s\n' "$entry" "$(stat -f '%Lp' "$1/$entry")" "$(shasum -a 256 "$1/$entry" | cut -d' ' -f1)"
+      else
+        printf '%s\tother\n' "$entry"
+      fi
+    done
+  }
+  # A native-only entry of the accepted keg that the revision drops fails too.
+  for file in libexec/plugins .claude-plugin/marketplace.json .agents/plugins/marketplace.json; do
+    [[ ! -e "$accepted_keg/$file" || -e "$keg/$file" ]] || fail "the revised keg drops the accepted $file"
+    [[ -e "$accepted_keg/$file" || ! -e "$keg/$file" ]] || fail "the revised keg adds $file, which the accepted keg lacks"
+  done
+  native_inventory "$keg" >"$scratch/native"
+  native_inventory "$accepted_keg" >"$scratch/native-accepted"
+  if ! cmp -s "$scratch/native" "$scratch/native-accepted"; then
+    diff -u "$scratch/native-accepted" "$scratch/native" >&2 || true
+    fail "the native-only payload of $name $version differs from its accepted subject $accepted_version; see the diff above. A changed payload needs its capability trials"
+  fi
+  # The files that declare hooks: SKILL.md frontmatter with hooks, a plugin's
+  # hooks/hooks.json, and a manifest or marketplace entry with hooks.
+  declaring="$(cd "$keg" && find "${native[@]}" -type f \( -name SKILL.md -o -name '*.json' \) -print |
+    LC_ALL=C sort | python3 -I -c '
+import json, re, sys
+for name in sys.stdin.read().splitlines():
+    text = open(name, encoding="utf-8").read()
+    if name.endswith("SKILL.md"):
+        match = re.match(r"---\n(.*?)\n---\n", text, re.S)
+        if match and re.search(r"^hooks:", match.group(1), re.M):
+            print(name)
+    elif name.endswith("hooks/hooks.json"):
+        print(name)
+    else:
+        document = json.loads(text)
+        entries = [document] + (document.get("plugins") or [] if isinstance(document, dict) else [])
+        if any(isinstance(entry, dict) and "hooks" in entry for entry in entries):
+            print(name)
+')"
+  echo "tap-formula: the native-only payload of $name $version equals its accepted subject $accepted_version in files, modes, links and contents: $(wc -l <"$scratch/native" | tr -d ' ') entries of $native_list"
+  declaring="${declaring:-none}"
+  echo "tap-formula: the equal files that declare hooks: ${declaring//$'\n'/ }"
 fi
+
+# 6. The shared default directory seam, with the formula's own download.
+seam_tap=()
+[[ -z "$tap_root" ]] || seam_tap=(--tap "$tap_root" --tap-base "$tap_base" --tap-subjects)
 bash "$root/scripts/shared-directory-seam.sh" --ravel-formula "$seam_ravel_formula" \
   --ravel-archive "$seam_ravel_archive" --subject "$name=$formula" --archive "$name=$scratch/download/archive" \
   --accepted "$name=$scratch/accepted" "${seam_tap[@]+"${seam_tap[@]}"}" ||

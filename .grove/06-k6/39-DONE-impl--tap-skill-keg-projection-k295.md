@@ -61,3 +61,27 @@ refuses a keg that differs from its declaration. `task tap:formula:test` now
 also needs `RAVEL_FORMULA` and `RAVEL_ARCHIVE`, and its seam reads the
 published formula from the tap's `origin/main` as the migration predecessor.
 The revision needs a new package version, or the seam refuses the pair.
+
+## Decisions (running log)
+
+- The accepted subject of the native-only payload is the keg of the formula
+  on the tap's `origin/main`. The tap publishes only accepted versions, and
+  staging accepted `personal` 2026-11-06 from that formula. The test builds
+  that keg with the formula's own methods, so no real keg is read.
+- The payload comparison covers `libexec/plugins` and each marketplace file
+  at the keg root. It compares the type, the permission mode, and the link
+  target or the SHA-256 of each entry. Hook declarations lie in those
+  files, so equal contents cover them. The test also names each declaring
+  file.
+- The test reads the formula's layout from `scripts/skill-formulae.json`.
+  The direct branch stays for `testanyware` until
+  testanyware-keg-projection-k296.
+- The seam of `tap:formula:test` now passes `--tap-subjects`, as
+  `release:formula:test` does. Without it, `testanyware` would not take
+  part in the seam at all.
+- `scripts/tap-formula.test.rb` prints the full package version, so the keg
+  directory and the messages carry the revision.
+- Each source digest equals its accepted value, so no staging trial is
+  needed. Tap commit `c0e61c1f3309` holds the three revisions, and `main`
+  stays at `9ca2b5e37510`. The section "Tap skill keg projection" of
+  `docs/homebrew-skill-delivery-evidence.md` records the runs and controls.

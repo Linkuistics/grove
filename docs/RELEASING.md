@@ -252,7 +252,11 @@ Before a release, check each set against its own explicit build:
   keg beside Ravel's keg and the tap's skill formulae, in private prefixes.
   The archive must be in a lane of `scripts/ravel_target_inputs.py`. The
   test downloads the archive of each tap formula. `task tap:formula:test`
-  takes the same two Ravel inputs and runs the seam for its formula.
+  takes the same two Ravel inputs and runs the seam for its formula, beside
+  the other skill formulae of the tap. It checks the layout that
+  `scripts/skill-formulae.json` declares for its formula. It compares each
+  native-only plugin and marketplace file with the keg of the formula on
+  the tap's `origin/main`. Set `TAP_BASE` to compare with another revision.
 - `bash scripts/check.sh` does not run the seam, because the seam needs
   Homebrew and a recorded Ravel 2.0 archive. Run `task seam:shared-directory`
   after a change to Homebrew or to a skill formula. The section "Shared

@@ -69,6 +69,18 @@ stood at the graft — a closed record, not part of the versioned sequence above
   fills each checksum placeholder of Grove's template, including those
   with digits in their target names.
 
+- `grove` release checks: `task tap:formula:test` reads the layout of its
+  formula from `scripts/skill-formulae.json`. For a projected formula, it
+  checks the relative alias, the private payload in
+  `libexec/skill-sources` and the regular payload files. Ravel's
+  `originPath` must name that payload. The test also compares each
+  native-only plugin and marketplace file with the keg of the published
+  formula. That comparison covers files, permission modes, links,
+  contents and hook declarations. The seam of the test now includes the
+  other skill formulae of the tap. The declarations of `personal`,
+  `superpowers` and `quint-llm-kit` are now projected. `testanyware` stays
+  direct until its own revision.
+
 - `grove`: this release removes the manual installer `plugins/install.sh`,
   with its `--pack` option and its tests. Homebrew installs the skill
   sources, and Ravel delivers them to each session in every harness. Links

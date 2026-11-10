@@ -746,14 +746,17 @@ tasks:
   # ID=PATH, with PATH its source directory in that commit. RAVEL_2_0_PREFIX is
   # an installation prefix. The test downloads the formula's URL. It then runs
   # the shared directory seam for the formula, with RAVEL_FORMULA and
-  # RAVEL_ARCHIVE as in release:formula:test. For example:
+  # RAVEL_ARCHIVE as in release:formula:test. The test checks the layout that
+  # scripts/skill-formulae.json declares, and compares each native-only plugin
+  # and marketplace file with the keg of the formula on the tap's origin/main.
+  # For example:
   #   task tap:formula:test FORMULA=~/Development/Delivery/homebrew-taps/Formula/personal.rb \
   #     RAVEL_2_0_PREFIX=/opt/ravel-2 REPO=https://github.com/Linkuistics/PersonalSkills.git \
   #     SHA=cddcfde901cdaf8069e2aac6f3b6bc5aba9fe925 SOURCES=personal=plugins/personal \
   #     RAVEL_FORMULA=../Ravel.skill-directory-delivery/scripts/templates/ravel.rb.tmpl \
   #     RAVEL_ARCHIVE=target/ravel-archives-2.0/ravel-v1.1.0-aarch64-apple-darwin.tar.xz
   tap:formula:test:
-    desc: Install and test one tap skill formula in a private prefix, compare its sources with their commit, register its marketplace and run the shared directory seam
+    desc: Install and test one tap skill formula in a private prefix, check its declared keg layout, compare its sources with their commit and its native-only payload with the published keg, register its marketplace and run the shared directory seam
     requires:
       vars: [FORMULA, RAVEL_2_0_PREFIX, REPO, SHA, SOURCES, RAVEL_FORMULA, RAVEL_ARCHIVE]
     cmds:

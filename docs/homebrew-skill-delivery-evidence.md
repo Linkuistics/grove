@@ -1036,7 +1036,121 @@ output.
 ### Remaining work
 
 The cases with all five revised formulae cannot pass before the tap formulae
-have the projected layout. `skill-formula-publication-k298` runs the seam with them. It
-changes their declarations in `scripts/skill-formulae.json` with the
-formulae. Release acceptance repeats the seam with the published Ravel
-archives, after their lane is in `scripts/ravel_target_inputs.py`.
+have the projected layout. `tap-skill-keg-projection-k295` changed three
+`layout` declarations in `scripts/skill-formulae.json` with their formulae,
+and `testanyware-keg-projection-k296` changes the fourth.
+`skill-formula-publication-k298` runs the seam with all five. After its
+push, it changes each `published` declaration to `projected`. Release
+acceptance repeats the seam with the published Ravel archives, after their
+lane is in `scripts/ravel_target_inputs.py`.
+
+## Tap skill keg projection
+
+`tap-skill-keg-projection-k295` revised the tap formulae `personal`,
+`superpowers` and `quint-llm-kit` to [the keg layout](specs/codex-skill-provisioning.md#the-keg-layout)
+on 2026-11-10. Each formula installs its source in
+`libexec/skill-sources/<source-id>`. A relative directory symlink at
+`share/ravel/skills/<source-id>` is the public alias. Each formula adds
+`revision 1`. Its URL, `sha256` and upstream version stay the same.
+
+The tap holds the three revisions in the local commit `c0e61c1f3309`, above
+the published `main` `9ca2b5e37510`. Nothing pushed that commit.
+`skill-formula-publication-k298` publishes it with the TestAnyware revision.
+
+### The test
+
+`scripts/tap-formula.test.sh` reads the layout of its formula from
+`scripts/skill-formulae.json`. For a projected formula, it checks these
+facts:
+
+- The alias is a symlink to `../../../libexec/skill-sources/<source-id>`.
+- The payload is a real directory, and the alias canonicalises to it.
+- `libexec/skill-sources` holds exactly the declared sources.
+- The payload holds the files of the plain checkout, each with its Git
+  mode. Each regular file of the commit is a regular file of the payload.
+  The payload holds no entry of another type.
+- Ravel's `originPath` names the payload.
+
+`testanyware` keeps the direct layout until its revision, and the direct
+branch of the test keeps its earlier checks.
+
+The test then compares the native-only payload with its accepted subject.
+That subject is the keg of the formula on the tap's `origin/main`. The
+formula's own install and test methods make that keg in a second private
+prefix.
+
+The comparison covers `libexec/plugins` and each marketplace file
+at the keg root. For each entry, it compares the type, the permission
+mode, and the link target or the SHA-256. Hook declarations lie in those
+files. The test names each file that declares a hook. "Skill formulae" of
+the [owner delivery design](specs/owner-skill-delivery.md#skill-formulae)
+requires this comparison.
+
+The seam of the test now includes each other declared formula of the tap,
+as `release:formula:test` does. In these runs, the other two revisions took
+part as projected subjects. `testanyware` took part as a direct formula, in
+the failure control only. `scripts/tap-formula.test.rb` now prints the full
+package version, so the keg directory carries the revision.
+
+### The runs of 2026-11-10
+
+`task tap:formula:test` ran once for each formula with the finished
+instrument. Each run passed. The Ravel 2.0 prefix was the archive
+`289b4ac57ffd…` of lane 2.0, build identity `58d479ed058f…`. The seam
+rendered the Ravel template of the workspace `skill-directory-delivery` at
+`ff14cba826b0`. Homebrew was 7.0.12-221-gbc63375. The tap's `origin/main`
+was `9ca2b5e37510`, equal to the remote's `main`.
+
+| Formula | Full package version | Formula SHA-256 | Source, roots and `resourceDigest` | Seam record |
+| --- | --- | --- | --- | --- |
+| `personal` | `2026-11-06_1` | `37b7b69e0e5b2e00…` | `personal`, `craft`, `dc1f26eafe9b7db6…` | `20261110T122051Z.json` |
+| `superpowers` | `7.0.0_1` | `169a987607502430…` | `superpowers`, `skills`, `be1ce6e3c25064b8…` | `20261110T122123Z.json` |
+| `quint-llm-kit` | `1.0.0_1` | `29cf32515afef6b1…` | `quint`, `skills`, `0a8b945fbc6732d5…` | `20261110T122156Z.json` |
+
+The seam records lie in `target/shared-directory-seam/`. Each digest equals
+the accepted value of the
+[repository moves record](repository-moves-record.md). The commit, the
+source directory and the roots are unchanged too. No source therefore needs
+new staging trials.
+
+The committed formula files have the SHA-256 values of
+the measured files. The measured subjects were the formulae, the test and
+its helper, the declarations, the seam, the Ravel template and the Ravel
+archive. The SHA-256 of each subject was the same before and after the
+three runs.
+
+Each seam run passed its 10 cases. The failure control linked the four
+published direct formulae and expanded. The migrations were `personal`
+2026-11-06 to 2026-11-06_1, `superpowers` 7.0.0 to 7.0.0_1 and
+`quint-llm-kit` 1.0.0 to 1.0.0_1. Each revision has a new package version,
+so the seam accepted each pair.
+
+For `personal`, 12 entries of `libexec/plugins` and
+`.claude-plugin/marketplace.json` equal those of `personal` 2026-11-06. The
+file that declares the hook is
+`libexec/plugins/guardrail/skills/guardrail/SKILL.md`. Its SHA-256 is
+`aca6380f08492a17…` in both kegs.
+
+The documented commands registered the
+revised keg's marketplace in an isolated Claude Code home and installed
+`guardrail@personal`. `claude plugin validate` passed with one warning:
+the `guardrail` manifest declares no version. The published keg has the
+same manifest. This equal payload does not replace the `guardrail`
+capability trial. `hook-adapter-keg-seam-k297` repeats that trial on the
+revised keg.
+
+### Controls
+
+Three controls ran with the finished checks, and each failed at its own
+check:
+
+| Control | Result |
+| --- | --- |
+| The published direct `personal` formula, against its `projected` declaration | The layout check refused it, because `share/ravel/skills/personal` was not a symlink |
+| The revised `personal` formula in a scratch clone of the tap, with mode 0755 on `guardrail/PROVENANCE.md` | The payload comparison refused it and showed mode 644 against 755 |
+| The same clone, with one line added to the hook-declaring `SKILL.md` | The payload comparison refused it and showed the two SHA-256 values |
+
+An earlier run of `personal` passed before two changes to the test. One
+change joined the list of native-only entries on one line in its message.
+The other change added the tap's other formulae to the seam. The table
+above reports only the runs after those changes.

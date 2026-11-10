@@ -28,6 +28,11 @@ accepted commits. Cover each formula that publishes before finish. Make
 - owner-staging-setup-k248 installed `personal`, `superpowers` and
   `quint-llm-kit` for the staging trials. This leaf declares them and
   verifies them at the accepted commits.
+- skill-keg-link-layout-k274 amends "The keg layout" of
+  `docs/specs/codex-skill-provisioning.md`. Consume its formula implementation
+  and publication work before this leaf: private payloads, relative directory
+  symlinks and revised formula versions. The two-keg seam and migration
+  limits are in `docs/homebrew-skill-delivery-evidence.md`.
 
 ## Done when
 
@@ -41,6 +46,10 @@ accepted commits. Cover each formula that publishes before finish. Make
 - `mac-check` reports each source's installed commit against its accepted
   commit. It tells drift from a configuration error, and a fixture control
   shows each outcome.
+- Each non-Grove formula has the revised source layout. Resolution through
+  the shared default directory gives its accepted IDs and digests, and each
+  entry reaches the owning keg's private payload. `mac-check` distinguishes
+  an invalid expanded layout from version drift and names its recovery.
 - The machine contract and the `mac-bootstrap` guidance state that each
   Homebrew installation or upgrade of a skill formula is an advance. The
   amended owner design states why an advance needs no process check.
@@ -61,6 +70,13 @@ No advance may remove a running driver's binaries. Keep the original Ravel
 1.1.0 keg and its cleanup protection. This leaf does not execute the switch.
 Discovery stays native, and the simplified switch design changes nothing
 else here.
+
+Do not rely on the earlier TestAnyware relink as the permanent remedy.
+Complete all four non-Grove formula upgrades before resuming default-source
+launches. A remaining old real-directory source can still expand during
+linking. No formula post-install hook should relink another formula, and no
+step weakens Ravel's source boundary. A new canonical source path also needs
+the affected registrations and prepared-input comparisons reconciled.
 
 owner-ravel-skill-inventory-k38 put the policy conversion, the drafts and
 the staging trials before this leaf. owner-marketplace-freeze-k253,

@@ -127,14 +127,16 @@ Each Linkuistics skill formula follows one layout:
 
 | Path in the keg | Content |
 | --- | --- |
-| `share/ravel/skills/<source-id>/` | One Ravel source: a copy of its source directory at the accepted commit, with its executable bits and links |
+| `libexec/skill-sources/<source-id>/` | One Ravel source: a copy of its source directory at the accepted commit, with its executable bits and links |
+| `share/ravel/skills/<source-id>` | A relative directory symlink to that source in the same keg |
 | `libexec/plugins/<plugin>/` | A native plugin that lies in no source, such as `guardrail` |
 | `.claude-plugin/marketplace.json` at the keg root | The Claude Code marketplace file of the keg's hook adapters, if it has any |
 | `.agents/plugins/marketplace.json` at the keg root | The Codex marketplace file of the keg's hook adapters, if it has any |
 
-Homebrew links each keg's `share/` into the shared prefix. Each source
-therefore appears at `$(brew --prefix)/share/ravel/skills/<source-id>`, as a
-link into its keg. That directory is **Ravel's default skill directory**.
+Each formula exposes its private source through a directory symlink in
+`share/ravel/skills`. Homebrew links that entry into
+`$(brew --prefix)/share/ravel/skills/<source-id>` without descending into the
+source. That directory is **Ravel's default skill directory**.
 `brew install`, `brew upgrade` and `brew uninstall` keep it current, so they
 are the whole skill setup. No harness discovers skills under the Homebrew
 prefix, so a keg adds no native entry.
@@ -163,10 +165,19 @@ specification reads for a default source.
 
 These facts decide the layout:
 
-- Homebrew merges a directory that several kegs link. When a second keg links
-  into `share/ravel/skills`, Homebrew replaces the first keg's directory link
-  by a real directory and links each entry. Two formulae that ship one source
-  ID fail `brew link`, so a duplicate cannot pass in silence.
+- Homebrew initially links an unshared directory as a whole. When a later keg
+  needs it, `Keg#resolve_any_conflicts` removes that link and relinks the
+  displaced subtree with the `:mkpath` strategy. With real source directories
+  under `share`, this descends through every directory and links individual
+  files back into the keg. Those file links leave the source boundary, and
+  Ravel refuses the whole resolution as `skill_resource_invalid`.
+- `Keg#link_dir` handles a symlink as a file, even when it names a directory.
+  The formula-owned source symlink therefore stops traversal under both the
+  ordinary and conflict-repair strategies. Initially a parent directory may
+  be linked as a whole; after a collision, each source remains one directory
+  entry linked through its keg alias to its private payload. No source file
+  is expanded into a Homebrew link. Two formulae that ship one source ID
+  conflict at that entry; never use overwrite to conceal a duplicate.
 - Homebrew's cleaner sets file modes only under `bin`, `sbin` and `lib`, so a
   keg source keeps the modes of its copy. Its prune step removes empty
   directories and dangling links under `share/`. A Git checkout holds no empty
@@ -179,11 +190,40 @@ These facts decide the layout:
 - The marketplace files sit at the keg root, which Homebrew links nowhere. Two
   kegs therefore cannot conflict over one marketplace path.
 
+The linking rules above are in Homebrew 7.0.12 at
+[`3ccfa1d07143`, `Keg#resolve_any_conflicts` and `Keg#link_dir`](https://github.com/Homebrew/brew/blob/3ccfa1d07143/Library/Homebrew/keg.rb).
+The [two-keg experiment](../homebrew-skill-delivery-evidence.md#directory-link-layout-experiment)
+reproduces both the failure and the proposed remedy with Homebrew itself.
+This layout amendment is designed; formula implementation and publication
+must precede reliance on the guarantee.
+
+**Ownership and migration.** The Grove formula template and the tap's
+`personal`, `superpowers`, `quint-llm-kit` and `testanyware` formulae own the
+projection. Formula install methods move the source payload from their input
+archive into the private location and create the relative alias. Release
+archives can retain their existing payload layout. Neither Ravel nor a
+formula's post-install hook repairs another formula's links.
+
+Each affected published formula needs a new revision or release, even if its
+source commit is unchanged, so an ordinary upgrade installs the remedy.
+Existing expanded sources remain invalid until their formula is upgraded or
+relinked. During migration, complete the upgrades of all installed skill
+formulae before resuming default-directory launches. A mixed old/new set
+can still expand an older source. For an affected old formula,
+`brew unlink <formula>` followed by `brew link <formula>` is recovery after the other
+installations, not the installation contract. Do not repair individual files
+or use `brew link --overwrite`.
+
+Acceptance resolves the shared default directory, checks every expected ID
+and digest, and checks that each entry canonicalises into its owning keg's
+private source. It also checks regular payload files remain regular files.
+Resolving versioned keg paths alone cannot detect the original failure.
+
 **Identity.** The accepted identity of a keg source is its `resourceDigest`.
 It equals the digest of a clean plain Git checkout of the same commit, made
 with Git's global and system configuration off. The release copies each source
-from such a checkout. The cleaner sets no mode under `share/`, and the digest
-covers no write bit and no owner. Homebrew leaves those files writable, so a
+from such a checkout. The cleaner sets no mode under `share/` or `libexec/`,
+and the digest covers no write bit and no owner. Homebrew leaves those files writable, so a
 digest comparison detects an edit of a keg, and the file mode does not.
 
 **Other formulae.** The formulae of `personal`, `superpowers` and
@@ -214,6 +254,15 @@ Each keg version adds at most one snapshot for each source.
 
 The design rejected these layouts:
 
+- **Real source directories under `share`, followed by relinking.** A manual
+  relink leaves an extra installation step and can be undone by a later
+  formula link. A formula hook that relinks other kegs couples independent
+  installations and must discover and repair shared state. The directory
+  symlink keeps that knowledge inside the source's own formula.
+- **Allow file links anywhere inside the same keg in Ravel.** This changes
+  the generic source boundary for a packaging defect. The formula can keep
+  an intact source with the existing resolver. A `mac-check` report alone
+  also leaves new installations broken; it is detection and recovery help.
 - **`libexec/skills/<source-id>`, named by `opt` paths in the settings.**
   Homebrew links and prunes nothing there. Each user would still have to write
   the settings, so `brew install` would not be the whole setup.

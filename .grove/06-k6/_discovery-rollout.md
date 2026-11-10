@@ -287,6 +287,16 @@ owner-controlled skill changed.
 These items go to discovery-rollout-k12, which writes the finish handoff and
 the root charter's extension.
 
+- skill-keg-link-layout-k274 amends "The keg layout" in the delivery spec.
+  Its planning follow-up owns the formula changes before k93. k93 installs
+  the four revised non-Grove formulae. Finish installs Grove's revised
+  formula, then resolves the shared default directory with the published
+  Ravel and verifies all ten IDs, accepted digests and owning private source
+  paths before the switch or any default launch. The source aliases must
+  survive actual Homebrew conflict repair; staging's versioned keg paths
+  cannot establish that. Reconcile hook registrations and prepared inputs
+  for changed canonical paths. Keep the original Ravel 1.1.0 keg throughout.
+
 - After the Ravel cut, record each accepted digest again with the published
   archives. Show before finish that the final line gives the `grove-core`
   candidate's tree ID. Step 5 of the coordinated release design records that

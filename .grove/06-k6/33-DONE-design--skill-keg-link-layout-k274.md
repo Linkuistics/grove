@@ -46,3 +46,35 @@ one directory link. The installation order must not matter.
 The staging trials do not depend on this leaf, because owner-staging-setup-k248
 relinked TestAnyware. The real switch's source verification reads the
 default directory. The remedy must therefore exist before the switch.
+
+## Decisions (running log)
+
+The seam uses Homebrew's installed `Keg#link` and `Keg#unlink`, with only the
+filesystem roots redirected to temporary prefixes, and the accepted Ravel 2.0
+resolver. The direct-directory layout reproduced `skill_resource_invalid` in
+both orders. A formula-owned directory symlink at each source entry preserved
+the source through the same conflict resolution. A model would restate the
+linker's filesystem behaviour; the real linker and resolver are the useful
+instrument here.
+
+Store source payloads privately and expose each
+through a relative directory symlink at `share/ravel/skills/<source-id>` in
+the same keg. Homebrew links that entry without descending into the payload.
+Keep Ravel's source-contained-link rule. This preserves installation as the
+whole skill setup, without post-install relinking of another formula.
+
+All five formula owners must adopt the projection, with new formula revisions
+or releases for installed users. During the mixed-layout transition, upgrade
+every installed skill formula and verify resolution before resuming launches.
+Relinking an affected old formula is recovery only. owner-pack-checkouts-k93
+owns real-machine preparation; finish receives the final Grove installation
+and source-acceptance obligations through discovery-rollout-k12. A planning
+leaf will sequence the formula and acceptance work before k93. The durable
+layout amendment earns a focused review of migration and test coverage before
+that planning step; no in-session reviewer duplicates it.
+
+The private path is `libexec/skill-sources/<source-id>`. Inspection of the
+installed-smoke seam found that `libexec/ravel` and `libexec/skills` are
+retired layouts whose absence remains checked. Avoid those namespaces rather
+than weaken the independent-Ravel or no-provisioning checks. No new ADR is
+needed: the storage path is readily reversible, and the spec holds its trade-off.

@@ -372,6 +372,15 @@ tasks:
     cmds:
       - python3 -m http.server {{.PORT}} --bind 127.0.0.1 --directory docs/design/harness-selection-and-execution
 
+  design:keg-link-layout:test:
+    desc: Reproduce Homebrew source expansion and directory-symlink recovery with two fixture kegs and the Ravel directory resolver
+    requires:
+      vars: [RAVEL]
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    cmds:
+      - brew ruby docs/design/skill-keg-link-layout/reproduce.rb "{{.RAVEL}}"
+
   design:external-pack-contract:
     desc: Serve the external pack contract views at localhost (default port 8793)
     vars:

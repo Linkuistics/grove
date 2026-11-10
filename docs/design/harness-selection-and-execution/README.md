@@ -40,6 +40,7 @@ asserts no private transport or escalation details.
 
 | View | Contract illustrated |
 |---|---|
+| [Keep source entries whole during conflict repair](http://127.0.0.1:52710/#diagram-keg-link-layout) | The old layout expands source files into escaping links. The designed formula-owned directory symlink stops traversal. [Evidence and rerun](../../homebrew-skill-delivery-evidence.md#directory-link-layout-experiment). |
 | [Where each installed entry goes](http://127.0.0.1:52710/#diagram-owner-classes) | The per-entry rule of the owner cutover: a Ravel source, a native route for hooks, or no change. |
 | [Skill formulae outside Ravel](http://127.0.0.1:52710/#diagram-owner-pack-checkouts) | Homebrew installs each source in a keg and links it into Ravel's default skill directory after the keg is complete. Ravel only reads the directory. A source that is absent from it leaves the session without that source. |
 | [Ordered owner cutover](http://127.0.0.1:52710/#diagram-owner-cutover) | Preparation in ordinary leaves, then the switch inside finish with its checklist, backup, probes and full restore. |

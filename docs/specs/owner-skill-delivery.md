@@ -112,8 +112,9 @@ same design.
   source identities and capabilities that establish the current delivery route.
   They do not prescribe unrelated settings keys or manual content.
 - **Native residue** is the set of native capabilities that stays active.
-- **A keg source** is one source directory installed at
-  `share/ravel/skills/<source-id>` and linked into Ravel's default directory.
+- **A keg source** is one source directory stored privately in its keg and
+  exposed through the directory symlink of the
+  [keg layout](codex-skill-provisioning.md#the-keg-layout).
 - **An accepted version** is a formula version whose sources passed staging,
   with an accepted `resourceDigest` for each source.
 - **The candidate keg** is Grove's pre-release keg in a private prefix, built
@@ -234,6 +235,21 @@ declaration and its installed version. It reads `brew info --json=v2` for the
 tap's current version. A skill formula that is not installed, or a status that
 it cannot read, is a configuration error. An installed version other than the
 tap's current version is drift.
+
+The report also checks the source entries against the
+[keg layout](codex-skill-provisioning.md#the-keg-layout). A current formula
+version with expanded file links is an invalid source layout, not version
+drift. Report the affected source and formula, with the documented upgrade
+or relink recovery. A report observes the state; it repairs no links.
+
+During this cutover, real-machine preparation upgrades the four non-Grove
+formulae to revisions that supply the directory symlinks. Their source
+commits and accepted digests may remain unchanged. Preparation verifies them
+through the shared default directory, even while the settings keep native
+delivery active. Finish installs Grove's revised formula after publication,
+then verifies the ten default sources and their owning private payloads
+before the switch. These checks implement the layout's migration rule;
+versioned paths used by staging do not substitute for them.
 
 Grove's keg holds core. The delivered spine and the installed Grove therefore
 come from one release, and no separate core pin exists.

@@ -40,6 +40,13 @@
   ],
   "diagrams": [
     {
+      "id": "keg-link-layout",
+      "group": "skills",
+      "title": "Keep source entries whole during conflict repair",
+      "source": "keg-link-layout.mmd",
+      "caption": "Designed remedy, not published formula behaviour. Homebrew treats a formula-owned directory symlink as one entry even while rebuilding a displaced subtree. The two-keg experiment reproduced the old failure and preserved the proposed sources in both orders, across upgrade and old-keg removal. Mixed layouts still need the migration procedure. This is a filesystem flow, not a checked model."
+    },
+    {
       "id": "owner-classes",
       "group": "owner",
       "title": "Where each installed entry goes",
@@ -51,7 +58,7 @@
       "group": "owner",
       "title": "Skill formulae outside Ravel",
       "source": "owner-skill-formulae.mmd",
-      "caption": "Proposed by homebrew-delivery-design-k216 and amended by ravel-default-skill-directory-k218. mise declares each skill formula, and Homebrew installs it. An advance unlinks the earlier keg, installs the new keg and then links it, so a capture reads one complete keg or finds the source absent. A launch during that installation delivers the other sources: a missing superpowers refuses through the mandatory file, and a missing grove makes the session force-stop. A failed offline download leaves the earlier keg in place, and mac-check reports drift."
+      "caption": "Amended by skill-keg-link-layout-k274: each formula owns a private payload and a relative directory symlink under share. Homebrew preserves that entry during conflict repair. Implementation and publication remain ahead. An advance unlinks the earlier keg before linking the new one; a missing mandatory source refuses, and missing Grove guidance makes the session force-stop. mac-check reports version drift separately from an invalid expanded source."
     },
     {
       "id": "owner-cutover",
@@ -174,27 +181,22 @@
     }
   ],
   "discussion": {
-    "title": "Simplify the switch for one owner",
-    "status": "k261 findings integrated by k263; implementation and acceptance follow through k262",
-    "summary": "The checklist, serial switch, whole restore and disposable dry run remain. Recovery covers stops before backup and later edits. Input comparison declares permitted substitutions, while probe cleanup and parent observation require acceptance evidence. Immutable attempt instructions survive finish, and the manual remains append-only. No real activation is claimed.",
+    "title": "Preserve each source during Homebrew conflict repair",
+    "status": "Designed in k274; formula implementation and publication follow",
+    "summary": "Store payloads privately in the keg and expose directory symlinks under share. The actual Homebrew linker and accepted Ravel resolver reproduce the old failure and preserve the remedy in either installation order. Upgrade every installed skill formula during migration, and verify the shared default directory before the switch.",
     "diagramIds": [
-      "owner-cutover",
-      "owner-switch-states",
-      "owner-final-session",
-      "owner-classes"
+      "keg-link-layout",
+      "owner-pack-checkouts",
+      "skill-delivery"
     ],
     "updatedDiagrams": [
       {
-        "id": "owner-cutover",
-        "summary": "Added native-off before preflight, explicit attempt instructions and owned-service cleanup."
+        "id": "keg-link-layout",
+        "summary": "Added the old expansion failure and the directory-symlink remedy at the same conflict-repair boundary."
       },
       {
-        "id": "owner-switch-states",
-        "summary": "Separated backup-independent recovery, quiet-interval restore and later drift refusal."
-      },
-      {
-        "id": "owner-final-session",
-        "summary": "Extended parent observation and retained attempt instructions while keeping manual entries append-only."
+        "id": "owner-pack-checkouts",
+        "summary": "Added formula-owned private payloads and directory aliases, with layout errors reported separately from version drift."
       }
     ]
   }

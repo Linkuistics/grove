@@ -1,0 +1,20 @@
+flowchart TB
+    A["Start here · A later keg needs<br/>the shared Ravel directory"]
+    B["Homebrew replaces the earlier parent link<br/>and relinks its subtree with mkpath"]
+    C{"What is the source entry<br/>inside the displaced keg?"}
+    D["Old layout · Real directory<br/>Descend through all source directories"]
+    E["Files become links back into the keg<br/>They leave the source boundary"]
+    F["Ravel refuses the whole resolution<br/>skill_resource_invalid"]
+    G["Designed layout · Directory symlink<br/>Homebrew handles it as one entry"]
+    H["Default entry leads through the keg alias<br/>to its private libexec source"]
+    I["Ravel canonicalises the source<br/>and captures intact payload files"]
+    A -->|1| B
+    B -->|2| C
+    C -->|"3 old"| D
+    D -->|4| E
+    E -->|5| F
+    C -->|"3 remedy"| G
+    G -->|4| H
+    H -->|5| I
+    classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
+    class A start

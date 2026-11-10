@@ -463,6 +463,8 @@ to `false`.
   reading shows whether an open session writes `settings.json` while a
   command changes it. The owner design gives that question a staging seam.
 
+<!-- tc: pending because skill-keg-link-layout-k291 reviews this section unchanged, and its integration converts it -->
+
 ## Directory-link layout experiment
 
 skill-keg-link-layout-k274 corrected the delivery spec's description of
@@ -549,3 +551,5 @@ The existing viewer served the revised manifest and diagram sources at port
 52710. The browser access host was unavailable, so this session did not
 verify the rendered layout or its deep-link positioning. Source and manifest
 validation alone do not establish visual rendering.
+
+<!-- tc: on -->

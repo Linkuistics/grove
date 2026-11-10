@@ -219,7 +219,7 @@ The owner runs these commands. Each names the HOME with `-C`, as
 | Installation on a configured machine | `mac-bootstrap`, which runs `mise -C "$HOME" bootstrap` | Installs each missing formula among the other parts |
 | Installation of the packages only | `mise -C "$HOME" bootstrap packages apply` | Installs each missing formula, and upgrades none |
 | Advance | `brew update`, then `brew upgrade <formula>` | Installs the tap's current version in a new keg, then links it |
-| Report of drift | `mac-check` | Reports each skill formula's installed version against the tap's current version |
+| Report of drift | `mac-check`, or `mac-check --only "Skill formulae"` for that area alone | Reports each skill formula's installed full package version against the tap's, and each source's layout |
 
 A formula's upstream version names a commit. For Grove and TestAnyware it is
 a release tag. For the other three it is the commit of the source archive.
@@ -338,6 +338,13 @@ the result depends on the formula:
 
 The owner therefore runs an advance while no Grove loop launches. An advance
 needs no other interval without captures.
+
+An advance also needs no process check. The earlier mise checkouts changed a
+source in place, so a capture could read files of two commits. A process
+check kept captures out of that interval. Homebrew links the new keg only
+after its installation and cleaner, so a capture reads one complete keg or
+finds the source absent. A running session reads its retained snapshot, not
+the keg. homebrew-delivery-design-k216 withdrew the check for these reasons.
 
 Ravel 2.0 captures each keg source at each `ravel start-session` and each
 `ravel skills resolve` whose settings name no `sources`. It captures a named

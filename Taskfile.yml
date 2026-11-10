@@ -435,6 +435,21 @@ tasks:
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/settings_drafts.py --out "{{.OUT}}"
 
+  # The installed skill formulae through Ravel's shared default directory
+  # ("Installed skill formulae" of docs/owner-skill-delivery-evidence.md).
+  # RAVEL_2_0_PREFIX is an installation prefix of Ravel 2.0, such as a prefix
+  # of scripts/ravel_target_inputs.py or the keg of ravel@2. PLAN replaces the
+  # plan draft, and FORMULAE limits the check to space-separated formulae. The
+  # task reads only. For example, before Grove's revised keg exists:
+  #   task owner:sources:verify RAVEL_2_0_PREFIX="$SCRATCH/ravel-2.0" \
+  #     FORMULAE="linkuistics/taps/personal linkuistics/taps/testanyware"
+  owner:sources:verify:
+    desc: Resolve the real Homebrew prefix's default skill directory with Ravel 2.0 and compare each source's ID, digest, private payload and package version with the plan's accepted values, reading only
+    requires:
+      vars: [RAVEL_2_0_PREFIX]
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/default_sources.py "{{.RAVEL_2_0_PREFIX}}" {{if .PLAN}}--plan "{{.PLAN}}"{{end}} {{range $f := splitList " " .FORMULAE}}{{if $f}}--formula "{{$f}}" {{end}}{{end}}
+
   # The owner's real switch plan draft in docs/owner-cutover ("Owner switch
   # plan draft" of docs/owner-skill-delivery-evidence.md). The draft task
   # reads the real HOME and the reference inventory, runs no tool, and writes

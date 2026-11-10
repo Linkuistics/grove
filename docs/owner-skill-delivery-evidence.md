@@ -7136,3 +7136,215 @@ change.
   again, as the finish handoff states.
 - Do not change `plugins/grove` or `plugins/packs.json` without a new
   candidate and another rerun.
+
+## Installed skill formulae
+
+`owner-pack-checkouts-k93` delivered this section on 2026-11-11. It ran the
+real-HOME preparation of cutover order 6 for the skill formulae. Unlike the
+earlier sections, it changed the real machine. It changed the mise
+declarations, four kegs and their links, and the Claude Code plugin
+registry. It also changed `mac-check` and the maintained notes. Native
+discovery stayed the same, and no Ravel settings file exists.
+
+### Result
+
+- `~/.config/mise/config.toml` declares the five skill formulae of
+  [Skill formulae](specs/owner-skill-delivery.md#skill-formulae). No
+  `[bootstrap.repos]` table exists in it or in `config.local.toml`.
+- Homebrew links `personal` 2026-11-06_1, `superpowers` 7.0.0_1,
+  `quint-llm-kit` 1.0.0_1 and `testanyware` 2.8.0_1. These are the full
+  package versions of [Packaging-only acceptance](#packaging-only-acceptance).
+- Ravel 2.0 resolved the shared default directory of `/opt/homebrew`. Each
+  of the four sources gave its accepted ID and `resourceDigest`. Each
+  `originPath` is the private payload of the linked keg.
+- Claude Code registers the marketplace `personal` from
+  `/opt/homebrew/opt/personal`. It holds `guardrail@personal` installed and
+  disabled.
+- `mac-check` has the area "Skill formulae". It compares full installed and
+  tap package versions, and each source's layout.
+- Grove 22.8.0 stays installed. Its keg holds no source until Grove's
+  release, inside finish.
+
+### Declarations
+
+`mise -C "$HOME" bootstrap packages use -g --no-install` added `personal`,
+`superpowers` and `quint-llm-kit` with the version `"latest"`. The entries
+moved beside the existing `ravel`, `grove` and `testanyware` entries. The
+change is exactly the three lines of `docs/owner-cutover/bootstrap-packages.toml`
+that the table lacked. The mise history watcher saved it.
+`mise bootstrap plan --detailed-exitcode` then reported no pending change.
+
+### Homebrew 7.0.13
+
+`brew update` before the advance moved Homebrew from 7.0.12-221-gbc63375 to
+7.0.13-45-g95d4938, revision `95d4938386e5`. The
+[shared-directory seam](specs/codex-skill-provisioning.md#shared-default-directory-acceptance)
+requires its failure control and both installation orders before a new
+Homebrew version is accepted.
+
+The seven files that the seam digests have the SHA-256 values of
+[Shared directory seam](homebrew-skill-delivery-evidence.md#shared-directory-seam).
+`git diff bc63375ac3a4 HEAD` shows no change to them, to `upgrade.rb` or to
+`keg_relocate.rb`.
+
+`task seam:shared-directory` then ran with the tap subjects, the tap at
+`12b53f8c449d` and the lane 2.0 Ravel archive `289b4ac57ffd…`. It passed all
+10 cases, both orders and `ravel-first` included. The failure control
+expanded `seam-fixture` 1 and `seam-control` 1, and Ravel refused each with
+`skill_resource_invalid`, as required. No measured subject changed. The
+record is `target/shared-directory-seam/20261110T160917Z.json`, SHA-256
+`a55eaf7fc781fbde…`.
+
+### The advance
+
+The advance ran this command once:
+
+```sh
+HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 \
+  HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 \
+  brew upgrade linkuistics/taps/personal linkuistics/taps/superpowers \
+  linkuistics/taps/quint-llm-kit linkuistics/taps/testanyware
+```
+
+No formula has a dependency, and Homebrew reported no warning other than
+the suppressed dependents check. The only Grove loop was this session's.
+Its Ravel 1.1.0 driver captures no keg source. No earlier keg was removed,
+so the four pre-revision kegs stay in the Cellar.
+
+Each formula file of the local tap equals its acceptance record by SHA-256.
+Each keg's receipt names tap `12b53f8c449d`. The archive URLs name the
+accepted commits `cddcfde901cd`, `bb92a7774141` and `cc75369f741a`, and the
+TestAnyware release `v2.8.0`.
+
+Each entry of `/opt/homebrew/share/ravel/skills` is now one link to the
+keg alias, such as
+`../../../Cellar/personal/2026-11-06_1/share/ravel/skills/personal`. Each
+alias is `../../../libexec/skill-sources/<id>`. Before the advance, each
+entry linked the real source directory of the earlier keg.
+
+### Verification through the default directory
+
+`task owner:sources:verify` is new. It runs
+`docs/evaluations/owner-skill-delivery/default_sources.py`. The tool
+resolves the real prefix's default skill directory with Ravel 2.0, in a
+disposable HOME whose settings name no sources. It compares each source
+with `accepted` of the plan draft. A prefix of recorded archives has no
+installation record, so the tool copies `bin/ravel` into a temporary prefix
+whose record names `$(brew --prefix)/share/ravel/skills`.
+
+The run used the lane 2.0 prefix of `scripts/ravel_target_inputs.py`, which
+reports `ravel 1.1.0`, and `FORMULAE` named the four formulae:
+
+| Source | `resourceDigest`, equal to the accepted value | `originPath` |
+| --- | --- | --- |
+| `personal` | `dc1f26eafe9b7db6…` | `/opt/homebrew/Cellar/personal/2026-11-06_1/libexec/skill-sources/personal` |
+| `quint` | `0a8b945fbc6732d5…` | `/opt/homebrew/Cellar/quint-llm-kit/1.0.0_1/libexec/skill-sources/quint` |
+| `superpowers` | `be1ce6e3c25064b8…` | `/opt/homebrew/Cellar/superpowers/7.0.0_1/libexec/skill-sources/superpowers` |
+| `testanyware` | `3e9d7929eddd8988…` | `/opt/homebrew/Cellar/testanyware/2.8.0_1/libexec/skill-sources/testanyware` |
+
+Each control failed as required:
+
+- A plan copy with the `quint` digest for `personal` reported the digest.
+- A plan copy with the accepted version `2.8.0` for `testanyware` reported
+  the linked `2.8.0_1`.
+- A plan copy without `quint` reported an unaccepted resolved ID.
+- A copy of the tool that compared with the earlier keg's source directory
+  reported the origin. A copy that compared with the keg alias passed,
+  because the alias canonicalises to the payload. That mutation therefore
+  distinguishes nothing.
+- The default set of all ten sources reported each of Grove's six sources
+  as unresolved, because Grove 22.8.0 has no keg layout.
+
+After Grove's release, finish can run the task with the published `ravel@2`
+keg and no `FORMULAE`. That keg has its own installation record.
+
+### The `guardrail` registration
+
+Claude Code 2.1.322 ran the documented commands of
+[Hook adapters](specs/codex-skill-provisioning.md#hook-adapters) from HOME,
+with `DISABLE_AUTOUPDATER=1`. `claude plugin disable guardrail@personal`
+followed:
+
+| Command | Result |
+| --- | --- |
+| `claude plugin marketplace add "$(brew --prefix)/opt/personal" --json` | `ok`, marketplace `personal`, declared in user settings |
+| `claude plugin install guardrail@personal --json` | `ok`, scope `user` |
+| `claude plugin disable guardrail@personal` | Disabled, scope `project` |
+
+In HOME, the project settings file of Claude Code is `~/.claude/settings.json`,
+so the disable wrote `"guardrail@personal": false` there.
+`settings.local.json` did not change. `claude plugin list --json` reports
+`enabled: false` and `readFromFolder`
+`/opt/homebrew/opt/personal/libexec/plugins/guardrail`. Its cache copy is
+byte-equal to that payload. Claude Code's version stayed 2.1.322.
+
+The installation also refreshed the auto-updating `linkuistics`
+marketplace, whose `lastUpdated` changed. Its clone stayed at
+`238c3a839ab4`, and `installed_plugins.json` changed only by the new entry.
+owner-marketplace-freeze-k253 owns that refresh route.
+
+### `mac-check`
+
+`~/.local/lib/machine-config/check.py` has the new area "Skill formulae".
+`mac-check --only "Skill formulae"` runs it alone. It reads
+`mise -C "$HOME" bootstrap packages status --json` and
+`brew info --json=v2` of the five formulae. The full package version of
+the tap is the stable version and its revision. As in step 5 of the switch
+program, the linked keg decides when mise omits the revision. mise must
+still report that keg, with or without the revision.
+
+The area reports four classes, each with fixed text and its recovery:
+
+| Class | Example |
+| --- | --- |
+| Configuration error | An undeclared, uninstalled or unlinked formula, a missing tap version, or mise and Homebrew disagreeing |
+| Earlier revision | The linked keg has the tap's upstream version and a lower revision |
+| Version drift | Any other difference from the tap's full package version |
+| Invalid source layout | A source expanded into file links, an entry that reaches another keg, an unlinked entry, or an entry that no formula installs |
+
+It checks the layout only at the tap's current version. A keg without the
+keg layout gets one "Keg layout" message for all its missing sources. The
+report compares no commit or digest. Its header states that, and that
+versions compare with the tap as of the last `brew update`.
+
+The suite in `~/.local/lib/machine-config/tests` passed 75 tests with Ruff
+and strict pyright. Each of four mutations failed tests:
+
+| Mutation | Failed tests |
+| --- | --- |
+| Ignore the revision | 2 |
+| Skip the version comparison | 3 |
+| Skip the layout check | 4 |
+| Accept any existing entry | 2 |
+
+On the real machine, the area reported one "Keg layout" message. It named
+Grove 22.8.0 and its six sources. Grove's release inside finish removes it. The full `mac-check` exited 10. The other
+attention items were the CCC manual review and unsaved iTerm2 preferences.
+
+### Native discovery
+
+`task owner:inventory` ran before the first change and after the last.
+`task owner:inventory:compare` reported three differences:
+
+| Difference | Reason |
+| --- | --- |
+| Added `guardrail@personal` under `~/.claude/plugins/cache/personal` | The disabled plugin |
+| Added its skill `guardrail:guardrail`, disposition "outside (plugin disabled)" | The same digest `36371cf57051b6ff` as `linkuistics:guardrail` |
+| Changed form of the `testanyware` command | It resolves into the `2.8.0_1` keg, with the same digest |
+
+No harness skill root gained an entry. `~/.config/ravel` holds `policy.ts`
+and `config.rhai`, and no `settings.json`.
+
+### Remaining work and limits
+
+- The plan draft predates this section. Its Claude Code registry
+  identities, its `mac-check` input digests and its kegs need the redraft of
+  owner-switch-plan-k254. The dry run of owner-switch-rehearsal-k255 then
+  reads the changed `mac-check`.
+- Finish installs Grove's revised formula. It then verifies all ten sources
+  through the default directory with the published Ravel, before the switch
+  or any default launch.
+- The seam ran on Homebrew 7.0.13 with the tap formulae and fixtures, not
+  with a Grove keg. The earlier runs covered Grove's projected template.
+- The four pre-revision kegs stay until a cleanup. A cleanup removes no
+  running driver's binaries, because no driver runs from them.

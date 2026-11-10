@@ -51,11 +51,13 @@ the CPU model. Existing glibc and above-CPU-floor controls remain shared with
 Ravel's independent target runner. `task release:registration:test ARCHIVES=... RAVEL_ARCHIVES=...` checks real
 combined ELF headers and missing/escape controls.
 
-`task release:formula:test ARCHIVE=... RAVEL_1_1_PREFIX=... RAVEL_2_0_PREFIX=... OLD=...`
+`task release:formula:test ARCHIVE=... RAVEL_1_1_PREFIX=... RAVEL_2_0_PREFIX=... OLD=... TAP=... RAVEL_FORMULA=... RAVEL_ARCHIVE=...`
 runs Homebrew itself in a private prefix, with the TypeScript set against the
 1.1 build and the Rhai set against the 2.0 build. It compares each keg
 source's digest with its plain checkout. It then checks the tap states A to D
-with the published Grove keg in `OLD`.
+with the published Grove keg in `OLD`. Last, it runs the shared directory
+seam with Ravel's formula output and the skill formulae of the tap working
+copy `TAP`.
 Its checksum fixtures are never publishable. The release formula test consumes
 installed caller imports and executes Grove's standalone public boundary.
 

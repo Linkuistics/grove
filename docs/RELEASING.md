@@ -246,6 +246,18 @@ Before a release, check each set against its own explicit build:
 - `task release:formula:test` also needs `claude` on PATH. It checks that
   each marketplace file at the keg root names a plugin in the keg. It then
   runs `claude plugin validate` on the installed keg in a scratch HOME.
+- Give `task release:formula:test` the tap working copy in `TAP`, Ravel's
+  formula or template in `RAVEL_FORMULA` and its archive in `RAVEL_ARCHIVE`.
+  It then runs the shared directory seam. Homebrew's own linker links the
+  keg beside Ravel's keg and the tap's skill formulae, in private prefixes.
+  The archive must be in a lane of `scripts/ravel_target_inputs.py`. The
+  test downloads the archive of each tap formula. `task tap:formula:test`
+  takes the same two Ravel inputs and runs the seam for its formula.
+- `bash scripts/check.sh` does not run the seam, because the seam needs
+  Homebrew and a recorded Ravel 2.0 archive. Run `task seam:shared-directory`
+  after a change to Homebrew or to a skill formula. The section "Shared
+  default directory acceptance" of `docs/specs/codex-skill-provisioning.md`
+  states its cases and repeat conditions.
 - Run `task release:upgrade` with the old installation in `OLD`. It upgrades a
   scratch copy of a Grove 22.8 installation, as Homebrew does. Each native
   entry, link, mode, pointer and byte must stay the same, and an active 22.8

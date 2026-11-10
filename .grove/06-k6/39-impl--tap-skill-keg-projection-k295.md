@@ -54,3 +54,10 @@ These three have no producer release, so that test is their protection.
 A source digest that differs from its accepted value needs that source's
 staging trials. That is not expected here, because the commits do not
 change. If it happens, stop and record it rather than accepting it.
+
+shared-directory-seam-k294 delivered the seam. Change the formula's `layout`
+in `scripts/skill-formulae.json` to `projected` with its revision. The seam
+refuses a keg that differs from its declaration. `task tap:formula:test` now
+also needs `RAVEL_FORMULA` and `RAVEL_ARCHIVE`, and its seam reads the
+published formula from the tap's `origin/main` as the migration predecessor.
+The revision needs a new package version, or the seam refuses the pair.

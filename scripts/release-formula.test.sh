@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Test a native archive/template without changing any keg, tap or release.
 #
-#   release-formula.test.sh NATIVE_ARCHIVE RAVEL_1_1_PREFIX RAVEL_2_0_PREFIX OLD_GROVE_KEG
+#   release-formula.test.sh NATIVE_ARCHIVE RAVEL_1_1_PREFIX RAVEL_2_0_PREFIX OLD_GROVE_KEG \
+#     RAVEL_FORMULA RAVEL_ARCHIVE TAP
 #
 # 1. The archive passes the manifest check, which needs the plain checkout of
 #    each pack that `task check:packs` makes.
@@ -23,6 +24,13 @@
 # 4. scripts/grove-tap-states.sh installs and upgrades that keg in a private
 #    Homebrew-shaped prefix at each tap state A to D of the coordinated
 #    release. OLD_GROVE_KEG is the published Grove of states A and B.
+# 5. scripts/shared-directory-seam.sh links the formula's actual output with
+#    Homebrew's own linker into private prefixes, beside Ravel's keg and the
+#    skill formulae of the tap working copy TAP. Each Grove source must keep
+#    the digest and roots of its plain checkout. RAVEL_FORMULA is Ravel's
+#    formula or its template, and RAVEL_ARCHIVE is the Ravel archive that it
+#    installs. "Shared default directory acceptance" of
+#    docs/specs/codex-skill-provisioning.md owns the cases.
 set -euo pipefail
 IFS=$'\n\t'
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -35,14 +43,19 @@ fail() {
 # The formula test checks the TypeScript set against the 1.1 prefix and the
 # Rhai set against the 2.0 prefix, each named explicitly, because a build of
 # Ravel's 2.0 feature line reports `ravel 1.1.0` until the cut.
-[[ $# == 4 ]] || {
-  echo 'usage: release-formula.test.sh NATIVE_ARCHIVE RAVEL_1_1_PREFIX RAVEL_2_0_PREFIX OLD_GROVE_KEG' >&2
+[[ $# == 7 ]] || {
+  echo 'usage: release-formula.test.sh NATIVE_ARCHIVE RAVEL_1_1_PREFIX RAVEL_2_0_PREFIX OLD_GROVE_KEG RAVEL_FORMULA RAVEL_ARCHIVE TAP' >&2
   exit 1
 }
 archive="$1"
 ravel_1_1="$(cd "$2" && pwd -P)/bin/ravel"
 ravel_2_0="$(cd "$3" && pwd -P)/bin/ravel"
 old_keg="$(cd "$4" && pwd -P)"
+seam_ravel_formula="$5"
+seam_ravel_archive="$6"
+seam_tap="$7"
+[[ -f "$seam_ravel_formula" && -f "$seam_ravel_archive" ]] || fail 'the seam needs the Ravel formula and its archive'
+[[ -d "$seam_tap/Formula" ]] || fail "$seam_tap is not a tap working copy"
 [[ -x "$ravel_1_1" && -x "$ravel_2_0" ]] || fail 'each Ravel prefix needs bin/ravel'
 [[ -x "${ravel_1_1%/bin/ravel}/libexec/ravel/ravel-policy" ]] || fail 'the 1.1 prefix holds no 1.x worker'
 [[ ! -e "${ravel_2_0%/bin/ravel}/libexec/ravel" ]] || fail 'the 2.0 prefix holds a 1.x worker'
@@ -62,7 +75,7 @@ mkdir "$scratch/prefix" "$scratch/test" "$scratch/tmp"
 # Tests never fetch a formula URL. Checksum placeholders are valid fixture
 # values; the production release build renders all three real archive hashes.
 sha="$(shasum -a 256 "$archive" | cut -d' ' -f1)"
-sed -e "s/@VERSION@/$version/g" -e "s/@SHA_[A-Z_]*@/$sha/g" \
+sed -e "s/@VERSION@/$version/g" -e "s/@SHA_[A-Z0-9_]*@/$sha/g" \
   "$root/scripts/templates/grove.rb.tmpl" >"$scratch/grove.rb"
 HOMEBREW_NO_AUTO_UPDATE=1 brew ruby "$root/scripts/release-formula.test.rb" \
   "$scratch/grove.rb" "$scratch/$top" "$scratch/prefix" "$scratch/test" "$ravel_1_1" "$ravel_2_0"
@@ -112,17 +125,20 @@ env -u CLAUDE_CODE_PLUGIN_CACHE_DIR -u CLAUDE_CODE_PLUGIN_DIRS -u CLAUDE_CODE_PL
   HOME="$scratch/claude-home" CLAUDE_CONFIG_DIR="$scratch/claude-home/.claude" \
   claude plugin validate "$keg" || fail "claude plugin validate refused the keg's marketplace file"
 
-# resolve_sources RAVEL HOME: the id, resourceDigest and originPath of each
-# source that RAVEL resolves in HOME, tab-separated, in Ravel's order.
+# resolve_sources RAVEL HOME: the id, resourceDigest, originPath and
+# comma-separated roots of each source that RAVEL resolves in HOME,
+# tab-separated, in Ravel's order.
 resolve_sources() {
   env -i HOME="$2" TMPDIR="$scratch/tmp" PATH=/usr/bin:/bin "$1" skills resolve --json |
     python3 -I -c '
-import json, sys
+import json, os, sys
 document = json.load(sys.stdin)
 if document.get("status") != "resolved":
     sys.exit(f"the sources did not resolve: {document}")
 for source in document["sources"]:
-    print("\t".join((source["id"], source["resourceDigest"], source["originPath"])))
+    roots = sorted(os.path.relpath(d["path"], source["snapshotRoot"])
+                   for d in document["directories"] if d["source"] == source["id"])
+    print("\t".join((source["id"], source["resourceDigest"], source["originPath"], ",".join(roots))))
 '
 }
 
@@ -152,7 +168,10 @@ for line in sys.stdin.read().splitlines():
     sources.append({"id": source_id, "type": "local", "path": path, "roots": roots})
 print(json.dumps({"skills": {"schemaVersion": 1, "sources": sources}}))
 ' >"$scratch/reference-home/.config/ravel/settings.json"
-resolve_sources "$ravel_2_0" "$scratch/reference-home" | cut -f1,2 | LC_ALL=C sort >"$scratch/reference-digests"
+resolve_sources "$ravel_2_0" "$scratch/reference-home" | LC_ALL=C sort >"$scratch/reference"
+cut -f1,2 "$scratch/reference" >"$scratch/reference-digests"
+# The seam's accepted values: ID, digest and roots of each plain checkout.
+cut -f1,2,4 "$scratch/reference" >"$scratch/accepted"
 
 # The keg's sources through a private copy of the 2.0 build, whose record
 # names the keg's share/ravel/skills. Ravel canonicalises each public alias,
@@ -162,7 +181,7 @@ cp "$ravel_2_0" "$scratch/keg-ravel/bin/ravel"
 printf '{"schemaVersion":1,"skillDirectory":"%s"}\n' "$keg/$ARCHIVE_SKILLS" \
   >"$scratch/keg-ravel/share/ravel/installation.json"
 resolve_sources "$scratch/keg-ravel/bin/ravel" "$scratch/keg-home" >"$scratch/keg-sources"
-while IFS=$'\t' read -r id _ origin; do
+while IFS=$'\t' read -r id _ origin _; do
   [[ "$origin" == "$keg/$KEG_SKILL_SOURCES/$id" ]] ||
     fail "source $id has the originPath $origin, not its private source $keg/$KEG_SKILL_SOURCES/$id"
 done <"$scratch/keg-sources"
@@ -178,3 +197,10 @@ done <"$scratch/keg-digests"
 
 bash "$root/scripts/grove-tap-states.sh" "$old_keg" "$keg" "$version" "${ravel_1_1%/bin/ravel}" \
   "${ravel_2_0%/bin/ravel}" "$scratch/reference-digests"
+
+# 5. The shared default directory seam, with the formula that the steps above
+# rendered and the archive that it installs.
+bash "$root/scripts/shared-directory-seam.sh" --ravel-formula "$seam_ravel_formula" \
+  --ravel-archive "$seam_ravel_archive" --subject "grove=$scratch/grove.rb" --archive "grove=$archive" \
+  --accepted "grove=$scratch/accepted" --tap "$seam_tap" --tap-subjects ||
+  fail 'the shared default directory seam failed; see its record above'

@@ -55,6 +55,20 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- `grove` release checks: the new shared directory seam,
+  `task seam:shared-directory`, links actual formula output with Homebrew's
+  own linker into private prefixes. Ravel then resolves each prefix's
+  default skill directory with no settings. The seam covers both
+  installation orders, Ravel first, Ravel promotion, upgrade, cleanup,
+  uninstall, mixed-layout migration and duplicate source IDs. A failure
+  control links the published direct formulae and must show the source
+  expansion. `scripts/skill-formulae.json` declares each skill formula's
+  layout. `task release:formula:test` now takes `TAP`, `RAVEL_FORMULA` and
+  `RAVEL_ARCHIVE` and runs the seam. `task tap:formula:test` takes the two
+  Ravel inputs and runs the seam for its formula. The test's renderer now
+  fills each checksum placeholder of Grove's template, including those
+  with digits in their target names.
+
 - `grove`: this release removes the manual installer `plugins/install.sh`,
   with its `--pack` option and its tests. Homebrew installs the skill
   sources, and Ravel delivers them to each session in every harness. Links

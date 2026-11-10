@@ -372,6 +372,8 @@ tasks:
     cmds:
       - python3 -m http.server {{.PORT}} --bind 127.0.0.1 --directory docs/design/harness-selection-and-execution
 
+  # The design experiment. It stays as a cheap failure control beside the
+  # shared directory seam, with fixture kegs and no formula or download.
   design:keg-link-layout:test:
     desc: Reproduce Homebrew source expansion and directory-symlink recovery with two fixture kegs and the Ravel directory resolver
     requires:
@@ -706,31 +708,56 @@ tasks:
   # fronts. The 1.1 build checks the TypeScript set and the 2.0 build the Rhai
   # set and the keg's skill sources. OLD is the published Grove keg of tap
   # states A and B. The archive's packs need their checkouts from
-  # `task check:packs`, and core's working files must equal HEAD. For example:
+  # `task check:packs`, and core's working files must equal HEAD. The shared
+  # directory seam (`task seam:shared-directory`) then links the keg beside
+  # Ravel's keg and the skill formulae of the tap working copy TAP.
+  # RAVEL_FORMULA is Ravel's formula or its template, and RAVEL_ARCHIVE the
+  # recorded Ravel archive that it installs. For example:
   #   task release:formula:test ARCHIVE=target/archives/grove-v<ver>-aarch64-apple-darwin.tar.xz \
   #     RAVEL_1_1_PREFIX=/opt/homebrew/Cellar/ravel/1.1.0 RAVEL_2_0_PREFIX=/opt/ravel-2 \
-  #     OLD=/opt/homebrew/Cellar/grove/22.8.0
+  #     OLD=/opt/homebrew/Cellar/grove/22.8.0 TAP=~/Development/Delivery/homebrew-taps \
+  #     RAVEL_FORMULA=../Ravel.skill-directory-delivery/scripts/templates/ravel.rb.tmpl \
+  #     RAVEL_ARCHIVE=target/ravel-archives-2.0/ravel-v1.1.0-aarch64-apple-darwin.tar.xz
   release:formula:test:
-    desc: Exercise the real Homebrew install/test methods, the keg's skill digests and tap states A to D with both Ravel builds
+    desc: Exercise the real Homebrew install/test methods, the keg's skill digests, tap states A to D with both Ravel builds and the shared directory seam
     requires:
-      vars: [ARCHIVE, RAVEL_1_1_PREFIX, RAVEL_2_0_PREFIX, OLD]
+      vars: [ARCHIVE, RAVEL_1_1_PREFIX, RAVEL_2_0_PREFIX, OLD, RAVEL_FORMULA, RAVEL_ARCHIVE, TAP]
     cmds:
-      - bash scripts/release-formula.test.sh "{{.ARCHIVE}}" "{{.RAVEL_1_1_PREFIX}}" "{{.RAVEL_2_0_PREFIX}}" "{{.OLD}}"
+      - bash scripts/release-formula.test.sh "{{.ARCHIVE}}" "{{.RAVEL_1_1_PREFIX}}" "{{.RAVEL_2_0_PREFIX}}" "{{.OLD}}" "{{.RAVEL_FORMULA}}" "{{.RAVEL_ARCHIVE}}" "{{.TAP}}"
+
+  # The shared default directory seam alone. Pass its arguments after --, as
+  # `scripts/shared-directory-seam.sh --help` states. scripts/check.sh does not
+  # run it, because it needs Homebrew and a recorded Ravel 2.0 archive. For
+  # example, with the fixture formulae and the tap's formulae:
+  #   task seam:shared-directory -- \
+  #     --ravel-formula ../Ravel.skill-directory-delivery/scripts/templates/ravel.rb.tmpl \
+  #     --ravel-archive target/ravel-archives-2.0/ravel-v1.1.0-aarch64-apple-darwin.tar.xz \
+  #     --tap ~/Development/Delivery/homebrew-taps --tap-subjects
+  seam:shared-directory:
+    desc: Link actual formula output with Homebrew's linker into private prefixes and resolve the shared default directory with Ravel (needs Homebrew and a Ravel 2.0 archive; not in check)
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    cmds:
+      - bash scripts/shared-directory-seam.sh {{.CLI_ARGS}}
 
   # One skill formula of the Linkuistics tap, such as `personal`, in a private
   # Homebrew-shaped prefix. FORMULA is its file in a tap working copy. REPO and
   # SHA name the commit that it installs. SOURCES lists each keg source as
   # ID=PATH, with PATH its source directory in that commit. RAVEL_2_0_PREFIX is
-  # an installation prefix. The test downloads the formula's URL. For example:
+  # an installation prefix. The test downloads the formula's URL. It then runs
+  # the shared directory seam for the formula, with RAVEL_FORMULA and
+  # RAVEL_ARCHIVE as in release:formula:test. For example:
   #   task tap:formula:test FORMULA=~/Development/Delivery/homebrew-taps/Formula/personal.rb \
   #     RAVEL_2_0_PREFIX=/opt/ravel-2 REPO=https://github.com/Linkuistics/PersonalSkills.git \
-  #     SHA=cddcfde901cdaf8069e2aac6f3b6bc5aba9fe925 SOURCES=personal=plugins/personal
+  #     SHA=cddcfde901cdaf8069e2aac6f3b6bc5aba9fe925 SOURCES=personal=plugins/personal \
+  #     RAVEL_FORMULA=../Ravel.skill-directory-delivery/scripts/templates/ravel.rb.tmpl \
+  #     RAVEL_ARCHIVE=target/ravel-archives-2.0/ravel-v1.1.0-aarch64-apple-darwin.tar.xz
   tap:formula:test:
-    desc: Install and test one tap skill formula in a private prefix, compare its sources with their commit and register its marketplace
+    desc: Install and test one tap skill formula in a private prefix, compare its sources with their commit, register its marketplace and run the shared directory seam
     requires:
-      vars: [FORMULA, RAVEL_2_0_PREFIX, REPO, SHA, SOURCES]
+      vars: [FORMULA, RAVEL_2_0_PREFIX, REPO, SHA, SOURCES, RAVEL_FORMULA, RAVEL_ARCHIVE]
     cmds:
-      - bash scripts/tap-formula.test.sh "{{.FORMULA}}" "{{.RAVEL_2_0_PREFIX}}" "{{.REPO}}" "{{.SHA}}" {{.SOURCES}}
+      - bash scripts/tap-formula.test.sh "{{.FORMULA}}" "{{.RAVEL_2_0_PREFIX}}" "{{.RAVEL_FORMULA}}" "{{.RAVEL_ARCHIVE}}" "{{.REPO}}" "{{.SHA}}" {{.SOURCES}}
 
   release:archives:
     desc: Build release archives of the working copy into target/archives, without a tag or publication

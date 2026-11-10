@@ -50,3 +50,10 @@ its staging trials. Stop and report it. Do not publish that formula.
 
 Push the tap only after every record exists. The tap publishes only
 accepted versions.
+
+shared-directory-seam-k294 delivered the seam. Run it through
+`task release:formula:test` with `TAP` set to the tap working copy. The
+failure control reads the published formulae from the tap's `origin/main`.
+After the push, change each `published` declaration in
+`scripts/skill-formulae.json` to `projected`. The fixture formulae then keep
+the failure control.

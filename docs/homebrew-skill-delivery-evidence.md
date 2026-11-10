@@ -893,3 +893,150 @@ Only `task release:smoke` applies to Linux. It tests the archive layout on
 each Linux target, and that layout is unchanged. The formula, its install
 method, `brew link` and the tap states ran on macOS only. No Linux Homebrew
 run exists, so Linux formula linking remains a stated limit.
+
+## Shared directory seam
+
+`shared-directory-seam-k294` delivered the durable seam of
+[Shared default directory acceptance](specs/codex-skill-provisioning.md#shared-default-directory-acceptance).
+It answers finding L3. It links actual formula output with Homebrew's own
+linker into private prefixes. Ravel then resolves each prefix's default skill
+directory with no settings. No real keg, link, tap or HOME changed.
+
+### Instrument
+
+`scripts/shared-directory-seam.sh` prepares the inputs, and
+`scripts/shared-directory-seam.rb` runs the cases under `brew ruby`. For each
+case, the instrument substitutes Homebrew's prefix, Cellar, cache, Caskroom,
+lock and linked-keg constants. Each case therefore owns a new prefix and HOME.
+The instrument calls the install method, `Cleaner#clean`, `Keg#link`,
+`Keg#unlink`, `Keg#optlink` and `Keg#uninstall`. It calls them in the order of
+Homebrew's own installer, upgrade, cleanup and uninstall code at
+`bc63375ac3a4`. `Keg#link` rolls back a conflict by unlinking the whole keg,
+so the duplicate cases observe Homebrew's own rollback.
+
+Ravel's keg comes from Ravel's formula install method. The run rendered the
+template of the Ravel workspace `skill-directory-delivery`, whose working
+copy is the lane's source commit `ff14cba826b0`. The keg holds `examples`,
+`notices` and `installation.json` under `share/ravel`. The record names the
+case's own `share/ravel/skills`, because the case substitutes
+`HOMEBREW_PREFIX`. Each resolution runs the keg's executable. Ravel finds that
+record beside the canonical executable.
+
+After each successful link, the instrument compares the exact source IDs, the
+roots and the digests with the accepted values. It compares each
+`originPath` with the owning keg's `libexec/skill-sources/<id>`. It compares
+every entry of each source through the prefix with the pristine payload, with
+its type and executable bit. A refused duplicate is followed by a check of the
+earlier owner's sources and a scan of the prefix. The scan finds no link into
+the refused keg outside `opt`.
+
+These facts limit the instrument:
+
+- Ravel prints no build identity. The instrument identifies Ravel's archive by
+  its SHA-256 in a lane of `scripts/ravel_target_inputs.py`, and checks that
+  `bin/ravel` holds the lane's identity. It refuses an unrecorded archive.
+- The instrument runs install methods, not `FormulaInstaller` with
+  downloads, bottles and dependencies. It does not exercise bottle
+  relocation, a post-install step or Homebrew's sandbox.
+- A tap formula without a plain checkout in the caller gets accepted values
+  from its pristine private payloads. Its own `tap:formula:test` compares those
+  payloads with its plain checkout.
+- The seam runs on macOS only. No Linux Homebrew run exists.
+
+### The run of 2026-11-10
+
+`task release:formula:test` ran on the native archive of the working copy
+with the published 22.8.0 keg as `OLD`. It passed every earlier step, tap
+states A to D included, and then the seam. `task tap:formula:test` for
+`personal` passed with the seam for its formula. The records are
+`target/shared-directory-seam/20261110T120220Z.json` and
+`20261110T120248Z.json`. Both runs digested each subject before and after,
+and no subject changed.
+
+| Subject | SHA-256 or revision |
+| --- | --- |
+| Homebrew | 7.0.12-221-gbc63375, revision `bc63375ac3a4d6debb1ceb441ae6e22854f0909a` |
+| `keg.rb` | `0faa3f4cbb42c6ae7aa344ca04b129573ed9dc783d72b549bed02497c881552d`, equal to the experiment's linker |
+| `formula_installer.rb` | `a7bb4d48a4b61978a76220de09a3a8c8b0a35b96a19d846f1b1a5a512bc98eff` |
+| `install.rb` | `7f4e3e73c76b1e02457a2ec8c506f576227e178e3653872db90dde2e19afcdb3` |
+| `cleaner.rb` | `6eafe14a3edefd5f760d5ffbbd35277b9cfd64ca8f600a976ae88753c56c7838` |
+| `cleanup.rb` | `697d2965d4b38b68371443e4ebdd3a4f55e7b64706ab44a54578b12c2df2852b` |
+| `uninstall.rb` | `77535bf2c75275dae9d525551a580d8dc458151a6b134bef986923b345945023` |
+| `extend/pathname.rb` | `601bfa46a7c188eb95c0dc52259ad8586e84dd1206d92e3c08d57c4514a46d58` |
+| `scripts/shared-directory-seam.rb` | `a5a45c4a184c2cd97ca93f05168916ba4b671e2ba882ea43eee57be7864aa929` |
+| `scripts/shared-directory-seam.sh` | `b34521b00eaffb66fad28f832637c0193317b3c5a2263b1e826256f97766608d` |
+| `scripts/skill-formulae.json` | `cd46d8bf25b9226adc8f62d95a5b0ad16f565077ec7ce1ebcb77fc6ca29d584a` |
+| Ravel archive | `289b4ac57ffd148255960507f02809034e8fb35fe97132813230116add804921`, lane 2.0, build identity `58d479ed058f…` |
+| Rendered Ravel formula | `b5b22ba8b45c41b35f2f66f3ec87cce47cf4883e28e5bac6f838d236c2110746`, package version 1.1.0 |
+| Grove archive | `5f6093a6e6bb7c5c0e8fbcccff8907c7fe329a68a823c6d1cc3b1161508a885c` |
+| Rendered Grove formula | `20896774f6c1f491c3cb4fbda29fd04f49ffb82f47c871e1a7205ed6b79e491b`, package version 22.8.0, projected |
+| Tap | `homebrew-taps` at `origin/main` `9ca2b5e37510`, working copy equal |
+
+The four tap formulae were the same file in the working copy and on the
+published tap. `scripts/skill-formulae.json` declares each one `direct`, so
+each took part only in the failure control.
+
+| Formula | Package version | Formula SHA-256 | Archive SHA-256 |
+| --- | --- | --- | --- |
+| `personal` | 2026-11-06 | `6073283203325e06…` | `ff55ec0adea4e899…` |
+| `superpowers` | 7.0.0 | `924bf5cfabb109fc…` | `496b576d4a4a62c0…` |
+| `quint-llm-kit` | 1.0.0 | `d4f50a75dc29ecf4…` | `152947a80275a1d8…` |
+| `testanyware` | 2.8.0 | `9af063f4c7e16eca…` | `bda57d356222e6ef…` |
+
+The fixture formulae were `seam-fixture` 1 (direct) and 2 (projected),
+`seam-control` 1 (direct), and `seam-duplicate` 1 and 2 (projected). The
+second version of `seam-duplicate` also ships `grove-core` in the release run,
+and `seam-fixture` in the tap run. The records hold each fixture's digest.
+
+### Case results
+
+Each case passed in both runs. The release run's observations follow.
+
+| Case | Observation |
+| --- | --- |
+| `failure-control-forward` | The four published formulae and two direct fixtures linked. `personal`, linked first, expanded into file links. Ravel refused with `skill_resource_invalid` |
+| `failure-control-reverse` | The same kegs in reverse published order. `testanyware`, linked first, expanded. Ravel refused with `skill_resource_invalid` |
+| `order-forward` | From a prefix without `share`: Grove, `seam-fixture` 2, then `seam-duplicate` 1. After each link, every source matched |
+| `order-reverse` | The reverse order. After each link, every source matched |
+| `ravel-first` | Ravel linked first and held `share/ravel`. The three skill kegs then linked. Every source matched, and each of Ravel's five shared files still reached Ravel's keg |
+| `ravel-promotion` | The skill kegs linked beside the keg-only Ravel. Ravel then linked. All eight sources matched, and Ravel's files reached its keg |
+| `upgrade-cleanup-uninstall` | The seam upgraded each keg to its next revision, such as Grove 22.8.0_1, and `Keg#uninstall` removed the old keg. All eight sources matched after each step. Each uninstall removed its sources. With no keg left, Ravel reported `disabled` |
+| `mixed-layout-migration` | Grove and `seam-duplicate` 1 linked after the direct `seam-fixture` 1, which expanded. Ravel refused with `skill_resource_invalid`. After the upgrade of `seam-fixture` to the projected version 2, all eight sources matched |
+| `duplicate-fresh` | `seam-duplicate` 2 conflicted at `share/ravel/skills/grove-core`. `Keg#link` unlinked the whole keg. Grove's six sources and `seam-fixture` matched. No source or executable entry of the refused keg remained |
+| `duplicate-upgrade` | The upgrade from `seam-duplicate` 1 to 2 conflicted at the same entry. The new keg linked nothing, and the earlier keg stayed unlinked. The seven other sources matched. `seam-duplicate` and `bin/seam-duplicate` left the prefix |
+
+The duplicate upgrade reproduces finding L5 on the upgraded formula. Every
+source of the upgraded formula leaves the default directory, and its other
+entries leave the prefix too.
+
+### Controls
+
+The failure control is part of every run. It failed as required in both runs
+before the projected cases passed. Two mutation controls ran on scratch
+copies of the instrument with the fixture formulae, and each failed as
+intended:
+
+- With the direct `seam-control` among the projected kegs, the first
+  comparison refused its `originPath`, which was not a private payload.
+- With `personal` declared `projected`, the layout check refused its keg. Its
+  `share/ravel/skills/personal` was not a relative symlink.
+
+An earlier run found one defect in `release-formula.test.sh`. Its renderer
+matched `@SHA_[A-Z_]*@`, which leaves `@SHA_AARCH64_APPLE_DARWIN@` in place.
+The release test reads no checksum, so the defect was hidden. The seam
+compares each formula's checksum with its archive, so the renderer now
+matches `@SHA_[A-Z0-9_]*@`.
+
+### The design experiment
+
+`task design:keg-link-layout:test` stays as a cheap failure control. It needs
+no formula, download or tap. The seam replaces it as acceptance of formula
+output.
+
+### Remaining work
+
+The cases with all five revised formulae cannot pass before the tap formulae
+have the projected layout. `skill-formula-publication-k298` runs the seam with them. It
+changes their declarations in `scripts/skill-formulae.json` with the
+formulae. Release acceptance repeats the seam with the published Ravel
+archives, after their lane is in `scripts/ravel_target_inputs.py`.

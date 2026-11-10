@@ -77,3 +77,60 @@ reference to it.
 `scripts/check.sh` does not run this seam, because it needs Homebrew and a
 Ravel 2.0 build. Say so in the task's description and in
 `docs/RELEASING.md`.
+
+## Decisions (running log)
+
+- The design experiment stays as a cheap failure control, and its task name
+  stays. The delivery spec already calls it a reusable failure control. It
+  needs no formula, download or tap, so it remains usable after the tap
+  formulae change layout.
+- The seam is `scripts/shared-directory-seam.rb` under `brew ruby`. A shell
+  front, `scripts/shared-directory-seam.sh`, prepares its inputs, and
+  `task seam:shared-directory` runs it alone. The instrument substitutes the
+  prefix, Cellar, cache, Caskroom, lock and linked-keg constants for each
+  case. It calls `Keg#link`, `Keg#unlink`, `Keg#optlink` and `Keg#uninstall`
+  as `Install.install_formula`, `FormulaInstaller#link`,
+  `Cleanup#cleanup_keg` and `Uninstall` call them at Homebrew `bc63375ac3a4`.
+  It runs each install method and then `Cleaner#clean`.
+- The seam loads each formula through `Formulary.load_formula_from_path`, so
+  a published formula and its revision load side by side in separate
+  namespaces.
+- `scripts/skill-formulae.json` declares the layout of each of the five
+  skill formulae, both for the working copy and for the published tap. The
+  seam refuses a keg that differs from its declaration. A published direct
+  formula joins the failure control. A published direct formula whose
+  working copy is projected is also the predecessor of the migration case.
+- The failure control and the migration case always include direct and
+  projected variants of a fixture formula. They therefore keep two direct
+  kegs after the tap formulae change layout.
+- The Ravel keg comes from a Ravel formula file and its archive. The seam
+  identifies the archive by its SHA-256 in a lane of
+  `scripts/ravel_target_inputs.py` that records a build identity. It checks
+  that `bin/ravel` holds that identity, and refuses an unrecorded archive.
+  Ravel prints no build identity, so the lane record is the only source.
+- Accepted values come from the caller where it has plain checkouts: Grove's
+  six sources in `release:formula:test`, and the formula under test in
+  `tap:formula:test`. Elsewhere the seam resolves each pristine private
+  payload through explicit settings before any link. Each tap formula's
+  plain-checkout comparison remains in its own `tap:formula:test`.
+- The failure control links every published direct formula first, then the
+  two direct fixtures, in both orders. Homebrew expands only the keg that
+  linked first, so each order names a different expanded formula.
+- The ordinary cases add `seam-fixture` 2 and `seam-duplicate` 1 to the
+  projected subjects. Two projected kegs therefore exist even when the
+  formula under test is still direct. The duplicate's second version ships
+  the first source of the first projected subject, `grove-core` in the
+  release test.
+- The mixed-layout case resolves only after the last upgrade. Before it,
+  the case requires the expansion when a projected keg links after the
+  direct keg. A migration pair with equal package versions is refused,
+  because Homebrew would not upgrade it.
+- `release:formula:test` takes `TAP`, `RAVEL_FORMULA` and `RAVEL_ARCHIVE`.
+  `tap:formula:test` takes the two Ravel inputs and reads the published
+  version of its formula from its tap's `origin/main`. No release task
+  calls either test, so the new required inputs break no automated step.
+- The seam compares each formula's sha256 with its archive. That found the
+  renderer of `release-formula.test.sh` leaving `@SHA_AARCH64_APPLE_DARWIN@`,
+  because `[A-Z_]` excludes digits. The pattern is now `[A-Z0-9_]`.
+- `docs/grove-delivery-contraction.md` had two paragraphs over the sentence
+  limit. Their split is its own change, before the content edit.

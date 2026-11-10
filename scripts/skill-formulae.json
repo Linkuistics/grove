@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "comment": "The declared keg layout of each Linkuistics skill formula, for scripts/shared-directory-seam.sh. 'layout' is that of the formula that the seam tests: Grove's template, or the formula file of a tap working copy. 'published' is that of the formula on the tap's published main, or null when that formula has no keg source. 'direct' means real source directories under share/ravel/skills. 'projected' means private sources in libexec/skill-sources with relative aliases under share/ravel/skills. 'The keg layout' of docs/specs/codex-skill-provisioning.md owns the layout. The seam refuses a keg that differs from its declaration, so change a declaration with the formula that it describes.",
+  "formulae": {
+    "grove": {
+      "sources": ["grove-core", "requirements", "design", "engineering", "research", "writing"],
+      "layout": "projected",
+      "published": null
+    },
+    "personal": {
+      "sources": ["personal"],
+      "layout": "direct",
+      "published": "direct"
+    },
+    "superpowers": {
+      "sources": ["superpowers"],
+      "layout": "direct",
+      "published": "direct"
+    },
+    "quint-llm-kit": {
+      "sources": ["quint"],
+      "layout": "direct",
+      "published": "direct"
+    },
+    "testanyware": {
+      "sources": ["testanyware"],
+      "layout": "direct",
+      "published": "direct"
+    }
+  }
+}

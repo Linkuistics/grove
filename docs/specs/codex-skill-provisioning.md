@@ -902,6 +902,19 @@ the reading. Every formula validation reruns the seam against its Homebrew,
 so it does not depend on detecting a later linker change. Before accepting a
 new Homebrew version, repeat the failure control and both installation orders.
 
+`task seam:shared-directory` runs this seam alone, and both formula tests run
+it. `scripts/skill-formulae.json` declares the layout of each skill formula,
+in the tap working copy and on the published tap. The seam refuses a keg that
+differs from its declaration. Change a declaration with its formula.
+
+The failure control links the published direct formulae and two direct
+fixture formulae. The fixtures keep the control usable after every tap
+formula is projected. A fixture formula also supplies the duplicate ID and a
+migration pair. The seam identifies Ravel's archive by its lane in
+`scripts/ravel_target_inputs.py`, because Ravel prints no build identity. The
+[seam evidence](../homebrew-skill-delivery-evidence.md#shared-directory-seam)
+records the instrument's runs and controls.
+
 Directory-route harness trials include supporting reads, continuation/compaction,
 one delegate, and coexistence with a stale native copy. Record
 harness/model/version, isolation, harness sandbox mode, directory identity and observed

@@ -2,7 +2,7 @@
 # Exercise one skill formula of the Linkuistics tap in a private
 # Homebrew-shaped prefix, without changing any real keg, HOME or tap.
 #
-#   tap-formula.test.sh FORMULA RAVEL_2_0_PREFIX REPO_URL SHA ID=PATH...
+#   tap-formula.test.sh FORMULA RAVEL_2_0_PREFIX RAVEL_FORMULA RAVEL_ARCHIVE REPO_URL SHA ID=PATH...
 #
 # FORMULA is the formula file, such as Formula/personal.rb of the tap. REPO_URL
 # and SHA name the commit that the formula installs. Each ID=PATH names one
@@ -24,6 +24,13 @@
 #    validate` accepts the keg. In an isolated Claude Code home, the documented
 #    commands register the marketplace by its `opt` path and install each
 #    plugin that it lists.
+# 5. scripts/shared-directory-seam.sh links the formula's actual output with
+#    Homebrew's own linker into private prefixes, beside Ravel's keg and the
+#    seam's fixture formulae. Each source must keep the digest and roots of
+#    its plain checkout. When FORMULA lies in a Git working copy, the seam
+#    reads the formula's published version from that tap's origin/main.
+#    RAVEL_FORMULA is Ravel's formula or its template, and RAVEL_ARCHIVE is
+#    the recorded Ravel archive that it installs.
 #
 # "The keg layout" and "Hook adapters" of docs/specs/codex-skill-provisioning.md
 # state the contract.
@@ -36,12 +43,15 @@ fail() {
   echo "tap-formula: $*" >&2
   exit 1
 }
-(($# >= 5)) || fail 'usage: tap-formula.test.sh FORMULA RAVEL_2_0_PREFIX REPO_URL SHA ID=PATH...'
+(($# >= 7)) || fail 'usage: tap-formula.test.sh FORMULA RAVEL_2_0_PREFIX RAVEL_FORMULA RAVEL_ARCHIVE REPO_URL SHA ID=PATH...'
 formula="$(cd "$(dirname "$1")" && pwd -P)/$(basename "$1")"
 ravel_2_0="$(cd "$2" && pwd -P)/bin/ravel"
-repo_url="$3"
-sha="$4"
-shift 4
+seam_ravel_formula="$3"
+seam_ravel_archive="$4"
+repo_url="$5"
+sha="$6"
+shift 6
+[[ -f "$seam_ravel_formula" && -f "$seam_ravel_archive" ]] || fail 'the seam needs the Ravel formula and its archive'
 [[ -f "$formula" ]] || fail "no formula file $formula"
 [[ -x "$ravel_2_0" ]] || fail 'the Ravel 2.0 prefix needs bin/ravel'
 [[ "$sha" =~ ^[0-9a-f]{40}$|^[0-9a-f]{64}$ ]] || fail "SHA must be a full commit ID, not $sha"
@@ -161,6 +171,8 @@ print(json.dumps({"skills": {"schemaVersion": 1, "sources": sources}}))
 ' >"$scratch/reference-home/.config/ravel/settings.json"
 resolve "$ravel_2_0" "$scratch/reference-home" | LC_ALL=C sort >"$scratch/reference" ||
   fail 'Ravel 2.0 cannot resolve the plain checkout'
+# The seam's accepted values: ID, digest and roots of each plain checkout.
+cut -f1,2,4 "$scratch/reference" >"$scratch/accepted"
 # A private copy of the 2.0 build, whose installation record names the
 # prefix's share/ravel/skills. That HOME holds no settings.
 mkdir -p "$scratch/keg-ravel/bin" "$scratch/keg-ravel/share/ravel" "$scratch/keg-home"
@@ -205,4 +217,14 @@ if not any(p.get("id") == wanted and p.get("enabled") for p in plugins):
     echo "tap-formula: the documented commands registered $marketplace_name and installed $plugin@$marketplace_name"
   done < <(python3 -I -c 'import json, sys; print("\n".join(p["name"] for p in json.load(open(sys.argv[1]))["plugins"]))' "$marketplace")
 fi
+
+# 5. The shared default directory seam, with the formula's own download.
+seam_tap=()
+if tap_root="$(git -C "$(dirname "$formula")" rev-parse --show-toplevel 2>/dev/null)"; then
+  seam_tap=(--tap "$tap_root")
+fi
+bash "$root/scripts/shared-directory-seam.sh" --ravel-formula "$seam_ravel_formula" \
+  --ravel-archive "$seam_ravel_archive" --subject "$name=$formula" --archive "$name=$scratch/download/archive" \
+  --accepted "$name=$scratch/accepted" "${seam_tap[@]+"${seam_tap[@]}"}" ||
+  fail 'the shared default directory seam failed; see its record above'
 echo "tap-formula: $name $version passes"

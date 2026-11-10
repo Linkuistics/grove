@@ -24,7 +24,7 @@
     },
     "testanyware": {
       "sources": ["testanyware"],
-      "layout": "direct",
+      "layout": "projected",
       "published": "direct"
     }
   }

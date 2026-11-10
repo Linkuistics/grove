@@ -1038,7 +1038,7 @@ output.
 The cases with all five revised formulae cannot pass before the tap formulae
 have the projected layout. `tap-skill-keg-projection-k295` changed three
 `layout` declarations in `scripts/skill-formulae.json` with their formulae,
-and `testanyware-keg-projection-k296` changes the fourth.
+and `testanyware-keg-projection-k296` changed the fourth.
 `skill-formula-publication-k298` runs the seam with all five. After its
 push, it changes each `published` declaration to `projected`. Release
 acceptance repeats the seam with the published Ravel archives, after their
@@ -1154,3 +1154,88 @@ An earlier run of `personal` passed before two changes to the test. One
 change joined the list of native-only entries on one line in its message.
 The other change added the tap's other formulae to the seam. The table
 above reports only the runs after those changes.
+
+## TestAnyware keg projection
+
+`testanyware-keg-projection-k296` changed TestAnyware's formula template and
+the tap's `testanyware` formula to
+[the keg layout](specs/codex-skill-provisioning.md#the-keg-layout) on
+2026-11-10. The release archive keeps the source at
+`share/ravel/skills/testanyware`. The formula moves it to
+`libexec/skill-sources/testanyware`, and `install_symlink` makes the relative
+alias. The executables, `pkgshare` and the Linux library and venv steps did
+not change.
+
+### The template and its test
+
+TestAnyware commit `cd2bcf5f35de` holds the template change and is on its
+pushed `main`. It also updates the section "Agent skill" of TestAnyware's
+README. The template renders no `revision`. TestAnyware's
+`release-publish.sh` copies the rendered formula over the tap's formula, so
+a release never carries the tap's revision forward. A comment in the
+template states that rule.
+
+`scripts/tests/release-pipeline-test.sh` now checks five facts in the
+rendered formula:
+
+- The install method moves the source into `libexec/skill-sources`.
+- The install method makes the alias with `install_symlink`.
+- The test method asserts the target of the alias.
+- No line installs a real directory in `share/ravel/skills`.
+- The formula has no `revision` line.
+
+`task release:test` passed with 93 checks and no failure. Its control was
+the template of TestAnyware's previous `main`, `1809a49068a2`. With that
+template, the four layout checks failed. A rendering with `revision 1` failed
+the revision check.
+
+### The tap formula
+
+The tap holds the revision in the local commit `12b53f8c449d`, above the
+commit `c0e61c1f3309` of `tap-skill-keg-projection-k295`. The tap's `main`
+stays at `9ca2b5e37510`, and nothing pushed either commit. The formula is the
+new template rendered at 2.8.0 with the three `sha256` values of the
+release, plus a comment and `revision 1`. The previous template, rendered the
+same way, is byte-equal to the published formula. The two formulae therefore
+differ only in the layout and the revision.
+
+`scripts/skill-formulae.json` now declares the `projected` layout for
+`testanyware`. Its `published` declaration stays `direct` until
+`skill-formula-publication-k298` pushes the tap.
+
+### The run of 2026-11-10
+
+`task tap:formula:test` ran once with `SOURCES=testanyware=plugins/testanyware`
+and the release commit `1809a49068a23d9d276913f3a90227dbefb98a82`. It passed.
+The inputs were the same as in the runs of k295:
+
+- The Ravel 2.0 prefix was the archive `289b4ac57ffd…` of lane 2.0, with the
+  build identity `58d479ed058f…`.
+- The seam rendered the Ravel template of the workspace
+  `skill-directory-delivery` at `ff14cba826b0`.
+- Homebrew was 7.0.12-221-gbc63375.
+- The tap's `origin/main` was `9ca2b5e37510`.
+
+| Formula | Full package version | Formula SHA-256 | Source, roots and `resourceDigest` | Seam record |
+| --- | --- | --- | --- | --- |
+| `testanyware` | `2.8.0_1` | `ad71af0f77f78965…` | `testanyware`, `skills`, `3e9d7929eddd8988…` | `20261110T123729Z.json` |
+
+The digest equals the value that the
+[repository moves record](repository-moves-record.md) gives for the 2.8.0
+keg. The source therefore needs no new staging trials. The payload held the
+files of `plugins/testanyware` with their Git modes.
+
+The seam passed its 10 cases. All four tap formulae took part as projected
+subjects. In the failure control, the published direct `testanyware` 2.8.0
+expanded into file links, and Ravel refused the resolution. The migration was
+2.8.0 to 2.8.0_1. That version is new, so the seam accepted the pair.
+
+The measured subjects were the four tap formulae, the test and its helper,
+the declarations, the seam, the Ravel template and the Ravel archive. The
+SHA-256 of each subject was the same before and after the run.
+
+### Control
+
+The formula of the tap's `origin/main` ran against the new `projected`
+declaration. The layout check refused it, because
+`share/ravel/skills/testanyware` was not a symlink.

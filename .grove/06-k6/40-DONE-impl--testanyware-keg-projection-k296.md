@@ -51,3 +51,30 @@ refuses a keg that differs from its declaration. `task tap:formula:test` now
 also needs `RAVEL_FORMULA` and `RAVEL_ARCHIVE`, and its seam reads the
 published formula from the tap's `origin/main` as the migration predecessor.
 The revision needs a new package version, or the seam refuses the pair.
+
+## Decisions (running log)
+
+- TestAnyware's `release-publish.sh` copies the rendered template over the
+  tap's `Formula/testanyware.rb`. It never reads the tap's formula, so a
+  release cannot carry the tap's revision forward. The template states in a
+  comment that it renders no revision. No other release document needs the
+  note.
+- The release pipeline test asserts the install lines and the alias
+  assertion of the test method. It also asserts that no line installs a real
+  directory in `share/ravel/skills` and that no `revision` renders. The
+  control was the template of TestAnyware's `main`. With that template, the four layout
+  checks failed. A rendered formula with `revision 1` failed the revision
+  check.
+- The tap formula is the template rendered at 2.8.0 with the release's three
+  `sha256` values, plus a comment and `revision 1` after `license`. The old
+  template rendered the same way is byte-equal to the published tap
+  formula. The only difference between the two renderings is therefore the
+  layout.
+- The tap test keeps its `direct` branch. No tap formula declares that
+  layout now, but the seam still uses `direct` for published predecessors.
+  `skill-formula-publication-k298` changes those declarations.
+- TestAnyware commit `cd2bcf5f35de` is on its pushed `main`, and tap commit
+  `12b53f8c449d` lies above `c0e61c1f3309` with no push.
+  `task tap:formula:test` passed for `testanyware 2.8.0_1`. The section
+  "TestAnyware keg projection" of `docs/homebrew-skill-delivery-evidence.md`
+  records the run and the controls.

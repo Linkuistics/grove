@@ -42,10 +42,11 @@ in the owner's prepared folder.
   whose content stays the same through the switch. The main checkout gains
   `rerun` only when finish moves `main`.
 - skill-keg-link-layout-k292 requires full Homebrew package versions,
-  including revisions. Read the packaging acceptance records from k290's
-  implementation and k93's installed checks. Equal source digests alone
-  do not admit a revised formula. Consume the renewed core candidate and
-  its staging evidence after the packaged README changes.
+  including revisions. Read the packaging acceptance records of
+  skill-formula-publication-k298 and k93's installed checks.
+  owner-switch-package-identity-k299 made the switch compare them. Equal
+  source digests alone do not admit a revised formula. Consume the renewed
+  core candidate and its staging evidence from core-candidate-restaging-k300.
 
 ## Done when
 

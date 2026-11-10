@@ -34,8 +34,10 @@ accepted commits. Cover each formula that publishes before finish. Make
   symlinks and revised formula versions. The two-keg seam and migration
   limits are in `docs/homebrew-skill-delivery-evidence.md`.
 - skill-keg-link-layout-k292 distinguishes source commits from full
-  package versions. Consume the packaging acceptance records and the
-  completed shared-directory and hook seams from k290's implementation.
+  package versions. skill-formula-publication-k298 published the four
+  revised formulae and holds their packaging acceptance records. Consume
+  them with the shared-directory seam of shared-directory-seam-k294 and
+  the hook readings of hook-adapter-keg-seam-k297.
 
 ## Done when
 

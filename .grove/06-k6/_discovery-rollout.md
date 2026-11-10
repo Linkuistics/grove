@@ -92,7 +92,19 @@ skill-loading-replan-k80 cut four implementation leaves here:
    `owner-switch-rehearsal-k255` then finish order 6. They freeze automatic
    updates, write the owner's checklist, complete the real plan and dry-run
    it.
-6. discovery-rollout-k12 plans the release and finish handoff. The rollout
+6. skill-keg-link-layout-k290 cut nine leaves before k93, for the revised
+   keg layout. `grove-keg-projection-k293` revises Grove's template and its
+   packaging checks. `shared-directory-seam-k294` delivers the durable
+   linking seam. `tap-skill-keg-projection-k295` and
+   `testanyware-keg-projection-k296` revise the four other formulae without
+   publication. `hook-adapter-keg-seam-k297` repeats the hook seam on the
+   revised output. `skill-formula-publication-k298` accepts and publishes
+   the four revisions together, because a lone revision fails the seam
+   beside old-layout peers. `owner-switch-package-identity-k299` reconciles
+   the switch tooling. `core-candidate-restaging-k300` renews core's
+   candidate and staging. `ravel-packaging-guidance-k301` corrects Ravel's
+   guidance before the cut.
+7. discovery-rollout-k12 plans the release and finish handoff. The rollout
 planner consumes that work and coordinated-ravel-release-k36's reviewed plan.
 Plan from the delivered migration state. Grow concrete final verification,
 documentation/handoff and independent Ravel integration/release work before
@@ -288,7 +300,7 @@ These items go to discovery-rollout-k12, which writes the finish handoff and
 the root charter's extension.
 
 - skill-keg-link-layout-k274 amends "The keg layout" in the delivery spec.
-  Its planning follow-up owns the formula changes before k93. k93 installs
+  skill-keg-link-layout-k290 cut the formula leaves before k93. k93 installs
   the four revised non-Grove formulae. Finish installs Grove's revised formula.
   It then resolves the shared default directory with the published Ravel
   before the switch or any default launch. It verifies all ten IDs, accepted
@@ -296,14 +308,22 @@ the root charter's extension.
   Staging's versioned keg paths cannot establish that. Reconcile hook registrations and prepared inputs
   for changed canonical paths. Keep the original Ravel 1.1.0 keg throughout.
 
-- skill-keg-link-layout-k292 integrates L1 to L8. k290 assigns the full
-  package-version comparisons, packaging acceptance records and durable
-  shared-directory seam before k93. It assigns the private hook marketplace
-  paths and repeated hook trials. It also assigns TestAnyware's release
-  template and Ravel's packaging guidance in their owning repositories.
+- skill-keg-link-layout-k292 integrates L1 to L8. Finish consumes these
+  results of the leaves that k290 cut:
+  - grove-keg-projection-k293: Grove's projected template and private
+    marketplace paths, which finish's release publishes.
+  - shared-directory-seam-k294: the durable seam. Release acceptance repeats
+    it with the published Ravel archives.
+  - hook-adapter-keg-seam-k297: the hook readings on revised output.
+  - skill-formula-publication-k298: the acceptance records of the four
+    published revisions.
+  - owner-switch-package-identity-k299: full package-version comparisons.
+  - ravel-packaging-guidance-k301: Ravel's packaging guidance on the 2.0
+    line.
 - The integration changes `plugins/grove/README.md`, which changes core's
-  source digest. k290 assigns a new candidate and core staging acceptance.
-  k254 and the dry run consume that evidence, not the earlier core digest.
+  source digest. core-candidate-restaging-k300 records the new candidate
+  and core staging acceptance. k254 and the dry run consume that evidence,
+  not the earlier core digest.
 - Finish's acceptance includes Ravel-first installation evidence and actual
   promotion linking beside the installed sources. It resolves all ten
   default IDs after that operation and any link-conflict recovery. A

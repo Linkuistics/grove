@@ -66,7 +66,10 @@ owning private payloads before the switch or a default launch.
 Carry the full package revisions, revised hook registrations and renewed core
 candidate evidence into the plan comparison and dry run. Check that Ravel's
 published packaging guidance and TestAnyware's release template preserve the
-layout. k290 owns their implementation leaves before this rollout planning.
+layout. ravel-packaging-guidance-k301 and testanyware-keg-projection-k296
+implement them before this rollout planning. Release acceptance repeats the
+shared-directory seam of shared-directory-seam-k294 with the published Ravel
+archives. core-candidate-restaging-k300 supplies the renewed core evidence.
 
 The simplified switch design governs the finish handoff. The handoff names
 the owner's checklist with its pause and resume instructions, the input

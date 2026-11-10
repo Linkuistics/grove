@@ -79,3 +79,34 @@ layouts. Preserve those checks.
 No automatic relink of another formula belongs in post-install hooks.
 Keep original running-driver binaries. Do not replace the coordinated
 release or finish sequences, and do not bump an already partially cut release.
+
+## Decisions (running log)
+
+- The working increments follow the packaging owners. Grove's template and
+  its packaging tests change together, because the template change alone
+  breaks every origin assertion. The tap's three formulae change together,
+  because they share one test script. TestAnyware has its own repository,
+  release template and checks, so it is a separate leaf.
+- The shared-directory seam is its own increment after Grove's projection.
+  It is useful alone: it reproduces the expansion on the current published
+  tap formulae and passes the projected cases on Grove's revised output.
+  The formula leaves then run it with their revised output.
+- The four non-Grove formulae publish together, in one leaf after the
+  hook-adapter seam. A per-formula publication would have to pass the seam
+  beside old-layout peers, which expand by design. The formula leaves
+  therefore commit their tap change without a push.
+- The hook-adapter seam is one leaf on revised formula output. It covers
+  both Grove marketplaces, Pi's public alias, guardrail's payload and its
+  capability trial with the failing no-op control.
+- Owner tooling is one leaf after publication, so that the plan draft can
+  name the published full package versions. It reconciles the switch's
+  version gate, the plan draft, the rehearsal fixtures, inventories, hook
+  registrations and prepared-input comparisons with the private payloads.
+- The core candidate and its staging trials follow every Grove change that
+  can touch `plugins/grove` in this plan. k254 and k255 consume its
+  evidence.
+- The Ravel guidance leaf is independent of the formula work. It lands on
+  Ravel's `skill-directory-delivery` line before the 2.0.0 cut that k12
+  plans.
+- Every leaf is a sibling inserted before k93, as earlier planning in this
+  node did. No new node is needed, because the leaves share the parent brief.

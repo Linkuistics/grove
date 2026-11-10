@@ -1,4 +1,4 @@
-# owner-staging-capabilities-k250
+# owner-staging-capabilities-k250 — brief
 
 ## Goal
 
@@ -66,3 +66,28 @@ HOME. The section "Quiet interval in staging" of
 - The staging `codebase-memory-mcp` entry sets `CBM_CACHE_DIR` to the
   account daemon's cache folder, and it connects. Context7 still needs
   authentication.
+
+## Decomposition
+
+The trials need new verdicts in `staging_trial.py`, real runs on each
+harness and an evidence section each. That work does not fit one session.
+The leaf therefore became this node with three children. Each child is a
+vertical slice: it adds its cases and verdicts, runs them, and writes its
+own evidence section.
+
+1. `staging-claude-native-trial-k285`: the Claude Code trials of the native
+   residue. They are the hooks without a native `technical-communication`
+   skill, `/guardrail` from `guardrail@personal`, the inventory rows of the
+   staging HOME and the unloaded `authoring-conventions`.
+2. `staging-mcp-trials-k286`: `quint-kb` and `codebase-memory-mcp` with
+   their skills, on each harness.
+3. `staging-testanyware-trial-k287`: the TestAnyware guidance, its command
+   reference and one real VM operation, on each harness.
+
+4. `inventory-guardrail-loaded-dir-k288`: staging-claude-native-trial-k285
+   found that the inventory's sole-skill rule reads the plugin-cache copy
+   of `guardrail@personal`, but Claude Code loads the keg's directory. This
+   leaf makes the rule read the loaded directory.
+
+Each child reconciles the items of "Not measured" that its own trials
+measure. The node is done when the four children are done.

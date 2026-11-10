@@ -602,6 +602,196 @@ class GuidanceVerdicts(unittest.TestCase):
             subprocess.run(["/bin/chmod", "-R", "u+w", tmp], check=True)
 
 
+FORBIDS = {"mandatoryFirst": True, "forbids": [{"source": "personal", "skill": "authoring-conventions"}]}
+AUTHORING = [
+    event(1, "mandatory", "using-superpowers", "superpowers"),
+    event(2, "listing"),
+    event(3, "skill", "writing-skills", "superpowers"),
+    event(4, "action"),
+]
+
+
+class ForbidsVerdicts(unittest.TestCase):
+    def test_no_load_passes_and_keeps_other_reads(self) -> None:
+        verdict = staging_trial.judge(FORBIDS, [launch(AUTHORING)], set())
+        self.assertEqual(verdict["failures"], [])
+        self.assertEqual(verdict["forbids"][0]["otherSkillReads"], ["superpowers:writing-skills"])
+
+    def test_path_read_fails(self) -> None:
+        events = [*AUTHORING[:3], event(4, "skill", "authoring-conventions", "personal"), event(5, "action")]
+        verdict = staging_trial.judge(FORBIDS, [launch(events)], set())
+        self.assertTrue(any("forbids authoring-conventions" in f for f in verdict["failures"]))
+
+    def test_content_read_fails(self) -> None:
+        command = dict(event(3, "command"), contentReads=[{"source": "personal", "skill": "authoring-conventions"}])
+        verdict = staging_trial.judge(FORBIDS, [launch([*AUTHORING[:2], command, event(4, "action")])], set())
+        self.assertEqual(verdict["forbids"][0]["loadSeqs"], [3])
+
+    def test_native_skill_tool_fails(self) -> None:
+        tool = event(3, "native-skill-tool", target="linkuistics:authoring-conventions")
+        verdict = staging_trial.judge(FORBIDS, [launch([*AUTHORING[:2], tool, event(4, "action")])], set())
+        self.assertEqual(verdict["forbids"][0]["loadSeqs"], [3])
+
+    def test_a_case_with_forbids_and_a_wrong_shape_refuses(self) -> None:
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            cases = Path(tmp)
+            (cases / "bad.json").write_text(json.dumps({"name": "bad", "forbids": [{"skill": "x"}]}))
+            original, staging_trial.CASES = staging_trial.CASES, cases
+            try:
+                with self.assertRaises(staging_trial.TrialFailure):
+                    staging_trial.load_case("bad")
+            finally:
+                staging_trial.CASES = original
+
+
+RESIDUE = {"hooksPlugin": "technical-communication-hooks@writing-hooks", "hookSkill": "technical-communication",
+           "guardrailPlugin": "guardrail@personal", "guardrailSkill": "guardrail", "gateFile": "NOTES.md",
+           "blocked": "rm -rf scratch"}
+HOOKS_ROOT = "/prefix/opt/grove/share/ravel/skills/writing/craft/technical-communication"
+GUARD_ROOT = "/opt/homebrew/opt/personal/libexec/plugins/guardrail"
+
+
+def residue_facts(**changes: object) -> dict:
+    facts = {
+        "plugins": {RESIDUE["hooksPlugin"]: HOOKS_ROOT, RESIDUE["guardrailPlugin"]: GUARD_ROOT},
+        "instruction": 1, "reminders": 3, "turns": 3,
+        "gate": ["technical-communication check of the files you wrote:\nNOTES.md: 2 hard findings"],
+        "replyLog": {"kinds": {"start": 1, "reply": 3}}, "guardrailCommand": True,
+        "blockedResults": ["guardrail: recursive forced delete (rm -rf). Confirm you intend to run: rm -rf scratch"],
+        "ravelHolders": [],
+        "run": {"hooksRoot": HOOKS_ROOT, "guardrailRoot": GUARD_ROOT,
+                "hooksTreeBefore": {"digest": {"sha256": "a"}, "pycache": []},
+                "hooksTreeAfter": {"digest": {"sha256": "a"}, "pycache": []}},
+    }
+    facts.update(changes)
+    return facts
+
+
+RESIDUE_LISTED = ["guardrail:guardrail", "commit-commands:commit"]
+
+
+class NativeResidueVerdicts(unittest.TestCase):
+    def test_conforming_facts_pass(self) -> None:
+        verdict = staging_trial.native_verdict(residue_facts(), RESIDUE, RESIDUE_LISTED)
+        self.assertTrue(verdict["passed"], verdict["reason"])
+
+    def assert_fails(self, wanted: str, facts: dict | None = None, listed: list[str] | None = None) -> None:
+        verdict = staging_trial.native_verdict(facts or residue_facts(), RESIDUE, RESIDUE_LISTED if listed is None else listed)
+        self.assertFalse(verdict["passed"])
+        self.assertIn(wanted, verdict["reason"])
+
+    def test_each_mutation_fails(self) -> None:
+        self.assert_fails("lists the hooks plugin's SKILL.md",
+                          listed=[*RESIDUE_LISTED, "technical-communication-hooks:technical-communication-hooks"])
+        self.assert_fails("lists the hooks plugin's SKILL.md", listed=[*RESIDUE_LISTED, "technical-communication"])
+        self.assert_fails("holds no guardrail:guardrail", listed=["commit-commands:commit"])
+        self.assert_fails("not from its marketplace directory",
+                          residue_facts(plugins={RESIDUE["hooksPlugin"]: "/cache/x", RESIDUE["guardrailPlugin"]: GUARD_ROOT}))
+        self.assert_fails("guardrail@personal from",
+                          residue_facts(plugins={RESIDUE["hooksPlugin"]: HOOKS_ROOT}))
+        self.assert_fails("instruction of the hooks", residue_facts(instruction=0))
+        self.assert_fails("for 3 turns", residue_facts(reminders=2))
+        self.assert_fails("gate's findings", residue_facts(gate=[]))
+        self.assert_fails("not a start and a reply", residue_facts(replyLog={"kinds": {"start": 1}}))
+        self.assert_fails("no turn ran", residue_facts(guardrailCommand=False))
+        self.assert_fails("comes from the guardrail hook", residue_facts(blockedResults=["(no output)"]))
+        self.assert_fails("Ravel sources hold", residue_facts(ravelHolders=["/s/tree/craft/guardrail/SKILL.md"]))
+        run = dict(residue_facts()["run"], hooksTreeAfter={"digest": {"sha256": "b"}, "pycache": ["scripts/__pycache__"]})
+        self.assert_fails("changed during the session", residue_facts(run=run))
+
+    def test_facts_from_a_session_file(self) -> None:
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            home, root = Path(tmp) / "home", Path(tmp) / "plugin"
+            (root / "always-on").mkdir(parents=True)
+            (root / "always-on" / "instruction.md").write_text("\nIn this session, the model writes well.\n")
+            (root / "always-on" / "reminder.md").write_text("The human's message arrives.\n")
+            snapshot = Path(tmp) / "snap"
+            (snapshot / "tree" / "craft" / "authoring-conventions").mkdir(parents=True)
+            sid = "s1"
+            def attach(kind: str, event: str, content: object = None, command: str | None = None) -> dict:
+                return {"type": "attachment", "attachment": {"type": kind, "hookEvent": event, "content": content,
+                                                             "command": command}}
+            records = [
+                attach("hook_success", "SessionStart", "", "/bin/sh ${CLAUDE_PLUGIN_ROOT}/scripts/tc-hook claude-code s"),
+                attach("hook_additional_context", "SessionStart", ["Explanatory.", "In this session, the model writes well."]),
+                {"type": "user", "message": {"role": "user", "content": "Write the note."}},
+                attach("hook_additional_context", "UserPromptSubmit", ["The human's message arrives."]),
+                attach("hook_additional_context", "PostToolUse", ["technical-communication check of the files you "
+                                                                  "wrote:\nNOTES.md: 2 hard findings"]),
+                {"type": "user", "message": {"role": "user", "content":
+                    "<command-message>guardrail:guardrail</command-message>\n"
+                    "<command-name>/guardrail:guardrail</command-name>"}},
+                attach("hook_additional_context", "UserPromptSubmit", ["The human's message arrives."]),
+                {"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": "Remove it."}]}},
+                attach("hook_additional_context", "UserPromptSubmit", ["The human's message arrives."]),
+                {"type": "assistant", "message": {"content": [
+                    {"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "mkdir scratch"}},
+                    {"type": "tool_use", "id": "t2", "name": "Bash", "input": {"command": "rm -rf scratch"}}]}},
+                {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": ""}]}},
+                {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t2",
+                                                          "content": "guardrail: recursive forced delete (rm -rf)."}]}},
+            ]
+            projects = home / ".claude" / "projects" / "-private-tmp-w"
+            projects.mkdir(parents=True)
+            (projects / f"{sid}.jsonl").write_text("".join(json.dumps(r) + "\n" for r in records))
+            log = home / staging_trial.REPLY_LOG.format(session=sid)
+            log.parent.mkdir(parents=True)
+            log.write_text('{"kind":"start"}\n{"kind":"reply"}\n{"kind":"reply"}\n')
+            launched = {"sessionId": sid, "sources": [{"id": "personal", "snapshotRoot": str(snapshot)}],
+                        "transcripts": [{"main": True, "startup": {"init": {"plugins": [
+                            {"source": RESIDUE["hooksPlugin"], "path": str(root)},
+                            {"source": RESIDUE["guardrailPlugin"], "path": GUARD_ROOT}]}}}]}
+            facts = staging_trial.native_facts(home, launched, RESIDUE, 3)
+            self.assertEqual((facts["instruction"], facts["reminders"], facts["prompts"]), (1, 3, 3))
+            self.assertTrue(facts["guardrailCommand"])
+            self.assertEqual(facts["blockedResults"], ["guardrail: recursive forced delete (rm -rf)."])
+            self.assertEqual(facts["replyLog"]["kinds"], {"start": 1, "reply": 2})
+            self.assertEqual(len(facts["gate"]), 1)
+            self.assertEqual(facts["ravelHolders"], [])
+            self.assertEqual(len(facts["hookCommands"]), 1)
+            # The control: a guardrail skill in a Ravel snapshot is found.
+            (snapshot / "tree" / "craft" / "guardrail").mkdir()
+            (snapshot / "tree" / "craft" / "guardrail" / "SKILL.md").write_text("---\nname: guardrail\n---\n")
+            self.assertEqual(len(staging_trial.native_facts(home, launched, RESIDUE, 3)["ravelHolders"]), 1)
+
+    def test_marketplace_plugin_root_keeps_the_marketplace_path(self) -> None:
+        import json
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            home, market = Path(tmp) / "home", Path(tmp) / "market"
+            (market / ".claude-plugin").mkdir(parents=True)
+            (market / ".claude-plugin" / "marketplace.json").write_text(json.dumps(
+                {"plugins": [{"name": "guardrail", "source": "./libexec/plugins/guardrail"}]}))
+            registry = home / ".claude" / "plugins"
+            registry.mkdir(parents=True)
+            (registry / "known_marketplaces.json").write_text(json.dumps(
+                {"personal": {"source": {"source": "directory", "path": str(market)}}}))
+            self.assertEqual(staging_trial.marketplace_plugin_root(home, "guardrail@personal"),
+                             market / "libexec" / "plugins" / "guardrail")
+            self.assertIsNone(staging_trial.marketplace_plugin_root(home, "other@personal"))
+
+    def test_a_native_case_needs_the_guardrail_turn_and_the_gate(self) -> None:
+        import json
+        import tempfile
+        base = {"name": "n", "prompt": "Write {gate}/NOTES.md", "turns": ["/guardrail", "end"],
+                "nativeResidue": RESIDUE}
+        with tempfile.TemporaryDirectory() as tmp:
+            original, staging_trial.CASES = staging_trial.CASES, Path(tmp)
+            try:
+                (Path(tmp) / "n.json").write_text(json.dumps(base))
+                staging_trial.load_case("n")
+                for broken in ({"turns": ["end"]}, {"prompt": "Write NOTES.md"}, {"turns": []}):
+                    (Path(tmp) / "n.json").write_text(json.dumps({**base, **broken}))
+                    with self.assertRaises(staging_trial.TrialFailure):
+                        staging_trial.load_case("n")
+            finally:
+                staging_trial.CASES = original
+
+
 class RealHomeCheck(unittest.TestCase):
     def tree(self, root: Path) -> Path:
         cache = root / "cache"

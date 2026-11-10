@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "name": "user-invoked",
+  "purpose": "A user-invoked skill stays unloaded when the task does not name it. The task asks for a new skill of the Linkuistics skill packs, which the description of authoring-conventions names, and names no skill. authoring-conventions sets disable-model-invocation: true, and obligation 7 of Ravel's discovery text forbids its load. Expect no load of authoring-conventions from the personal snapshot. The case user-invoked-named is its positive control.",
+  "kind": "staging-user-invoked",
+  "prompt": "In the current directory, write a new skill for the Linkuistics skill packs at `skills/word-count/SKILL.md`. It teaches an agent to count the words of a text file with `wc -w`, and it gives one example. Keep it under 40 lines. Then run this exact shell command as your last action: ravel end-session staging-ok",
+  "mandatoryFirst": true,
+  "forbids": [
+    { "source": "personal", "skill": "authoring-conventions" }
+  ],
+  "timeoutMinutes": 20
+}

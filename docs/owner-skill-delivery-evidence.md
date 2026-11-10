@@ -615,7 +615,11 @@ three subjects had the same digests before and after the run:
 ## Not measured
 
 - Claude Code's treatment of a root-level `SKILL.md` inside a skill-free
-  plugin.
+  plugin. staging-claude-native-trial-k285 measured it with Claude Code
+  2.1.322 in
+  [Claude Code native residue in staging](#claude-code-native-residue-in-staging).
+  The listing held no skill of the plugin, whose manifest sets
+  `"skills": []`.
 - The effect of disabling a plugin on a Claude Code session that is already
   running. staging-guidance-probe-k278 measured it with Claude Code 2.1.319
   in [The guidance probe case](#the-guidance-probe-case). The session kept
@@ -647,7 +651,9 @@ three subjects had the same digests before and after the run:
 
 The staging trials in the design's cutover contract own each of these
 measurements before the switch. Of these items, the staging discovery trials
-of owner-staging-discovery-k249 measured only the plugin disable.
+of owner-staging-discovery-k249 measured only the plugin disable. The native
+residue trial of staging-claude-native-trial-k285 measured the root-level
+`SKILL.md`.
 
 The rehearsal of order 6 owns two more:
 
@@ -5408,3 +5414,199 @@ recorded files again, and the record names both tool digests.
   neither.
 - The real HOME was not measured. The staging HOME stands for it, with the
   owner's plugin versions and MCP servers.
+
+## Claude Code native residue in staging
+
+`staging-claude-native-trial-k285` delivered this section on 2026-11-10. It
+measures the Claude Code residue of
+[Native residue](specs/owner-skill-delivery.md#native-residue) beside Ravel
+delivery: the technical-communication hooks, `/guardrail` and a user-invoked
+skill. It also inventories the staging HOME. The staging HOME held the layout
+that [Quiet interval in staging](#quiet-interval-in-staging) left.
+
+### Result
+
+Each trial passed, and each control came back dirty:
+
+| Trial | Harness | Result |
+| --- | --- | --- |
+| `native-residue` | Claude Code | Passed. Both plugins ran from their marketplace directories. The four layers of the hooks ran, `/guardrail` stopped the blocked command, and the listing held no skill of the hooks plugin. |
+| `user-invoked` | Claude Code, Codex | Passed. Neither agent loaded `authoring-conventions`. |
+| `user-invoked-named` | Claude Code, Codex | Claude Code passed. On Codex, the agent read the skill before it wrote the file, but the `requires` verdict failed. "The user-invoked skill" below gives the reason. |
+| Inventory | None | Passed. The staging rows held no anomaly, and `guardrail@personal` was the classified native residue. Each of three mutated clones reported an anomaly. |
+
+### The tool
+
+[`staging_trial.py`](evaluations/owner-skill-delivery/staging_trial.py)
+gained three case fields and the `inventory` command:
+
+- `turns` sends each text as a later turn through the feeder of the
+  compaction case. Ravel wraps the first prompt in its discovery text, so
+  `/guardrail` cannot be the first prompt. The owner types it in a later
+  turn, and the case does the same.
+- `{gate}` in a prompt becomes `OUT/gate`. The document gate of the hooks
+  skips files under `/tmp`, `/private/tmp` and `/var/folders`, and each
+  staging work tree is under `/private/tmp`. A gate file in the work tree
+  would therefore show nothing.
+- `forbids` fails a load of a named skill. A load is a classified read, a
+  result that holds the skill's `name:` line and its first heading, or a
+  native Skill tool call. A listing of front matter is no load.
+- `nativeResidue` reads the init event, the session file and the reply log
+  of the hooks. The module docstring states each condition.
+- `inventory` runs `inventory.py` with HOME set to the staging HOME, and
+  three controls on `cp -c` clones. `task owner:staging:inventory` runs it.
+
+The cases are
+[`native-residue`](evaluations/owner-skill-delivery/staging-cases/native-residue.json),
+[`user-invoked`](evaluations/owner-skill-delivery/staging-cases/user-invoked.json)
+and
+[`user-invoked-named`](evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json).
+Each runs with `task owner:staging:case`, as in
+[Rerun commands](#rerun-commands).
+
+### The signals of the hooks
+
+An exploratory session in the staging HOME, without Ravel, found the
+signals before the verdict existed. The stream of `claude -p` holds only the
+SessionStart hook events. The session file holds a
+`hook_additional_context` attachment for each layer that adds context:
+SessionStart, UserPromptSubmit and PostToolUse. The Stop hook adds no
+context. It writes the reply log
+`~/.local/state/technical-communication/sessions/claude-code--<id>.jsonl`
+in the staging HOME. The verdict reads each of these signals.
+
+### The native residue case
+
+The session ran from 07:56:57Z to 07:57:27Z with Claude Code 2.1.322 and
+`claude-sonnet-5-5` at low effort. It had three turns:
+
+1. The Ravel prompt asked for `OUT/gate/NOTES.md` with one known line. The
+   agent read the mandatory file first and then wrote the file.
+2. `/guardrail`.
+3. The agent created `scratch` and ran `rm -rf scratch`. It then ran the end
+   command.
+
+| Observation | Value |
+| --- | --- |
+| `technical-communication-hooks@writing-hooks` in the init event | `quiet-interval-1/prefix/opt/grove/share/ravel/skills/writing/craft/technical-communication`, the directory that its marketplace names. That path leads to the candidate keg. |
+| `guardrail@personal` in the init event | `/opt/homebrew/opt/personal/libexec/plugins/guardrail`, the directory that its marketplace names |
+| SessionStart | One context held the first line of the instruction of the hooks |
+| UserPromptSubmit | Three contexts held the first line of the reminder, one for each turn, `/guardrail` included |
+| PostToolUse | The gate reported `1:19 semicolon` for `NOTES.md` |
+| Reply log | One `start` record and two `reply` records |
+| `/guardrail` | The session file holds `<command-name>/guardrail:guardrail</command-name>` |
+| `rm -rf scratch` | The result was "guardrail: recursive forced delete (rm -rf). Confirm you intend to run: rm -rf scratch". The command did not run. |
+| Native listing | `guardrail:guardrail`, and no skill of the hooks plugin. No superseded name. |
+| Ravel snapshots | No snapshot of the ten sources holds a `guardrail/SKILL.md` |
+| Hooks directory | Tree SHA-256 `20dc91e3…` before and after, with no `__pycache__` |
+
+Claude Code therefore treats the root `SKILL.md` of the skill-free plugin as
+no skill. The plugin manifest sets `"skills": []`. The trial measured that
+shipped layout, not a manifest without the key.
+
+The listing held `guardrail:guardrail`, a plugin skill. The same instrument
+would therefore show a skill of the hooks plugin. No verdict reads the
+plugin-cache copies of either plugin, because Claude Code loaded neither.
+
+After all four Claude Code sessions, the candidate keg held no
+`__pycache__`.
+
+### The user-invoked skill
+
+`authoring-conventions` sets `disable-model-invocation: true`. Obligation 7
+of Ravel's discovery text allows its load only when the caller names it. The
+task of both cases asks for a new skill of the Linkuistics skill packs,
+which the skill's description names.
+
+| Run | Started | Model | Loads of `authoring-conventions` | Other skills read |
+| --- | --- | --- | --- | --- |
+| `user-invoked`, Claude Code | 07:57:48Z | `claude-sonnet-5-5`, low | None | `technical-communication` |
+| `user-invoked`, Codex | 07:58:23Z | `gpt-6.1-sol`, low | None | `writing-skills` |
+| `user-invoked-named`, Claude Code | 07:59:23Z | `claude-sonnet-5-5`, low | Event 5, before the first edit at event 7 | `technical-communication` |
+| `user-invoked-named`, Codex | 07:59:49Z | `gpt-6.1-sol`, low | Event 6, before the file write at event 15 | `writing-skills`, `test-driven-development` |
+
+In the Codex `user-invoked` run, the agent wrote: "The Linkuistics
+`authoring-conventions` skill requires explicit invocation, so I'll leave it
+unloaded."
+
+The Codex `user-invoked-named` run wrote its file with `cat > … <<'EOF'` in
+a shell command. The shared classifier of `harness_trial.py` counts no shell
+redirection as an edit, so the `requires` verdict reported "the agent made no
+edit". The run stays the run of record. The positive control is the
+`forbids` verdict instead. Applied to both named runs, it reported the load
+at event 5 and at event 6. Applied to both unnamed runs, it reported none.
+
+### The inventory
+
+`task owner:staging:inventory` ran `inventory.py` with SHA-256
+`6c5195e7…`, the digest that
+[Owner inventory exceptions](#owner-inventory-exceptions) records. The
+record is `trials/inventory-2/record.json`.
+
+| Subject | Anomaly rows | `guardrail@personal` |
+| --- | --- | --- |
+| The staging HOME, 202 rows | None | `native-keep (native residue)` |
+| A clone with a second skill in the guardrail plugin | Three, each `UNCLASSIFIED` | `UNCLASSIFIED` |
+| A clone with `personal` registered from another directory | Two, each `UNCLASSIFIED` | `UNCLASSIFIED` |
+| A clone with an unknown skill in `~/.claude/skills` | One, `UNCLASSIFIED` | `native-keep (native residue)` |
+
+The first run, `inventory-1`, planted the unknown skill in
+`~/.agents/skills`. The inventory classifies each unknown entry of a Codex
+root as a stale copy that the switch deactivates, which is no anomaly. That
+control was therefore wrong, and the second run plants the skill in Claude
+Code's root.
+
+The sole-skill rule reads `skills/` of the `installPath` in
+`installed_plugins.json`. That path is the plugin-cache copy
+`cache/personal/guardrail/unknown`. Claude Code loads the keg's directory
+instead. Both trees had the tree SHA-256 `ebe97a42…` on 2026-11-10, so the
+verdict was right for this HOME. A later personal keg could add a skill
+that Claude Code loads while the cache copy stays unchanged.
+`inventory-guardrail-loaded-dir-k288` owns that repair.
+
+### Controls
+
+`task owner:staging:trial-tests` passed 79 tests, ten of them new. Each
+deliberate mutation of a scratch copy failed a test:
+
+| Mutation | Test that failed |
+| --- | --- |
+| `forbids` ignores the native Skill tool | `test_native_skill_tool_fails` |
+| The reminders are counted at SessionStart | `test_facts_from_a_session_file` |
+| The listing check of the hooks plugin is dropped | `test_each_mutation_fails` |
+| The check for a Ravel snapshot that holds `guardrail` is dropped | `test_each_mutation_fails` |
+
+### Records
+
+The trial directories are in `~/.local/state/owner-staging/trials`:
+`native-residue-claude-1`, `user-invoked-claude-1`, `user-invoked-codex-1`,
+`user-invoked-named-claude-1`, `user-invoked-named-codex-1` and
+`inventory-2`. The exploratory session is `explore-native-1`.
+
+Each model run used the accepted Ravel 2.0 build `ff14cba826b0`, with the
+`bin/ravel` SHA-256 `3a9a9129…`, and the staging settings `d8a49f06…`.
+Claude Code was 2.1.322, and Codex was 0.167.0.
+
+| Subject | SHA-256 |
+| --- | --- |
+| `staging_trial.py` of the model runs | `2d2c6cbc01f24cc17f92e04cf6c860d13d46daf2ca2425f7eef2e0608494ee90` |
+| `staging_trial.py`, final | `7c575b53b183d0843577b524903f9538c01d5cfa56ff61b4c881e521dfe45672` |
+| `harness_trial.py` | `dce23edad5ca2294f1281971225837ce43a2924f9c7ae05fdbd56e0e29e7edfd` |
+| `native-residue.json` | `7c5569c04adf87662e04c5129356c46f1177de69b585ae88cdad51b707bb25c1` |
+| `user-invoked.json` | `e9941d804ea18a3e685361ce79460fc631380dd9227b4b68b3788e681ac42ab0` |
+| `user-invoked-named.json` | `5cd604038c6cade999601334d51e80403cec21759ac2f559abb80e49e760d351` |
+
+The final file adds only the `inventory` command and its controls. `rejudge`
+with the final file gave the same verdict for each of the five model runs.
+
+### Limits
+
+- One run of each case. The verdict shows that each layer worked once.
+- Claude Code 2.1.322 is not a held version. owner-marketplace-freeze-k253
+  chooses the held version.
+- Each session ran in `bypassPermissions`. In the owner's `auto` mode, the
+  guardrail hook's `ask` shows a prompt instead of a refusal.
+- The model runs used `claude-sonnet-5-5` and `gpt-6.1-sol` at low effort,
+  the staging defaults.
+- Codex has no technical-communication hooks and no guardrail, as the
+  native residue states. Only the user-invoked cases ran on Codex.

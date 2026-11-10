@@ -515,6 +515,17 @@ tasks:
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/staging_trial.py case --name "{{.CASE}}" --harness "{{.HARNESS}}" --home "{{.STAGING}}" --ravel "{{.RAVEL_2_0_PREFIX}}" --out "{{.OUT}}" {{if .MODEL}}--model "{{.MODEL}}"{{end}} {{if .EFFORT}}--effort "{{.EFFORT}}"{{end}}
 
+  # The inventory of the staging HOME, with three mutated clones that must
+  # each report an anomaly row. inventory.py only reads. OUT is a new
+  # directory. For example:
+  #   task owner:staging:inventory STAGING=~/.local/state/owner-staging/home OUT="$SCRATCH/inventory"
+  owner:staging:inventory:
+    desc: Inventory the staging HOME STAGING, accept only the guardrail@personal exception, and check three mutated clones, writing OUT/record.json
+    requires:
+      vars: [STAGING, OUT]
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/staging_trial.py inventory --home "{{.STAGING}}" --out "{{.OUT}}"
+
   # The verdict tests of the staging trial runner, on synthetic events.
   owner:staging:trial-tests:
     desc: Test the verdicts of the staging trial runner without a launch

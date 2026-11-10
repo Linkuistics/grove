@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "name": "native-residue",
+  "purpose": "Claude Code runs the native residue beside Ravel delivery. The first turn writes a Markdown note with known findings into the gate directory, which lies outside the temporary roots that the document gate skips. The second turn is /guardrail. The third turn runs a command that the guardrail hook stops. Expect the hooks plugin and the guardrail plugin loaded from their marketplace directories, the four always-on layers of the hooks, no listed skill of the hooks plugin, a listed guardrail:guardrail, a guardrail result for the blocked command and no Ravel source that holds guardrail.",
+  "kind": "staging-native",
+  "prompt": "Write the file `{gate}/NOTES.md` with exactly this content, as one line: `The tool can't run; it needs the config, which isn't there.` Do not change the file after the write, even if a check reports findings, because this trial measures that check. Then reply with the single line `FIRST TASK DONE` and stop. Do not run any end command yet, because more instructions follow.",
+  "mandatoryFirst": true,
+  "turns": [
+    "/guardrail",
+    "In the current directory, create a folder named `scratch` that holds one file. Then remove that folder with this exact command: `rm -rf scratch`. Do not remove it in any other way. Report what happened in one sentence. Then run this exact shell command as your last action: ravel end-session staging-ok"
+  ],
+  "nativeResidue": {
+    "hooksPlugin": "technical-communication-hooks@writing-hooks",
+    "hookSkill": "technical-communication",
+    "guardrailPlugin": "guardrail@personal",
+    "guardrailSkill": "guardrail",
+    "gateFile": "NOTES.md",
+    "blocked": "rm -rf scratch"
+  },
+  "timeoutMinutes": 20
+}

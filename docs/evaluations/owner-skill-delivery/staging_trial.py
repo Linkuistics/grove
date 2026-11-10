@@ -10,6 +10,7 @@ staging launcher's rules. This runner adds the trials themselves.
     staging_trial.py case --name NAME --harness claude|codex --home HOME --ravel PREFIX --out DIR
                           [--model M] [--effort E]
     staging_trial.py rejudge --out DIR
+    staging_trial.py inventory --home HOME --out DIR
     staging_trial.py probe --plan FILE
 
 `sources` runs the trials that launch no model:
@@ -81,6 +82,27 @@ of the session file. The verdicts are:
   `.in_use`, without `.orphaned_at`, registered and disabled. The result of
   the `later` load is kept without a judgement. The plugin subjects of the
   retained HOME must not change.
+- `forbids`: the agent loads none of the named skills. A load is a
+  classified read of the skill, a result that holds both of its marks or a
+  native Skill tool call. A listing of front matter is no load. The verdict
+  keeps the other skills that the agent read.
+- `turns`: the feeder sends each text as a later turn of the same managed
+  process, after the end of the turn before, as for a compaction case. A
+  prompt or turn can name `{gate}`. The runner replaces it with `OUT/gate`,
+  a new directory outside the temporary roots and outside the work tree.
+- `nativeResidue`: Claude Code only. Before the launch, the runner finds the
+  directory of each named plugin from the staging marketplace registry and
+  the marketplace's `marketplace.json`, and digests the hooks plugin's
+  directory. The verdict reads the init event, the session file and the
+  reply log of the hooks. Claude Code must load both plugins from those
+  directories. The native listing must hold the guardrail skill under its
+  plugin prefix, and no skill of the hooks plugin and no name of its root
+  `SKILL.md`. The hooks must add the instruction at SessionStart, the
+  reminder at each turn and the gate's findings for the gate file. The
+  reply log must hold a start and a reply. A turn must run `/guardrail`, and
+  the result of the blocked command must come from its hook. No Ravel
+  snapshot may hold a skill of the guardrail name. The hooks plugin's
+  directory must keep its digest and hold no `__pycache__`.
 - The native skill listing of the session holds no superseded name. The
   planted name of `staleCopy` and the skills of the `guidancePlugin`, by
   their plugin prefix, are the exceptions.
@@ -96,6 +118,14 @@ case, and fails it only when the case sets `mandatoryFirst`.
 
 `rejudge` extracts and judges a finished case again from its unchanged
 launch records, after a change to the extraction or the verdicts.
+
+`inventory` runs inventory.py with HOME set to the staging HOME, which
+only reads. Its rows must hold no anomaly value, and each row of
+`guardrail@personal` must be the classified native residue. Three controls
+each inventory a `cp -c` clone with one mutation: a second skill in the
+registered guardrail plugin, the personal marketplace from another
+directory, and an unclassified skill in `~/.claude/skills`. Each must report
+an anomaly row. The runner removes each clone.
 
 `probe` runs one planned nested probe of a `guidancePlugin` case, with
 exactly the plan's argument vector and environment, and writes its result
@@ -148,8 +178,20 @@ CASES = HERE / "staging-cases"
 OFF_SETTINGS = ROOT / "docs" / "owner-cutover" / "settings-off.json"
 TREES = CASES / "trees"
 CASE_FIELDS = {"schemaVersion", "name", "purpose", "kind", "prompt", "mandatoryFirst", "requires",
-               "timeoutMinutes", "tree", "kindSkill", "delegate", "compaction", "staleCopy", "guidancePlugin"}
+               "timeoutMinutes", "tree", "kindSkill", "delegate", "compaction", "staleCopy", "guidancePlugin",
+               "turns", "forbids", "nativeResidue"}
 GUIDANCE_FIELDS = {"marketplace", "plugin", "skill", "later", "probePrompt", "probeResult"}
+NATIVE_FIELDS = {"hooksPlugin", "hookSkill", "guardrailPlugin", "guardrailSkill", "gateFile", "blocked"}
+# The placeholder of a prompt or turn that the runner replaces with the gate
+# directory: `OUT/gate`, outside the temporary roots that the document gate
+# of the technical-communication hooks skips, and outside the work tree.
+GATE_PLACEHOLDER = "{gate}"
+# The marks of the four always-on layers of the technical-communication
+# hooks. The instruction and the reminder are the first line of each file
+# in the plugin's `always-on`. The gate message begins with the line below.
+GATE_MARK = "technical-communication check of the files you wrote"
+# The reply log of the hooks, relative to HOME, for one Claude Code session.
+REPLY_LOG = ".local/state/technical-communication/sessions/claude-code--{session}.jsonl"
 # The project skill roots that each harness lists, below its working
 # directory. Codex 0.167.0 lists `.codex/skills` and `.agents/skills` of the
 # working directory or its Git root, and not `.claude/skills`, as `codex debug
@@ -226,6 +268,7 @@ def load_case(name: str) -> dict[str, Any]:
     if case.get("name") != name:
         raise TrialFailure(f"case {name}: its name field is {case.get('name')!r}")
     for label, item in [*(("requires", i) for i in case.get("requires", [])),
+                        *(("forbids", i) for i in case.get("forbids", [])),
                         *((key, case[key]) for key in ("kindSkill", "delegate") if key in case)]:
         if not isinstance(item, dict) or set(item) != {"source", "skill"}:
             raise TrialFailure(f"case {name}: {label} is {{source, skill}}, not {item!r}")
@@ -252,12 +295,27 @@ def load_case(name: str) -> dict[str, Any]:
                                f"plugin@marketplace id, not {spec!r}")
         if "{probe}" not in case.get("prompt", ""):
             raise TrialFailure(f"case {name}: a guidancePlugin prompt names {{probe}}, the probe command")
+    if "turns" in case:
+        turns = case["turns"]
+        if not isinstance(turns, list) or not turns or not all(isinstance(t, str) and t.strip() for t in turns):
+            raise TrialFailure(f"case {name}: turns is a list of texts, not {turns!r}")
+        if "compaction" in case:
+            raise TrialFailure(f"case {name}: compaction feeds its own turns, so it takes no turns field")
+    if "nativeResidue" in case:
+        spec = case["nativeResidue"]
+        if not isinstance(spec, dict) or set(spec) != NATIVE_FIELDS:
+            raise TrialFailure(f"case {name}: nativeResidue is {{{', '.join(sorted(NATIVE_FIELDS))}}}, not {spec!r}")
+        if not any(f"/{spec['guardrailSkill']}" == t.strip() for t in case.get("turns", [])):
+            raise TrialFailure(f"case {name}: a nativeResidue case has the turn /{spec['guardrailSkill']}")
+        if GATE_PLACEHOLDER not in case.get("prompt", ""):
+            raise TrialFailure(f"case {name}: a nativeResidue prompt names {GATE_PLACEHOLDER}, the gate directory")
     return case
 
 
 def named_skills(case: dict[str, Any]) -> list[dict[str, str]]:
     """Every {source, skill} that a verdict of the case names."""
-    return [*case.get("requires", []), *(case[key] for key in ("kindSkill", "delegate") if key in case),
+    return [*case.get("requires", []), *case.get("forbids", []),
+            *(case[key] for key in ("kindSkill", "delegate") if key in case),
             *([case["compaction"]["after"]] if "compaction" in case else [])]
 
 
@@ -989,8 +1047,175 @@ def guidance_verdict(events: list[dict[str, Any]], spec: dict[str, Any], facts: 
     return verdict
 
 
+def forbids_verdict(events: list[dict[str, Any]], forbids: list[dict[str, str]]) -> list[dict[str, Any]]:
+    """No named skill is loaded: no classified read of its `SKILL.md`, no
+    result that holds both of its marks and no native Skill tool call. A
+    listing of front matter is no load. The other skills that the agent
+    read are kept, so a reader can see that discovery ran."""
+    others = sorted({f"{r.get('source')}:{r.get('skill')}" for e in events for r in reads_of(e)
+                     if r.get("class") in SKILL_READS and r.get("skill")
+                     and not any(r.get("skill") == item["skill"] for item in forbids)})
+    verdicts = []
+    for item in forbids:
+        loads = [e["seq"] for e in events if any(
+            r.get("class") in SKILL_READS and r.get("skill") == item["skill"] for r in reads_of(e))
+            or (e.get("class") == "native-skill-tool" and bare(str(e.get("target", ""))) == item["skill"])]
+        verdicts.append({**item, "loadSeqs": loads, "otherSkillReads": others, "passed": not loads,
+                         "reason": f"the agent loaded {item['skill']} at {loads}" if loads else None})
+    return verdicts
+
+
+def first_line(path: Path) -> str | None:
+    """The first line of a file that is not blank, or None."""
+    try:
+        return next((line.strip() for line in path.read_text().splitlines() if line.strip()), None)
+    except OSError:
+        return None
+
+
+def marketplace_plugin_root(home: Path, plugin: str) -> Path | None:
+    """The directory of a directory marketplace's plugin, from the staging
+    HOME's registry and the marketplace's own `marketplace.json`."""
+    name, _, market = plugin.partition("@")
+    try:
+        known = json.loads((home / ".claude/plugins/known_marketplaces.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    entry = known.get(market) or {}
+    base = (entry.get("source") or {}).get("path") or entry.get("installLocation")
+    if not base:
+        return None
+    try:
+        manifest = json.loads((Path(base) / ".claude-plugin/marketplace.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    source = next((p.get("source") for p in manifest.get("plugins", []) if p.get("name") == name), None)
+    # Not resolved: Claude Code names the plugin by the marketplace's own
+    # path, such as `/opt/homebrew/opt/personal/...`, in its init event.
+    return Path(os.path.normpath(Path(base) / source)) if isinstance(source, str) else None
+
+
+def plugin_tree(root: Path | None) -> dict[str, Any]:
+    """The tree digest of a plugin directory and each `__pycache__` in it."""
+    if root is None:
+        return {"root": None}
+    return {"root": str(root), "digest": staging_home.tree_digest(root),
+            "pycache": sorted(str(p.relative_to(root)) for p in root.rglob("__pycache__"))}
+
+
+def text_of(content: Any) -> str:
+    """The text of a message content or a tool result: a string, or the text
+    parts of a list."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(text_of(part.get("text") if isinstance(part, dict) and "text" in part
+                                 else part.get("content") if isinstance(part, dict) else part)
+                         for part in content)
+    return "" if content is None else str(content)
+
+
+def native_facts(home: Path, launch: dict[str, Any], spec: dict[str, Any], turns: int) -> dict[str, Any]:
+    """What Claude Code recorded of the native residue: the plugins that its
+    init event loaded, the hook attachments of the session file, the
+    `/guardrail` command, the result of the blocked command, the reply log
+    of the hooks and each `SKILL.md` of a Ravel source that holds the
+    guardrail name."""
+    transcript = next((t for t in launch.get("transcripts", []) if t["main"]), None) or {}
+    init = (transcript.get("startup") or {}).get("init") or {}
+    plugins = {p.get("source"): p.get("path") for p in init.get("plugins") or [] if isinstance(p, dict)}
+    hooks_root = Path(plugins[spec["hooksPlugin"]]) if plugins.get(spec["hooksPlugin"]) else None
+    marks = {"instruction": first_line(hooks_root / "always-on/instruction.md") if hooks_root else None,
+             "reminder": first_line(hooks_root / "always-on/reminder.md") if hooks_root else None}
+    session = launch.get("sessionId")
+    path = harness_trial.ClaudeAdapter().session_file(home, session) if session else None
+    records = harness_trial.read_jsonl(path) if path else []
+    attachments = [r["attachment"] for r in records
+                   if r.get("type") == "attachment" and isinstance(r.get("attachment"), dict)]
+    contexts = [(a.get("hookEvent"), text_of(a.get("content"))) for a in attachments
+                if a.get("type") == "hook_additional_context"]
+    hook_commands = sorted({f"{a.get('hookEvent')}: {str(a.get('command'))[:120]}" for a in attachments
+                            if a.get("type", "").startswith("hook") and a.get("command")
+                            and ("tc-hook" in str(a.get("command")) or "guardrail" in str(a.get("command")))})
+    prompts = [r for r in records if r.get("type") == "user" and not r.get("isMeta")
+               and not any(isinstance(part, dict) and part.get("type") == "tool_result"
+                           for part in (r.get("message") or {}).get("content") or [] if isinstance(part, dict))
+               and not r.get("isCompactSummary")]
+    command_name = f"<command-name>/{spec['guardrailPlugin'].split('@')[0]}:{spec['guardrailSkill']}</command-name>"
+    command = any(command_name in text_of((r.get("message") or {}).get("content")) for r in prompts)
+    uses = {part.get("id"): part.get("input", {}).get("command", "") for r in records if r.get("type") == "assistant"
+            for part in (r.get("message") or {}).get("content") or []
+            if isinstance(part, dict) and part.get("type") == "tool_use" and part.get("name") == "Bash"}
+    blocked = [text_of(part.get("content"))[:300] for r in records if r.get("type") == "user"
+               for part in (r.get("message") or {}).get("content") or []
+               if isinstance(part, dict) and part.get("type") == "tool_result"
+               and spec["blocked"] in uses.get(part.get("tool_use_id"), "")]
+    log_path = home / REPLY_LOG.format(session=session) if session else None
+    kinds: dict[str, int] = {}
+    for entry in harness_trial.read_jsonl(log_path) if log_path and log_path.exists() else []:
+        kinds[str(entry.get("kind"))] = kinds.get(str(entry.get("kind")), 0) + 1
+    holders = sorted(str(f) for source in launch.get("sources", []) if source.get("snapshotRoot")
+                     for f in Path(source["snapshotRoot"]).rglob(f"{spec['guardrailSkill']}/SKILL.md"))
+    return {
+        "sessionFile": str(path) if path else None, "plugins": plugins, "marks": marks,
+        "instruction": sum(1 for event, text in contexts if event == "SessionStart"
+                           and marks["instruction"] and marks["instruction"] in text),
+        "reminders": sum(1 for event, text in contexts if event == "UserPromptSubmit"
+                         and marks["reminder"] and marks["reminder"] in text),
+        "gate": [text[:300] for event, text in contexts if event == "PostToolUse" and GATE_MARK in text],
+        "prompts": len(prompts), "turns": turns, "hookCommands": hook_commands,
+        "guardrailCommand": command, "blockedResults": blocked,
+        "replyLog": {"path": str(log_path) if log_path else None, "kinds": kinds},
+        "ravelHolders": holders,
+    }
+
+
+def native_verdict(facts: dict[str, Any], spec: dict[str, Any], listed: list[str]) -> dict[str, Any]:
+    """Claude Code runs the four always-on layers of the hooks plugin from its
+    marketplace directory, lists no skill of it, and runs `/guardrail` from
+    the personal plugin, whose hook stops the blocked command. No Ravel
+    source holds `guardrail`, and the hook writes no bytecode."""
+    reasons = []
+    hooks_prefix = spec["hooksPlugin"].split("@")[0]
+    guardrail_name = f"{spec['guardrailPlugin'].split('@')[0]}:{spec['guardrailSkill']}"
+    hooks_listed = sorted(n for n in listed if bare(n) in (spec["hookSkill"], hooks_prefix)
+                          or n.startswith(f"{hooks_prefix}:"))
+    run = facts.get("run") or {}
+    root = run.get("hooksRoot")
+    if not root or facts["plugins"].get(spec["hooksPlugin"]) != root:
+        reasons.append(f"Claude Code loaded {spec['hooksPlugin']} from {facts['plugins'].get(spec['hooksPlugin'])}, "
+                       f"not from its marketplace directory {root}")
+    guard_root = run.get("guardrailRoot")
+    if not guard_root or facts["plugins"].get(spec["guardrailPlugin"]) != guard_root:
+        reasons.append(f"Claude Code loaded {spec['guardrailPlugin']} from "
+                       f"{facts['plugins'].get(spec['guardrailPlugin'])}, not from {guard_root}")
+    if hooks_listed:
+        reasons.append(f"the native listing holds {hooks_listed}, so Claude Code lists the hooks plugin's SKILL.md")
+    if guardrail_name not in listed:
+        reasons.append(f"the native listing holds no {guardrail_name}")
+    if not facts["instruction"]:
+        reasons.append("no SessionStart context holds the instruction of the hooks")
+    if facts["reminders"] < facts["turns"]:
+        reasons.append(f"{facts['reminders']} UserPromptSubmit contexts hold the reminder, for {facts['turns']} turns")
+    if not any(spec["gateFile"] in text for text in facts["gate"]):
+        reasons.append(f"no PostToolUse context holds the gate's findings for {spec['gateFile']}")
+    if not facts["replyLog"]["kinds"].get("start") or not facts["replyLog"]["kinds"].get("reply"):
+        reasons.append(f"the reply log holds {facts['replyLog']['kinds']}, not a start and a reply")
+    if not facts["guardrailCommand"]:
+        reasons.append(f"no turn ran /{guardrail_name}")
+    if not any(text.lstrip().startswith(spec["guardrailSkill"]) for text in facts["blockedResults"]):
+        reasons.append(f"no result of `{spec['blocked']}` comes from the guardrail hook: {facts['blockedResults']}")
+    if facts["ravelHolders"]:
+        reasons.append(f"Ravel sources hold {spec['guardrailSkill']}: {facts['ravelHolders']}")
+    before, after = run.get("hooksTreeBefore") or {}, run.get("hooksTreeAfter") or {}
+    if before.get("digest") != after.get("digest") or after.get("pycache"):
+        reasons.append(f"the hooks plugin's directory changed during the session: {after.get('pycache')}")
+    return {"hooksListed": hooks_listed, "guardrailListed": guardrail_name in listed, **facts,
+            "passed": not reasons, "reason": "; ".join(reasons) or None}
+
+
 def judge(case: dict[str, Any], launches: list[dict[str, Any]], superseded: set[str],
-          guidance: dict[str, Any] | None = None) -> dict[str, Any]:
+          guidance: dict[str, Any] | None = None, native: dict[str, Any] | None = None) -> dict[str, Any]:
     failures: list[str] = []
     if len(launches) != 1:
         return {"failures": [f"the case recorded {len(launches)} launches, not one"]}
@@ -1004,6 +1229,9 @@ def judge(case: dict[str, Any], launches: list[dict[str, Any]], superseded: set[
         failures.append(f"mandatory first: {verdict['mandatoryFirst']['reason']}")
     verdict["requires"] = requires_verdict(events, case.get("requires", []))
     failures += [f"requires {v['skill']}: {v['reason']}" for v in verdict["requires"] if not v["passed"]]
+    if "forbids" in case:
+        verdict["forbids"] = forbids_verdict(events, case["forbids"])
+        failures += [f"forbids {v['skill']}: {v['reason']}" for v in verdict["forbids"] if not v["passed"]]
     if "kindSkill" in case:
         verdict["kindSkill"] = kind_verdict(events, case["kindSkill"])
         if not verdict["kindSkill"]["passed"]:
@@ -1036,6 +1264,13 @@ def judge(case: dict[str, Any], launches: list[dict[str, Any]], superseded: set[
             verdict["guidancePlugin"] = guidance_verdict(events, case["guidancePlugin"], guidance, listed)
             if not verdict["guidancePlugin"]["passed"]:
                 failures.append(f"guidance: {verdict['guidancePlugin']['reason']}")
+    if "nativeResidue" in case:
+        if native is None:
+            failures.append("native residue: the runner gathered no facts of the session")
+        else:
+            verdict["nativeResidue"] = native_verdict(native, case["nativeResidue"], listed)
+            if not verdict["nativeResidue"]["passed"]:
+                failures.append(f"native residue: {verdict['nativeResidue']['reason']}")
     failures += launch.get("control", [])
     verdict["failures"] = failures
     return verdict
@@ -1048,10 +1283,12 @@ def render(record: dict[str, Any]) -> str:
              (f"- Started {record['started']}, ended {record['ended']}, Ravel exit {record['launch']['exit']}, "
               f"result {record['launch']['result']!r}"),
              f"- Failures: {record['verdict'].get('failures') or 'none'}"]
-    for key in ("compaction", "staleCopy", "guidancePlugin"):
-        if key in record["verdict"]:
-            shown = {k: v for k, v in record["verdict"][key].items() if k not in ("source", "skill")}
-            lines.append(f"- {key}: {json.dumps(shown)}")
+    for key in ("compaction", "staleCopy", "guidancePlugin", "nativeResidue", "forbids"):
+        items = record["verdict"].get(key)
+        for item in items if isinstance(items, list) else [items] if items else []:
+            shown = {k: v for k, v in item.items() if k not in ("source", "skill")}
+            label = f"{key} {item['skill']}" if isinstance(items, list) else key
+            lines.append(f"- {label}: {json.dumps(shown)}")
     for context in record.get("compactionContext") or []:
         after = context.get("afterBoundary") or {}
         lines.append(f"- Context after compaction: {len(after.get('paths', []))} preamble paths, "
@@ -1127,12 +1364,14 @@ def probe_facts(adapter: Any, guidance: dict[str, Any], home: Path, environ: dic
 
 
 def extract_and_judge(case: dict[str, Any], adapter: Any, records: Path, home: Path, work: Path,
-                      environ: dict[str, str], stale: dict[str, Any] | None, guidance: dict[str, Any] | None = None
+                      environ: dict[str, str], stale: dict[str, Any] | None, guidance: dict[str, Any] | None = None,
+                      native_run: dict[str, Any] | None = None
                       ) -> tuple[list[dict[str, Any]], dict[str, Any], list[dict[str, Any]] | None]:
     """The launches of a case from its records, its verdict and, for a
     compaction case, the context after each compaction. A guidance case also
-    extracts its probe into `guidance["probe"]`."""
-    turns = "compaction" in case
+    extracts its probe into `guidance["probe"]`. A native residue case reads
+    its session file and reply log, beside the run's facts in `native_run`."""
+    turns = "compaction" in case or "turns" in case
     superseded = staging_home.superseded_names()
     paths = harness_trial.launch_records(records)
     launches = [harness_trial.describe_launch(adapter, path, home, work, environ, turns=turns) for path in paths]
@@ -1145,8 +1384,12 @@ def extract_and_judge(case: dict[str, Any], adapter: Any, records: Path, home: P
         copies = copy_lines(described, case["staleCopy"], stale["plants"][adapter.name]) if stale else None
         mark_content_reads(described, named_skills(case), copies, files)
     context = [compaction_context(adapter, path, described, home)
-               for path, described in zip(paths, launches)] if turns else None
-    return launches, judge(case, launches, superseded, guidance), context
+               for path, described in zip(paths, launches)] if "compaction" in case else None
+    native = None
+    if "nativeResidue" in case and len(launches) == 1:
+        native = native_facts(home, launches[0], case["nativeResidue"], 1 + len(case.get("turns", [])))
+        native["run"] = native_run
+    return launches, judge(case, launches, superseded, guidance, native), context
 
 
 def clone_home(home: Path, clone: Path) -> dict[str, Any]:
@@ -1289,6 +1532,8 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
     spec = case.get("guidancePlugin")
     if spec and harness != "claude":
         raise TrialFailure(f"case {name} disables a Claude Code plugin, so it runs on claude, not {harness}")
+    if "nativeResidue" in case and harness != "claude":
+        raise TrialFailure(f"case {name} measures Claude Code's plugins and hooks, so it runs on claude, not {harness}")
     if out.exists():
         raise TrialFailure(f"{out} exists; name a new directory")
     out.mkdir(parents=True)
@@ -1311,12 +1556,32 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
     records = out / "records"
     records.mkdir()
     compaction = case.get("compaction")
+    turns = list(case.get("turns", []))
+    gate = None
+    if GATE_PLACEHOLDER in prompt or any(GATE_PLACEHOLDER in turn for turn in turns):
+        gate = out / "gate"
+        gate.mkdir()
+        prompt = prompt.replace(GATE_PLACEHOLDER, str(gate))
+        turns = [turn.replace(GATE_PLACEHOLDER, str(gate)) for turn in turns]
+    # The adapter selects the feeder for a case with compaction. A case with
+    # turns needs the same feeder, with its own plan.
     route = {"wrapper": str(harness_trial.WRAPPER), "records": str(records),
-             **adapter.launch({"compaction": DEFAULT_COMPACTION} if compaction else {}, records, program, model,
-                              effort),
+             **adapter.launch({"compaction": DEFAULT_COMPACTION} if compaction or turns else {}, records, program,
+                              model, effort),
              "model": model, "effort": effort}
     if compaction:
         write_turns(out, adapter, compaction)
+    elif turns:
+        (out / "turns.json").write_text(json.dumps({"harness": adapter.name,
+                                                    "turns": [{"text": turn} for turn in turns]}, indent=2) + "\n")
+    native_run = None
+    if "nativeResidue" in case:
+        residue = case["nativeResidue"]
+        hooks_root = marketplace_plugin_root(home, residue["hooksPlugin"])
+        guardrail_root = marketplace_plugin_root(home, residue["guardrailPlugin"])
+        native_run = {"hooksRoot": str(hooks_root) if hooks_root else None,
+                      "guardrailRoot": str(guardrail_root) if guardrail_root else None,
+                      "hooksTreeBefore": plugin_tree(hooks_root), "gate": str(gate) if gate else None}
     if guidance is not None:
         guidance["install"] = install_guidance(home, ravel, spec, program)
         guidance["probe"] = plan_probe(out, home, ravel, adapter, program, model, effort, spec)
@@ -1332,6 +1597,9 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
                              check=False).stdout.strip().splitlines()[0]
     launch = start(ravel, config, case["kind"], prompt, work, env, case.get("timeoutMinutes", 20) * 60)
     (out / "ravel.stderr").write_text(launch["stderr"])
+    if native_run is not None:
+        native_run["hooksTreeAfter"] = plugin_tree(Path(native_run["hooksRoot"]) if native_run["hooksRoot"] else None)
+        native_run["gateFiles"] = sorted(p.name for p in gate.iterdir()) if gate else []
     isolation = isolation_problems(before, real_subjects(), home)
     if guidance is not None:
         guidance["after"] = guidance_after(home, guidance["install"], spec["plugin"])
@@ -1342,7 +1610,8 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
         stale["homeAfter"] = home_copies(home, case["staleCopy"]["skill"])
         isolation += [f"the staging HOME holds a copy of {case['staleCopy']['skill']} at {path} {when}"
                       for when in ("before", "after") for path in stale[f"home{when.title()}"]]
-    launches, verdict, context = extract_and_judge(case, adapter, records, home, work, environ, stale, guidance)
+    launches, verdict, context = extract_and_judge(case, adapter, records, home, work, environ, stale, guidance,
+                                                   native_run)
     verdict["isolation"] = isolation
     verdict["failures"] = verdict.get("failures", []) + isolation
     record = {
@@ -1351,12 +1620,106 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
         "tree": tree, "inputs": inputs, "prompt": prompt, "guidance": guidance,
         "harness": {"name": harness, "program": str(program), "version": version, "model": model, "effort": effort},
         "config": config.read_text(), "environment": sorted(env), "launch": launch, "launches": launches,
-        "stale": stale, "compactionContext": context, "verdict": verdict,
+        "stale": stale, "compactionContext": context, "turns": turns, "native": native_run, "verdict": verdict,
     }
     (out / "record.json").write_text(json.dumps(record, indent=2) + "\n")
     (out / "record.md").write_text(render(record))
     if verdict["failures"]:
         raise TrialFailure("; ".join(verdict["failures"]))
+    return record
+
+
+# --- The inventory of the staging HOME ------------------------------------------
+
+INVENTORY = HERE / "inventory.py"
+# The anomaly values of inventory.py's own `ANOMALIES`.
+INVENTORY_ANOMALIES = ("UNCLASSIFIED", "UNASSIGNED", "UNCOVERED", "NEEDS-REVIEW")
+GUARDRAIL_ENTRY = "guardrail@personal"
+GUARDRAIL_RESIDUE = "native-keep (native residue)"
+
+
+def inventory_rows(home: Path, out: Path, label: str) -> list[list[str]]:
+    """inventory.py with HOME set to `home`, saved as `OUT/<label>.tsv`."""
+    env = staging_home.staged_env(home)
+    done = subprocess.run([sys.executable, "-I", str(INVENTORY)], env=env, cwd=out, capture_output=True, text=True,
+                          check=False)
+    (out / f"{label}.tsv").write_text(done.stdout)
+    if done.returncode != 0:
+        raise TrialFailure(f"inventory.py with HOME {home} exited {done.returncode}: {done.stderr.strip()[-600:]}")
+    return [line.split("\t") for line in done.stdout.splitlines()[1:] if line]
+
+
+def inventory_summary(rows: list[list[str]]) -> dict[str, Any]:
+    """The anomaly rows and the dispositions of the guardrail entry."""
+    return {"rows": len(rows),
+            "anomalies": [row[:3] + [row[10]] for row in rows if any(f in INVENTORY_ANOMALIES for f in row)],
+            "guardrail": [row[10] for row in rows if row[2] == GUARDRAIL_ENTRY]}
+
+
+def mutate_extra_skill(clone: Path) -> None:
+    """A second skill in the registered guardrail plugin."""
+    entry = json.loads((clone / ".claude/plugins/installed_plugins.json").read_text())["plugins"][GUARDRAIL_ENTRY][0]
+    skill = Path(entry["installPath"]) / "skills" / "brainstorming"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("---\nname: brainstorming\ndescription: A superseded copy.\n---\n\n# Copy\n")
+
+
+def mutate_origin(clone: Path) -> None:
+    """The personal marketplace registered from another directory."""
+    path = clone / ".claude/plugins/known_marketplaces.json"
+    known = json.loads(path.read_text())
+    known["personal"]["source"]["path"] = "/opt/homebrew/opt/other"
+    path.write_text(json.dumps(known, indent=2) + "\n")
+
+
+def mutate_native_skill(clone: Path) -> None:
+    """A skill that no rule classifies in Claude Code's native root. The Codex
+    roots classify each unknown entry as a stale copy that the switch
+    deactivates, so a control there reports no anomaly."""
+    skill = clone / ".claude/skills/stray-skill"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("---\nname: stray-skill\ndescription: Unknown.\n---\n\n# Stray\n")
+
+
+INVENTORY_CONTROLS = (("extra skill in the guardrail plugin", mutate_extra_skill),
+                      ("personal marketplace from another origin", mutate_origin),
+                      ("unclassified skill in ~/.claude/skills", mutate_native_skill))
+
+
+def inventory_trial(home: Path, out: Path) -> dict[str, Any]:
+    """Inventory the staging HOME, read only. Its rows must hold no anomaly,
+    and each row of guardrail@personal must be the classified native residue.
+    Each control inventories a `cp -c` clone with one mutation, and must
+    report an anomaly row. The clone is removed afterwards."""
+    if out.exists():
+        raise TrialFailure(f"{out} exists; name a new directory")
+    out.mkdir(parents=True)
+    record: dict[str, Any] = {"schemaVersion": 1, "home": str(home), "started": now(),
+                              "inventorySha256": harness_trial.sha256_file(INVENTORY)}
+    record["staging"] = inventory_summary(inventory_rows(home, out, "staging"))
+    failures = []
+    if record["staging"]["anomalies"]:
+        failures.append(f"the staging rows hold anomalies {record['staging']['anomalies']}")
+    if not record["staging"]["guardrail"] or set(record["staging"]["guardrail"]) - {
+            GUARDRAIL_RESIDUE, "native-keep (native guardrail; outside Ravel roots)"}:
+        failures.append(f"guardrail@personal has the dispositions {record['staging']['guardrail']}")
+    record["controls"] = []
+    for index, (name, mutate) in enumerate(INVENTORY_CONTROLS, 1):
+        clone = out / f"clone-{index}"
+        clone_home(home, clone)
+        try:
+            mutate(clone)
+            summary = inventory_summary(inventory_rows(clone, out, f"control-{index}"))
+        finally:
+            subprocess.run(["/bin/chmod", "-R", "u+w", str(clone)], check=False)
+            shutil.rmtree(clone)
+        record["controls"].append({"name": name, **summary, "dirty": bool(summary["anomalies"])})
+        if not summary["anomalies"]:
+            failures.append(f"the control '{name}' reported no anomaly")
+    record.update(ended=now(), failures=failures)
+    (out / "record.json").write_text(json.dumps(record, indent=2) + "\n")
+    if failures:
+        raise TrialFailure("; ".join(failures))
     return record
 
 
@@ -1369,7 +1732,7 @@ def rejudge(trial: Path, environ: dict[str, str]) -> dict[str, Any]:
     home, work = Path(record["home"]), Path(record["work"])
     adapter = harness_trial.adapter_named(record["harness"]["name"])
     launches, verdict, context = extract_and_judge(case, adapter, trial / "records", home, work, environ,
-                                                   record.get("stale"), record.get("guidance"))
+                                                   record.get("stale"), record.get("guidance"), record.get("native"))
     verdict["isolation"] = record["verdict"].get("isolation", [])
     verdict["failures"] = verdict.get("failures", []) + verdict["isolation"]
     record.update(launches=launches, verdict=verdict, compactionContext=context, rejudged=now(),
@@ -1400,6 +1763,9 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--effort")
     r = sub.add_parser("rejudge", help="extract and judge a finished case again, without a launch")
     r.add_argument("--out", type=Path, required=True, help="the trial directory of the case")
+    i = sub.add_parser("inventory", help="inventory the staging HOME and check three mutated clones")
+    i.add_argument("--home", type=Path, required=True)
+    i.add_argument("--out", type=Path, required=True)
     p = sub.add_parser("probe", help="run the planned nested probe of a guidance case")
     p.add_argument("--plan", type=Path, required=True)
     args = parser.parse_args(argv)
@@ -1418,6 +1784,8 @@ def main(argv: list[str] | None = None) -> int:
                     args.source, environ)
         elif args.command == "rejudge":
             rejudge(args.out.resolve(), environ)
+        elif args.command == "inventory":
+            inventory_trial(args.home.resolve(), args.out.resolve())
         else:
             run_case(args.name, args.harness, args.home.resolve(), args.ravel.resolve(), args.out.resolve(), environ,
                      args.model, args.effort)

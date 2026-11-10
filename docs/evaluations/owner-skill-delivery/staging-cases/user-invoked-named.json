@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "name": "user-invoked-named",
+  "purpose": "The positive control of user-invoked. The same task names authoring-conventions. Expect a read of authoring-conventions from the personal snapshot before the first edit, which shows that the instrument sees a load of that skill.",
+  "kind": "staging-user-invoked",
+  "prompt": "Use the `authoring-conventions` skill for this task. In the current directory, write a new skill for the Linkuistics skill packs at `skills/word-count/SKILL.md`. It teaches an agent to count the words of a text file with `wc -w`, and it gives one example. Keep it under 40 lines. Then run this exact shell command as your last action: ravel end-session staging-ok",
+  "mandatoryFirst": true,
+  "requires": [
+    { "source": "personal", "skill": "authoring-conventions" }
+  ],
+  "timeoutMinutes": 20
+}

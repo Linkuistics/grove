@@ -1175,5 +1175,78 @@ class RealHomeCheck(unittest.TestCase):
         self.assertEqual(staging_trial.marker_problems({path + str(ended.pid): "{}"}, {}), [])
 
 
+class Rerun(unittest.TestCase):
+    """The checks of a rerun from the switch's gate 4, before any launch."""
+
+    DIGEST = "a" * 64
+
+    def setUp(self) -> None:
+        import json
+        import tempfile
+        self.tmp = Path(tempfile.mkdtemp())
+        self.real = self.tmp / "account"
+        self.home = self.real / ".local/state/owner-staging/home"
+        self.home.mkdir(parents=True)
+        self.candidate = self.tmp / "candidate"
+        self.candidate.mkdir()
+        record = {"sources": [{"id": "engineering", "resourceDigest": self.DIGEST, "originPath": "/x"}]}
+        (self.candidate / "candidate.json").write_text(json.dumps(record))
+        self.trials = self.real / ".local/state/owner-staging/trials"
+        self.environ = {"HOME": str(self.home), "CODEX_HOME": str(self.home / ".codex"),
+                        staging_trial.RERUN_SOURCE_VAR: "engineering", staging_trial.RERUN_DIGEST_VAR: self.DIGEST}
+
+    def tearDown(self) -> None:
+        import shutil
+        shutil.rmtree(self.tmp)
+
+    def setup(self, trial: str = "delegate", harness: str | None = "codex", **changes: str):
+        environ = {k: v for k, v in dict(self.environ, **changes).items() if v}
+        return staging_trial.rerun_setup(trial, harness, self.home, self.candidate, self.trials, environ,
+                                         self.real.resolve(), "20261110T120000Z")
+
+    def test_a_conforming_rerun_names_a_new_folder_and_the_real_home(self) -> None:
+        source, out, env = self.setup()
+        self.assertEqual(source, "engineering")
+        self.assertEqual(out, self.trials / "rerun-engineering-delegate-codex-20261110T120000Z")
+        self.assertEqual(env["HOME"], str(self.real.resolve()))
+        self.assertEqual(env["CODEX_HOME"], self.environ["CODEX_HOME"])
+        _, out, _ = self.setup("sources", None)
+        self.assertEqual(out.name, "rerun-engineering-sources-20261110T120000Z")
+
+    def test_a_candidate_with_another_digest_refuses_with_the_acceptance_work(self) -> None:
+        with self.assertRaisesRegex(staging_trial.TrialFailure, "not the installed .*Rebuild the candidate keg"):
+            self.setup(**{staging_trial.RERUN_DIGEST_VAR: "b" * 64})
+
+    def test_a_source_outside_the_candidate_keg_refuses(self) -> None:
+        with self.assertRaisesRegex(staging_trial.TrialFailure, "has no source personal"):
+            self.setup(**{staging_trial.RERUN_SOURCE_VAR: "personal"})
+
+    def test_missing_gate_variables_refuse(self) -> None:
+        for name in (staging_trial.RERUN_SOURCE_VAR, staging_trial.RERUN_DIGEST_VAR):
+            with self.assertRaisesRegex(staging_trial.TrialFailure, "gate 4"):
+                self.setup(**{name: ""})
+        with self.assertRaisesRegex(staging_trial.TrialFailure, "gate 4"):
+            self.setup(**{staging_trial.RERUN_DIGEST_VAR: "short"})
+
+    def test_harness_rules_and_an_unknown_case_refuse(self) -> None:
+        with self.assertRaisesRegex(staging_trial.TrialFailure, "take no --harness"):
+            self.setup("sources", "claude")
+        with self.assertRaisesRegex(staging_trial.TrialFailure, "needs --harness"):
+            self.setup("delegate", None)
+        with self.assertRaises(Exception):
+            self.setup("no-such-case", "claude")
+
+    def test_an_account_home_that_does_not_contain_the_staging_home_refuses(self) -> None:
+        for real in (self.home, self.tmp / "elsewhere"):
+            with self.assertRaisesRegex(staging_trial.TrialFailure, "must contain the staging HOME"):
+                staging_trial.rerun_setup("delegate", "codex", self.home, self.candidate, self.trials,
+                                          self.environ, real.resolve(), "t")
+
+    def test_the_account_home_comes_from_the_account_record(self) -> None:
+        import os
+        import pwd
+        self.assertEqual(staging_trial.account_home(), Path(pwd.getpwuid(os.getuid()).pw_dir).resolve())
+
+
 if __name__ == "__main__":
     unittest.main()

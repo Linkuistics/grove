@@ -12,6 +12,8 @@ staging launcher's rules. This runner adds the trials themselves.
     staging_trial.py rejudge --out DIR
     staging_trial.py inventory --home HOME --out DIR
     staging_trial.py probe --plan FILE
+    staging_trial.py rerun --trial sources|NAME [--harness claude|codex] --home HOME --candidate KEG
+                           --ravel PREFIX --trials DIR [--model M] [--effort E]
 
 `sources` runs the trials that launch no model:
 
@@ -155,6 +157,19 @@ an anomaly row. The runner removes each clone.
 exactly the plan's argument vector and environment, and writes its result
 beside the plan. The agent of that case runs it.
 
+`rerun` is the trial command of the switch plan's `accepted.trials`. Gate 4
+of scripts/owner_switch.py runs it when an installed Grove source differs
+from its accepted digest. The gate names the source in OWNER_SWITCH_SOURCE
+and its installed digest in OWNER_SWITCH_DIGEST, and it sets HOME to the
+staging HOME. The trials read Grove's sources from the candidate keg, so
+`rerun` refuses unless the candidate keg's record gives that source the
+installed digest. An unchanged candidate therefore stops the gate in native
+delivery, and the refusal names the acceptance work. The staging tools
+compare against the real HOME through HOME, so `rerun` sets HOME to the
+account's home from its account record. It then runs `sources` with that
+source moved away, or one case on one harness, into a new folder
+`rerun-<source>-<trial>[-<harness>]-<UTC time>` below `--trials`.
+
 A case is a small JSON object. A field that the runner does not know
 refuses, so a later leaf adds the field and its verdict together.
 
@@ -171,6 +186,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import pwd
 import re
 import shlex
 import shutil
@@ -290,6 +306,10 @@ CLONE_UNCHECKED = (".claude/projects", ".claude/plugins/cache", ".claude/plugins
 # The plugin subjects of the retained staging HOME. A guidance case must not
 # change one of them.
 RETAINED_SUBJECTS = CLONE_REWRITES + (".claude/plugins/marketplaces", PLUGIN_CACHE)
+# The variables with which the switch's gate 4 names a changed Grove source
+# and its installed resourceDigest (`gate_4` in scripts/owner_switch.py).
+RERUN_SOURCE_VAR = "OWNER_SWITCH_SOURCE"
+RERUN_DIGEST_VAR = "OWNER_SWITCH_DIGEST"
 PROBE_KIND = "staging-probe"
 PROBE_COMMAND = "staging_trial.py probe"
 PROBE_TIMEOUT = 600
@@ -2026,6 +2046,58 @@ def rejudge(trial: Path, environ: dict[str, str]) -> dict[str, Any]:
     return record
 
 
+# --- Reruns from the switch's gate 4 ------------------------------------------
+
+
+def account_home() -> Path:
+    """The account's home directory from its account record, as OpenSSH finds
+    it, whatever HOME holds."""
+    return Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()
+
+
+def rerun_setup(trial: str, harness: str | None, home: Path, candidate: Path, trials: Path,
+                environ: dict[str, str], real: Path, stamp: str) -> tuple[str, Path, dict[str, str]]:
+    """Check one rerun of gate 4 before anything runs, and name its new trial
+    folder. Gate 4 sets HOME to the staging HOME and names the changed source
+    and its installed digest. The trials read the candidate keg, so the
+    candidate must give that digest: otherwise they would test other bytes.
+    Returns the source, the trial folder and the environment with HOME set to
+    the real HOME, which the staging tools compare against."""
+    source, digest = environ.get(RERUN_SOURCE_VAR), environ.get(RERUN_DIGEST_VAR)
+    if not source or not re.fullmatch(r"[0-9a-f]{64}", digest or ""):
+        raise TrialFailure(f"a rerun needs {RERUN_SOURCE_VAR} and a 64-digit {RERUN_DIGEST_VAR}, which the "
+                           f"switch's gate 4 sets; run a single trial with `case` or `sources` instead")
+    if trial == "sources":
+        if harness:
+            raise TrialFailure("the source trials launch no model, so they take no --harness")
+    elif not harness:
+        raise TrialFailure(f"the case {trial} needs --harness")
+    else:
+        load_case(trial)
+    if real == home.resolve() or not staging_home.inside(home, real):
+        raise TrialFailure(f"the account's home {real} must contain the staging HOME {home}")
+    accepted = candidate_source(candidate, source)["resourceDigest"]
+    if accepted != digest:
+        raise TrialFailure(f"the candidate keg gives {source} the digest {accepted}, not the installed {digest}. "
+                           f"Rebuild the candidate keg from the released commit with `task owner:candidate-keg`, "
+                           f"run the staging trials of {source} again, revise the accepted values and repeat the "
+                           f"dry run before a new attempt")
+    label = "-".join(part for part in ("rerun", source, trial, harness, stamp) if part)
+    return source, trials / label, dict(environ, HOME=str(real))
+
+
+def rerun(trial: str, harness: str | None, home: Path, candidate: Path, ravel: Path, trials: Path,
+          environ: dict[str, str], model: str | None, effort: str | None) -> tuple[Path, dict[str, Any]]:
+    stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    source, out, env = rerun_setup(trial, harness, home, candidate, trials, environ, account_home(), stamp)
+    # staging_home.real_home() reads HOME from this process's environment.
+    os.environ["HOME"] = env["HOME"]
+    if trial == "sources":
+        return out, sources(home, candidate, ravel, out, source, env)
+    assert harness is not None
+    return out, run_case(trial, harness, home, ravel, out, env, model, effort)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -2050,8 +2122,26 @@ def main(argv: list[str] | None = None) -> int:
     i.add_argument("--out", type=Path, required=True)
     p = sub.add_parser("probe", help="run the planned nested probe of a guidance case")
     p.add_argument("--plan", type=Path, required=True)
+    g = sub.add_parser("rerun", help="run one trial of a changed Grove source for the switch's gate 4")
+    g.add_argument("--trial", required=True, help="sources, or the name of a case")
+    g.add_argument("--harness", choices=("claude", "codex"))
+    g.add_argument("--home", type=Path, required=True)
+    g.add_argument("--candidate", type=Path, required=True)
+    g.add_argument("--ravel", type=Path, required=True)
+    g.add_argument("--trials", type=Path, required=True, help="the folder that receives the new trial folder")
+    g.add_argument("--model")
+    g.add_argument("--effort")
     args = parser.parse_args(argv)
     environ = dict(os.environ)
+    if args.command == "rerun":
+        try:
+            out, _ = rerun(args.trial, args.harness, args.home.resolve(), args.candidate.resolve(),
+                           args.ravel.resolve(), args.trials.resolve(), environ, args.model, args.effort)
+        except (TrialFailure, staging_home.StagingError, harness_trial.TrialError) as error:
+            print(f"staging rerun failed: {error}", file=sys.stderr)
+            return 1
+        print(f"staging rerun passed: {out}/record.json")
+        return 0
     if args.command == "probe":
         try:
             done = run_probe(args.plan.resolve())

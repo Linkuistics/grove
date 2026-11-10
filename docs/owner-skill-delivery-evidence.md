@@ -675,6 +675,10 @@ own them:
 - An adoption with repository entries on a new machine. The new-machine
   runbook in the maintained manual owns it.
 
+[Dispositions of "Not measured"](#dispositions-of-not-measured) in the
+staging acceptance gives each item above its measurement, its owner or the
+reason that a later decision withdrew it.
+
 ## Review corrections
 
 Scope: each correction below states the design at the time of its review.
@@ -3858,7 +3862,9 @@ copy, so the case runs only while native delivery holds it.
 
 `task owner:staging:trial-tests` tests the verdicts on synthetic events.
 `staging_trial.py rejudge --out DIR` extracts and judges a finished case
-again from its unchanged launch records.
+again from its unchanged launch records. The switch's gate 4 runs these
+trials through `staging_trial.py rerun` instead, as
+[Trials for gate 4](#trials-for-gate-4) states.
 
 ### Source trials
 
@@ -6304,3 +6310,305 @@ and a copy of the Codex record.
   after any run.
 - Ravel 2.0 and the switch can change how Codex starts. A staging or
   cutover run after the promotion would show that change.
+
+## Staging acceptance
+
+`owner-staging-acceptance-k252` delivered this section on 2026-11-10. It
+closes order 5 of the
+[Cutover contract](specs/owner-skill-delivery.md#cutover-contract). The
+switch plan of owner-switch-plan-k254 and the source installation of
+owner-pack-checkouts-k93 read their accepted values here. No rehearsal
+record or other admission token is part of this acceptance. The dry run of
+owner-switch-rehearsal-k255 reads these values.
+
+### Result
+
+The drafts pass under the staging HOME. Each trial of the cutover contract
+passed on each harness that it names, or it has a recorded scope decision.
+The quiet-interval measurement passed, so no unsolicited writer blocks
+acceptance. The staging inventory held no anomaly. It used the instrument
+that inventory-guardrail-loaded-dir-k288 repaired.
+
+At 09:47Z on 2026-11-10, each retained path existed, each skill keg was at
+its accepted version, and each source gave its accepted digest. No source
+changed after the trials that read it. Only `writing` changed during the
+trials, and the trials that read it ran again.
+[The affected staging trials](#the-affected-staging-trials) records that rerun.
+
+This leaf found that the switch's gate 4 could not run the staging tools.
+The new `staging_trial.py rerun` entry repairs that.
+[Trials for gate 4](#trials-for-gate-4) states the defects and the controls.
+
+### The accepted sources
+
+The candidate commit is `ef8a79dd7621a437177982e24d8ec27831b4add4`, on
+`origin/gh-issue-25`. The tree ID of its `plugins/grove` is
+`885051a94eddaa81fa7a1a9900c3ac4db775aa84`, and the blob ID of its
+`plugins/packs.json` is `2cebaf5f062d08b50b22d058bd8c4db3d412f8a6`. Both IDs
+are the same at this leaf's parent commit, so the candidate keg is current.
+The candidate's archive has the SHA-256
+`fcb7603d70ccadcb3fcb071c5c2f79da165c807656f4723620142acab577546b`.
+
+| Source | Formula | Accepted version | Commit | Tree ID of the source directory | `resourceDigest` |
+| --- | --- | --- | --- | --- | --- |
+| `grove-core` | `linkuistics/taps/grove` | The Grove release that step 4 admits | `ef8a79dd7621a437177982e24d8ec27831b4add4`, the candidate | `885051a94eddaa81fa7a1a9900c3ac4db775aa84` | `8d92cd58fca8f21a87361a9d956af7e5a38e88751e25cbaff5e2384554806b51` |
+| `requirements` | `linkuistics/taps/grove` | The same | `c51ec8bebd811c0087ad19a1d66d0aa87bd01386` | `f3cf8128fd206c48d73b061cc5ef6b536d4f9d61` | `07b2d25e8bd20259c71f7419092329368d8ae48bec6ca973343a601a8ec515c8` |
+| `design` | `linkuistics/taps/grove` | The same | `aa088156d1a55e28dd9b59f0330f4ab9f1f3d330` | `dd04e268aeb5eba82c527755b1f52bee3565a216` | `d8ad3a2af1b5029bc0de93747f4d7297038651180f6877fbd738d94fcbf6aa14` |
+| `engineering` | `linkuistics/taps/grove` | The same | `8d1a2bc3e07bec4ce57e0391a6aa778dff63a017` | `d8a891cd5c13e9866f7937537afc7979fb3ef0f7` | `7e70b280e7a932489a048d108d4dae2bc63b387cf8fc6b37298663336e0fcc66` |
+| `research` | `linkuistics/taps/grove` | The same | `8f321f2e99e09a8ba5e60fa4a08871727e84df62` | `79dc2a530cd2d30cd088073423437bb18d61b401` | `7fb3d473f66feafb49afd8846fd94cf3e1fb7b01c584d4ad5f0e54814a8b3fdb` |
+| `writing` | `linkuistics/taps/grove` | The same | `578f84d1f5a9bb04573a704bca639530d93b6bca` | `ce8f4633533f9f550d414a474561a77f92cebba0` | `56bcd07b87f46a7b9ff92eed5a5a128f10d3ce64be2f7d934be898e058782212` |
+| `personal` | `linkuistics/taps/personal` | `2026-11-06` | `cddcfde901cdaf8069e2aac6f3b6bc5aba9fe925` | `f66e0792b9507194842e5b7d44457cf12d70dd98` | `dc1f26eafe9b7db6f750c95db38a7876beb29b067d829eaf63203323b89d61b6` |
+| `testanyware` | `linkuistics/taps/testanyware` | `2.8.0` | `1809a49068a23d9d276913f3a90227dbefb98a82`, tag `v2.8.0` | `0701492a5dae89e5b967e0122a5f1085cccec291` | `3e9d7929eddd8988a6bebd9433b7f343a19e673993b3c81e8a1ce9ba913b72c6` |
+| `superpowers` | `linkuistics/taps/superpowers` | `7.0.0` | `bb92a77741419a4ab5f06e711a283343f1ada0c3`, tag `v7.0.0` | `4ac675daa3415bc836f707c7e60237ac7b66c7d5`, the root tree | `be1ce6e3c25064b83ba2999b37972deb7f73ce88a5f5dbbba990d88037b17230` |
+| `quint` | `linkuistics/taps/quint-llm-kit` | `1.0.0` | `cc75369f741af7d490936f82002c2d28e3b3d78d` | `4600ff66782fa87ea4ee8791b37d6fcc86bed5a6` | `0a8b945fbc6732d5b7b3041a966d26cdf718ca884bd5f3fb8435297d7258edef` |
+
+The five pack commits are the pins of `plugins/packs.json` at the
+candidate. The four other commits are the archive URLs of the tap formulae.
+The tree IDs come from
+[the moves record](repository-moves-record.md#the-ten-ravel-sources). That
+table names the earlier candidate `7b113a28a966` for `grove-core`, which has
+the same tree.
+
+The plan's `accepted.versions` names the four formulae other than Grove's.
+Step 4 admits Grove's version, because Grove's release inside finish sets it.
+The plan draft already holds these ten digests and four versions.
+
+### The accepted staging paths
+
+The plan's `accepted.staging` names these two paths. Each must stay until
+the switch writes its receipt.
+
+| Key | Absolute path |
+| --- | --- |
+| `home` | `/Users/antony/.local/state/owner-staging/home` |
+| `candidate_keg` | `/Users/antony/.local/state/owner-staging/candidate` |
+
+The staging HOME holds its own `.codex` tree, which is no link. The accepted
+Ravel 2.0 build is `/Users/antony/.local/state/owner-staging/ravel-2.0`, and
+its `bin/ravel` has the pinned SHA-256 `3a9a9129…`. The trial commands below
+name that build.
+
+### Trials for gate 4
+
+Gate 4 runs the plan's trials of a Grove source whose installed digest
+differs from its accepted digest. Before this leaf, no trial command could
+run there, for two reasons:
+
+- **HOME.** Gate 4 sets HOME to the staging HOME. The staging tools take the
+  real HOME from HOME, for the real-HOME check, the stale copy and the
+  account's tools. The old path therefore failed. `case --name stale-copy`
+  under gate 4's environment looked for the stale copy at
+  `/Users/antony/.local/state/owner-staging/home/.claude/skills/grove`, and
+  it refused before any launch.
+- **The tested bytes.** The trials read Grove's sources from the candidate
+  keg, not from the installed keg. An unchanged candidate would pass its
+  trials, and gate 4 would admit a changed source that no trial read.
+
+`staging_trial.py rerun` repairs both. It reads the source and its installed
+digest from the variables of gate 4. It refuses unless the candidate keg's
+record gives that source the same digest. The refusal names the acceptance
+work: rebuild the candidate keg, rerun the trials, revise the accepted values
+and repeat the dry run. An unchanged candidate therefore stops gate 4 in
+native delivery, as step 2 of
+[The switch inside finish](specs/owner-skill-delivery.md#the-switch-inside-finish)
+requires.
+
+`rerun` sets HOME to the account's home from the account record.
+Each launch still gets HOME and `CODEX_HOME` of the staging HOME. Each trial
+writes a new folder `rerun-<source>-<trial>[-<harness>]-<UTC time>` in the
+trials folder.
+
+Each command of the plan is `$python -I <runner> rerun` with these
+arguments:
+
+```text
+--home /Users/antony/.local/state/owner-staging/home
+--candidate /Users/antony/.local/state/owner-staging/candidate
+--ravel /Users/antony/.local/state/owner-staging/ravel-2.0
+--trials /Users/antony/.local/state/owner-staging/trials
+--trial <trial> [--harness <harness>]
+```
+
+The runner is
+`/Users/antony/Development/AgenticOrchestration/grove.gh-issue-25/docs/evaluations/owner-skill-delivery/staging_trial.py`,
+in this workspace, which the finish sequence keeps. Before finish, the main
+checkout holds an earlier runner without `rerun`. Its content would change
+when finish moves `main`, and the dry-run comparison would then report a
+changed input. owner-switch-plan-k254 can choose another path whose content
+stays the same through the switch.
+
+The command name is `<trial>-<harness>`, or `sources` for the source trials.
+The Claude Code compaction trial adds `--model claude-opus-5-5 --effort high`,
+as [Rerun commands](#rerun-commands) states.
+
+| Source | Trials of `accepted.trials` | What each trial reads of the source |
+| --- | --- | --- |
+| `grove-core` | `sources`, `kind-skill` on `claude` and `codex`, `stale-copy` on `claude` and `codex` | `grove-planning` and a spine resource. Ravel's copy of `grove` beside the stale copy. |
+| `requirements` | `sources` | The resolution, the missing-source refusal and the restored digest |
+| `design` | `sources`, `discovery` on `claude` and `codex` | `cli-tool-design`, found without its name |
+| `engineering` | `sources`, `delegate`, `compaction` and `codebase-memory-mcp`, each on `claude` and `codex` | `coding-style-bash` in a delegate and after a compaction. `using-codebase-memory` with its server. |
+| `research` | `sources` | As for `requirements` |
+| `writing` | `sources`, `native-residue` on `claude` | The technical-communication hooks, which run from the source in place |
+
+`sources` moves the named source itself away. No model case reads a skill of
+`requirements` or `research`, so their trials launch no model.
+
+`guidance-probe` is no trial of a source. It installs the native
+`grove@linkuistics` plugin from GitHub, and it reads no Ravel snapshot of
+`grove-core`. A change to Claude Code, not to a source, calls for its rerun.
+
+Gate 4 reads only Grove's six sources. A change to another source is an
+owner action outside the switch: the owner edits its formula after its
+staging trials, as
+[Skill formulae](specs/owner-skill-delivery.md#skill-formulae) states. The
+staging settings name the versioned keg path of each of these sources, so a
+new version also needs new staging settings. Their trials run with
+`task owner:staging:case`, as in [Rerun commands](#rerun-commands):
+
+| Source | Cases |
+| --- | --- |
+| `personal` | `user-invoked` and `user-invoked-named` on `claude` and `codex`, `native-residue` on `claude`, and `task owner:staging:inventory` |
+| `testanyware` | `testanyware-vm` on `claude` and `codex` |
+| `superpowers` | `discovery` on `claude` and `codex`, which reads the mandatory file first |
+| `quint` | `quint-mcp` on `claude` and `codex` |
+
+#### Controls of `rerun`
+
+| Control | Result |
+| --- | --- |
+| `task owner:staging:trial-tests` | Passed 110 tests. Seven are new, in the class `Rerun`. |
+| Mutant without the digest refusal | Failed `test_a_candidate_with_another_digest_refuses_with_the_acceptance_work` only |
+| Mutant that keeps HOME | Failed `test_a_conforming_rerun_names_a_new_folder_and_the_real_home` only |
+| Mutant without the check that the account's home contains the staging HOME | Failed `test_an_account_home_that_does_not_contain_the_staging_home_refuses` only |
+| `rerun --trial sources` for `research` with a wrong digest, in gate 4's environment | Exit 1 before any launch, with the acceptance work in the message |
+| The same command with the accepted digest | Passed. Record `trials/rerun-research-sources-20261110T094630Z/record.json`, SHA-256 `095c56d0f6d819ad57a5aa7f421d97189d1abf991654ada1969e0ee14ab204ae`. |
+
+Gate 4's environment for both runs was HOME and the working directory at the
+staging HOME and `CODEX_HOME` at its `.codex` tree. It held no `RAVEL_*`,
+Grove or Claude Code location variable. The passing run refused the moved
+`research` as `skill_source_missing` and gave the accepted digest after the
+return. Its real-HOME check found no change.
+
+### The trials of the cutover contract
+
+The paths of the records are relative to
+`/Users/antony/.local/state/owner-staging`. Codex was 0.167.0 in each run.
+
+| Trial | Claude Code | Codex | Result |
+| --- | --- | --- | --- |
+| Isolation | `isolation-2/record.json`, 2.1.319 | The same record | Passed. [Staging setup and isolation trial](#staging-setup-and-isolation-trial) |
+| Mandatory read and implicit craft discovery | `trials/discovery-claude-1`, 2.1.319 | `trials/discovery-codex-1` | Passed. [The discovery case](#the-discovery-case) |
+| A Grove kind skill that the task names, with a relative resource | `trials/kind-skill-claude-3`, 2.1.319 | `trials/kind-skill-codex-2` | Passed. [The kind skill case](#the-kind-skill-case) |
+| Delegate | `trials/delegate-claude-1`, 2.1.319 | `trials/delegate-codex-1` | Passed. [The delegate case](#the-delegate-case) |
+| Compaction | `trials/compaction-claude-opus-1` and `-2`, 2.1.319 | `trials/compaction-codex-1` | Passed. [The compaction case](#the-compaction-case) |
+| Stale-copy coexistence | `trials/stale-copy-claude-1`, 2.1.319 | `trials/stale-copy-codex-1` | Passed. [The stale-copy case](#the-stale-copy-case) |
+| Off value, offline launch, missing source | No harness: `trials/sources-2` | No harness | Passed. [The affected staging trials](#the-affected-staging-trials) |
+| Guidance of a disabled plugin and a nested probe | `trials/guidance-claude-1`, 2.1.319 | Not applicable | Passed. [The guidance probe case](#the-guidance-probe-case) |
+| TestAnyware command reference and real VM | `trials/testanyware-vm-claude-1`, 2.1.322 | `trials/testanyware-vm-codex-2` | Passed. [TestAnyware in staging](#testanyware-in-staging) |
+| Quint MCP server | `trials/quint-mcp-claude-1`, 2.1.322 | `trials/quint-mcp-codex-2` | Passed. [MCP servers in staging](#mcp-servers-in-staging) |
+| codebase-memory MCP server | `trials/codebase-memory-mcp-claude-1`, 2.1.322 | `trials/codebase-memory-mcp-codex-2` | Passed. [MCP servers in staging](#mcp-servers-in-staging) |
+| Claude Code hooks and `/guardrail` | `trials/native-residue-claude-1`, 2.1.322 | Not applicable | Passed. [The native residue case](#the-native-residue-case) |
+| No superseded skill in a native listing | Each case above | Each case above | Passed. Each verdict reads the native listing. |
+
+Four records have a scope decision or a stated scope:
+
+- The guidance probe runs only on Claude Code. The cutover contract names
+  one Claude Code trial, because finish runs on Claude Code.
+- The hooks and `/guardrail` run only on Claude Code.
+  [Native residue](specs/owner-skill-delivery.md#native-residue) keeps Codex
+  without technical-communication hooks, and `guardrail` exists only for
+  Claude Code.
+- The Codex `quint-kb` case first failed, because Codex denied each call
+  under the approval policy `never`. The owner chose the server-wide
+  approval for the real entry.
+  [The real quint-kb approval](#the-real-quint-kb-approval) records the
+  decision and a passing real run.
+- The Claude Code compaction case passes with `claude-opus-5-5` at high
+  effort, the setting of an `impl` session. With `claude-sonnet-5-5` at low
+  effort, it failed in five of five runs.
+  [The failures at low effort](#the-failures-at-low-effort) gives the
+  diagnosis. No owner route uses that setting.
+
+The user-invoked cases also passed. They are no trial of the contract.
+[The user-invoked skill](#the-user-invoked-skill) records them.
+
+### The staging items of "Test seams"
+
+| Item of [Test seams](specs/owner-skill-delivery.md#test-seams) | Result |
+| --- | --- |
+| The complete switch beside an idle, signed-in Claude Code parent with the owner's MCP servers | Passed in `trials/quiet-interval-1`, record SHA-256 `33c8e747…`, with Claude Code 2.1.322. No unsolicited write, changed loaded registration or orphan marker occurred. [Quiet interval in staging](#quiet-interval-in-staging) |
+| Off settings resolve as `disabled` | Passed in `trials/sources-2` and in the `rerun` control above |
+| Switched settings resolve exactly ten sources | Passed in `trials/quiet-interval-1`, where the switched settings, with no `sources`, resolved the ten accepted digests from the staging prefix |
+| An eleventh source or a one-byte digest change stops acceptance | Fixture controls of `task owner:switch:rehearse`, such as `c_eleventh_source`. The dry run of owner-switch-rehearsal-k255 runs that suite again. |
+| A changed released Grove source requires its staging reruns, and a missing staging HOME stops them | Fixture controls of the same suite for gate 4. The `rerun` entry now makes the real reruns possible. |
+| Trial commands see the isolated HOME and Codex tree | Repaired by `rerun`, and controlled above |
+| Isolation, mandatory and implicit reads, relative resources, delegates, compaction, stale copies, missing source, offline resolution, hooks, native guardrail, TestAnyware, Quint and codebase-memory | The table of the cutover contract above |
+| Inventory with the repaired instrument | Passed in `trials/inventory-3`, record SHA-256 `d3d6f54a…`, `inventory.py` SHA-256 `880fe562…`. 202 rows and no anomaly. `guardrail@personal` was the classified native residue. [The loaded guardrail directory](#the-loaded-guardrail-directory) |
+
+The other items of "Test seams" use fixtures or the real HOME. The fixture
+suites of the switch, the dry run of owner-switch-rehearsal-k255 and the
+probes inside finish own them.
+
+### Dispositions of "Not measured"
+
+Each item of [Not measured](#not-measured) now has a measurement, an owner
+or a reason that a later decision withdrew it.
+
+| Item | Disposition |
+| --- | --- |
+| A root-level `SKILL.md` in a skill-free plugin | Measured by staging-claude-native-trial-k285 with Claude Code 2.1.322 |
+| Disabling a plugin under a running Claude Code session | Measured by staging-guidance-probe-k278 with Claude Code 2.1.319 |
+| Codex sign-in from a separate `CODEX_HOME`, with a token refresh | Measured by owner-staging-setup-k248 |
+| The tree that Codex reads for an enabled bundled plugin | No decision reads it. Bundled plugins are platform-managed and unchanged, the switch writes no Codex plugin, and the inventory reads both trees. The staging Codex sessions listed no superseded skill. |
+| Snapshot reads of Claude Code under the owner's launch shape | Measured below |
+| One skill name in both Codex user roots | No switched state holds it. The switch deactivates both Codex user roots' copies together, and the inventory refuses an extra entry there. Native delivery and restore keep the owner's present roots, which the owner uses today, unchanged. |
+| Pi's startup with a dangling extension link | Outside the automatic contract. The switch deactivates the link and gives Pi no replacement, as [Classes and dispositions](specs/owner-skill-delivery.md#classes-and-dispositions) states. |
+| Built-in Claude Code skills on disk | Owned by step 3 of the switch inside finish, which compares each unverified built-in row with finish's own skill listing |
+| `mise bootstrap repos apply` against the real remotes | Withdrawn by the Homebrew change. No repository entry remains. |
+| A decoy credential helper against a remote that asks for a credential | Withdrawn by the Homebrew change. Homebrew downloads public archives. |
+| The size and capture time of a TestAnyware source | Measured by staging-testanyware-trial-k287 |
+| Ravel's capture of a pack checkout that mise wrote | Withdrawn by the Homebrew change. The staging trials measured the capture of keg sources instead. |
+| Ravel 1.1 and 2.0 with a settings file that holds no key | Withdrawn by the simplified switch. The inverse no longer exists. Restore returns the original settings with only the off-value exception, and 1.1 reads no settings that finish writes. |
+| An exchange and an exclusive rename across the switch set and the backup | Withdrawn by the simplified switch, which deleted exchange and held-link detection |
+| A complete `mise bootstrap` with repository entries | Withdrawn by the Homebrew change for repository entries. owner-pack-checkouts-k93 owns the complete `mise bootstrap` that installs the formulae in the real HOME. |
+| An adoption with repository entries on a new machine | Withdrawn by the Homebrew change for repository entries. The new-machine runbook of the maintained manual owns adoption. |
+
+#### Snapshot reads in `auto` mode
+
+One staging Claude Code session measured the reads at 09:39Z on
+2026-11-10. It ran through `ravel start-session` of the accepted 2.0 build
+with Claude Code 2.1.322 and `claude-sonnet-5-5` at low effort. Its route
+passed `-p`, the stream flags, the model and the effort only. That is the
+owner's launch shape, without a permission flag and without `--add-dir`.
+The staging settings select `defaultMode: "auto"`, as the owner's settings
+do.
+
+The init event named the permission mode `auto` and a working directory
+under `/private/tmp`. The agent read the mandatory file and
+`cli-tool-design/SKILL.md` from the staging Ravel cache with the Read tool.
+It listed the snapshots once with Bash. Each tool returned content, the
+result's `permission_denials` was empty, and the session ended with
+`read-ok`. The record is `trials/auto-mode-read-claude-1`.
+
+The run measured `-p` mode. An interactive session in `auto` mode uses the
+same classifier, but no run measured it.
+
+### Limits
+
+- Most model trials ran once on each harness. Each shows that the behaviour
+  occurs, not how often.
+- The early trials ran with Claude Code 2.1.319, and the later trials and
+  the quiet interval ran with 2.1.322. owner-marketplace-freeze-k253 chooses
+  the held version. The quiet-interval measurement needs another run unless
+  that version is 2.1.322.
+- After promotion, the owner's `config.rhai` routes each `review-*` kind
+  except `review-design` and `review-requirements` to `claude-sonnet-5-5`.
+  It uses medium or high effort. No compaction run measured that model at
+  those efforts.
+- The new `rerun` entry ran one source trial end to end. No model case ran
+  through it. Its only change to a case is HOME for the runner, the check
+  of the candidate digest and the trial folder.
+- No trial reads a skill of `requirements` or `research` by a model. Their
+  trials prove resolution, refusal and digest only.
+- The staging HOME does not isolate SSH, as
+  [The guidance probe case](#the-guidance-probe-case) states.

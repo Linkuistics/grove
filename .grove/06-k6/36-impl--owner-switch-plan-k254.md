@@ -35,6 +35,12 @@ in the owner's prepared folder.
   installed file. The section "Staging setup and isolation trial" of
   `docs/owner-skill-delivery-evidence.md` names the paths for
   `accepted.staging`.
+- "Trials for gate 4" of "Staging acceptance" in
+  `docs/owner-skill-delivery-evidence.md` names each Grove source's trials
+  for `accepted.trials`. Each trial is a `staging_trial.py rerun` command,
+  which replaces the provisional trials of the draft. Choose a runner path
+  whose content stays the same through the switch. The main checkout gains
+  `rerun` only when finish moves `main`.
 
 ## Done when
 

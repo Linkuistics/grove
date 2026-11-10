@@ -34,6 +34,10 @@ and resume instructions of the owner's checklist.
   `APP_UNREACHABLE` until the owner opens TestAnyware. "The doctor check" of
   "TestAnyware in staging" in `docs/owner-skill-delivery-evidence.md` holds
   the result. The checklist names this setting for the owner.
+- owner-staging-hooks-k251 measured the quiet interval with Claude Code
+  2.1.322. If the held version is another version, run
+  `task owner:quiet-interval` again with it before the dry run. "Staging
+  acceptance" of `docs/owner-skill-delivery-evidence.md` states this limit.
 
 ## Done when
 

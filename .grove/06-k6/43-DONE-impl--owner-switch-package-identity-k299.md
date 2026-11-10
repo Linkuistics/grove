@@ -54,3 +54,38 @@ switch program and its Grove-side tools.
 
 A changed program, helper or input needs another dry run.
 owner-switch-rehearsal-k255 runs it after owner-switch-plan-k254.
+
+## Decisions (running log)
+
+- Step 5 reads mise only for the declared and installed state. The full
+  package version always comes from `linked_keg` of
+  `brew info --json=v2 <formula>`. mise must report that keg, with or
+  without its revision. Reason: an unrevised string from mise cannot tell
+  revision 0 from an omitted revision, and the linked keg is the one that
+  the default skill directory names. On 2026-11-11, Homebrew 7.0.12 gave
+  `zstd` `linked_keg` `1.5.7_1`, and mise 2026.11.2 reported the same.
+- Grove's admitted version from step 4 was already the full package
+  version. Step 4 now requires each Grove source's `originPath` to be the
+  private payload `libexec/skill-sources/<id>`. A real directory at the
+  alias's place no longer passes.
+- The fixture kegs carry the published full versions with revision 1 for
+  the four other formulae. Mutations of step 4's path, of the string
+  comparison and of a revision-blind comparison each failed their controls.
+- The plan draft's versions are the full package versions. The draft now
+  checks them against the table of "Publication" in "Packaging-only
+  acceptance", not against the moves record, which names the earlier
+  unrevised versions. The redraft also renewed the program and inventory
+  digests, two Claude Code registry identities and the held Claude Code
+  version 2.1.322, from the real HOME.
+- The quiet-interval prefix links each keg's alias, as Homebrew does, and
+  refuses a keg at another version or a source outside its private payload.
+  On 2026-11-11 the real prefix step refused both the staging candidate,
+  which predates the projection (k300 rebuilds it), and the installed kegs
+  at the earlier versions (k93 upgrades them).
+- The inventory classifies the hook adapters as native residue, in the
+  manner of `guardrail`. Claude Code must register `writing-hooks` from
+  `/opt/homebrew/opt/grove`. Codex must name the canonical linked keg.
+  Both marketplace files must name the private payload. A Pi link through
+  the writing alias must resolve into that payload. Each other state says
+  UNCLASSIFIED. The real inventory equals the earlier instrument's output
+  row for row, because the real HOME has no hook adapter yet.

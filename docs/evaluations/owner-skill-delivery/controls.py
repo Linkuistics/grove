@@ -24,6 +24,15 @@ another origin and no registration. Each case also checks the verdict of
 `compare` against the unchanged run. The unchanged fixture must hold no
 anomaly row.
 
+The unchanged fixture also holds Grove's keg in the projected layout, with
+the private writing payload and its public alias. Claude Code's hooks
+plugin is registered from the `opt` path, Codex's from the canonical keg,
+and a Pi extension links the alias. The hook adapter cases must each say
+UNCLASSIFIED: Claude Code registered from the keg path, a marketplace file
+that names the alias, Codex registered from the `opt` path or from a removed
+keg, a skill in the Codex cache copy and a Pi link whose alias leaves the
+payload.
+
 The fixture stands in for the owner's HOME, so the script writes only inside
 its temporary directory. The instrument still reads the absolute tool paths
 under /opt/homebrew and /Applications, which are the same for every case.
@@ -31,7 +40,8 @@ under /opt/homebrew and /Applications, which are the same for every case.
 The instrument accepts the guardrail plugin only from the fixed origin
 /opt/homebrew/opt/personal, which a fixture cannot write. Each case therefore
 builds a fixture keg beside its HOME and runs a copy of the instrument in which
-that literal names the fixture keg. The instrument has no input that changes
+that literal names the fixture keg. The literals /opt/homebrew/opt/grove and
+/opt/homebrew/share/ravel/skills name the fixture prefix in the same way. The instrument has no input that changes
 its origin, so an owner's run cannot widen the exception.
 
 Usage:
@@ -75,11 +85,55 @@ GUARDRAIL_SKILL = "---\nname: guardrail\n---\nGuardrail.\n"
 SUPERSEDED = "---\nname: brainstorming\n---\nSuperseded copy.\n"
 CODEX_TOML = '[mcp_servers.quint-kb]\ncommand = "node"\nargs = ["kb.js"]\n\n[plugins."visualize@openai-bundled"]\nenabled = false\n'
 
+GROVE_ORIGIN = "/opt/homebrew/opt/grove"
+SKILL_DIRECTORY = "/opt/homebrew/share/ravel/skills"
+HOOKS_PAYLOAD = "libexec/skill-sources/writing/craft/technical-communication"
+CLAUDE_HOOKS = "technical-communication-hooks@writing-hooks"
+CLAUDE_HOOKS_CACHE = ".claude/plugins/cache/writing-hooks/technical-communication-hooks/unknown"
+CODEX_HOOKS_CACHE = ".codex/plugins/cache/writing-hooks/technical-communication/local"
+CLAUDE_HOOKS_ROW = ("claude", "~/.claude/plugins/cache/writing-hooks", CLAUDE_HOOKS)
+CODEX_HOOKS_ROW = ("codex", "~/" + CODEX_HOOKS_CACHE, "technical-communication@writing-hooks")
+PI_ROW = ("pi", "~/.pi/agent/extensions", "technical-communication.ts")
+PI_FILE = "craft/technical-communication/harnesses/pi/technical-communication.ts"
+
+def prefix_of(home):
+    """The fixture Homebrew prefix that stands in for /opt/homebrew. Rows print link text, such as
+    the Pi extension's, so each case rebuilds the prefix at one path that all cases share."""
+    return os.path.join(os.path.dirname(os.path.dirname(home)), "brew")
+def grove_keg(home, version="1"):
+    return os.path.join(prefix_of(home), "Cellar", "grove", version)
+def codex_marketplace(source):
+    return f'[marketplaces.writing-hooks]\nsource_type = "local"\nsource = "{source}"\n\n[plugins."technical-communication@writing-hooks"]\nenabled = true\n'
+def hooks_plugin(root):
+    """The skill directory technical-communication, which is the hooks plugin's root."""
+    write(root, "SKILL.md", "---\nname: technical-communication\n---\nGuidance.\n")
+    jwrite(root, ".claude-plugin/plugin.json", {"name": "technical-communication-hooks"})
+    jwrite(root, ".codex-plugin/plugin.json", {"name": "technical-communication"})
+    jwrite(root, "hooks/hooks.json", {"hooks": {}})
+def build_grove_keg(home, version="1"):
+    """Grove's keg in the projected layout, linked into the fixture prefix as `brew link` links it."""
+    keg, prefix = grove_keg(home, version), prefix_of(home)
+    hooks_plugin(os.path.join(keg, HOOKS_PAYLOAD))
+    write(keg, "libexec/skill-sources/writing/" + PI_FILE, "export default () => {};\n")
+    jwrite(keg, ".claude-plugin/marketplace.json", {"name": "writing-hooks", "plugins": [
+        {"name": "technical-communication-hooks", "source": "./" + HOOKS_PAYLOAD}]})
+    jwrite(keg, ".agents/plugins/marketplace.json", {"name": "writing-hooks", "plugins": [
+        {"name": "technical-communication", "source": {"source": "local", "path": "./" + HOOKS_PAYLOAD}}]})
+    os.makedirs(os.path.join(keg, "share/ravel/skills"), exist_ok=True)
+    os.symlink("../../../libexec/skill-sources/writing", os.path.join(keg, "share/ravel/skills/writing"))
+    for rel, target in (("opt/grove", f"../Cellar/grove/{version}"),
+                        ("share/ravel/skills/writing", f"../../../Cellar/grove/{version}/share/ravel/skills/writing")):
+        link = os.path.join(prefix, rel)
+        os.makedirs(os.path.dirname(link), exist_ok=True)
+        if os.path.lexists(link): os.remove(link)
+        os.symlink(target, link)
+
 def keg_of(home):
     """The fixture keg that stands in for /opt/homebrew/opt/personal, beside HOME."""
     return os.path.join(os.path.dirname(home), "keg")
 
 def build(home):
+    if os.path.lexists(prefix_of(home)): shutil.rmtree(prefix_of(home))
     jwrite(home, ".claude/plugins/installed_plugins.json", {"version": 2, "plugins": {"demo@linkuistics": [
         {"scope": "user", "installPath": os.path.join(home, PLUGIN), "version": "1", "gitCommitSha": "0" * 40}]}})
     write(home, PLUGIN + "/.claude-plugin/plugin.json", '{"name": "demo"}\n')
@@ -93,7 +147,8 @@ def build(home):
     write(home, ".claude/agents/demo.md", "agent v1\n")
     os.makedirs(os.path.join(home, ".claude/skills"))
     jwrite(home, ".claude.json", {"mcpServers": {"quint-kb": {"type": "stdio", "command": "node", "args": ["kb.js"], "env": {"KB_TOKEN": "credential-1"}}}})
-    write(home, ".codex/config.toml", CODEX_TOML)
+    build_grove_keg(home)
+    write(home, ".codex/config.toml", CODEX_TOML + "\n" + codex_marketplace(grove_keg(home)))
     jwrite(home, ".codex/hooks.json", {"hooks": {}})
     write(home, ".codex/agents/demo.toml", "agent v1\n")
     for d in (".codex/skills", ".agents/skills", ".pi/agent/skills", ".pi/agent/extensions", ".agents/.grove/snapshots/s1"):
@@ -110,7 +165,18 @@ def build(home):
         {"scope": "user", "installPath": os.path.join(home, GUARDRAIL), "version": "unknown"}]}))
     edit_json(home, ".claude/settings.json", lambda o: o["enabledPlugins"].update({"guardrail@personal": True}))
     keg = keg_of(home)
-    jwrite(home, ".claude/plugins/known_marketplaces.json", {"personal": {"source": {"source": "directory", "path": keg}, "installLocation": keg}})
+    opt = os.path.join(prefix_of(home), "opt", "grove")
+    jwrite(home, ".claude/plugins/known_marketplaces.json", {"personal": {"source": {"source": "directory", "path": keg}, "installLocation": keg},
+        "writing-hooks": {"source": {"source": "directory", "path": opt}, "installLocation": opt}})
+    # The hook adapters: Claude Code's plugin from the opt path, Codex's cache
+    # copy of the canonical keg, and Pi's link through the public alias.
+    hooks_plugin(os.path.join(home, CLAUDE_HOOKS_CACHE))
+    edit_json(home, ".claude/plugins/installed_plugins.json", lambda o: o["plugins"].update({CLAUDE_HOOKS: [
+        {"scope": "user", "installPath": os.path.join(home, CLAUDE_HOOKS_CACHE), "version": "unknown"}]}))
+    edit_json(home, ".claude/settings.json", lambda o: o["enabledPlugins"].update({CLAUDE_HOOKS: True}))
+    hooks_plugin(os.path.join(home, CODEX_HOOKS_CACHE))
+    os.symlink(os.path.join(prefix_of(home), "share/ravel/skills/writing", PI_FILE),
+               os.path.join(home, ".pi/agent/extensions/technical-communication.ts"))
     # The directory that Claude Code loads, as the personal keg lays it out.
     jwrite(keg, ".claude-plugin/marketplace.json", {"name": "personal", "plugins": [{"name": "guardrail", "source": "./" + KEG_PLUGIN}]})
     write(keg, KEG_PLUGIN + "/.claude-plugin/plugin.json", '{"name": "guardrail"}\n')
@@ -188,6 +254,34 @@ def guardrail_elsewhere(home):
         {"scope": "user", "installPath": os.path.join(home, ".claude/plugins/cache/acme/guardrail/1"), "version": "1"}]}))
     write(home, ".claude/plugins/cache/acme/guardrail/1/skills/guardrail/SKILL.md", "---\nname: guardrail\n---\nCopy.\n")
     edit_json(home, ".claude/settings.json", lambda o: o["enabledPlugins"].update({"guardrail@acme": True}))
+def claude_hooks_origin(home, path):
+    edit_json(home, ".claude/plugins/known_marketplaces.json",
+              lambda o: o["writing-hooks"].update(source={"source": "directory", "path": path}, installLocation=path))
+def alias_in_marketplace(home):
+    edit_json(grove_keg(home), ".claude-plugin/marketplace.json", lambda o: o["plugins"][0].update(
+        source="./share/ravel/skills/writing/craft/technical-communication"))
+def grove_upgraded(home):
+    """brew upgrade linked Grove 2 and removed 1, and Codex still names 1."""
+    build_grove_keg(home, "2")
+    shutil.rmtree(grove_keg(home, "1"))
+def pi_alias_elsewhere(home):
+    """The alias resolves into a real directory outside the keg's private payload."""
+    alias = os.path.join(prefix_of(home), "share/ravel/skills/writing")
+    os.remove(alias)
+    shutil.copytree(os.path.join(grove_keg(home), "libexec/skill-sources/writing"), alias)
+CASES += [
+    ("hook adapters from the projected keg", lambda h: None, ("row", CLAUDE_HOOKS_ROW, "native-keep (native residue)")),
+    ("Codex hooks from the canonical keg", lambda h: None, ("row", CODEX_HOOKS_ROW, "native-keep (native residue)")),
+    ("Pi extension through the writing alias", lambda h: None, ("row", PI_ROW, "native-keep")),
+    ("Claude Code hooks registered from the keg path", lambda h: claude_hooks_origin(h, grove_keg(h)), ("row", CLAUDE_HOOKS_ROW, "UNCLASSIFIED")),
+    ("Claude Code marketplace entry through the alias", alias_in_marketplace, ("row", CLAUDE_HOOKS_ROW, "UNCLASSIFIED")),
+    ("Codex hooks registered from the opt path", lambda h: write(h, ".codex/config.toml", CODEX_TOML + "\n" + codex_marketplace(os.path.join(prefix_of(h), "opt", "grove"))),
+     ("row", CODEX_HOOKS_ROW, "UNCLASSIFIED")),
+    ("Codex hooks registered from a removed keg", grove_upgraded, ("row", CODEX_HOOKS_ROW, "UNCLASSIFIED")),
+    ("skill in the Codex hooks cache copy", lambda h: write(h, CODEX_HOOKS_CACHE + "/skills/x/SKILL.md", "---\nname: x\n---\n"), ("row", CODEX_HOOKS_ROW, "UNCLASSIFIED")),
+    ("Pi writing alias outside the private payload", pi_alias_elsewhere, ("row", PI_ROW, "UNCLASSIFIED")),
+]
+
 # "Test seams" of docs/specs/owner-skill-delivery.md: each case beside or
 # inside a platform subtree, and each case of the native guardrail. "fails"
 # and "passes" name the exit of `inventory.py compare` against the unchanged
@@ -220,12 +314,14 @@ CASES += [
 ]
 
 with open(instrument, encoding="utf-8") as fh: INSTRUMENT_TEXT = fh.read()
-if ORIGIN not in INSTRUMENT_TEXT: sys.exit(f"controls: {instrument} never names {ORIGIN}")
+for literal in (ORIGIN, GROVE_ORIGIN, SKILL_DIRECTORY):
+    if literal not in INSTRUMENT_TEXT: sys.exit(f"controls: {instrument} never names {literal}")
 
 def run(home):
     """The instrument's rows for HOME, from a copy whose origin is the fixture keg."""
     copy = os.path.join(home, "..", "inventory.py")
-    with open(copy, "w", encoding="utf-8") as fh: fh.write(INSTRUMENT_TEXT.replace(ORIGIN, keg_of(home)))
+    text = INSTRUMENT_TEXT.replace(ORIGIN, keg_of(home)).replace(GROVE_ORIGIN, os.path.join(prefix_of(home), "opt", "grove"))
+    with open(copy, "w", encoding="utf-8") as fh: fh.write(text.replace(SKILL_DIRECTORY, os.path.join(prefix_of(home), "share/ravel/skills")))
     env = {k: v for k, v in os.environ.items() if k != "CONTROL_ROOT"}; env["HOME"] = home
     out = subprocess.run([sys.executable, "-I", copy], env=env, capture_output=True, text=True)
     if out.returncode: return None
@@ -264,6 +360,9 @@ try:
         elif expect[0] == "residue":
             r = got.get(GUARDRAIL_ROW); ok = r is not None and r[10] == expect[1]
             why = f"guardrail@personal has disposition {r[10] if r else 'none'}, not {expect[1]}"
+        elif expect[0] == "row":
+            r = got.get(expect[1]); ok = r is not None and r[10] == expect[2]
+            why = f"{expect[1][2]} has disposition {r[10] if r else 'none'}, not {expect[2]}"
         elif expect[0] == "passes":
             ok = got != base; why = "the subtree's rows did not change"
         else:
@@ -271,7 +370,8 @@ try:
         # Every case also states the comparison's verdict: unchanged and
         # accepted cases pass it, and each other case fails it.
         if got is not None and ok:
-            want = 0 if expect[0] in ("same", "passes") or expect[1:] == ("native-keep (native residue)",) else 1
+            want = 0 if expect[0] in ("same", "passes") or expect[1:] == ("native-keep (native residue)",) \
+                or (expect[0] == "row" and not any(a in expect[2] for a in ANOMALIES)) else 1
             code = compared(tmp, name)
             if code != want: ok, why = False, f"compare exited {code}, not {want}"
         if not ok and got is not None and expect[0] != "same" and got == base: why += "; whole output unchanged"

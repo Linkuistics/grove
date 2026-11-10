@@ -73,7 +73,10 @@ when its path moves:
                             $(brew --prefix)/opt/grove/bin/grove, as the
                             program finds them; and each --tool on PATH
     source:<id>             $(brew --prefix)/share/ravel/skills/<id> for each
-                            accepted source, with a tree digest
+                            accepted source, with a tree digest. The row's
+                            canonical path is the private payload
+                            libexec/skill-sources/<id> of the owning keg,
+                            which the keg's alias names
 A file digest is the SHA-256 of the content. A tree digest frames each
 relative path, type, executable bit, file content and link text, and follows
 no link inside the tree. Each version command runs with HOME, its

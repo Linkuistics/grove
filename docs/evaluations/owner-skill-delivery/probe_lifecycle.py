@@ -284,18 +284,26 @@ def plant(home: str, names: list) -> list:
 
 
 def install_hooks(home: str, ravel: str) -> dict:
-    """technical-communication-hooks@writing-hooks from the candidate keg, through Claude Code's own commands."""
-    keg = os.path.join(CANDIDATE, "brew", "Cellar", "grove")
-    keg = os.path.join(keg, sorted(os.listdir(keg))[-1])
+    """technical-communication-hooks@writing-hooks from the candidate keg, through Claude Code's own commands.
+
+    The marketplace is registered from the candidate prefix's opt/grove, as
+    the owner registers it from $(brew --prefix)/opt/grove: Claude Code stores
+    that path and runs the plugin in place through it ("The hook adapters on
+    the projected keg" of docs/homebrew-skill-delivery-evidence.md).
+    """
+    opt = os.path.join(CANDIDATE, "brew", "opt", "grove")
+    keg = os.path.realpath(opt)
+    if not os.path.isdir(os.path.join(keg, ".claude-plugin")):
+        raise SystemExit(f"{opt} names no keg with a Claude Code marketplace file")
     env = staging_home.staged_env(staging_trial.Path(home), staging_trial.Path(ravel))
     cwd = staging_home.work_directory(staging_trial.Path(home))
     log = []
-    staging_home.run(["claude", "plugin", "marketplace", "add", keg], env, cwd, log)
+    staging_home.run(["claude", "plugin", "marketplace", "add", opt], env, cwd, log)
     staging_home.run(["claude", "plugin", "install", HOOKS_PLUGIN], env, cwd, log)
     enabled = staging_trial.enabled_value(staging_trial.Path(home), HOOKS_PLUGIN)
     if enabled is not True:
         raise SystemExit(f"after the install, enabledPlugins[{HOOKS_PLUGIN}] is {enabled!r}, not true")
-    return {"keg": keg, "entry": staging_trial.installed_entry(staging_trial.Path(home), HOOKS_PLUGIN),
+    return {"keg": keg, "marketplace": opt, "entry": staging_trial.installed_entry(staging_trial.Path(home), HOOKS_PLUGIN),
             "log": [{k: item[k] for k in ("argv", "exit")} for item in log]}
 
 

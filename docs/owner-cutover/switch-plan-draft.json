@@ -1143,14 +1143,14 @@
       "path": ".claude/plugins/known_marketplaces.json",
       "type": "file",
       "original": {
-        "identity": "0759a2735259a506dc23516640af2e32d1f01f510ec445bdae5f76f143deeb82"
+        "identity": "572472b7d6bb5c122189676caa5af7a46ef57b427f73fd0fef8cdba0f85e75bd"
       }
     },
     {
       "path": ".claude/plugins/installed_plugins.json",
       "type": "file",
       "original": {
-        "identity": "5f75f2124720e5eacb4540de31fd5a400723dff1e0637d31ef1ada5b9e413104"
+        "identity": "ac1880bad5d3e7c55e8a222eb1d160d61da97496f462e35a2e2c6b9745b2f273"
       }
     },
     {
@@ -1609,12 +1609,12 @@
     {
       "role": "program",
       "path": "$program",
-      "digest": "a2ae5654b5727798d2a7e83fc6de70e94aecfb66641b13421aff9527e55ca7af"
+      "digest": "029f81af4c26d9d159ed450dc37eb5a434ea10ec9e2092cc7f24e46cf8e21379"
     },
     {
       "role": "baseline instrument",
       "path": "/Users/antony/.local/state/owner-switch/prepared/inventory.py",
-      "digest": "6c5195e75f3df5269bec964effead080772107a5270055d9e2af378fbeb4300f"
+      "digest": "93a6c14e76304ffa2cd5ca79d728a743597ce75c3c1b96462b1dd4047bde16c5"
     },
     {
       "role": "mac-check command",
@@ -1629,7 +1629,7 @@
     {
       "role": "probe program",
       "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
-      "digest": "f3b4ed1e8f9527282566e864c204e0a96c3ce4bb60572a57585913761f49eab2"
+      "digest": "176d89c865de1b9dcc22580e52bdeef0cb08aa8bf1026730144b32bc21933488"
     }
   ],
   "assertions": [
@@ -2405,7 +2405,7 @@
     }
   ],
   "tools": {
-    "claude": "2.1.319 (Claude Code)"
+    "claude": "2.1.322 (Claude Code)"
   },
   "retained": [
     {
@@ -2518,10 +2518,10 @@
       }
     },
     "versions": {
-      "linkuistics/taps/personal": "2026-11-06",
-      "linkuistics/taps/testanyware": "2.8.0",
-      "linkuistics/taps/superpowers": "7.0.0",
-      "linkuistics/taps/quint-llm-kit": "1.0.0"
+      "linkuistics/taps/personal": "2026-11-06_1",
+      "linkuistics/taps/testanyware": "2.8.0_1",
+      "linkuistics/taps/superpowers": "7.0.0_1",
+      "linkuistics/taps/quint-llm-kit": "1.0.0_1"
     },
     "trials": {
       "design": [

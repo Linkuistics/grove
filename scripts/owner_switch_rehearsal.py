@@ -68,9 +68,13 @@ The gate controls run the switch with the evidence of steps 4 to 7 and the
 baseline of step 3. They cover an eleventh source, a one-byte change of a
 source outside and inside Grove's keg with its staging trials, a failed or
 missing trial, a missing staging HOME and a source that changes during the
-probes. They cover Grove's tap, link and version, the skill formulae, the
-reader evidence before and during the probes, and the baseline's anomaly
-rows. The plan controls cover a plan changed after its admission, paths that
+probes. They cover Grove's tap, link and version, and a Grove source outside
+its private payload. They cover the skill formulae: a missing or undeclared
+formula, an unlinked keg, a mise version that differs from the linked keg,
+and an earlier or a later revision, each with and without the revision in
+mise's report. A revision that mise omits passes when Homebrew links the
+accepted revision. They cover the reader evidence before and during the
+probes, and the baseline's anomaly rows. The plan controls cover a plan changed after its admission, paths that
 leave HOME, each missing field or check, each removed field and each process,
 MCP or job pattern, and a held Claude Code version that differs. The receipt
 control reads the activated configuration, the sources, the readers and the
@@ -126,7 +130,8 @@ on PATH and OWNER_SWITCH_FIXTURE_PREFIX naming the case's prefix. They cover
 the full run with its comparison, a subject that changes during the run, a
 write into the source HOME and a failed probe. Against the case's HOME
 afterwards, they cover equal content at a declared Grove keg prefix, the same
-move without its declaration, a changed helper at the same path, a changed
+move without its declaration, a released source outside its private
+payload, a changed helper at the same path, a changed
 plan value, a changed source and a changed tool version. A last control
 covers refusals before the run.
 """
@@ -191,17 +196,23 @@ PLUGIN_FILES = {
     ".claude-plugin/plugin.json": '{"name": "technical-communication-hooks"}\n',
     "hooks/hooks.json": '{"hooks": {}}\n',
 }
-PLUGIN_SOURCE = "skills/writing/craft/technical-communication"
+# Both marketplace files of Grove's keg name the private writing payload
+# ("Hook adapters" of docs/specs/codex-skill-provisioning.md).
+PLUGIN_SOURCE = "libexec/skill-sources/writing/craft/technical-communication"
 PLUGIN_CACHE = ".claude/plugins/cache/writing-hooks/technical-communication-hooks/unknown"
-# The fixture kegs of the ten sources: formula -> (version, source IDs).
+# The fixture kegs of the ten sources: formula -> (full package version, source IDs).
+# The four other formulae carry revision 1, as the packaging-only acceptance
+# of docs/owner-skill-delivery-evidence.md published them.
 FORMULA_OF_GROVE = "linkuistics/taps/grove"
 KEGS = {
     "grove": ("1", ["design", "engineering", "grove-core", "requirements", "research", "writing"]),
-    "personal": ("2", ["personal"]),
-    "testanyware": ("3", ["testanyware"]),
-    "superpowers": ("4", ["superpowers"]),
-    "quint-llm-kit": ("5", ["quint"]),
+    "personal": ("2026-11-06_1", ["personal"]),
+    "testanyware": ("2.8.0_1", ["testanyware"]),
+    "superpowers": ("7.0.0_1", ["superpowers"]),
+    "quint-llm-kit": ("1.0.0_1", ["quint"]),
 }
+SOURCES = "libexec/skill-sources"
+ALIASES = "share/ravel/skills"
 # The plugins that the fixture enables, with their registered version directories.
 READERS = {
     "grove@linkuistics": ".claude/plugins/cache/linkuistics/grove/0a1b2c3d",
@@ -222,12 +233,31 @@ def write_script(path: str, text: str) -> None:
     os.chmod(path, 0o755)
 
 
+def keg_payload(prefix: str, name: str, version: str, sid: str) -> str:
+    """Add one source to a keg in the projected layout, and link its alias into the prefix.
+
+    The payload is libexec/skill-sources/<id>, the keg's share/ravel/skills/<id>
+    is a relative directory symlink to it, and the prefix's entry links that
+    alias, as `brew link` does ("The keg layout" of
+    docs/specs/codex-skill-provisioning.md). The payload's path is returned.
+    """
+    keg = os.path.join(prefix, "Cellar", name, version)
+    payload = os.path.join(keg, SOURCES, sid)
+    os.makedirs(payload, exist_ok=True)
+    os.makedirs(os.path.join(keg, ALIASES), exist_ok=True)
+    os.symlink(f"../../../{SOURCES}/{sid}", os.path.join(keg, ALIASES, sid))
+    os.makedirs(os.path.join(prefix, ALIASES), exist_ok=True)
+    os.symlink(f"../../../Cellar/{name}/{version}/{ALIASES}/{sid}", os.path.join(prefix, ALIASES, sid))
+    return payload
+
+
 def build_prefix(prefix: str) -> str:
     """A Homebrew prefix with the five skill formulae's kegs, linked as `brew link` links them.
 
     Grove's keg holds the writing-hooks marketplace, `bin/grove` and six
-    sources. `bin/ravel` stands in for the promoted Ravel, and
-    `var/homebrew/linked` records each linked keg, as Homebrew does.
+    sources. Each source is a private payload with a public alias. `bin/ravel`
+    stands in for the promoted Ravel, and `var/homebrew/linked` records each
+    linked keg, as Homebrew does.
     """
     keg = os.path.join(prefix, "Cellar/grove/1")
     write(os.path.join(keg, ".claude-plugin/marketplace.json"), json.dumps({
@@ -241,10 +271,8 @@ def build_prefix(prefix: str) -> str:
         os.makedirs(os.path.join(prefix, folder), exist_ok=True)
     for name, (version, ids) in KEGS.items():
         for sid in ids:
-            rel = f"Cellar/{name}/{version}/share/ravel/skills/{sid}"
-            write(os.path.join(prefix, rel, f"skills/{sid}-skill/SKILL.md"),
+            write(os.path.join(keg_payload(prefix, name, version, sid), f"skills/{sid}-skill/SKILL.md"),
                   f"---\nname: {sid}-skill\n---\nThe fixture source {sid}.\n")
-            os.symlink(f"../../../{rel}", os.path.join(prefix, "share/ravel/skills", sid))
         os.symlink(f"../Cellar/{name}/{version}", os.path.join(prefix, "opt", name))
         os.symlink(f"../../../Cellar/{name}/{version}", os.path.join(prefix, "var/homebrew/linked", name))
     write_script(os.path.join(prefix, "bin/ravel"), f"#!/bin/sh\nexec '{PY}' -I '{SELF}' stub-ravel \"$0\" \"$@\"\n")
@@ -637,17 +665,22 @@ def cmd_stub_brew(argv: list) -> int:
     if argv == ["--cellar"]:
         print(os.path.join(prefix, "Cellar"))
         return 0
-    if argv == ["info", "--json=v2", FORMULA_OF_GROVE]:
-        # The fields of `brew info --json=v2` that Homebrew 7.0.12 gave on 2026-11-07.
+    names = {f"linkuistics/taps/{n}": n for n in KEGS}
+    if argv[:2] == ["info", "--json=v2"] and len(argv) == 3 and argv[2] in names:
+        # The fields of `brew info --json=v2` that Homebrew 7.0.12 gave on
+        # 2026-11-07, with the full package version as each keg's name.
+        name = names[argv[2]]
         control = load(os.path.join(case_root(), "control.json"), {})
-        linked = os.path.join(prefix, "var/homebrew/linked/grove")
-        cellar = os.path.join(prefix, "Cellar/grove")
+        current = control.get("tap_grove", "1") if name == "grove" else KEGS[name][0]
+        stable, _, revision = current.partition("_")
+        linked = os.path.join(prefix, "var/homebrew/linked", name)
+        cellar = os.path.join(prefix, "Cellar", name)
         print(json.dumps({"formulae": [{
-            "name": "grove", "full_name": FORMULA_OF_GROVE, "tap": "linkuistics/taps",
-            "versions": {"stable": control.get("tap_grove", "1"), "head": None, "bottle": False},
-            "revision": 0,
+            "name": name, "full_name": argv[2], "tap": "linkuistics/taps",
+            "versions": {"stable": stable, "head": None, "bottle": False},
+            "revision": int(revision or 0),
             "linked_keg": os.path.basename(os.readlink(linked)) if os.path.islink(linked) else None,
-            "installed": [{"version": v} for v in sorted(os.listdir(cellar))],
+            "installed": [{"version": v} for v in sorted(os.listdir(cellar))] if os.path.isdir(cellar) else [],
         }], "casks": []}))
         return 0
     print(f"stub brew: unsupported {argv}", file=sys.stderr)
@@ -670,8 +703,10 @@ def cmd_stub_mise(argv: list) -> int:
     for name in KEGS:
         formula = f"linkuistics/taps/{name}"
         linked = os.path.join(prefix, "var/homebrew/linked", name)
+        # mise 2026.11.2 reports the full package version, with its revision.
         row = {"package": formula, "requested_version": "latest", "desired_state": "present",
-               "state": "installed", "installed_version": os.path.basename(os.readlink(linked))}
+               "state": "installed",
+               "installed_version": os.path.basename(os.readlink(linked)) if os.path.islink(linked) else None}
         if formula in override:
             if override[formula] is None:
                 continue
@@ -1575,9 +1610,8 @@ def eleventh_source(case) -> None:
 
 
 def add_eleventh_source(prefix: str) -> None:
-    rel = "Cellar/extra/9/share/ravel/skills/eleventh"
-    write(os.path.join(prefix, rel, "skills/eleventh/SKILL.md"), "---\nname: eleventh\n---\n")
-    os.symlink(f"../../../{rel}", os.path.join(prefix, "share/ravel/skills/eleventh"))
+    write(os.path.join(keg_payload(prefix, "extra", "9", "eleventh"), "skills/eleventh/SKILL.md"),
+          "---\nname: eleventh\n---\n")
 
 
 def trials(case) -> list:
@@ -2335,7 +2369,7 @@ def change_entry(case):
 
 
 def change_source(case):
-    path = os.path.join(case.root, "prefix/Cellar/grove/1/share/ravel/skills/design/skills/design-skill/SKILL.md")
+    path = os.path.join(case.root, "prefix/Cellar/grove/1", SOURCES, "design/skills/design-skill/SKILL.md")
     with open(path, "a") as f:
         f.write("x")
 
@@ -2855,9 +2889,8 @@ def c_native_off_accepted_build(case):
     os.makedirs(skills)
     shutil.copy2(binary, os.path.join(keg, "bin", "ravel"))
     save(os.path.join(keg, "share", "ravel", "installation.json"), {"schemaVersion": 1, "skillDirectory": skills})
-    write(os.path.join(work, "source", "skills", "probe", "SKILL.md"),
-          "---\nname: probe\ndescription: A fixture skill.\n---\n")
-    os.symlink(os.path.join(work, "source"), os.path.join(skills, "fixture"))
+    write(os.path.join(keg_payload(os.path.join(work, "brew"), "fixture", "1", "fixture"), "skills", "probe",
+                       "SKILL.md"), "---\nname: probe\ndescription: A fixture skill.\n---\n")
     os.makedirs(os.path.join(work, "tmp"))
 
     def resolve():
@@ -3042,6 +3075,16 @@ def c_linked_older(case):
     switch_refused(case, "the linked keg is 1, not the tap's current version 2")
 
 
+def c_grove_source_outside_payload(case):
+    """Grove's keg holds design as a real directory at its alias, as the earlier layout did."""
+    alias = os.path.join(case.root, "prefix/Cellar/grove/1", ALIASES, "design")
+    payload = os.path.realpath(alias)
+    os.remove(alias)
+    shutil.copytree(payload, alias, symlinks=True)
+    switch_refused(case, f"step 4: the source design comes from .*/{ALIASES}/design, not from "
+                         f".*/{SOURCES}/design")
+
+
 def c_opt_elsewhere(case):
     prefix = os.path.join(case.root, "prefix")
     shutil.copytree(os.path.join(prefix, "Cellar/grove/1"), os.path.join(prefix, "Cellar/grove/0"), symlinks=True)
@@ -3060,6 +3103,53 @@ def c_formula(override: dict, text: str):
         case.set_control({"mise": override})
         switch_refused(case, text)
     return fn
+
+
+def relink_formula(case, name: str, version: str) -> None:
+    """Install an equal copy of a formula's keg at VERSION and link it, as `brew upgrade` leaves it.
+
+    The earlier keg stays installed and unlinked. Each source keeps its
+    bytes, so only the package version differs.
+    """
+    prefix = os.path.join(case.root, "prefix")
+    old = os.path.join(prefix, "Cellar", name, KEGS[name][0])
+    subprocess.run(["/bin/cp", "-pPR", old, os.path.join(prefix, "Cellar", name, version)], check=True)
+    links = {os.path.join(prefix, "opt", name): f"../Cellar/{name}/{version}",
+             os.path.join(prefix, "var/homebrew/linked", name): f"../../../Cellar/{name}/{version}"}
+    for sid in KEGS[name][1]:
+        links[os.path.join(prefix, ALIASES, sid)] = f"../../../Cellar/{name}/{version}/{ALIASES}/{sid}"
+    for link, target in links.items():
+        os.remove(link)
+        os.symlink(target, link)
+
+
+def c_formula_relinked(name: str, version: str, text: str, override=None):
+    """Homebrew links another full package version of NAME, with equal source bytes."""
+    def fn(case):
+        relink_formula(case, name, version)
+        if override:
+            case.set_control({"mise": override})
+        switch_refused(case, text)
+        expect(trials(case) == [], "a formula outside Grove's keg made step 4 rerun trials")
+    return fn
+
+
+def c_formula_revision_omitted(case):
+    """mise omits the revision, and Homebrew links the accepted revision: step 5 passes."""
+    case.set_control({"mise": {"linkuistics/taps/personal": {"installed_version": "2026-11-06"}}})
+    note, out = switched(case)
+    five = backup_evidence(note, "5")[0]["result"]
+    expect(five["formulae"]["linkuistics/taps/personal"] == "2026-11-06_1",
+           f"step 5 admitted {five['formulae']}")
+    expect("linkuistics/taps/personal is installed and linked at its accepted version 2026-11-06_1" in out,
+           "step 5 did not name the accepted revision")
+
+
+def c_formula_unlinked(case):
+    os.remove(os.path.join(case.root, "prefix/var/homebrew/linked/personal"))
+    case.set_control({"mise": {"linkuistics/taps/personal": {"installed_version": "2026-11-06_1"}}})
+    switch_refused(case, "step 5: linkuistics/taps/personal is installed, and Homebrew links no keg of it "
+                         r"\(installed: 2026-11-06_1\)")
 
 
 def c_reader_orphaned(case):
@@ -3300,14 +3390,31 @@ def gate_controls() -> list:
         ("grove-tap-newer", c_tap_newer, SERIAL_ARGS),
         ("grove-linked-older", c_linked_older, SERIAL_ARGS),
         ("grove-opt-elsewhere", c_opt_elsewhere, SERIAL_ARGS),
+        ("grove-source-outside-payload", c_grove_source_outside_payload, SERIAL_ARGS),
         ("grove-version-differs", c_grove_version, SERIAL_ARGS),
         ("formula-missing", c_formula({"linkuistics/taps/personal": {"state": "missing"}},
                                       "step 5: linkuistics/taps/personal is missing, not installed"), SERIAL_ARGS),
         ("formula-undeclared", c_formula({"linkuistics/taps/testanyware": None},
                                          "step 5: linkuistics/taps/testanyware is not declared"), SERIAL_ARGS),
-        ("formula-version", c_formula({"linkuistics/taps/superpowers": {"installed_version": "9"}},
-                                      "step 5: linkuistics/taps/superpowers is at 9, not its accepted version 4"),
-         SERIAL_ARGS),
+        ("formula-mise-disagrees", c_formula({"linkuistics/taps/superpowers": {"installed_version": "9"}},
+                                             "step 5: linkuistics/taps/superpowers: mise reports 9, and Homebrew "
+                                             "links 7.0.0_1"), SERIAL_ARGS),
+        ("formula-revision-earlier",
+         c_formula_relinked("personal", "2026-11-06", "step 5: linkuistics/taps/personal is at 2026-11-06, not "
+                                                      "its accepted version 2026-11-06_1"), SERIAL_ARGS),
+        ("formula-revision-earlier-mise-omits",
+         c_formula_relinked("testanyware", "2.8.0", "step 5: linkuistics/taps/testanyware is at 2.8.0, not its "
+                                                    "accepted version 2.8.0_1",
+                            {"linkuistics/taps/testanyware": {"installed_version": "2.8.0"}}), SERIAL_ARGS),
+        ("formula-revision-later",
+         c_formula_relinked("superpowers", "7.0.0_2", "step 5: linkuistics/taps/superpowers is at 7.0.0_2, not "
+                                                      "its accepted version 7.0.0_1"), SERIAL_ARGS),
+        ("formula-revision-later-mise-omits",
+         c_formula_relinked("quint-llm-kit", "1.0.0_2", "step 5: linkuistics/taps/quint-llm-kit is at 1.0.0_2, "
+                                                        "not its accepted version 1.0.0_1",
+                            {"linkuistics/taps/quint-llm-kit": {"installed_version": "1.0.0"}}), SERIAL_ARGS),
+        ("formula-revision-omitted-passes", c_formula_revision_omitted, SERIAL_ARGS),
+        ("formula-unlinked", c_formula_unlinked, SERIAL_ARGS),
         ("reader-orphaned", c_reader_orphaned, SERIAL_ARGS),
         ("reader-missing", c_reader_missing, SERIAL_ARGS),
         ("reader-named-unregistered", c_reader_unregistered, SERIAL_ARGS),
@@ -3463,8 +3570,7 @@ def release_grove_keg(case) -> str:
     links = {os.path.join(prefix, "opt/grove"): "../Cellar/grove/1-released",
              os.path.join(prefix, "var/homebrew/linked/grove"): "../../../Cellar/grove/1-released"}
     for sid in KEGS["grove"][1]:
-        links[os.path.join(prefix, "share/ravel/skills", sid)] = \
-            f"../../../Cellar/grove/1-released/share/ravel/skills/{sid}"
+        links[os.path.join(prefix, ALIASES, sid)] = f"../../../Cellar/grove/1-released/{ALIASES}/{sid}"
     for link, target in links.items():
         os.remove(link)
         os.symlink(target, link)
@@ -3548,6 +3654,28 @@ def c_dry_run_declared_prefix(case):
     v = verdicts(record)
     wrong = [(k, v[k]["verdict"]) for k in KEG_ROWS_OF_GROVE if v[k]["verdict"] != "substituted grove-keg"]
     expect(not wrong, f"these rows are not the declared substitution: {wrong}")
+    paths = {f"source:{sid}": os.path.join(released, SOURCES, sid) for sid in KEGS["grove"][1]}
+    paths["source:personal"] = os.path.join(case.root, "prefix/Cellar/personal", KEGS["personal"][0], SOURCES,
+                                            "personal")
+    wrong = [(k, v[k]["real_path"]) for k, path in paths.items() if v[k]["real_path"] != os.path.realpath(path)]
+    expect(not wrong, f"these source rows do not name the private payload: {wrong}")
+
+
+def c_dry_run_source_outside_payload(case):
+    """The released keg holds design as a real directory at its alias: the same bytes at another path."""
+    dry_run_prepare(case)
+    keg = os.path.join(case.root, "prefix/Cellar/grove/1")
+    expect_dry_passed(*dry_run(case, "--prefix", f"grove-keg={keg}"))
+    released = release_grove_keg(case)
+    alias = os.path.join(released, ALIASES, "design")
+    os.remove(alias)
+    shutil.copytree(os.path.join(released, SOURCES, "design"), alias, symlinks=True)
+    code, text, record = dry_compare(case, "--prefix", f"grove-keg={released}")
+    row = verdicts(record)["source:design"]
+    expect(code == 1 and row["verdict"] == "differs" and row["reasons"] == [
+        f"unknown substitution: {os.path.realpath(os.path.join(keg, SOURCES, 'design'))} -> "
+        f"{os.path.realpath(alias)}"],
+        f"a source outside its private payload passed (exit {code}): {row}")
 
 
 def c_dry_run_unknown_substitution(case):
@@ -3667,6 +3795,7 @@ def dry_run_controls() -> list:
         ("dry-run-subject-changes", c_dry_run_subject_changes, DRY_ARGS),
         ("dry-run-declared-prefix", c_dry_run_declared_prefix, DRY_ARGS),
         ("dry-run-unknown-substitution", c_dry_run_unknown_substitution, DRY_ARGS),
+        ("dry-run-source-outside-payload", c_dry_run_source_outside_payload, DRY_ARGS),
         ("dry-run-changed-helper", c_dry_run_changed_helper, DRY_ARGS),
         ("dry-run-changed-plan", c_dry_run_changed_plan, DRY_ARGS),
         ("dry-run-changed-source", c_dry_run_changed_source, DRY_ARGS),

@@ -1,7 +1,7 @@
 {
   "plan": "docs/owner-cutover/switch-plan-draft.json",
-  "plan_digest": "a6c9c372ac7b9ebce1e231237d29cb0b57bf1ac4851069604c1a5a8d6ddb7d46",
-  "program_digest": "a2ae5654b5727798d2a7e83fc6de70e94aecfb66641b13421aff9527e55ca7af",
+  "plan_digest": "09581cd77b87d1afb7f57902fb0ae78734e7ed425ea3044b4fbfbadebf3f8a7f",
+  "program_digest": "029f81af4c26d9d159ed450dc37eb5a434ea10ec9e2092cc7f24e46cf8e21379",
   "python": "3.15.1",
   "writes_copied": 158,
   "inventory_entries_copied": 170,
@@ -78,7 +78,7 @@
   "installed_tools": {
     "claude": {
       "path": "~/.local/bin/claude",
-      "canonical": "~/.local/share/claude/versions/2.1.319"
+      "canonical": "~/.local/share/claude/versions/2.1.322"
     },
     "codex": {
       "path": "/opt/homebrew/bin/codex",
@@ -100,11 +100,11 @@
   "processes": {
     "admitted": [
       {
-        "pid": 52598,
+        "pid": 19958,
         "tool": "Ravel"
       },
       {
-        "pid": 52607,
+        "pid": 19964,
         "tool": "Claude Code"
       },
       {
@@ -112,7 +112,7 @@
         "tool": "Grove"
       }
     ],
-    "other": 18,
+    "other": 25,
     "review": 11,
     "forms": [
       "Claude Code: versioned executable",

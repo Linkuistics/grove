@@ -25,7 +25,10 @@ prints it. Each inventory item carries the change identity that
 its content. A prepared input that does not exist yet carries the digest of
 the repository file that preparation copies there. The accepted sources come
 from the table "The ten Ravel sources" of docs/repository-moves-record.md,
-and they are provisional. The script writes
+and they are provisional. The accepted versions are full package versions.
+The draft stops unless the table of "Publication" in "Packaging-only
+acceptance" of docs/owner-skill-delivery-evidence.md names each one. The
+script writes
 docs/owner-cutover/switch-plan-draft.json and the write table
 docs/owner-cutover/switch-plan-writes.tsv.
 
@@ -60,6 +63,7 @@ PLAN_OUT = os.path.join(DRAFTS, "switch-plan-draft.json")
 TABLE_OUT = os.path.join(DRAFTS, "switch-plan-writes.tsv")
 INVENTORY = os.path.join(ROOT, "docs", "owner-skill-inventory-reference.tsv")
 MOVES_RECORD = os.path.join(ROOT, "docs", "repository-moves-record.md")
+EVIDENCE = os.path.join(ROOT, "docs", "owner-skill-delivery-evidence.md")
 HOME = os.path.realpath(os.path.expanduser("~"))
 # True when `draft --home` names another HOME than the account's.
 OTHER_HOME = False
@@ -120,10 +124,11 @@ GATES = {"4": [{"name": "grove-release", "argv": ["$python", "-I", "$program", "
          "6": [{"name": "resolved-sources", "argv": ["$python", "-I", "$program", "gate", "6"]}],
          "7": [{"name": "reader-evidence", "argv": ["$python", "-I", "$program", "gate", "7"]}]}
 
-# Provisional accepted values. The formula versions are those of "The commits
-# of the pack record, the formulae and this record" in the moves record.
-VERSIONS = {"linkuistics/taps/personal": "2026-11-06", "linkuistics/taps/testanyware": "2.8.0",
-            "linkuistics/taps/superpowers": "7.0.0", "linkuistics/taps/quint-llm-kit": "1.0.0"}
+# Provisional accepted values. The formula versions are the full package
+# versions, with their revisions, of "Packaging-only acceptance" in
+# docs/owner-skill-delivery-evidence.md. The tap published them on 2026-11-11.
+VERSIONS = {"linkuistics/taps/personal": "2026-11-06_1", "linkuistics/taps/testanyware": "2.8.0_1",
+            "linkuistics/taps/superpowers": "7.0.0_1", "linkuistics/taps/quint-llm-kit": "1.0.0_1"}
 GROVE_SOURCES = ("design", "engineering", "grove-core", "requirements", "research", "writing")
 # owner-staging-setup-k248 records the final paths.
 STAGING = {"home": os.path.join(HOME, ".local/state/owner-staging/home"),
@@ -182,6 +187,19 @@ def tilde(rel):
     return "~/" + rel
 
 
+def published_versions():
+    """The table of "Publication" in "Packaging-only acceptance" of the evidence: formula -> full version."""
+    text = open(EVIDENCE, encoding="utf-8").read()
+    section = text.split("\n## Packaging-only acceptance\n", 1)[1].split("\n## ", 1)[0]
+    section = section.split("\n### Publication\n", 1)[1].split("\n### ", 1)[0]
+    found = {}
+    for line in section.splitlines():
+        m = re.fullmatch(r"\| `([a-z-]+)` \| `([0-9][0-9A-Za-z.-]*_[1-9][0-9]*)` \|", line.strip())
+        if m:
+            found[m.group(1)] = m.group(2)
+    return found
+
+
 def accepted_sources():
     """The table "The ten Ravel sources" of the moves record."""
     text = open(MOVES_RECORD, encoding="utf-8").read()
@@ -195,10 +213,12 @@ def accepted_sources():
                 sources[sid] = {"formula": "linkuistics/taps/" + formula, "resourceDigest": digest}
     if sorted(sources) != sorted(GROVE_SOURCES + ("personal", "testanyware", "superpowers", "quint")):
         sys.exit(f"stop: the moves record names the sources {sorted(sources)}, not the ten")
+    published = published_versions()
     for formula, version in VERSIONS.items():
         name = formula.rsplit("/", 1)[1]
-        if f"`{name}` `{version}`" not in text:
-            sys.exit(f"stop: the moves record does not name {name} {version}")
+        if published.get(name) != version:
+            sys.exit(f"stop: the table \"Published full package version\" of the evidence names {name} "
+                     f"{published.get(name)}, not {version}")
     return sources
 
 

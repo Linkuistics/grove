@@ -55,6 +55,16 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Owner switch tooling: step 5 of `scripts/owner_switch.py` compares each
+  skill formula's full package version, with its revision. It reads the
+  version from the keg that Homebrew links, so a version that mise reports
+  without a revision cannot pass for the accepted revision. Step 4 requires
+  each Grove source to come from its private payload. The plan draft names
+  the published full package versions. The rehearsal, dry-run, quiet-interval
+  and settings-draft fixtures use the projected keg layout. The inventory
+  classifies the hook adapters and the Pi writing alias as native residue
+  only at the registration paths that the hook seam measured.
+
 - Linkuistics tap: the tap publishes the projected revisions `personal`
   2026-11-06_1, `superpowers` 7.0.0_1, `quint-llm-kit` 1.0.0_1 and
   `testanyware` 2.8.0_1. Each keeps its source commit and source digest.

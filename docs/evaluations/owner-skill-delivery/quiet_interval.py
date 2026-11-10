@@ -22,9 +22,14 @@ prefix. W/prefix stands for $(brew --prefix): bin/ravel is a clone of the
 accepted 2.0 build, share/ravel/installation.json names
 W/prefix/share/ravel/skills, and that folder links each of the ten sources:
 Grove's six in the candidate keg and the four others in their installed
-kegs. Cellar/grove/22.8.0 links the candidate keg, and opt/grove links that.
-W/bin holds two stubs. `brew` answers only --prefix, --cellar, --version and
-`info --json=v2 linkuistics/taps/grove`. `mise` answers only
+kegs. Each entry links the keg's alias share/ravel/skills/<id>, as Homebrew
+does, and the alias names the private payload libexec/skill-sources/<id>
+("The keg layout" of docs/specs/codex-skill-provisioning.md). The step stops
+unless each installed keg is its accepted full package version and each
+alias names its payload. Cellar/grove/22.8.0 links the candidate keg, and
+opt/grove links that. W/bin holds two stubs. `brew` answers only --prefix,
+--cellar, --version and `info --json=v2` of each skill formula, with its
+accepted version as the linked keg. `mise` answers only
 `-C HOME bootstrap packages status --json`, with each skill formula at its
 accepted version. Each other call exits 97. Each call goes to W/stub-calls.log.
 The stubs replace the metadata queries of the switch's gates 4 and 5 and
@@ -126,8 +131,10 @@ FOLDERS = (".claude", ".claude/plugins", ".config/ravel")
 GROVE_SOURCES = ("design", "engineering", "grove-core", "requirements", "research", "writing")
 OTHER_SOURCES = {"personal": "personal", "quint": "quint-llm-kit", "superpowers": "superpowers",
                  "testanyware": "testanyware"}
-FORMULAE = {"linkuistics/taps/personal": "2026-11-06", "linkuistics/taps/testanyware": "2.8.0",
-            "linkuistics/taps/superpowers": "7.0.0", "linkuistics/taps/quint-llm-kit": "1.0.0"}
+# The accepted full package versions, with their revisions ("Packaging-only
+# acceptance" of docs/owner-skill-delivery-evidence.md).
+FORMULAE = {"linkuistics/taps/personal": "2026-11-06_1", "linkuistics/taps/testanyware": "2.8.0_1",
+            "linkuistics/taps/superpowers": "7.0.0_1", "linkuistics/taps/quint-llm-kit": "1.0.0_1"}
 GROVE_VERSION = "22.8.0"
 RAVEL_SHA256 = "3a9a9129573e4d827a317f6b793ba990044080a31a7b667b64cc153a2f974a0b"
 MARKETPLACES = ("Linkuistics/grove", "quint-co/quint-llm-kit")
@@ -180,6 +187,32 @@ def claude_path() -> str:
 
 # --- prefix -------------------------------------------------------------------------
 
+def source_links(grove_keg: str, homebrew: str) -> tuple:
+    """Each source's keg alias for the default directory, and each reason that a keg is not accepted.
+
+    GROVE_KEG holds Grove's six sources. HOMEBREW is the prefix whose
+    opt/<formula> names each installed keg of the four others. A keg must be
+    its accepted full package version, and its alias share/ravel/skills/<id>
+    must be a link to the real directory libexec/skill-sources/<id>.
+    """
+    kegs = [(sid, "grove", GROVE_VERSION, os.path.realpath(grove_keg)) for sid in GROVE_SOURCES]
+    kegs += [(sid, name, FORMULAE[f"linkuistics/taps/{name}"], os.path.realpath(os.path.join(homebrew, "opt", name)))
+             for sid, name in sorted(OTHER_SOURCES.items())]
+    links, problems = {}, []
+    for sid, name, version, keg in kegs:
+        if os.path.basename(keg) != version:
+            problems.append(f"the keg {keg} of {name} is not its accepted version {version}")
+            continue
+        alias = os.path.join(keg, "share", "ravel", "skills", sid)
+        payload = os.path.join(keg, "libexec", "skill-sources", sid)
+        if not (os.path.islink(alias) and os.path.isdir(payload) and not os.path.islink(payload)
+                and os.path.realpath(alias) == payload):
+            problems.append(f"{alias} is not the alias of the private payload {payload}")
+            continue
+        links[sid] = alias
+    return links, problems
+
+
 def cmd_prefix(args) -> int:
     work = os.path.realpath(args.work)
     prefix, stubs = os.path.join(work, "prefix"), os.path.join(work, "bin")
@@ -196,16 +229,20 @@ def cmd_prefix(args) -> int:
     subprocess.run(["cp", "-c", "-p", ravel, os.path.join(prefix, "bin", "ravel")], check=True)
     write_json(os.path.join(prefix, "share", "ravel", "installation.json"),
                {"schemaVersion": 1, "skillDirectory": skills})
-    for sid in GROVE_SOURCES:
-        os.symlink(os.path.join(keg, "share", "ravel", "skills", sid), os.path.join(skills, sid))
-    for sid in OTHER_SOURCES:
-        os.symlink(os.path.realpath(os.path.join("/opt/homebrew/share/ravel/skills", sid)), os.path.join(skills, sid))
+    links, problems = source_links(keg, "/opt/homebrew")
+    if problems:
+        stop("; ".join(problems))
+    for sid, alias in links.items():
+        os.symlink(alias, os.path.join(skills, sid))
     os.symlink(keg, os.path.join(prefix, "Cellar", "grove", GROVE_VERSION))
     os.symlink(os.path.join("..", "Cellar", "grove", GROVE_VERSION), os.path.join(prefix, "opt", "grove"))
-    info = {"formulae": [{"name": "grove", "full_name": "linkuistics/taps/grove",
-                          "versions": {"stable": GROVE_VERSION}, "revision": 0,
-                          "installed": [{"version": GROVE_VERSION}], "linked_keg": GROVE_VERSION}]}
-    write_json(os.path.join(stubs, "brew-info.json"), info)
+    versions = dict(FORMULAE, **{"linkuistics/taps/grove": GROVE_VERSION})
+    for formula, version in versions.items():
+        name = formula.rsplit("/", 1)[1]
+        stable, _, revision = version.partition("_")
+        write_json(os.path.join(stubs, f"brew-info-{name}.json"), {"formulae": [{
+            "name": name, "full_name": formula, "versions": {"stable": stable}, "revision": int(revision or 0),
+            "installed": [{"version": version}], "linked_keg": version}]})
     packages = [{"package": "linkuistics/taps/grove", "desired_state": "present", "state": "installed",
                  "installed_version": GROVE_VERSION}]
     packages += [{"package": f, "desired_state": "present", "state": "installed", "installed_version": v}
@@ -221,7 +258,7 @@ case "$*" in
   --prefix) echo '{prefix}' ;;
   --cellar) echo '{prefix}/Cellar' ;;
   --version) echo 'Homebrew staging stub of {(real_brew or ["?"])[0]}' ;;
-  'info --json=v2 linkuistics/taps/grove') cat '{stubs}/brew-info.json' ;;
+  'info --json=v2 linkuistics/taps/'*) cat '{stubs}/brew-info-'"${{3#linkuistics/taps/}}"'.json' || exit 97 ;;
   *) echo "staging brew stub: unexpected call: $*" >&2; exit 97 ;;
 esac
 """,
@@ -895,11 +932,57 @@ def cmd_analyse(args) -> int:
 
 # --- controls -----------------------------------------------------------------------
 
+def fixture_keg(cellar: str, name: str, version: str, sids, layout: str = "projected") -> str:
+    """A keg at CELLAR/NAME/VERSION. "projected" gives each source a private payload and an alias,
+    and "earlier" a real directory at the alias's place."""
+    keg = os.path.join(cellar, name, version)
+    for sid in sids:
+        alias = os.path.join(keg, "share", "ravel", "skills", sid)
+        target = alias if layout == "earlier" else os.path.join(keg, "libexec", "skill-sources", sid)
+        os.makedirs(os.path.join(target, "skills", f"{sid}-skill"))
+        with open(os.path.join(target, "skills", f"{sid}-skill", "SKILL.md"), "w") as f:
+            f.write(f"---\nname: {sid}-skill\n---\n")
+        if layout != "earlier":
+            os.makedirs(os.path.dirname(alias), exist_ok=True)
+            os.symlink(os.path.join("..", "..", "..", "libexec", "skill-sources", sid), alias)
+    return keg
+
+
+def prefix_controls(out: str) -> dict:
+    """source_links on fixture kegs: the accepted layout passes, and a changed version or path does not."""
+    def build(label: str, change=None):
+        root = os.path.join(out, "prefix-controls", label)
+        grove = fixture_keg(os.path.join(root, "candidate"), "grove", GROVE_VERSION, GROVE_SOURCES)
+        os.makedirs(os.path.join(root, "homebrew", "opt"))
+        for sid, name in OTHER_SOURCES.items():
+            version, layout = FORMULAE[f"linkuistics/taps/{name}"], "projected"
+            if change and change[0] == name:
+                version, layout = change[1], change[2]
+            fixture_keg(os.path.join(root, "homebrew", "Cellar"), name, version, [sid], layout)
+            os.symlink(os.path.join("..", "Cellar", name, version), os.path.join(root, "homebrew", "opt", name))
+        return source_links(grove, os.path.join(root, "homebrew"))
+    links, problems = build("accepted")
+    accepted = not problems and sorted(links) == sorted(GROVE_SOURCES + tuple(OTHER_SOURCES)) and all(
+        os.path.realpath(a).endswith(f"/libexec/skill-sources/{sid}") for sid, a in links.items())
+    _, earlier_revision = build("earlier-revision", ("personal", "2026-11-06", "projected"))
+    _, earlier_layout = build("earlier-layout", ("testanyware", FORMULAE["linkuistics/taps/testanyware"], "earlier"))
+    return {
+        "prefix: the accepted kegs link their aliases": accepted,
+        "prefix: an earlier revision is refused": earlier_revision == [
+            f"the keg {os.path.join(out, 'prefix-controls', 'earlier-revision', 'homebrew', 'Cellar', 'personal', '2026-11-06')}"
+            " of personal is not its accepted version 2026-11-06_1"],
+        "prefix: a source outside its private payload is refused": len(earlier_layout) == 1
+            and "share/ravel/skills/testanyware is not the alias of the private payload" in earlier_layout[0],
+    }
+
+
 def cmd_controls(args) -> int:
-    """Wrong subjects that the recorder must see and that `analyse` must report. No harness runs."""
+    """Wrong subjects that the recorder must see and that `analyse` must report, and the prefix's
+    source checks on fixture kegs. No harness runs."""
     out = os.path.realpath(args.out)
     if os.path.exists(out):
         stop(f"{out} exists")
+    prefix = prefix_controls(out)
     home = os.path.join(out, "home")
     for rel in FOLDERS:
         os.makedirs(os.path.join(home, rel))
@@ -958,6 +1041,7 @@ def cmd_controls(args) -> int:
         "lost extended attribute reported": any("known_marketplaces.json lost metadata" in p
                                                 for p in record["problems"]),
         "analyse fails": code == 1,
+        **prefix,
     }
     for name, ok in wanted.items():
         print(f"{'PASS' if ok else 'FAIL'} {name}")

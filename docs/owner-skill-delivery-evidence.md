@@ -1734,8 +1734,12 @@ with the evidence of owner-staging-acceptance-k252:
 - `sources`: the ten sources of the table "The ten Ravel sources" in the
   [moves record](repository-moves-record.md#the-ten-ravel-sources). The
   script reads that table, so each `resourceDigest` is the recorded value.
-- `versions`: `personal` 2026-11-06, `testanyware` 2.8.0, `superpowers`
-  7.0.0 and `quint-llm-kit` 1.0.0, each a formula of `linkuistics/taps`.
+- `versions`: the full package versions `personal` 2026-11-06_1,
+  `testanyware` 2.8.0_1, `superpowers` 7.0.0_1 and `quint-llm-kit` 1.0.0_1,
+  each a formula of `linkuistics/taps`. The script stops unless the table of
+  [Publication](#publication) names each one.
+  [Package identity and private payloads](#package-identity-and-private-payloads)
+  states the change from the unrevised versions.
 - `trials`: one command for each of Grove's six sources that prints a
   message and fails. A step 4 that must rerun a trial therefore stops.
 - `staging`: `/Users/antony/.local/state/owner-staging/home` and
@@ -6371,7 +6375,9 @@ the same tree.
 
 The plan's `accepted.versions` names the four formulae other than Grove's.
 Step 4 admits Grove's version, because Grove's release inside finish sets it.
-The plan draft already holds these ten digests and four versions.
+The plan draft holds these ten digests. Its four versions are the revised
+full package versions of
+[Packaging-only acceptance](#packaging-only-acceptance).
 
 [Packaging-only acceptance](#packaging-only-acceptance) accepts a revision of
 each of the four other formulae, with the same commit and digest. Its
@@ -6806,3 +6812,108 @@ failure control after the publication.
   here.
 - Release acceptance repeats the seam with the published Ravel archives,
   after their lane is in `scripts/ravel_target_inputs.py`.
+
+## Package identity and private payloads
+
+`owner-switch-package-identity-k299` delivered this section on 2026-11-11.
+It reconciles the switch program and its Grove-side tools with the revised
+full package versions and with the projected keg layout. No real keg, link,
+tap or HOME changed. owner-pack-checkouts-k93 installs the revisions.
+
+### The version step
+
+Step 5 of `scripts/owner_switch.py` reads mise only for the declared and
+installed state of each skill formula. The full package version comes from
+`linked_keg` of `brew info --json=v2 <formula>`. mise must report that keg,
+with or without its revision. On 2026-11-11, Homebrew 7.0.12 gave `zstd`
+the revision 1 and the linked keg `1.5.7_1`, and mise 2026.11.2 reported the
+same `installed_version`. A string from mise without a revision cannot tell
+revision 0 from an omitted revision, so Homebrew's linked keg decides. That
+keg is also the one whose sources the default skill directory names.
+
+Step 4 now requires each of Grove's sources to come from its private payload
+`libexec/skill-sources/<id>` in the installed keg. A real directory at the
+alias's place, as the earlier layout had, stops the switch.
+
+| Control of `task owner:switch:rehearse` | Result |
+| --- | --- |
+| `formula-revision-earlier` and `formula-revision-earlier-mise-omits` | Homebrew links the earlier revision. Step 5 stops with "is at 2026-11-06, not its accepted version 2026-11-06_1", and the same for `testanyware` when mise omits the revision |
+| `formula-revision-later` and `formula-revision-later-mise-omits` | A later revision stops step 5 in the same way |
+| `formula-revision-omitted-passes` | mise reports `2026-11-06`, and Homebrew links `2026-11-06_1`. The switch completes, and step 5 admits `2026-11-06_1` |
+| `formula-missing`, `formula-undeclared` and `formula-unlinked` | Each stops step 5 with its own reason, which no version difference gives |
+| `formula-mise-disagrees` | mise reports a version that differs from the linked keg. Step 5 stops |
+| `grove-source-outside-payload` | Step 4 stops |
+| `dry-run-declared-prefix` | Each source row of the dry run names the private payload, also after the declared Grove keg substitution |
+| `dry-run-source-outside-payload` | The same bytes at the alias's place give an unknown substitution |
+
+Three mutations of the program each failed their controls. The origin path
+of step 4 at the alias failed `grove-source-outside-payload`. The earlier
+comparison of mise's string failed `formula-revision-omitted-passes`. A
+comparison that ignores the revision failed the four revision controls. The
+restored program was byte-equal to the tested one.
+
+### The fixture kegs
+
+The rehearsal, the dry run, the quiet-interval prefix, the settings drafts
+and the inventory controls build their fixture kegs in the projected layout.
+Each source is a private payload with a relative alias, and each prefix entry
+links the alias, as `brew link` does. The four other formulae carry their
+published full package versions. Both fixture marketplace files name the
+private writing payload.
+
+The prefix step of `quiet_interval.py` links each keg's alias. It stops
+unless each keg has its accepted full package version and each alias names
+its payload. Its `brew` stub answers `info --json=v2` for each skill
+formula, because step 5 now asks Homebrew. On 2026-11-11 the real prefix
+step stopped, as required. The staging candidate predates the projection,
+and core-candidate-restaging-k300 rebuilds it. The installed kegs have the
+earlier versions, and owner-pack-checkouts-k93 upgrades them.
+
+`settings_drafts.py` checks that each source of the fixture resolutions
+comes from its private payload. Its new control replaces the default entry
+of `personal` with a real directory and must report that origin. The
+declarations line reports each tap formula's full package version. On
+2026-11-11 Homebrew's local tap clone still gave the unrevised versions,
+because k93 runs the tap update.
+
+### Hook registrations
+
+Each tool registers or compares the path that
+[the hook adapters on the projected keg](homebrew-skill-delivery-evidence.md#the-hook-adapters-on-the-projected-keg)
+measured:
+
+- The switch registers `writing-hooks` from `$(brew --prefix)/opt/grove`.
+- `probe_lifecycle.py` now registers it from the candidate prefix's
+  `opt/grove`, not from the versioned keg.
+- The inventory classifies the hook adapters as native residue. Claude Code
+  must register `writing-hooks` from `/opt/homebrew/opt/grove`. Codex must
+  name the canonical keg that `/opt/homebrew/opt/grove` names now. Both
+  marketplace files must name the private payload, and neither plugin may
+  hold a skill. A Pi link through the writing alias must resolve into the
+  payload. Each other state says UNCLASSIFIED. A Codex registration of a
+  removed keg names the documented repair in its note.
+
+`task owner:inventory:controls` passed 51 controls. The unchanged fixture
+holds Grove's projected keg, both registrations and the Pi link, and it has
+no anomaly row. A copy of the inventory whose hook checks accept every state
+failed the six new negative controls. The real inventory equals the output
+of the earlier instrument row for row, because the real HOME has no hook
+adapter yet.
+
+### The plan draft
+
+`task owner:switch-plan:draft` wrote the full package versions. The draft
+stops unless the table of [Publication](#publication) names each version,
+and a mutated version stopped it. The redraft also renewed the program and
+inventory digests, two Claude Code registry identities and the held Claude
+Code version 2.1.322 from the real HOME. `task owner:switch-plan:check`
+passed. Its outputs replace `switch-plan-check.json`,
+`switch-plan-report.txt` and `switch-plan-processes.txt`, which now name
+the stored draft's digest `09581cd77b87…` and the program digest
+`029f81af4c26…`.
+
+### Remaining work
+
+A changed program, helper or input needs another dry run.
+owner-switch-rehearsal-k255 runs it after owner-switch-plan-k254. The
+probe registration change takes effect at the next real probe session.

@@ -56,6 +56,24 @@ Two exceptions of "Concurrent writers" in the design:
   its directory must lie inside /opt/homebrew/opt/personal. Otherwise the
   rows say UNCLASSIFIED.
 
+The hook adapters of Grove's keg are native residue too ("Hook adapters" of
+docs/specs/codex-skill-provisioning.md). Each must hold no skill, and each
+marketplace file must name the private payload
+libexec/skill-sources/writing/craft/technical-communication:
+
+- An enabled technical-communication-hooks@writing-hooks needs the Claude
+  Code marketplace writing-hooks with the source directory
+  /opt/homebrew/opt/grove, the `opt` path that Claude Code stores.
+- A Codex cache entry of writing-hooks needs [marketplaces.writing-hooks] in
+  ~/.codex/config.toml with the local source of the keg that
+  /opt/homebrew/opt/grove names now. Codex stores that canonical path, so a
+  registration of a removed or earlier keg says UNCLASSIFIED, and its note
+  names the documented repair.
+- A Pi extension link that names the writing alias under
+  /opt/homebrew/share/ravel/skills must resolve into that private payload.
+
+Otherwise the rows say UNCLASSIFIED.
+
 Usage:
     python3 -I inventory.py > inventory.tsv
     python3 -I inventory.py compare BEFORE.tsv AFTER.tsv
@@ -241,14 +259,52 @@ def residue_problem(p):
         problem = sole_guardrail(d)
         if problem: return f"{label} {t(d)}: {problem}"
     return None
+# "Hook adapters" of docs/specs/codex-skill-provisioning.md and "The hook
+# adapters on the projected keg" of docs/homebrew-skill-delivery-evidence.md:
+# Claude Code stores the `opt` path that `claude plugin marketplace add
+# "$(brew --prefix)/opt/grove"` received, and Codex stores the canonical path
+# of the keg. controls.py runs a copy of this script in which these literals
+# name a fixture prefix, so each must stay the only spelling of its path.
+GROVE_PREFIX = "/opt/homebrew/opt/grove"
+SKILL_DIRECTORY = "/opt/homebrew/share/ravel/skills"
+HOOKS_MARKET = "writing-hooks"
+HOOKS_PAYLOAD = "libexec/skill-sources/writing/craft/technical-communication"
+CLAUDE_HOOKS = "technical-communication-hooks@writing-hooks"
+CODEX_HOOKS = "technical-communication@writing-hooks"
+HOOKS_OWNER = "Grove keg marketplace writing-hooks"
+def skill_free(d):
+    """Why the plugin directory d gives a harness a skill, or None."""
+    if not os.path.isdir(d): return "no plugin directory"
+    if os.path.isdir(os.path.join(d, "skills")): return "it holds skills/"
+    for m in (".claude-plugin/plugin.json", ".codex-plugin/plugin.json"):
+        manifest = read_json(os.path.join(d, m))
+        if manifest is None: return f"unreadable {m}"
+        if "skills" in manifest: return f"{m} declares skills " + json.dumps(manifest["skills"])
+    return None
+def hooks_entry(root, manifest, name):
+    """The plugin entry NAME of the marketplace file ROOT/MANIFEST, or a reason."""
+    plugins = (read_json(os.path.join(root, manifest)) or {}).get("plugins")
+    entry = next((e for e in plugins if isinstance(e, dict) and e.get("name") == name), None) if isinstance(plugins, list) else None
+    return entry if entry is not None else f"{os.path.join(root, manifest)} names no {name} plugin"
+def claude_hooks_problem(p):
+    """Why the enabled Claude Code hooks plugin with the cache copy p is not the classified residue, or None."""
+    src = known.get(HOOKS_MARKET, {}).get("source") if isinstance(known.get(HOOKS_MARKET), dict) else None
+    if src != {"source": "directory", "path": GROVE_PREFIX}: return f"marketplace {HOOKS_MARKET} is not registered from {GROVE_PREFIX}"
+    entry = hooks_entry(GROVE_PREFIX, ".claude-plugin/marketplace.json", CLAUDE_HOOKS.split("@")[0])
+    if isinstance(entry, str): return entry
+    if entry.get("source") != "./" + HOOKS_PAYLOAD: return f"the marketplace entry names {entry.get('source')}, not ./{HOOKS_PAYLOAD}"
+    for label, d in (("loaded directory", os.path.join(GROVE_PREFIX, HOOKS_PAYLOAD)), ("plugin-cache copy", p)):
+        problem = skill_free(d)
+        if problem: return f"{label} {t(d)}: {problem}"
+    return None
 active_claude = set()
 for key, entries in sorted(inst.get("plugins", {}).items()):
     for e in entries:
         p = e["installPath"]; plugin, market = key.split("@")
         active_claude.add(os.path.realpath(p)); walked.append(p)
         en = enabled.get(key)
-        residue = en is True and key == RESIDUE
-        problem = residue_problem(p) if residue else None
+        residue = en is True and key in (RESIDUE, CLAUDE_HOOKS)
+        problem = (residue_problem(p) if key == RESIDUE else claude_hooks_problem(p)) if residue else None
         comps = []
         for k in ("skills", "commands", "agents"):
             if os.path.isdir(os.path.join(p, k)): comps.append(k)
@@ -260,7 +316,7 @@ for key, entries in sorted(inst.get("plugins", {}).items()):
         elif "skills" in comps: cls, owner = ("third-party-pack" if en else "disabled-third-party"), market
         else: cls, owner = "capability-only", market
         if not en: cls = "disabled-third-party" if market != "linkuistics" else cls
-        if residue: cls, owner = ("unknown", "unknown") if problem else ("native-residue", "personal keg marketplace")
+        if residue: cls, owner = ("unknown", "unknown") if problem else ("native-residue", "personal keg marketplace" if key == RESIDUE else HOOKS_OWNER)
         if residue: dispo = "UNCLASSIFIED" if problem else "native-keep (native residue)"
         elif market == "linkuistics" and plugin == "linkuistics": dispo = "disable; hooks move to skill-free plugin; guardrail to native-only plugin"
         elif market == "linkuistics": dispo = "disable"
@@ -368,6 +424,21 @@ codex_cfg = need_toml(f"{H}/.codex/config.toml")
 pstate = {k: v.get("enabled") for k, v in codex_cfg.get("plugins", {}).items() if isinstance(v, dict)}
 CODEX_MARKETS = {"openai-bundled": "Codex openai-bundled", "openai-primary-runtime": "Codex openai-primary-runtime", "openai-curated-remote": "Codex remote install (ChatGPT account)"}
 pc = f"{H}/.codex/plugins/cache"
+def codex_hooks_problem(key, vd):
+    """Why a Codex cache entry of writing-hooks is not the classified residue, or None."""
+    if key != CODEX_HOOKS: return f"{HOOKS_MARKET} offers no plugin {key.split('@')[0]}"
+    mk = codex_cfg.get("marketplaces", {}).get(HOOKS_MARKET)
+    keg = os.path.realpath(GROVE_PREFIX)
+    if not isinstance(mk, dict) or mk.get("source_type") != "local" or mk.get("source") != keg:
+        got = mk.get("source") if isinstance(mk, dict) else None
+        return (f"[marketplaces.{HOOKS_MARKET}] names {got}, not the linked keg {keg}; run "
+                f"`codex plugin marketplace add \"$(brew --prefix)/opt/grove\"`, then `codex plugin add {CODEX_HOOKS}`")
+    entry = hooks_entry(keg, ".agents/plugins/marketplace.json", CODEX_HOOKS.split("@")[0])
+    if isinstance(entry, str): return entry
+    if entry.get("source") != {"source": "local", "path": "./" + HOOKS_PAYLOAD}:
+        return f"the marketplace entry names {json.dumps(entry.get('source'))}, not the local ./{HOOKS_PAYLOAD}"
+    problem = skill_free(vd)
+    return f"cache copy {t(vd)}: {problem}" if problem else None
 for market in ls(pc):
     if market.startswith(".") or not os.path.isdir(os.path.join(pc, market)): continue
     known = market in CODEX_MARKETS
@@ -386,7 +457,11 @@ for market in ls(pc):
             vd = os.path.join(pd, v); walked.append(vd)
             dg, n = digest(vd)
             comps = "+".join(k for k in ("skills", "assets", "scripts", ".mcp.json", "hooks") if os.path.exists(os.path.join(vd, k))) or "-"
-            row("codex", vd, key, f"installed plugin v{v} {state}; cached versions={len(vers)}{links}", plug, dg, n, cls, owner, comps, "native-keep" if known else "UNCLASSIFIED")
+            vcls, vowner, dispo, note = cls, owner, "native-keep" if known else "UNCLASSIFIED", ""
+            if market == HOOKS_MARKET:
+                note = codex_hooks_problem(key, vd)
+                vcls, vowner, dispo = ("unknown", "unknown", "UNCLASSIFIED") if note else ("native-residue", HOOKS_OWNER, "native-keep (native residue)")
+            row("codex", vd, key, f"installed plugin v{v} {state}; cached versions={len(vers)}{links}", plug, dg, n, vcls, vowner, comps, dispo, note)
             sk = os.path.join(vd, "skills")
             for s in ls(sk):
                 sp = os.path.join(sk, s)
@@ -402,7 +477,15 @@ for e in ls(pe):
     dg = (filedigest(p) if os.path.isfile(p) else digest(p)[0]) if ok else "-"
     cls = "dangling" if not ok else "tool-managed"
     owner = {"cbmem.ts": "codebase-memory-mcp", "herdr-agent-state.ts": "herdr", "technical-communication.ts": "plugins/install.sh"}.get(e, "Orca")
-    row("pi", pe, e, form, "-", dg, 0, cls, owner, "Pi extension", "deactivate (dangling; no reader)" if not ok else "native-keep")
+    dispo, note = "deactivate (dangling; no reader)" if not ok else "native-keep", ""
+    # The documented Pi link names the public writing alias, which resolves
+    # into the private payload of the linked Grove keg.
+    alias = os.path.join(SKILL_DIRECTORY, "writing") + os.sep
+    if os.path.islink(p) and os.readlink(p).startswith(alias):
+        payload = os.path.join(os.path.realpath(GROVE_PREFIX), "libexec", "skill-sources", "writing") + os.sep
+        if ok and os.path.realpath(p).startswith(payload): cls, owner = "native-residue", "Grove keg, through the writing alias"
+        else: cls, owner, dispo, note = "unknown", "unknown", "UNCLASSIFIED", f"the writing alias does not resolve into {t(payload)}"
+    row("pi", pe, e, form, "-", dg, 0, cls, owner, "Pi extension", dispo, note)
 
 # --- user hooks: one row per hook, with the files under HOME that it names
 PATHTOK = re.compile(r"""(?:\$\{HOME-?\}|\$HOME|~)(/[^\s"';|&)]+)""")
@@ -445,7 +528,8 @@ for n, d in sorted(codex_cfg.get("mcp_servers", {}).items()):
     row("codex", "~/.codex/config.toml mcp_servers", n, "MCP server", "-", mcp_identity(d), 0, "capability-only", "owner configuration", "MCP", "native-keep")
 for n, d in codex_cfg.get("plugins", {}).items():
     en = str(d.get("enabled")).lower() if isinstance(d, dict) else "-"
-    row("codex", "~/.codex/config.toml plugins", n, f"plugin enabled={en}", "-", h16(canon(d)), 0, "platform-managed", "Codex bundled marketplaces", "plugin", "native-keep")
+    cls, owner = ("native-residue", HOOKS_OWNER) if n == CODEX_HOOKS else ("platform-managed", "Codex bundled marketplaces")
+    row("codex", "~/.codex/config.toml plugins", n, f"plugin enabled={en}", "-", h16(canon(d)), 0, cls, owner, "plugin", "native-keep")
 
 # --- retained storage and tools, observed now
 snapdir = f"{H}/.agents/.grove/snapshots"

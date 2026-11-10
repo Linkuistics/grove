@@ -1,30 +1,37 @@
 # The narrow process inspection of the real process table
 
-listing process: 8437
+listing process: 39108
 
 ## Installed executables of the four tools
-claude	~/.local/bin/claude	~/.local/share/claude/versions/2.1.319
+claude	~/.local/bin/claude	~/.local/share/claude/versions/2.1.322
 codex	/opt/homebrew/bin/codex	/opt/homebrew/Caskroom/codex/0.167.0/bin/codex
 grove	/opt/homebrew/bin/grove	/opt/homebrew/Cellar/grove/22.8.0/bin/grove
 grove-llm	/opt/homebrew/bin/grove-llm	/opt/homebrew/Cellar/grove/22.8.0/bin/grove-llm
 ravel	/opt/homebrew/bin/ravel	/opt/homebrew/Cellar/ravel/1.1.0/bin/ravel
 
 ## Admitted: the exact ancestors of the listing process
-process 52598 (parent 77320) Ravel (native executable): /opt/homebrew/Cellar/ravel/1.1.0/bin/ravel start-session --kind=impl --prompt=**Load the `grove-impl` skill now** — on Claude Code, where plugin
-process 52607 (parent 52598) Claude Code (versioned executable): claude --add-dir ~/Development/AgenticOrchestration/grove --model claude-opus-5-5 --effort high **Load the `grove-impl` skill now** — o
+process 19958 (parent 77320) Ravel (native executable): /opt/homebrew/Cellar/ravel/1.1.0/bin/ravel start-session --kind=impl --prompt=**Load the `grove-impl` skill now** — on Claude Code, where plugin
+process 19964 (parent 19958) Claude Code (versioned executable): claude --add-dir ~/Development/AgenticOrchestration/grove --model claude-opus-5-5 --effort high **Load the `grove-impl` skill now** — o
 process 77320 (parent 75135) Grove (native executable): grove
 
 ## Other tool processes (each would stop the switch now)
 process 6446 (parent 1) Codex (native executable, app-server daemon): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scra
-process 7288 (parent 1) Claude Code (versioned executable, as ugrep): ugrep -G --ignore-files --hidden -I --exclude-dir=.git --exclude-dir=.svn --exclude-dir=.hg --exclude-dir=.bzr --exclude-dir=.jj -
+process 7288 (parent 1) Claude Code (versioned executable, executable unreadable, by its launch path, as ugrep): ugrep -G --ignore-files --hidden -I --exclude-dir=.git --exclude-dir=.svn --exclude-dir
+process 7905 (parent 1) Codex (native executable, managed app-server): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/d6f82494-fdbe-47fc-a13e-572c01970f7c/scr
+process 7921 (parent 1) Codex (native executable, app-server daemon): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/d6f82494-fdbe-47fc-a13e-572c01970f7c/scra
 process 20546 (parent 1) Codex (native executable, app-server daemon): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scr
 process 25057 (parent 79724) Codex (native executable, managed app-server): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928de
 process 27230 (parent 1) Ravel (native executable): /private/var/folders/z1/nw_wk3gj3hqchs4_73xrf2dw0000gn/T/.tmpy6uwxo/ravel-1.1.0/bin/ravel start-session --kind=release-notes --prompt=Produce notes.
 process 36656 (parent 92139) Codex (native executable, managed app-server): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928de
+process 40709 (parent 40680) Ravel (native executable): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/486051ba-197b-4b22-96ed-969a0e89fdcc/scratchpad/reh-ful
+process 40718 (parent 40709) Claude Code (versioned executable, as 2.1.319): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/486051ba-197b-4b22-96ed-969a0e89fd
+process 40721 (parent 40718) Codex (native executable): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/486051ba-197b-4b22-96ed-969a0e89fdcc/scratchpad/reh-ful
 process 47637 (parent 6446) Codex (native executable, managed app-server): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def
 process 63232 (parent 82077) Codex (native executable, managed app-server): ~/.codex/packages/app-server-daemon/releases/0.167.0-aarch64-apple-darwin/bin/codex app-server --listen unix:// --analytics-
 process 79724 (parent 1) Codex (native executable, app-server daemon): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928def/scr
 process 82077 (parent 1) Codex (native executable, app-server daemon): ~/.codex/packages/app-server-daemon/releases/0.167.0-aarch64-apple-darwin/bin/codex app-server daemon pid-update-loop
+process 83962 (parent 1) Codex (native executable, managed app-server): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/d6f82494-fdbe-47fc-a13e-572c01970f7c/sc
+process 83977 (parent 1) Codex (native executable, app-server daemon): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/d6f82494-fdbe-47fc-a13e-572c01970f7c/scr
 process 85196 (parent 1) Codex (native executable, executable unreadable, by its launch path, managed app-server): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue
 process 85213 (parent 1) Codex (native executable, executable unreadable, by its launch path, app-server daemon): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-
 process 85757 (parent 20546) Codex (native executable, managed app-server): /private/tmp/claude-501/-Users-antony-Development-AgenticOrchestration-grove-gh-issue-25/895cf8a1-e800-4416-8901-9e280d928de

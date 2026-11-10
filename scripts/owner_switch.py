@@ -193,10 +193,16 @@ has the digest OWNER_SWITCH_PLAN_DIGEST.
        run its trials, with OWNER_SWITCH_SOURCE and OWNER_SWITCH_DIGEST. Each
        trial runs in the staging HOME, with HOME set to it and CODEX_HOME set
        to its own .codex tree. Stop if a source has no trial, a trial fails,
-       or the staging HOME or the candidate keg is missing. The result
-       admits the Grove version and each rerun source's digest.
+       or the staging HOME or the candidate keg is missing. Each source must
+       come from its private payload libexec/skill-sources/<id> in that keg.
+       The result admits Grove's full package version and each rerun
+       source's digest.
     5  Stop unless `mise -C HOME bootstrap packages status --json` shows each
-       skill formula declared, installed and at its accepted version.
+       skill formula declared and installed, and the keg that Homebrew links
+       is its accepted full package version, with its revision. The plan's
+       accepted.versions name those versions, and step 4 admits Grove's.
+       `brew info --json=v2 <formula>` gives the linked keg, so a version
+       that mise reports without a revision cannot pass for the revision.
     6  Resolve the drafted real settings again. Stop unless the resolved IDs
        are exactly the accepted ten and each resourceDigest is accepted.
     7  Record each registration of each plugin that enabledPlugins enables in
@@ -2106,7 +2112,11 @@ def gate_4(gate: Gate) -> None:
         got = resolution["sources"].get(sid)
         if got is None:
             raise Stop(f"step 4: Grove's source {sid} does not resolve")
-        keg_source = os.path.join(grove["keg"], "share", "ravel", "skills", sid)
+        # Ravel canonicalises the keg's alias share/ravel/skills/<id>, so
+        # originPath names the private payload ("The keg layout" of
+        # docs/specs/codex-skill-provisioning.md). A source directory at the
+        # alias's place, as the earlier layout had, is not that payload.
+        keg_source = os.path.join(grove["keg"], "libexec", "skill-sources", sid)
         if os.path.realpath(got["originPath"]) != os.path.realpath(keg_source):
             raise Stop(f"step 4: the source {sid} comes from {got['originPath']}, not from {keg_source}")
         accepted = gate.sources[sid]["resourceDigest"]
@@ -2140,6 +2150,24 @@ def gate_4(gate: Gate) -> None:
           "trials": trials, "admitted": {"grove_version": grove["version"], "digests": digests}})
 
 
+def linked_package(name: str) -> dict:
+    """Homebrew's package identity of a formula: its tap revision and the keg that it links.
+
+    Measured with Homebrew 7.0.12 on 2026-11-11: `brew info --json=v2 zstd`
+    gives "revision": 1 and "linked_keg": "1.5.7_1", and mise 2026.11.2
+    reports the same "installed_version". The linked keg is the one whose
+    sources the default skill directory names.
+    """
+    info = tool_json(["brew", "info", "--json=v2", name])
+    try:
+        formula = info["formulae"][0]
+        linked = formula.get("linked_keg")
+        installed = [i["version"] for i in formula.get("installed") or []]
+    except (KeyError, IndexError, TypeError):
+        raise Stop(f"brew info --json=v2 {name} has no formula")
+    return {"linked": linked if isinstance(linked, str) and linked else None, "installed": installed}
+
+
 def gate_5(gate: Gate) -> None:
     grove_version = gate.admitted.get("grove_version")
     if not grove_version:
@@ -2155,17 +2183,33 @@ def gate_5(gate: Gate) -> None:
         rows = {r.get("package"): r for r in doc["brew"].get("packages") or [] if isinstance(r, dict)}
     problems, installed = [], {}
     for name in formulae:
+        # A full package version: the upstream version, then "_<revision>"
+        # when the revision is not 0 ("Skill formulae" of
+        # docs/specs/owner-skill-delivery.md). Grove's comes from step 4.
         wanted = grove_version if name == FORMULA_OF_GROVE else gate.versions[name]
         row = rows.get(name)
         if row is None or row.get("desired_state") != "present":
             problems.append(f"{name} is not declared")
-        elif row.get("state") != "installed":
+            continue
+        if row.get("state") != "installed":
             problems.append(f"{name} is {row.get('state')}, not installed")
-        elif row.get("installed_version") != wanted:
-            problems.append(f"{name} is at {row.get('installed_version')}, not its accepted version {wanted}")
+            continue
+        # mise can omit the revision, so Homebrew's linked keg decides. mise
+        # must still report that keg, with or without its revision.
+        reported = row.get("installed_version")
+        package = linked_package(name)
+        linked = package["linked"]
+        if linked is None:
+            problems.append(f"{name} is installed, and Homebrew links no keg of it (installed: "
+                            f"{', '.join(package['installed']) or 'none'})")
+        elif reported != linked and not (isinstance(reported, str) and re.fullmatch(
+                re.escape(reported) + r"_[1-9][0-9]*", linked)):
+            problems.append(f"{name}: mise reports {reported}, and Homebrew links {linked}")
+        elif linked != wanted:
+            problems.append(f"{name} is at {linked}, not its accepted version {wanted}")
         else:
             installed[name] = wanted
-            log(f"step 5: {name} is installed at its accepted version {wanted}")
+            log(f"step 5: {name} is installed and linked at its accepted version {wanted}")
     if problems:
         raise Stop("step 5: " + "; ".join(problems))
     emit({"step": "5", "formulae": installed})

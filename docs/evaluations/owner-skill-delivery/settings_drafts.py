@@ -9,10 +9,14 @@ their content.
 The script copies the accepted build into the keg Cellar/ravel@2/2.0.0 of a
 fixture Homebrew prefix in OUT and writes its installation record. The record
 names the prefix's share/ravel/skills, the default skill directory. That
-directory holds one link for each of the ten sources. Each link names a
-fixture source at the path of the staging settings, moved under OUT/fixture.
-Each fixture source holds its roots, one probe skill in each root, and for
-superpowers the mandatory file.
+directory holds one link for each of the ten sources. Each fixture source is
+a keg in the projected layout of "The keg layout" in
+docs/specs/codex-skill-provisioning.md, under the prefix of its staging path,
+moved under OUT/fixture. Its private payload libexec/skill-sources/<id> holds
+its roots, one probe skill in each root, and for superpowers the mandatory
+file. The keg's share/ravel/skills/<id> is the alias of that payload. The
+staging path and the default directory each link the alias, as Homebrew does.
+Each fixture keg has its accepted full package version.
 
 Each case runs `ravel skills resolve --json` under `env -i` with a new HOME in
 OUT/homes. The command launches no harness, and PATH holds only /usr/bin and
@@ -29,14 +33,20 @@ OUT/homes. The command launches no harness, and PATH holds only /usr/bin and
   result is `resolved`, or `skill_source_missing` for a source path of the
   settings that is absent, while a keg is absent.
 
+In no-settings, switched and staging, each source's originPath must be its
+private payload, because Ravel canonicalises the alias.
+
 Three controls must refuse. An off value with a mandatory reference refuses as
 settings_invalid. A switched value whose mandatory path names no file refuses
 as skill_mandatory_invalid. Staging settings with a repeated source refuse as
-settings_invalid.
+settings_invalid. A fourth control replaces the default directory's entry of
+personal with a real directory, as the earlier layout had. Its resolution
+must report that personal does not come from its private payload.
 
 The script also reads bootstrap-packages.toml. It must declare exactly the five
 formulae of "Skill formulae", each at "latest". Homebrew must find each
-formula in the local tap, without an update.
+formula in the local tap, without an update. The record names each tap
+formula's full package version, with its revision.
 
 The real HOME's ~/.config/ravel/settings.json must be absent or unchanged after
 the run.
@@ -58,6 +68,13 @@ TEN = sorted(["grove-core", "requirements", "design", "engineering", "research",
               "personal", "testanyware", "superpowers", "quint"])
 MANDATORY = {"source": "superpowers", "path": "skills/using-superpowers/SKILL.md"}
 FORMULAE = ["grove", "personal", "testanyware", "superpowers", "quint-llm-kit"]
+# The keg of each source: its formula and accepted full package version
+# ("Packaging-only acceptance" of docs/owner-skill-delivery-evidence.md).
+KEG_OF = {**{sid: ("grove", "22.8.0") for sid in ("grove-core", "requirements", "design", "engineering", "research",
+                                                    "writing")},
+          "personal": ("personal", "2026-11-06_1"), "testanyware": ("testanyware", "2.8.0_1"),
+          "superpowers": ("superpowers", "7.0.0_1"), "quint": ("quint-llm-kit", "1.0.0_1")}
+ALIASES = "/share/ravel/skills/"
 
 
 def sha256(path):
@@ -103,7 +120,7 @@ def fixture(out, ravel, staging):
         json.dump({"schemaVersion": 1, "skillDirectory": skill_dir}, f)
     mandatory_text = None
     for source in staging["skills"]["sources"]:
-        path = os.path.join(out, "fixture") + source["path"]
+        path, alias = fixture_keg(out, source)
         for root in source["roots"]:
             probe = os.path.join(path, root, f"{source['id']}-probe")
             os.makedirs(probe)
@@ -115,8 +132,27 @@ def fixture(out, ravel, staging):
             mandatory_text = f"The mandatory fixture file of {out}.\n"
             with open(mandatory, "w") as f:
                 f.write(mandatory_text)
-        os.symlink(path, os.path.join(skill_dir, source["id"]))
+        os.symlink(alias, os.path.join(skill_dir, source["id"]))
     return os.path.join(keg, "bin", "ravel"), mandatory_text
+
+
+def fixture_keg(out, source):
+    """The private payload and the keg alias of SOURCE, with its staging path linked to the alias."""
+    head, sep, sid = source["path"].rpartition(ALIASES)
+    if not sep or sid != source["id"]:
+        sys.exit(f"the staging path {source['path']} is not the alias of {source['id']} in a prefix")
+    prefix = os.path.join(out, "fixture") + head
+    name, version = KEG_OF[sid]
+    keg = os.path.join(prefix, "Cellar", name, version)
+    payload = os.path.join(keg, "libexec", "skill-sources", sid)
+    alias = os.path.join(keg, "share", "ravel", "skills", sid)
+    os.makedirs(payload)
+    os.makedirs(os.path.dirname(alias), exist_ok=True)
+    os.symlink(os.path.join("..", "..", "..", "libexec", "skill-sources", sid), alias)
+    os.makedirs(os.path.dirname(prefix + ALIASES + sid), exist_ok=True)
+    os.symlink(os.path.join("..", "..", "..", "Cellar", name, version, "share", "ravel", "skills", sid),
+               prefix + ALIASES + sid)
+    return payload, alias
 
 
 def resolve(out, ravel, case, settings):
@@ -145,11 +181,12 @@ def code_of(document):
     return document.get("code") or (document.get("error") or {}).get("code")
 
 
-def check_resolved(document, ids, mandatory_text):
+def check_resolved(document, ids, mandatory_text, origins=False):
     """Problems with a resolved document that must hold IDS.
 
     With MANDATORY_TEXT, the document names one mandatory file with that text.
-    Without it, the document names no mandatory file.
+    Without it, the document names no mandatory file. With ORIGINS, each
+    source's originPath must be its private payload libexec/skill-sources/<id>.
     """
     problems = []
     if not document or document.get("status") != "resolved":
@@ -157,6 +194,10 @@ def check_resolved(document, ids, mandatory_text):
     got = [s["id"] for s in document["sources"]]
     if got != ids:
         problems.append(f"sources {got}, not {ids}")
+    if origins:
+        problems += [f"{s['id']} comes from {s.get('originPath')}, not from its private payload"
+                     for s in document["sources"]
+                     if not str(s.get("originPath")).endswith(f"/libexec/skill-sources/{s['id']}")]
     entries = document.get("mandatory") or []
     want = 0 if mandatory_text is None else 1
     if len(entries) != want:
@@ -190,7 +231,9 @@ def check_declarations():
             problems.append(f"the local tap holds no formula {name}: {run.stderr.strip()}")
             continue
         for formula in json.loads(run.stdout)["formulae"]:
-            found[formula["full_name"]] = formula["versions"]["stable"]
+            revision = formula.get("revision") or 0
+            stable = formula["versions"]["stable"]
+            found[formula["full_name"]] = f"{stable}_{revision}" if revision else stable
     return problems, found
 
 
@@ -266,14 +309,25 @@ def main():
             return [f"the refusal names {missing}, not an absent source path of the staging settings"]
         return [f"exit {status} and {code_of(document)}, not resolved or skill_source_missing"]
 
-    case("no-settings", None, lambda _h, s, d: check_resolved(d, TEN, None))
+    case("no-settings", None, lambda _h, s, d: check_resolved(d, TEN, None, origins=True))
     case("off", off, disabled)
-    case("switched", switched, lambda _h, s, d: check_resolved(d, TEN, mandatory_text))
-    case("staging", moved, lambda _h, s, d: check_resolved(d, TEN, mandatory_text))
+    case("switched", switched, lambda _h, s, d: check_resolved(d, TEN, mandatory_text, origins=True))
+    case("staging", moved, lambda _h, s, d: check_resolved(d, TEN, mandatory_text, origins=True))
     case("staging-as-is", staging, as_is)
     case("control-off-with-mandatory", off_mandatory, refuses(2, "settings_invalid"))
     case("control-switched-absent-file", switched_wrong, refuses(3, "skill_mandatory_invalid"))
     case("control-staging-repeated-source", repeated, refuses(2, "settings_invalid"))
+    # The earlier layout: a real directory with the same bytes in the default directory.
+    entry = os.path.join(out, "brew", "share", "ravel", "skills", "personal")
+    payload = os.path.realpath(entry)
+    os.remove(entry)
+    shutil.copytree(payload, entry, symlinks=True)
+
+    def earlier_layout(_home, _status, document):
+        got = check_resolved(document, TEN, None, origins=True)
+        want = [f"personal comes from {os.path.realpath(entry)}, not from its private payload"]
+        return [] if got == want else [f"the problems are {got}, not {want}"]
+    case("control-default-earlier-layout", None, earlier_layout)
 
     declaration_problems, versions = check_declarations()
     print(f"{'pass' if not declaration_problems else 'FAIL'}  declarations: "

@@ -31,12 +31,12 @@ installation order.
 
 - Concrete leaves before k93 own all five formulae, publication by new
   revisions or releases, and each formula producer's future releases.
-  The four non-Grove formulae can publish before finish; Grove's revised
+  The four non-Grove formulae can publish before finish. Grove's revised
   template reaches the installed keg through finish's existing release.
 - The plan covers actual formula output followed by actual Keg linking:
-  both fresh installation orders, an initially absent share/ravel, duplicate
-  source refusal, mixed-layout migration, upgrade, uninstall and removal of
-  the old keg. Preserve source IDs, bytes, modes, links and accepted digests.
+  both fresh installation orders and an initially absent share/ravel.
+  It also covers duplicate source refusal, mixed-layout migration, upgrade,
+  uninstall and removal of the old keg. Preserve source IDs, bytes, modes, links and accepted digests.
 - The plan reconciles archive versus installed paths, formula tests,
   candidate-keg construction, origin assertions, inventories, hook
   registrations and prepared input comparisons with private payloads.
@@ -49,9 +49,10 @@ installation order.
 ## Notes
 
 This design changes packaging, not source content or Ravel's link policy.
-Use the specified `libexec/skill-sources` payload path; the installed-smoke
+Use the specified `libexec/skill-sources` payload path. The installed-smoke
 seam deliberately rejects the retired `libexec/ravel` and `libexec/skills`
 layouts. Preserve those checks.
+
 No automatic relink of another formula belongs in post-install hooks.
 Keep original running-driver binaries. Do not replace the coordinated
 release or finish sequences, and do not bump an already partially cut release.

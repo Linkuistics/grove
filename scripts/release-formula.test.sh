@@ -6,15 +6,20 @@
 # 1. The archive passes the manifest check, which needs the plain checkout of
 #    each pack that `task check:packs` makes.
 # 2. Homebrew's own install and test methods of the rendered formula run in a
-#    private prefix (scripts/release-formula.test.rb). The formula's test
-#    resolves the keg's six skill sources through a private copy of the 2.0
-#    build, with no settings.
-# 3. Each installed source keeps the Git modes of the manifest, and its
-#    resourceDigest equals that of the plain checkout of the same commit: the
-#    pack's checkout under target/external-packs, and for core a plain checkout
-#    of HEAD. Core's working files must therefore equal HEAD.
-#    Each marketplace file at the keg root names a plugin of the keg, and
-#    `claude plugin validate` accepts the keg.
+#    private prefix (scripts/release-formula.test.rb). The keg holds each
+#    source in libexec/skill-sources/<id>, and each share/ravel/skills/<id> is
+#    a relative directory symlink to it. The formula's test resolves the keg's
+#    six skill sources through a private copy of the 2.0 build, with no
+#    settings.
+# 3. Each regular file of a private source stays a regular file with the Git
+#    mode of the manifest. Ravel reads each source through its public alias,
+#    and each originPath is the private source. Each resourceDigest equals
+#    that of the plain checkout of the same commit: the pack's checkout under
+#    target/external-packs, and for core a plain checkout of HEAD. Core's
+#    working files must therefore equal HEAD.
+#    Each marketplace file at the keg root names a plugin inside the private
+#    writing source, through no symlink, and `claude plugin validate` accepts
+#    the keg.
 # 4. scripts/grove-tap-states.sh installs and upgrades that keg in a private
 #    Homebrew-shaped prefix at each tap state A to D of the coordinated
 #    release. OLD_GROVE_KEG is the published Grove of states A and B.
@@ -64,20 +69,24 @@ HOMEBREW_NO_AUTO_UPDATE=1 brew ruby "$root/scripts/release-formula.test.rb" \
 keg="$scratch/prefix"
 
 # Homebrew moves each file into the keg, so each keeps the mode of the archive.
+# The manifest names the archive path, and the keg holds that file in the
+# private source.
 while IFS=$'\t' read -r mode entry; do
-  [[ "$(git_mode "$keg/$entry")" == "$mode" ]] ||
-    fail "the keg's $entry has Git mode $(git_mode "$keg/$entry"), not $mode"
+  installed="$KEG_SKILL_SOURCES/${entry#"$ARCHIVE_SKILLS"/}"
+  [[ "$(git_mode "$keg/$installed")" == "$mode" ]] ||
+    fail "the keg's $installed has Git mode $(git_mode "$keg/$installed"), not $mode"
 done < <(skills_manifest)
-echo 'release-formula: every installed skill file keeps the Git mode of the manifest'
+echo "release-formula: every installed skill file in $KEG_SKILL_SOURCES keeps the Git mode of the manifest"
 
 # The marketplace files at the keg root name a plugin root inside the keg's
-# writing source, and each harness's plugin manifest there carries the name
-# that the file lists. Claude Code validates its file against the keg, where
+# private writing source, through no symlink, so neither traverses the public
+# alias. Each harness's plugin manifest there carries the name that the file
+# lists. Claude Code validates its file against the keg, where
 # the source resolves. Not --strict: the plugin has no version, by design
 # (plugins/CONTEXT.md). "Hook adapters" of docs/specs/codex-skill-provisioning.md.
-python3 -I - "$keg" <<'PY' || fail 'a marketplace file of the keg names no matching plugin; see above'
+python3 -I - "$keg" "$KEG_SKILL_SOURCES" <<'PY' || fail 'a marketplace file of the keg names no matching plugin; see above'
 import json, os, sys
-keg = sys.argv[1]
+keg, private = sys.argv[1:]
 failed = False
 for marketplace, manifest, source in (
     (".claude-plugin/marketplace.json", ".claude-plugin/plugin.json", lambda p: p["source"]),
@@ -87,7 +96,10 @@ for marketplace, manifest, source in (
         root = os.path.normpath(os.path.join(keg, source(plugin)))
         path = os.path.join(root, manifest)
         name = json.load(open(path))["name"] if os.path.isfile(path) else None
-        if not root.startswith(keg + os.sep) or name != plugin["name"]:
+        if not root.startswith(os.path.join(keg, private, "writing") + os.sep) or os.path.realpath(root) != root:
+            print(f"{marketplace}: {plugin['name']} at {root} is not in the private writing source", file=sys.stderr)
+            failed = True
+        elif name != plugin["name"]:
             print(f"{marketplace}: {plugin['name']} at {root} has the manifest name {name!r}", file=sys.stderr)
             failed = True
         else:
@@ -143,14 +155,16 @@ print(json.dumps({"skills": {"schemaVersion": 1, "sources": sources}}))
 resolve_sources "$ravel_2_0" "$scratch/reference-home" | cut -f1,2 | LC_ALL=C sort >"$scratch/reference-digests"
 
 # The keg's sources through a private copy of the 2.0 build, whose record
-# names the keg's share/ravel/skills.
+# names the keg's share/ravel/skills. Ravel canonicalises each public alias,
+# so each originPath is the private source.
 mkdir -p "$scratch/keg-ravel/bin" "$scratch/keg-ravel/share/ravel" "$scratch/keg-home"
 cp "$ravel_2_0" "$scratch/keg-ravel/bin/ravel"
 printf '{"schemaVersion":1,"skillDirectory":"%s"}\n' "$keg/$ARCHIVE_SKILLS" \
   >"$scratch/keg-ravel/share/ravel/installation.json"
 resolve_sources "$scratch/keg-ravel/bin/ravel" "$scratch/keg-home" >"$scratch/keg-sources"
 while IFS=$'\t' read -r id _ origin; do
-  [[ "$origin" == "$keg/$ARCHIVE_SKILLS/$id" ]] || fail "source $id lies outside the keg: $origin"
+  [[ "$origin" == "$keg/$KEG_SKILL_SOURCES/$id" ]] ||
+    fail "source $id has the originPath $origin, not its private source $keg/$KEG_SKILL_SOURCES/$id"
 done <"$scratch/keg-sources"
 cut -f1,2 "$scratch/keg-sources" | LC_ALL=C sort >"$scratch/keg-digests"
 [[ "$(cut -f1 "$scratch/keg-digests")" == "$(cut -f1 "$scratch/reference-digests")" ]] ||

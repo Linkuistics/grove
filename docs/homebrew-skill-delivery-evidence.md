@@ -854,3 +854,42 @@ Both diagram manifests parsed. Their diagram IDs equal those of the review
 commit, and every referenced source exists. The viewer served the revised
 manifest. The browser host was unavailable, so rendered layouts and deep-link
 positions remain unverified.
+
+## Grove keg projection
+
+`grove-keg-projection-k293` changed Grove's formula template to the
+[keg layout](specs/codex-skill-provisioning.md#the-keg-layout). The archive
+layout did not change. The formula moves each archive source into
+`libexec/skill-sources/<source-id>`. `Pathname#install_symlink` then makes
+the alias `share/ravel/skills/<source-id>`, relative to the real destination,
+as `../../../libexec/skill-sources/<source-id>`. Both keg marketplace files
+name `./libexec/skill-sources/writing/craft/technical-communication`. This
+work published no formula and changed no real keg, link or HOME.
+
+<!-- tc: depart synonym-rotation because "validate" occurs only in the command name claude plugin validate -->
+### Checks
+
+Each check below ran on the working copy with the 1.1 lane and the 2.0 lane
+of `docs/ravel-target-inputs.md`. Each passed.
+
+| Check | Result |
+| --- | --- |
+| `task release:formula:test`, with the published 22.8.0 keg as `OLD` | Homebrew's install method made the projected keg. Each alias was a relative symlink to its private source. Each regular file kept its manifest mode. Each `originPath` was the private source, and each digest equalled its plain checkout. `claude plugin validate` accepted the keg. Tap states A to D passed, fresh and along one upgrade |
+| `task release:test` | The template check passed. Two controls each failed with the refusal of a real directory under `share`. One had the earlier install, and one had a real install beside the projection |
+| `scripts/candidate-keg.sh` on the working-copy commit | The keg came from the template's install method. The aliases, the `brew link` links, the private origins and the digests passed |
+| `task ravel:directory` | The 11 cases passed with fixture kegs in the projected layout |
+| `bash scripts/check.sh` | All 18 principal checks passed |
+| `task release:smoke` | The unchanged archive passed on `aarch64-apple-darwin`, `aarch64-unknown-linux-gnu` and `x86_64-unknown-linux-gnu`. On each target, the 2.0 lane resolved the six archive sources |
+
+Three more controls ran on scratch copies. Each failed as intended. The
+earlier template made a keg that the layout comparison refused. A
+marketplace file that named the public alias failed the marketplace check.
+An absolute alias failed the installed smoke. A keg with real source
+directories under `share` failed the link construction of the tap states.
+
+### Linux scope
+
+Only `task release:smoke` applies to Linux. It tests the archive layout on
+each Linux target, and that layout is unchanged. The formula, its install
+method, `brew link` and the tap states ran on macOS only. No Linux Homebrew
+run exists, so Linux formula linking remains a stated limit.

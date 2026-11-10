@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "technical-communication-hooks",
-      "source": "./share/ravel/skills/writing/craft/technical-communication",
+      "source": "./libexec/skill-sources/writing/craft/technical-communication",
       "description": "The always-on hooks of the technical-communication skill: the instruction, the reminder, the document gate and the reply log. This plugin holds no skill. Ravel supplies the skill."
     }
   ]

@@ -19,15 +19,18 @@
 #
 # The kegs and links follow Homebrew: each keg lies at Cellar/<formula>/<version>,
 # `opt/<formula>` names the linked version, and a linked keg's executables and
-# skill sources appear as relative links in bin/ and share/ravel/skills/. A
-# keg-only formula gets the opt link only. An upgrade unlinks the earlier keg,
+# source aliases appear as relative links in bin/ and share/ravel/skills/. A
+# Grove keg holds each source in libexec/skill-sources/<id>, and its
+# share/ravel/skills/<id> is a relative directory symlink to it. Keg#link_dir
+# links that symlink as a file, so the prefix's link names the keg's alias
+# and never a file inside a source. A keg-only formula gets the opt link only. An upgrade unlinks the earlier keg,
 # installs and links the new one, then removes the earlier keg.
 #
 # Each state checks that the default PATH selects a Ravel that its Grove admits,
 # and that no link dangles. At A and B, no keg source exists. At B, ravel@2
 # with no settings has no source. At C and D, the 2.0 Ravel reads the six keg
-# sources with no settings, each in the Grove keg and with its checkout's
-# digest, and scripts/grove-installed-smoke.sh runs the lifecycle and
+# sources with no settings, each with the originPath of its private source in
+# the Grove keg and with its checkout's digest, and scripts/grove-installed-smoke.sh runs the lifecycle and
 # standalone callers of the new Grove on the admitted majors of that state.
 # The checks run on a fresh prefix for each state, then along one prefix that
 # upgrades from A to D.
@@ -97,6 +100,11 @@ link_keg() {
   done
   if [[ -d "$home/Cellar/$formula/$version/share/ravel/skills" ]]; then
     for entry in "$home/Cellar/$formula/$version/share/ravel/skills/"*; do
+      # A real source directory here is the earlier layout, which Homebrew
+      # can expand into file links. "The keg layout" of
+      # docs/specs/codex-skill-provisioning.md.
+      [[ -e "$entry" || -L "$entry" ]] || continue
+      [[ -L "$entry" ]] || fail "$entry is not a source alias"
       ln -s "../../../Cellar/$formula/$version/share/ravel/skills/${entry##*/}" \
         "$home/share/ravel/skills/${entry##*/}"
     done
@@ -149,8 +157,8 @@ check_keg_sources() {
   [[ "$(cut -f1 <<<"$resolved")" == "$sources" ]] ||
     fail "$label: $ravel resolves '$(cut -f1 <<<"$resolved" | tr '\n' ' ')', not the six keg sources"
   while IFS=$'\t' read -r id digest origin; do
-    [[ "$origin" == "$home/Cellar/grove/$new_label/share/ravel/skills/$id" ]] ||
-      fail "$label: source $id lies outside the Grove keg: $origin"
+    [[ "$origin" == "$home/Cellar/grove/$new_label/libexec/skill-sources/$id" ]] ||
+      fail "$label: source $id has the originPath $origin, not its private source in the Grove keg"
     grep -Fxq "$id"$'\t'"$digest" "$digests" || fail "$label: source $id has digest $digest, not its checkout's"
   done <<<"$resolved"
 }

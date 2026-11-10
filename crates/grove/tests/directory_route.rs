@@ -10,8 +10,8 @@
 //
 // The default-directory cases instead copy the 2.0 build into the keg of a
 // Homebrew-shaped prefix and write its installation record. The record names
-// the prefix's `share/ravel/skills`, which holds relative links into source
-// kegs. Those cases resolve in a HOME without `skills` settings.
+// the prefix's `share/ravel/skills`, which holds relative links to the source
+// aliases of kegs. Those cases resolve in a HOME without `skills` settings.
 //
 // These fixtures prove delivery and Grove's interpretation of it, not the
 // behaviour of an LLM. The real harness trials belong to acceptance.
@@ -1278,9 +1278,12 @@ struct KegSource {
 /// - `prefix/Cellar/ravel@2/2.0.0` is a private copy of the 2.0 build, and
 ///   its record names `prefix/share/ravel/skills`, as Ravel's formula writes
 ///   it.
-/// - Each source lies in the keg of its formula, at
-///   `Cellar/<formula>/<version>/share/ravel/skills/<id>`. The default skill
-///   directory holds a relative link to it, as `brew link` makes it.
+/// - Each source lies in the keg of its formula, at the private
+///   `Cellar/<formula>/<version>/libexec/skill-sources/<id>`. The keg's
+///   `share/ravel/skills/<id>` is a relative directory symlink to it, and the
+///   default skill directory holds a relative link to that alias, as `brew
+///   link` makes it. "The keg layout" of
+///   `docs/specs/codex-skill-provisioning.md` states the layout.
 ///
 /// The sources are `engineering` with the roots `skills` and `craft`,
 /// `grove-core` with `skills`, and the craft-only `personal`. The first two
@@ -1344,18 +1347,30 @@ impl Homebrew {
         ];
         let mut sources = Vec::new();
         for KegSource { id, keg, files } in files {
-            let keg = format!("Cellar/{keg}/share/ravel/skills/{id}");
+            let keg = format!("Cellar/{keg}");
             for (path, text) in files {
-                let file = prefix.join(&keg).join(path);
+                let file = prefix
+                    .join(&keg)
+                    .join("libexec/skill-sources")
+                    .join(id)
+                    .join(path);
                 fs::create_dir_all(file.parent().unwrap()).unwrap();
                 fs::write(file, text).unwrap();
             }
-            std::os::unix::fs::symlink(format!("../../../{keg}"), directory.join(id)).unwrap();
+            let alias = prefix.join(&keg).join("share/ravel/skills").join(id);
+            fs::create_dir_all(alias.parent().unwrap()).unwrap();
+            std::os::unix::fs::symlink(format!("../../../libexec/skill-sources/{id}"), &alias)
+                .unwrap();
+            std::os::unix::fs::symlink(
+                format!("../../../{keg}/share/ravel/skills/{id}"),
+                directory.join(id),
+            )
+            .unwrap();
             sources.push((id, fs::canonicalize(directory.join(id)).unwrap()));
         }
         assert_eq!(
             sources[0].1,
-            prefix.join("Cellar/grove/22.9.0/share/ravel/skills/engineering")
+            prefix.join("Cellar/grove/22.9.0/libexec/skill-sources/engineering")
         );
         Homebrew {
             _temp: temp,

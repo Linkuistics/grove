@@ -97,16 +97,24 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 - `grove`: the release archives and the Homebrew formula carry core and the
   five domain packs: requirements, design, engineering, research and writing.
-  Each source lies in `share/ravel/skills/<source-id>` of the keg, and Homebrew
-  links it into `$(brew --prefix)/share/ravel/skills`, Ravel's default skill
-  directory. Ravel 2.0 reads them there with no settings. Each pack is at the
+  The archive holds each source as a directory in `share/ravel/skills`. The
+  formula moves each source into `libexec/skill-sources/<source-id>` of the
+  keg. A relative directory symlink at `share/ravel/skills/<source-id>` is its
+  public alias. Homebrew links each alias into
+  `$(brew --prefix)/share/ravel/skills`, Ravel's default skill directory, and
+  does not descend into a source. Ravel 2.0 reads the sources there with no
+  settings, and each `originPath` names the private source. A later Grove
+  release keeps this layout, because `task release:test` refuses a formula
+  that installs a real source directory under `share`. Each pack is at the
   commit that `plugins/packs.json` records and `task check:packs` accepted.
   The archive manifest lists each file with its Git mode, and the build
   refuses an archive with another mode or a pack without its checkout.
 
 - `grove`: the keg root holds the marketplace file `writing-hooks` for Claude
   Code and for Codex. Each lists the always-on technical-communication hooks
-  plugin of the keg's writing source. The formula caveats print the command
+  plugin of the keg's private writing source, at
+  `./libexec/skill-sources/writing/craft/technical-communication`, and not
+  through its public alias. The formula caveats print the command
   that registers it in each harness, and the link for Pi. Claude Code
   registers it once, by `$(brew --prefix)/opt/grove`. Codex stores the
   versioned keg path. After each installation or upgrade, repeat its two

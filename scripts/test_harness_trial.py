@@ -942,7 +942,7 @@ class Fixture:
         replaces that digest. It returns the candidate directory."""
         candidate = self.root / "candidate"
         shutil.rmtree(candidate, ignore_errors=True)
-        source = candidate / "keg" / "share/ravel/skills/grove"
+        source = candidate / "keg" / "libexec/skill-sources/grove"
         shutil.copytree(self.checkout / "plugins/grove", source)
         prepared = json.loads((self.prepared / "prepared.json").read_text())
         commit = prepared["source"]["commit"]
@@ -1162,7 +1162,7 @@ def plant_cases(root: Path, external: dict[str, str]) -> Path:
     shutil.copytree(cases / "smoke", keg)
     (keg / "case.json").write_text(json.dumps({
         **smoke, "name": "keg",
-        "sources": [{"id": "grove", "keg": "grove", "plugin": "share/ravel/skills/grove", "roots": ["skills"]}],
+        "sources": [{"id": "grove", "keg": "grove", "plugin": "libexec/skill-sources/grove", "roots": ["skills"]}],
     }))
     delegate = cases / "delegate"
     shutil.copytree(cases / "smoke", delegate)
@@ -2018,7 +2018,7 @@ class HarnessTrialTest(unittest.TestCase):
         status, output = fixture.run("keg")
         self.assertEqual(status, 0, output)
         record = fixture.record()
-        source = candidate / "keg" / "share/ravel/skills/grove"
+        source = candidate / "keg" / "libexec/skill-sources/grove"
         external = record["sources"]["external"][0]
         self.assertEqual((external["id"], external["keg"]), ("grove", str(candidate / "keg")))
         self.assertEqual(external["resourceDigest"], external["acceptedDigest"])
@@ -2075,12 +2075,13 @@ class HarnessTrialTest(unittest.TestCase):
         for name, case in (
             ("other-formula", {**keg, "sources": [{**source, "keg": "personal"}]}),
             ("other-directory", {**keg, "sources": [{**source, "plugin": "plugins/grove"}]}),
+            ("public-alias", {**keg, "sources": [{**source, "plugin": "share/ravel/skills/grove"}]}),
             ("keg-external", {**keg, "sources": [{**source, "external": {
                 "repository": self.external["repository"], "commit": self.external["commit"]}}]}),
             ("keg-moved", {**missing, "sources": [source]}),
             ("keg-resumed", {**continuation, "sources": [*continuation["sources"],
                                                          {**source, "id": "kegged",
-                                                          "plugin": "share/ravel/skills/kegged"}]}),
+                                                          "plugin": "libexec/skill-sources/kegged"}]}),
         ):
             shutil.copytree(trial.CASES / "continuation", trial.CASES / name)
             (trial.CASES / name / "case.json").write_text(json.dumps({**case, "name": name}))

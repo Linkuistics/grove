@@ -20,13 +20,15 @@
 #    the build reuses it, and the build fetches any other one.
 # 3. Homebrew's install method of the checkout's formula template, rendered
 #    with the archive's sha256, fills the keg OUT/brew/Cellar/grove/<version>
-#    (scripts/candidate-keg.rb). The script then makes the links of `brew
-#    link`: OUT/brew/opt/grove names the keg, and a relative link in
-#    OUT/brew/share/ravel/skills names each source.
+#    (scripts/candidate-keg.rb). The keg holds each source in
+#    libexec/skill-sources/<id>, and its share/ravel/skills/<id> is a relative
+#    directory symlink to it. The script then makes the links of `brew link`:
+#    OUT/brew/opt/grove names the keg, and a relative link in
+#    OUT/brew/share/ravel/skills names each alias of the keg.
 # 4. A private copy of the Ravel 2.0 build resolves the sources with no
 #    settings. Its installation record names OUT/brew/share/ravel/skills. The
 #    keg must hold exactly core and the members of the pack record, and each
-#    originPath must lie in the keg. Each resourceDigest must equal that of the
+#    originPath must be the private source in the keg. Each resourceDigest must equal that of the
 #    plain checkout of the same commit.
 # 5. The script prints the commit and each source's resourceDigest. It writes
 #    OUT/digests.tsv, one `id<TAB>resourceDigest` line for each source in byte
@@ -131,6 +133,14 @@ ln -s "../Cellar/grove/$version" "$brew_prefix/opt/grove"
 actual_ids="$(find "$keg/share/ravel/skills" -mindepth 1 -maxdepth 1 -exec basename {} \; | LC_ALL=C sort)"
 [[ "$actual_ids" == "$expected_ids" ]] ||
   fail "the keg holds the sources '${actual_ids//$'\n'/ }', not '${expected_ids//$'\n'/ }'"
+# "The keg layout" of docs/specs/codex-skill-provisioning.md: each alias is a
+# relative directory symlink to the private source in the same keg.
+while IFS= read -r id; do
+  [[ -L "$keg/share/ravel/skills/$id" && "$(readlink "$keg/share/ravel/skills/$id")" == "../../../libexec/skill-sources/$id" ]] ||
+    fail "the keg's share/ravel/skills/$id is not a relative symlink to libexec/skill-sources/$id"
+  [[ -d "$keg/libexec/skill-sources/$id" && ! -L "$keg/libexec/skill-sources/$id" ]] ||
+    fail "the keg's libexec/skill-sources/$id is not a directory"
+done <<<"$actual_ids"
 while IFS= read -r id; do
   ln -s "../../../Cellar/grove/$version/share/ravel/skills/$id" "$brew_prefix/share/ravel/skills/$id"
 done <<<"$actual_ids"
@@ -163,7 +173,8 @@ resolve "$out/ravel/bin/ravel" "$out/home" | LC_ALL=C sort >"$out/keg.tsv" ||
 [[ "$(cut -f1 "$out/keg.tsv")" == "$expected_ids" ]] ||
   fail "Ravel resolves the sources '$(cut -f1 "$out/keg.tsv" | tr '\n' ' ')', not '${expected_ids//$'\n'/ }'"
 while IFS=$'\t' read -r id _ origin _; do
-  [[ "$origin" == "$keg/share/ravel/skills/$id" ]] || fail "source $id lies outside the keg: $origin"
+  [[ "$origin" == "$keg/libexec/skill-sources/$id" ]] ||
+    fail "source $id has the originPath $origin, not its private source in the keg"
 done <"$out/keg.tsv"
 
 # The plain checkouts of the same commit: core in OUT/source, and each pack in

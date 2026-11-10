@@ -8,7 +8,7 @@
       "name": "technical-communication",
       "source": {
         "source": "local",
-        "path": "./share/ravel/skills/writing/craft/technical-communication"
+        "path": "./libexec/skill-sources/writing/craft/technical-communication"
       },
       "policy": {
         "installation": "AVAILABLE",

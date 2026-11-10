@@ -73,3 +73,20 @@ a new path, so make the rejection precise rather than broad.
 shared-directory-seam-k294 adds the multi-formula linking seam. This leaf
 keeps the single-keg checks honest for the new layout and adds no linking
 cases of its own.
+
+## Decisions (running log)
+
+- The formula moves each `SKILL_SOURCES` entry with `Pathname#install` and
+  makes its alias with `install_symlink`. Homebrew 7.0.12's
+  `install_symlink_p` links relative to the real destination, so each alias
+  is `../../../libexec/skill-sources/<id>`. The template cites that source.
+- `release.test.sh` refuses any template line whose `install` receiver names
+  `share`. The check runs before the projection checks. Two controls, the
+  earlier template and a real install beside the projection, must fail with
+  that refusal.
+- `grove-installed-smoke.sh` accepts exactly two layouts. Without
+  `libexec/skill-sources`, it requires the archive's real directories. With
+  it, it requires each alias as the relative link and each originPath as the
+  private source. The retired-path list stays exact.
+- The harness runner's keg sources name `libexec/skill-sources/<id>`, the
+  path that Ravel reports. A case that names the public alias is refused.

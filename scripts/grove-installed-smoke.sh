@@ -15,7 +15,10 @@
 # share/ravel/skills. With no settings, `ravel skills resolve --json` must
 # report exactly core and the five domain packs, each with its originPath in
 # this prefix. That is the "Installed distribution" row of the test seams in
-# docs/specs/codex-skill-provisioning.md.
+# docs/specs/codex-skill-provisioning.md. The prefix has one of two layouts.
+# An archive holds each source as a directory in share/ravel/skills. A keg
+# holds it in libexec/skill-sources, and share/ravel/skills/<id> is a relative
+# directory symlink to it, so the originPath is the private source.
 set -euo pipefail
 IFS=$'\n\t'
 fail() { echo "grove-installed-smoke: $*" >&2; exit 1; }
@@ -34,7 +37,9 @@ for asset in README.md grove.ts provenance.ts examples/grove-static.ts examples/
   examples/grove-review.rhai examples/review.rhai examples/static.rhai sample/config.rhai; do
   [[ -f "$assets/$asset" ]] || fail "missing caller asset $asset"
 done
-# No Ravel front, private worker, dispatcher or skill payload ships with Grove.
+# No Ravel front, private worker, dispatcher or retired skill payload ships
+# with Grove. Each entry is one exact path, because a keg's
+# libexec/skill-sources is current.
 for retired in bin/ravel bin/harness-dispatch libexec/ravel libexec/harness-dispatch libexec/skills plugins; do
   [[ ! -e "$prefix/$retired" ]] || fail "Grove bundles $retired"
 done
@@ -109,6 +114,16 @@ check_keg_sources() {
   local ravel="$1" copy="$scratch/keg-ravel" home="$scratch/keg-home" skills="$prefix/share/ravel/skills"
   local json ids origins expected_origins id
   [[ -d "$skills" ]] || fail "the prefix holds no $skills"
+  for id in $expected_sources; do
+    if [[ -e "$prefix/libexec/skill-sources" ]]; then
+      [[ -L "$skills/$id" && "$(readlink "$skills/$id")" == "../../../libexec/skill-sources/$id" ]] ||
+        fail "the keg's $skills/$id is not a relative symlink to its private source"
+      [[ -d "$prefix/libexec/skill-sources/$id" && ! -L "$prefix/libexec/skill-sources/$id" ]] ||
+        fail "the keg holds no private source libexec/skill-sources/$id"
+    else
+      [[ -d "$skills/$id" && ! -L "$skills/$id" ]] || fail "the archive holds no source directory $skills/$id"
+    fi
+  done
   mkdir -p "$copy/bin" "$copy/share/ravel" "$home" "$scratch/keg-tmp"
   cp "$ravel" "$copy/bin/ravel"
   chmod 755 "$copy/bin/ravel"
@@ -122,7 +137,13 @@ check_keg_sources() {
   ids="$(printf '%s\n' "$json" | grep -o '"id":"[^"]*"' | sed 's/^"id":"//; s/"$//')"
   [[ "$ids" == "$expected_sources" ]] || fail "the keg resolves the sources '$ids', not '$expected_sources'"
   origins="$(printf '%s\n' "$json" | grep -o '"originPath":"[^"]*"' | sed 's/^"originPath":"//; s/"$//')"
-  expected_origins="$(for id in $expected_sources; do printf '%s/%s\n' "$skills" "$id"; done)"
+  expected_origins="$(for id in $expected_sources; do
+    if [[ -e "$prefix/libexec/skill-sources" ]]; then
+      printf '%s/libexec/skill-sources/%s\n' "$prefix" "$id"
+    else
+      printf '%s/%s\n' "$skills" "$id"
+    fi
+  done)"
   [[ "$origins" == "$expected_origins" ]] || fail "a source lies outside the keg: $origins"
   chmod -R u+w "$home"
   printf 'grove-installed-smoke: Ravel 2.0 resolved the six keg sources with no settings\n'

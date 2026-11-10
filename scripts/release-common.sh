@@ -39,9 +39,14 @@ ARCHIVE_PACK_RECORD="$ARCHIVE_CORE_REPO/plugins/packs.json"
 ARCHIVE_PACK_CACHE="$ARCHIVE_CORE_REPO/target/external-packs"
 readonly ARCHIVE_CORE_PATH=plugins/grove
 readonly ARCHIVE_CORE_ID=grove-core
-# The keg layout: Homebrew links each keg's share/ into the prefix, so each
-# source appears in Ravel's default skill directory.
+# The archive holds each source as a directory in ARCHIVE_SKILLS. The formula
+# moves each one into KEG_SKILL_SOURCES and puts a relative directory symlink,
+# its public alias, at ARCHIVE_SKILLS/<id>. Homebrew links each alias into the
+# prefix, so each source appears in Ravel's default skill directory. "The keg
+# layout" of docs/specs/codex-skill-provisioning.md.
 readonly ARCHIVE_SKILLS=share/ravel/skills
+# shellcheck disable=SC2034 # The scripts that source this file read it.
+readonly KEG_SKILL_SOURCES=libexec/skill-sources
 
 # The fixed part of the archive manifest: one `<mode><TAB><path>` line for each
 # file, with its Git mode. Grove's executables, its readable caller assets and

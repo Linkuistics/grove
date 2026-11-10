@@ -990,7 +990,7 @@ class JoinCbm(unittest.TestCase):
 RESIDUE = {"hooksPlugin": "technical-communication-hooks@writing-hooks", "hookSkill": "technical-communication",
            "guardrailPlugin": "guardrail@personal", "guardrailSkill": "guardrail", "gateFile": "NOTES.md",
            "blocked": "rm -rf scratch"}
-HOOKS_ROOT = "/prefix/opt/grove/share/ravel/skills/writing/craft/technical-communication"
+HOOKS_ROOT = "/prefix/opt/grove/libexec/skill-sources/writing/craft/technical-communication"
 GUARD_ROOT = "/opt/homebrew/opt/personal/libexec/plugins/guardrail"
 
 

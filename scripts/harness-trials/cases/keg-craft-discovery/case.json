@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "keg-craft-discovery",
-  "purpose": "Observe implicit craft discovery with every source from a keg path (candidate-keg-k238). A Grove impl leaf asks for a small command-line tool that agents run, and names no skill. Ravel captures Grove's six sources from the candidate keg that task owner:candidate-keg built from the prepared commit, at share/ravel/skills/<id>. No source comes from a checkout, and no native copy exists. Expect a read of craft/cli-tool-design/SKILL.md from the design snapshot before the tool is written, and each resourceDigest equal to the keg's accepted digest.",
+  "purpose": "Observe implicit craft discovery with every source from a keg path (candidate-keg-k238). A Grove impl leaf asks for a small command-line tool that agents run, and names no skill. Ravel captures Grove's six sources from the candidate keg that task owner:candidate-keg built from the prepared commit, at its private source libexec/skill-sources/<id>. No source comes from a checkout, and no native copy exists. Expect a read of craft/cli-tool-design/SKILL.md from the design snapshot before the tool is written, and each resourceDigest equal to the keg's accepted digest.",
   "credits": [],
   "harness": "claude",
   "route": "directory-2.0",
@@ -10,12 +10,12 @@
   "effort": "medium",
   "kinds": ["impl"],
   "sources": [
-    { "id": "grove-core", "keg": "grove", "plugin": "share/ravel/skills/grove-core", "roots": ["skills"] },
-    { "id": "requirements", "keg": "grove", "plugin": "share/ravel/skills/requirements", "roots": ["skills"] },
-    { "id": "design", "keg": "grove", "plugin": "share/ravel/skills/design", "roots": ["skills", "craft"] },
-    { "id": "engineering", "keg": "grove", "plugin": "share/ravel/skills/engineering", "roots": ["skills", "craft"] },
-    { "id": "research", "keg": "grove", "plugin": "share/ravel/skills/research", "roots": ["skills"] },
-    { "id": "writing", "keg": "grove", "plugin": "share/ravel/skills/writing", "roots": ["skills", "craft"] }
+    { "id": "grove-core", "keg": "grove", "plugin": "libexec/skill-sources/grove-core", "roots": ["skills"] },
+    { "id": "requirements", "keg": "grove", "plugin": "libexec/skill-sources/requirements", "roots": ["skills"] },
+    { "id": "design", "keg": "grove", "plugin": "libexec/skill-sources/design", "roots": ["skills", "craft"] },
+    { "id": "engineering", "keg": "grove", "plugin": "libexec/skill-sources/engineering", "roots": ["skills", "craft"] },
+    { "id": "research", "keg": "grove", "plugin": "libexec/skill-sources/research", "roots": ["skills"] },
+    { "id": "writing", "keg": "grove", "plugin": "libexec/skill-sources/writing", "roots": ["skills", "craft"] }
   ],
   "mandatory": [
     { "source": "grove-core", "path": "skills/grove/SKILL.md" }

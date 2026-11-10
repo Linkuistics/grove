@@ -17,16 +17,37 @@ formula.define_singleton_method(:prefix) { |*_args| prefix_path }
 def entries(pattern, base)
   Dir.glob(pattern, File::FNM_DOTMATCH, base: base).reject { |entry| File.basename(entry) == "." }.sort
 end
-# The keg root also holds the marketplace files of the hook adapters.
-expected = ([".agents", ".claude-plugin", "bin", "libexec", "share"] +
-            entries("{.agents,.claude-plugin,bin,libexec,share}/**/*", source)).sort
-raise "the archive holds no skill sources" unless expected.include?("share/ravel/skills/grove-core")
+# The keg root also holds the marketplace files of the hook adapters. The
+# archive holds each skill source as a directory in share/ravel/skills. The keg
+# holds it in libexec/skill-sources, and share/ravel/skills/<id> is a symlink,
+# which Dir.glob does not descend. "The keg layout" of
+# docs/specs/codex-skill-provisioning.md.
+archived = entries("{.agents,.claude-plugin,bin,libexec,share}/**/*", source)
+sources = archived.filter_map { |entry| entry[%r{\Ashare/ravel/skills/([^/]+)\z}, 1] }
+raise "the archive holds no skill sources" unless sources.include?("grove-core")
+raise "the archive's sources #{sources} differ from the formula's" unless sources == Grove::SKILL_SOURCES
 %w[.claude-plugin/marketplace.json .agents/plugins/marketplace.json].each do |file|
-  raise "the archive holds no #{file}" unless expected.include?(file)
+  raise "the archive holds no #{file}" unless archived.include?(file)
 end
+expected = ([".agents", ".claude-plugin", "bin", "libexec", "share", "libexec/skill-sources"] +
+            archived.map { |entry| entry.sub(%r{\Ashare/ravel/skills/(?=[^/])}, "libexec/skill-sources/") } +
+            sources.map { |id| "share/ravel/skills/#{id}" }).sort
 Dir.chdir(source) { formula.install }
 actual = entries("**/*", prefix_path)
 raise "formula installation differs from archive: #{(actual - expected) + (expected - actual)}" unless actual == expected
+# Each public alias is a relative directory symlink to its private source in
+# the same keg. Each private source is a real directory.
+keg = prefix_path.realpath
+sources.each do |id|
+  alias_path = keg/"share/ravel/skills"/id
+  payload = keg/"libexec/skill-sources"/id
+  raise "share/ravel/skills/#{id} is not a symlink" unless alias_path.symlink?
+  target = alias_path.readlink
+  raise "share/ravel/skills/#{id} names the absolute #{target}" if target.absolute?
+  raise "share/ravel/skills/#{id} names #{alias_path.realpath}, not #{payload}" unless alias_path.realpath == payload
+  raise "libexec/skill-sources/#{id} is not a real directory" if payload.symlink? || !payload.directory?
+end
+puts "release-formula: each share/ravel/skills alias is a relative symlink to its libexec/skill-sources source"
 # The caveats show both configuration formats, the default skill directory and
 # the explicit ravel@2 prefix, and each sample they copy is installed.
 # https://docs.brew.sh/rubydoc/Formula.html#caveats-instance_method
@@ -35,6 +56,8 @@ caveats = formula.caveats.to_s
   "the policy.ts sample" => "ravel-policy/sample/policy.ts ~/.config/ravel/policy.ts",
   "the config.rhai sample" => "ravel-policy/sample/config.rhai ~/.config/ravel/config.rhai",
   "the default skill directory" => "skill directory, $(brew --prefix)/share/ravel/skills.",
+  "the private sources" => "Each source is a private copy in #{formula.libexec}/skill-sources.",
+  "the public aliases" => "A directory symlink in share/ravel/skills is its public alias.",
   "the settings without sources" => "names no\n\"sources\", also when that file is absent",
   "the ravel@2 prefix" => 'PATH="$(brew --prefix ravel@2)/bin:$PATH" grove',
   # The four commands of "Hook adapters" in docs/specs/codex-skill-provisioning.md.

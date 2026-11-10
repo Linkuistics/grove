@@ -164,8 +164,46 @@ formula_bins="$(sed -n 's/^ *bin\.install //p' "$template" | tr -d '"' | tr ',' 
   fail "the formula's bin.install ($formula_bins) differs from the manifest's bin/ entries"
 grep -Fxq '    libexec.install "libexec/ravel-policy"' "$template" ||
   fail 'the formula does not install libexec/ravel-policy'
-grep -Fxq '    (share/"ravel").install "share/ravel/skills"' "$template" ||
-  fail 'the formula does not install share/ravel/skills'
+# template_projection TEMPLATE: the formula moves each archive source into
+# the private KEG_SKILL_SOURCES and puts its relative alias in ARCHIVE_SKILLS.
+# No line installs a real directory under share, so a later release keeps the
+# layout. It prints the first defect and fails. "The keg layout" of
+# docs/specs/codex-skill-provisioning.md.
+template_projection() {
+  local real
+  # An install call whose receiver names share moves a real directory there.
+  # install_symlink makes a link, and a path after the call is its argument.
+  real="$(grep -En '^[^#]*share[^#]*\.install([ (]|$)' "$1" || true)"
+  [[ -z "$real" ]] || {
+    echo "the formula installs a real directory under share: $real"
+    return 1
+  }
+  if ! grep -Fxq '    SKILL_SOURCES.each do |id|' "$1" ||
+    ! grep -Fxq '      (libexec/"skill-sources").install "share/ravel/skills/#{id}"' "$1"; then
+    echo "the formula does not move each source into $KEG_SKILL_SOURCES"
+    return 1
+  fi
+  grep -Fxq '      (share/"ravel/skills").install_symlink libexec/"skill-sources"/id' "$1" || {
+    echo "the formula does not put a directory symlink to each source in $ARCHIVE_SKILLS"
+    return 1
+  }
+}
+projection="$(template_projection "$template")" || fail "$projection"
+# Controls: the earlier layout, alone and beside the projection, is refused.
+# The earlier template moved share/ravel/skills into the keg whole.
+awk '!seen && /^    SKILL_SOURCES.each do/ { seen = 1; print "    (share/\"ravel\").install \"share/ravel/skills\""; skip = 1; next }
+  skip && /^    end$/ { skip = 0; next }
+  !skip' "$template" >"$scratch/earlier.rb.tmpl"
+awk '{ print } /^      \(share\/"ravel\/skills"\)\.install_symlink / {
+  print "      (share/\"ravel/skills\").install \"share/ravel/skills/#{id}\"" }' "$template" >"$scratch/beside.rb.tmpl"
+for control in earlier beside; do
+  ! cmp -s "$template" "$scratch/$control.rb.tmpl" || fail "the $control control did not change the template"
+  if projection="$(template_projection "$scratch/$control.rb.tmpl")"; then
+    fail "the projection check accepts a template that installs real sources under share ($control)"
+  fi
+  [[ "$projection" == "the formula installs a real directory under share: "* ]] ||
+    fail "the projection check refused the $control control for another reason: $projection"
+done
 grep -Fxq '  depends_on "linkuistics/taps/ravel"' "$template" ||
   fail 'the formula does not depend on independent Ravel'
 # The dependency stays unversioned through promotion; ravel@2 is an opt-in prefix.
@@ -180,7 +218,7 @@ fi
 
 # The marketplace files of the hook adapters: the manifest lists exactly the
 # files of assets/keg-root, and each file names the hooks plugin of the
-# writing source in the keg. "Hook adapters" of
+# private writing source in the keg, not its public alias. "Hook adapters" of
 # docs/specs/codex-skill-provisioning.md.
 (cd "$repo_root/assets/keg-root" && find . ! -type d | sed 's|^\./||' | LC_ALL=C sort) >"$scratch/keg-root-source"
 grep -v -e '^bin/' -e '^libexec/' -e '^share/' -e '^LICENSE$' -e '^README.md$' <<<"$paths" |
@@ -189,10 +227,10 @@ diff -u "$scratch/keg-root-source" "$scratch/keg-root-manifest" >&2 ||
   fail "the archive manifest's keg-root files differ from assets/keg-root"
 pack_record_members "$repo_root/plugins/packs.json" | cut -f2 | grep -Fxq writing ||
   fail 'the pack record has no writing source for the hook adapters'
-python3 -I - "$repo_root/assets/keg-root" "$ARCHIVE_SKILLS" <<'PY' || fail 'a marketplace file of the hook adapters is wrong; see above'
+python3 -I - "$repo_root/assets/keg-root" "$KEG_SKILL_SOURCES" <<'PY' || fail 'a marketplace file of the hook adapters is wrong; see above'
 import json, sys
-root, skills = sys.argv[1:]
-plugin_root = f"./{skills}/writing/craft/technical-communication"
+root, private = sys.argv[1:]
+plugin_root = f"./{private}/writing/craft/technical-communication"
 expected = {
     ".claude-plugin/marketplace.json": ("technical-communication-hooks", lambda p: p["source"]),
     ".agents/plugins/marketplace.json": ("technical-communication", lambda p: p["source"]["path"]),

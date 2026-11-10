@@ -27,9 +27,11 @@ class Grove < Formula
 
   depends_on "linkuistics/taps/ravel"
 
-  # The skill sources in share/ravel/skills of the keg, in byte order. Homebrew
-  # links each one into $(brew --prefix)/share/ravel/skills, Ravel's default
-  # skill directory. docs/specs/codex-skill-provisioning.md, "The keg layout".
+  # The skill sources of the keg, in byte order. Each source is a private
+  # payload in libexec/skill-sources, and a relative directory symlink in
+  # share/ravel/skills is its public alias. Homebrew links each alias into
+  # $(brew --prefix)/share/ravel/skills, Ravel's default skill directory.
+  # docs/specs/codex-skill-provisioning.md, "The keg layout".
   SKILL_SOURCES = %w[design engineering grove-core requirements research writing].freeze
 
   def install
@@ -41,20 +43,33 @@ class Grove < Formula
     # own front, private worker, SDK and notices in its independently sized keg.
     bin.install "bin/grove", "bin/grove-llm"
     libexec.install "libexec/ravel-policy"
-    # Homebrew's cleaner sets modes only under bin, sbin and lib, so each
-    # source keeps the modes of its copy.
+    # The archive holds each source as a directory in share/ravel/skills. Each
+    # source moves into libexec/skill-sources, and a relative directory
+    # symlink in share/ravel/skills names it. Keg#link_dir handles that
+    # symlink as a file, so `brew link` and conflict repair never descend into
+    # a source and link its files one by one. install_symlink makes the link
+    # relative to the real share/ravel/skills, so it names the same keg.
+    # https://github.com/Homebrew/brew/blob/3ccfa1d07143/Library/Homebrew/keg.rb
+    # https://github.com/Homebrew/brew/blob/7.0.12/Library/Homebrew/extend/pathname.rb
+    # Homebrew's cleaner sets modes only under bin, sbin and lib, and its prune
+    # step skips libexec, so each source keeps the modes of its copy.
     # https://github.com/Homebrew/brew/blob/7.0.12/Library/Homebrew/cleaner.rb
-    (share/"ravel").install "share/ravel/skills"
+    SKILL_SOURCES.each do |id|
+      (libexec/"skill-sources").install "share/ravel/skills/#{id}"
+      (share/"ravel/skills").install_symlink libexec/"skill-sources"/id
+    end
     # The marketplace files of the hook adapters stay at the keg root, which
-    # Homebrew links nowhere. Each names the hooks plugin inside the writing
-    # source by a path relative to that root.
+    # Homebrew links nowhere. Each names the hooks plugin inside the private
+    # writing source by a path relative to that root.
     prefix.install ".claude-plugin", ".agents"
   end
 
   def caveats
     <<~EOS
-      Skills: this keg holds Grove's skills, core and the five domain packs,
-      at share/ravel/skills. Homebrew links each one into Ravel's default
+      Skills: this keg holds Grove's skills, core and the five domain packs.
+      Each source is a private copy in #{libexec}/skill-sources.
+      A directory symlink in share/ravel/skills is its public alias.
+      Homebrew links each alias into Ravel's default
       skill directory, $(brew --prefix)/share/ravel/skills. Ravel 2.0.0 and
       later read that directory when ~/.config/ravel/settings.json names no
       "sources", also when that file is absent. Ravel then delivers the
@@ -62,7 +77,7 @@ class Grove < Formula
       skill setup, and no setting is necessary.
 
       Ravel 1.x delivers no skill. Run `ravel skills resolve` to see the
-      sources that a launch receives.
+      sources that a launch receives. Each originPath names the private copy.
 
       Grove leaves any native skill installation unchanged, including one that
       an earlier Grove wrote.
@@ -145,6 +160,16 @@ class Grove < Formula
        examples/review.rhai examples/static.rhai sample/config.rhai].each do |asset|
       assert_path_exists assets/asset
     end
+    # Each source is a private directory, and its public alias is a relative
+    # directory symlink into this keg. "The keg layout" of
+    # docs/specs/codex-skill-provisioning.md.
+    SKILL_SOURCES.each do |id|
+      payload = libexec/"skill-sources"/id
+      assert_predicate payload, :directory?
+      refute_predicate payload, :symlink?
+      assert_predicate share/"ravel/skills"/id, :symlink?
+      assert_equal "../../../libexec/skill-sources/#{id}", (share/"ravel/skills"/id).readlink.to_s
+    end
     # Homebrew runs this test inside its own sandbox.
     # https://raw.githubusercontent.com/Homebrew/brew/eb56e2b1f7/Library/Homebrew/dev-cmd/test.rb
     # Ravel confines nothing, so no nested sandbox meets it. Exercise the
@@ -211,9 +236,9 @@ class Grove < Formula
       next unless runtime == "2.0"
 
       # A private copy of the 2.0 build, with an installation record that
-      # names this keg's sources, reads them with no settings. Ravel finds the
-      # record beside its canonical executable, and canonicalises each source,
-      # so each originPath lies in this keg.
+      # names this keg's public aliases, reads them with no settings. Ravel
+      # finds the record beside its canonical executable, and canonicalises
+      # each source, so each originPath is the private copy in this keg.
       relocated = testpath/"relocated-#{index}"
       (relocated/"bin").mkpath
       (relocated/"share/ravel").mkpath
@@ -229,7 +254,7 @@ class Grove < Formula
       assert_equal "resolved", resolved["status"]
       assert_equal SKILL_SOURCES, resolved["sources"].map { |source| source["id"] }
       resolved["sources"].each do |source|
-        assert_equal (skills/source["id"]).realpath.to_s, source["originPath"]
+        assert_equal (libexec/"skill-sources"/source["id"]).realpath.to_s, source["originPath"]
         assert_match(/\A[0-9a-f]{64}\z/, source["resourceDigest"])
       end
     ensure

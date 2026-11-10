@@ -44,9 +44,10 @@ source directory and Ravel's `resourceDigest`. `--working-copy ID=DIR` takes
 that source from a jj working copy instead, and the record names its change.
 A source with `"keg": "grove"` comes from the candidate keg that `task
 owner:candidate-keg` built from the prepared commit, and `prepare --keg`
-names its directory. Its `plugin` is its directory in the keg,
-`share/ravel/skills/<id>`. The record names the keg, each path that Ravel
-captured and Ravel's `resourceDigest`. A capture from another path, or a
+names its directory. Its `plugin` is its private source in the keg,
+`libexec/skill-sources/<id>`, which Ravel names as the `originPath`. The
+record names the keg, each path that Ravel captured and Ravel's
+`resourceDigest`. A capture from another path, or a
 digest other than the keg's accepted digest, fails the run.
 A case with `moveAway` and `expectRefusal` moves a clone of one source away
 before the driver, and expects Ravel's refusal before any harness launch. An
@@ -329,10 +330,12 @@ def load_case(name: str, harness: str | None = None) -> tuple[dict[str, Any], Pa
 PLUGIN_ID = re.compile(r"^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+$")
 # A source with "keg": "grove" comes from the candidate keg that `prepare
 # --keg` names, which `task owner:candidate-keg` builds from the prepared
-# commit. Its directory in the keg is share/ravel/skills/<id>, as "The keg
-# layout" of docs/specs/codex-skill-provisioning.md states.
+# commit. Its directory in the keg is the private source
+# libexec/skill-sources/<id>, as "The keg layout" of
+# docs/specs/codex-skill-provisioning.md states. Ravel canonicalises a
+# source, so it names that path, not the public alias in share/ravel/skills.
 KEG_FORMULA = "grove"
-KEG_SKILLS = "share/ravel/skills"
+KEG_SOURCES = "libexec/skill-sources"
 
 
 def check_external(name: str, source: dict[str, Any]) -> None:
@@ -348,9 +351,9 @@ def check_external(name: str, source: dict[str, Any]) -> None:
         if external is not None or source["keg"] != KEG_FORMULA:
             raise TrialError(f"case {name}: the source '{source.get('id')}' names \"keg\": \"{KEG_FORMULA}\", "
                              "the candidate keg of the prepared commit, and no external object")
-        if source.get("plugin") != f"{KEG_SKILLS}/{source.get('id')}":
+        if source.get("plugin") != f"{KEG_SOURCES}/{source.get('id')}":
             raise TrialError(f"case {name}: the keg source '{source.get('id')}' has the plugin "
-                             f"{KEG_SKILLS}/{source.get('id')}, its directory in the keg")
+                             f"{KEG_SOURCES}/{source.get('id')}, its directory in the keg")
         return
     if external is None:
         return
@@ -2471,8 +2474,8 @@ def candidate_keg(candidate: Path, commit: str) -> dict[str, Any]:
         raise TrialError(f"the candidate keg in {candidate} holds Grove commit {record.get('commit')}, "
                          f"not the prepared commit {commit}; build the keg of the prepared commit")
     keg = Path(record["keg"])
-    if not (keg / KEG_SKILLS).is_dir():
-        raise TrialError(f"the candidate keg {keg} holds no {KEG_SKILLS}")
+    if not (keg / KEG_SOURCES).is_dir():
+        raise TrialError(f"the candidate keg {keg} holds no {KEG_SOURCES}")
     return {"candidate": str(file.parent), "recordSha256": sha256_file(file), "commit": commit,
             "keg": str(keg), "skillDirectory": record["skillDirectory"],
             "digests": {source["id"]: source["resourceDigest"] for source in record["sources"]}}

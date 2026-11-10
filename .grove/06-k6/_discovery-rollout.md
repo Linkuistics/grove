@@ -238,6 +238,15 @@ owner-controlled skill changed.
 - owner-inventory-exceptions-k264 corrects the instrument of
   owner-inventory-reader-marker-k244 for D3 and D5. The staging trials, the
   switch comparison and the final inventory use the corrected instrument.
+- owner-staging-capabilities-k250 closed on 2026-11-10. Each capability
+  trial passed on each harness. owner-staging-acceptance-k252 reads the
+  sections "MCP servers in staging", "TestAnyware in staging", "The loaded
+  guardrail directory" and "The real quint-kb approval" of the evidence.
+- owner-quint-kb-approval-k289: the owner's real `~/.codex/config.toml`
+  approves each `quint-kb` tool through `default_tools_approval_mode`. The
+  file is outside the switch set. The maintained manual records the line,
+  and mise tracks the file. The staging Codex entry already had the same
+  line from `staging_home.py mcp-entries`.
   Two inventories compare through `task owner:inventory:compare`.
 
 ### Program, plan and dry run

@@ -5735,8 +5735,9 @@ starts Codex with `--ask-for-approval never`. A Codex session that Ravel
 starts for the owner therefore cannot call `quint-kb` today. The switch
 does not cause this, and it leaves the entry unchanged. The specification
 requires a repair or an explicit owner scope decision for a failed case.
-`owner-quint-kb-approval-k289` asks the owner whether the real entry gains
-the approval.
+`owner-quint-kb-approval-k289` asked the owner whether the real entry gains
+the approval. [The real quint-kb approval](#the-real-quint-kb-approval)
+records the decision and the real run.
 
 The `codebase-memory-mcp` entry of the real HOME needs no change. A session
 there has HOME set to the real HOME, so the server gets the daemon's folder.
@@ -6190,3 +6191,116 @@ the draft again and copies `inventory.py` into the prepared folder.
 - The rule does not read a `commands` key or a `commands/` folder.
   `commands` is outside the sole-skill rule of
   [Concurrent writers](specs/owner-skill-delivery.md#concurrent-writers).
+
+## The real quint-kb approval
+
+`owner-quint-kb-approval-k289` delivered this section on 2026-11-10.
+[The real HOME](#the-real-home-2) of
+[MCP servers in staging](#mcp-servers-in-staging) left one decision to the
+owner. A Codex session that Ravel started for the owner could not call
+`quint-kb`.
+
+### Decision
+
+The owner chose the server-wide approval from three options. The other
+options were an approval of each named tool and an accepted gap. The owner
+also chose to record the entry in the maintained manual. The switch set does
+not grow.
+
+The server's source was the evidence for the choice. The Quint clone at
+`cc75369f741a` gives `quint-kb` 16 tools. Each tool reads a local
+documentation index. No tool source writes a file or starts a process. A
+tool that a later Quint version adds gets the same approval.
+
+### The change
+
+| Subject | Value |
+| --- | --- |
+| Line added to `[mcp_servers.quint-kb]` | `default_tools_approval_mode = "approve"` |
+| `~/.codex/config.toml` before | `c6b3982d7eb6a7b5f5d80c5f9612e53f0b80ef80657d7ae3e21a4d369755b61d` |
+| `~/.codex/config.toml` after | `a57ddd3b733738cc1ce8bf2a2a18c3d567cbdbcb15239a879df08e44f7b178b2` |
+
+A `diff` of the copy before the change and the file after it showed only
+that line. Mise tracks the file in place, and its watcher records each
+edit. The owner publishes that history with `mise dot sync`.
+
+The switch plan draft names no `config.toml`, so no digest in it goes
+stale. A search of `docs/` and `scripts/` found no earlier digest of the
+file. The same search found the known digest of `staging_home.py` in this
+document.
+
+### The real runs
+
+Each run used `ravel start-session` of the installed Ravel 1.1.0 with the
+owner's `policy.ts`. Each ran in the main checkout, which Codex trusts, with
+the prompt below. Each ran under `script`, because the interactive harness
+needs a terminal. The launcher removed the variables of the enclosing
+session.
+
+```text
+This is a one-step check of the quint-kb MCP server. Do not read, create or edit any file.
+
+1. Call the MCP tool quint_list_docs of the quint-kb server once. Use the MCP tool, not a shell command.
+2. If the call returned a result with no error, run the shell command: ravel end-session quint-kb-ok
+3. If the call returned an error, run the shell command: ravel end-session quint-kb-failed
+
+Do nothing else.
+```
+
+| Run | Kind | Harness | Result |
+| --- | --- | --- | --- |
+| `real-home-quint-kb-claude` | `impl` | Claude Code 2.1.322, `claude-opus-5-5` at high effort | `quint-kb-ok`. This run measured no Codex session. |
+| `real-home-quint-kb-codex-1` | `review-impl` | Codex 0.167.0 | No result. Codex exited 0 before its first turn. |
+| `real-home-quint-kb-codex-2` | `review-impl` | Codex 0.167.0, `gpt-6.1-sol` at high effort | `quint-kb-ok`, exit 0 |
+
+The live `policy.ts` routes `impl` to Claude Code. Its `lead` selects
+`opus`, and its `review` selects `sol`. The installed `config.rhai` of
+Ravel 2.0 selects `sol` for `lead`, as
+[The staging HOME](#the-staging-home) states. After the promotion, the lead
+kinds also start Codex, and they need the same approval.
+
+In the first Codex run, `script` read the end of `/dev/null` and sent `^D`
+to the terminal. Codex then exited without a turn. In the second run, a
+`sleep` pipe kept the input open.
+
+The Codex record of the second run is
+`rollout-2026-11-10T20-32-37-01a1c4cd-64bd-70b3-8a7c-df7ed3875a28.jsonl`.
+Its turn context gives the approval policy `never`, the sandbox
+`danger-full-access` and the model `gpt-6.1-sol`. Its one `McpToolCall`
+names the server `quint-kb` and the tool `quint_list_docs`. The status is
+`completed`, `isError` is false, and the result lists 14 documents. The
+agent then ran `ravel end-session quint-kb-ok`, which exited 0. No other
+tool ran.
+
+The Claude Code run also made only the MCP call and the ending command.
+
+The digests of `config.toml` and `policy.ts` were the same before and after
+the second run. The `policy.ts` digest was
+`30a0e5fca7c1446999bd19289566fc078053a503c75f03ca7056e641f836f131`.
+
+### Controls
+
+`quint-mcp-codex-1` in [The runs](#the-runs) is the control. It ran the
+same entry with the same Codex version and approval policy, and its record
+showed each denial. The real HOME had no run before the change, because the
+staging run had already shown the failure.
+
+### Records
+
+The run folders are in `~/.local/state/owner-staging/trials`, named as the
+runs above. `real-home-quint-kb-codex-2` also holds `config.toml.before`
+and a copy of the Codex record.
+
+| Subject | SHA-256 |
+| --- | --- |
+| The prompt | `de7b2c2c1f5f05706fd357a088fe6cbb7521181970558c69a82e62d1ca0363a5` |
+| The Codex record | `43f49a08b1d7eacb196ad00ee55fbdefd640065290c4d8bf063f82a8dde9f2a5` |
+
+### Limits
+
+- One run on Codex. It shows that the path worked once.
+- In each run, Ravel 1.1.0 reported two failed stop attempts of the process
+  group, each "signal 9: Operation not permitted". No harness process stayed
+  after any run.
+- Ravel 2.0 and the switch can change how Codex starts. A staging or
+  cutover run after the promotion would show that change.

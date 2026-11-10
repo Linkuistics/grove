@@ -40,3 +40,22 @@ that decision. Codex sessions that Ravel starts for the owner cannot call
 The real `config.toml` is outside the switch set. After an approval, ask
 the owner where the entry is recorded: in the switch plan, in the manual or
 nowhere. A record lets a rebuilt machine keep the entry.
+
+## Decisions (running log)
+
+- 2026-11-10: The owner chose the server-wide approval. The real
+  `quint-kb` entry gains `default_tools_approval_mode = "approve"`. The
+  evidence was that each of the 16 tools only reads a local documentation
+  index: no tool source writes a file or starts a process.
+- 2026-11-10: The owner chose to record the entry in the manual, as a
+  manual step. The switch set does not grow to hold `config.toml`.
+- 2026-11-10: The real `quint-kb` entry gained the line. The digest of
+  `~/.codex/config.toml` went from `c6b3982d…` to `a57ddd3b…`, and the
+  diff held only that line.
+- 2026-11-10: A real Codex session through `ravel start-session --kind
+  review-impl` called `quint_list_docs` with no error. The live
+  `policy.ts` routes `impl` to Claude Code, so `impl` could not measure
+  Codex. "The real quint-kb approval" of the evidence records the runs.
+- 2026-11-10: The maintained manual, the Obsidian `AI Dev Tooling` note,
+  gained a `quint-kb` row in "MCP servers" and a paragraph on the approval.
+  The native-residue row of the specification names the line too.

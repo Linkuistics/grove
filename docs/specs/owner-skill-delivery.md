@@ -376,7 +376,7 @@ output style is a harness style rather than guidance. It stays a native hook.
 | Explanatory output style, Context7, Playwright, commit-commands, feature-dev and Swift LSP | The same enabled plugins, which hold no skills |
 | codebase-memory MCP server, hooks, agent definitions and skill copies | Unchanged. Its own updater rewrites them. |
 | herdr and Orca hooks | Unchanged. Their applications own them. |
-| `quint-kb` MCP server | Unchanged. It runs from the Quint clone, which stays. |
+| `quint-kb` MCP server | Unchanged. It runs from the Quint clone, which stays. Its Codex entry sets `default_tools_approval_mode = "approve"`, because Ravel starts Codex with the approval policy `never`. The maintained manual records that line. |
 | TestAnyware command, application and configuration | Unchanged installations. The skill reaches them by ordinary command execution. |
 
 The repository moves and homebrew-skill-delivery-k215 supply three packaging

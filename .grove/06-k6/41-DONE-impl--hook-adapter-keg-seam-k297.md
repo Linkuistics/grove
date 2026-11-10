@@ -56,3 +56,30 @@ instrument rerunnable and name its rerun command in the evidence.
 If a harness refuses the private path, stop and report the refusal. The
 root outcome "Hooks and plugin capabilities remain usable where required"
 then needs a design decision, not a workaround.
+
+## Decisions (running log)
+
+- A new instrument, `docs/evaluations/hook-adapters/projected-keg.sh`,
+  measures the revised layout. The earlier `keg-registration.sh` and its
+  output stay unchanged, because the earlier evidence section cites them.
+- The Grove subject is the native archive `5f6093a6e6bb…` in
+  `target/archives`. The shared-directory seam measured that archive, and
+  its marketplace files name the private writing payload. The instrument
+  compares them with `assets/keg-root`.
+- The disposable `grove` formula takes the `SKILL_SOURCES` constant and the
+  install block of the template, because the projected install block reads
+  that constant.
+- The `personal` subject is the revised formula of the tap working copy,
+  installed verbatim by the private Homebrew. Its accepted `guardrail`
+  subject is the owner's keg `personal` 2026-11-06, read only. The staging
+  capability trials loaded `guardrail` from that keg.
+- The capability trial repeats the two turns of the earlier trial in a
+  signed-in scratch HOME. The no-op control runs first, from a scratch copy
+  of the revised keg whose hook script only exits 0. One verdict function
+  judges both sessions.
+- The first full run passed every reading, and its control failed as
+  required. Three readings of that instrument were defective: the owner
+  files kept the real home path, the slash-command check read the stream
+  instead of the session file, and each init event printed twice. The
+  corrected instrument ran again from an empty scratch directory. Only the
+  second run is evidence.

@@ -323,11 +323,10 @@ marketplace file.
 | Codex | `codex plugin marketplace add "$(brew --prefix)/opt/grove"`, then `codex plugin add technical-communication@writing-hooks`. Then run `codex` once and choose "Trust all and continue" at its hook review | After each installation or upgrade of Grove |
 | Pi | `ln -s "$(brew --prefix)/share/ravel/skills/writing/craft/technical-communication/harnesses/pi/technical-communication.ts" ~/.pi/agent/extensions/` | Once |
 
-The earlier [evidence](../homebrew-skill-delivery-evidence.md#the-hook-plugins-across-a-keg-change)
-used real source directories. It supports the registration lifecycle below.
-The revised layout still needs the [Hook adapters](#test-seams) acceptance
-on actual formula output. That acceptance covers the private marketplace
-paths and Pi's public alias through upgrade and cleanup.
+The [readings on the projected keg](../homebrew-skill-delivery-evidence.md#the-hook-adapters-on-the-projected-keg)
+support the registration lifecycle below on actual formula output. They
+cover the private marketplace paths and Pi's public alias through upgrade
+and cleanup.
 
 - Claude Code stores a directory marketplace by the path given. It runs the
   plugin in place through that path. A plugin registered by the `opt` path
@@ -856,7 +855,7 @@ builds and the results.
 | Conformance | Core, external-pack and aggregate checks use exact supplied artefacts. `check:packs` reads Grove's record and checks each pack alone and in the aggregate with core. Removed required resources/edges and duplicate owners fail deliberate controls. The [external pack contract](external-pack-contract.md#controls-that-must-fail) lists the controls. |
 | Installed distribution | The archive manifest, `task release:smoke` and `task release:formula:test` preserve the recorded commits, executable bits, links and source digests. Archive and installed paths follow [The keg layout](#the-keg-layout). Formula acceptance includes the shared-directory seam below, with actual formula output. `task tap:formula:test` applies the same source comparisons to each affected tap formula. Archives and formula tests retain separate packages, both caller-asset sets and runtimes, both configuration formats and no automatic native mutation. Fresh installs and upgrades cover tap states A to D of the coordinated release. Each state's Grove dependency resolves to an admitted Ravel major, and feature advertising follows publication. |
 | Shared default directory | [Shared default directory acceptance](#shared-default-directory-acceptance) runs actual Homebrew linking on formula output, including Ravel's shared ancestors. A private installation record names the shared prefix directory. Direct keg resolution cannot satisfy this seam. |
-| Hook adapters | Repeat the documented commands in isolated Claude Code, Codex and Pi homes against the revised formula output. Both marketplaces name the private writing payload. Claude Code runs its hooks in place through the registered `opt` path, with no native skill. Codex accepts the local source and copies the complete plugin into its cache. Pi reaches the extension through the public alias. After actual upgrade and cleanup, check Claude Code and Pi read the new bytes. Record the Codex registration failure, cached hook behaviour, registration repair and renewed interactive trust of changed bytes. Native-only plugins receive the payload and capability acceptance below. The earlier [readings](../homebrew-skill-delivery-evidence.md#the-hook-adapters-from-a-keg) establish the old layout only. |
+| Hook adapters | Repeat the documented commands in isolated Claude Code, Codex and Pi homes against the revised formula output. Both marketplaces name the private writing payload. Claude Code runs its hooks in place through the registered `opt` path, with no native skill. Codex accepts the local source and copies the complete plugin into its cache. Pi reaches the extension through the public alias. After actual upgrade and cleanup, check Claude Code and Pi read the new bytes. Record the Codex registration failure, cached hook behaviour, registration repair and renewed interactive trust of changed bytes. Native-only plugins receive the payload and capability acceptance below. The [readings on the projected keg](../homebrew-skill-delivery-evidence.md#the-hook-adapters-on-the-projected-keg) hold the result, and `task seam:hook-adapters` reruns them. The earlier [readings](../homebrew-skill-delivery-evidence.md#the-hook-adapters-from-a-keg) establish the old layout only. |
 | Retired listing | Before finish, an isolated Claude Code home adds the `linkuistics` marketplace from a Git remote at a commit that lists the packs, and installs `grove@linkuistics`. A refresh against a commit with the retired listing shows whether the plugin stays installed. The release notes state the result. The [evidence](../homebrew-skill-delivery-evidence.md#a-refresh-of-the-retired-listing) holds the reading. |
 | Actual harness behaviour | Claude Code and Codex each discover an applicable craft skill from a task that does not name it, and read it before the governed action. Ravel delivers every source from a keg path, and no native copy exists. |
 
@@ -866,7 +865,9 @@ Hook acceptance also compares complete native-only payloads with their
 accepted subjects. Repeat `guardrail` registration and its recorded capability
 trial from the revised personal keg. A successful no-op hook must fail the
 trial's refusal assertion. An unchanged skill source digest cannot replace
-that evidence for a native-only plugin.
+that evidence for a native-only plugin. The
+[readings on the projected keg](../homebrew-skill-delivery-evidence.md#the-guardrail-capability-trial)
+hold the payload comparison, the trial and its control.
 
 ### Shared default directory acceptance
 

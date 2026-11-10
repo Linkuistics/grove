@@ -3162,6 +3162,12 @@ real Claude Code sessions on 2026-11-05. Every reading passed at pack commit
 `ac98636608b0`. The pack needed no repair, so `personal-removal-k214` pins
 that commit.
 
+This trial read `guardrail` from a scratch marketplace of `git-subdir`
+sources, before any keg held it. It is evidence of that layout only. The
+section "The hook adapters on the projected keg" of
+[the Homebrew delivery evidence](homebrew-skill-delivery-evidence.md#the-hook-adapters-on-the-projected-keg)
+repeats the trial from the revised `personal` keg.
+
 #### Subjects of the guardrail plugin trial
 
 | Subject | Value |

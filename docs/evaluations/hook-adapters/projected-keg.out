@@ -1,0 +1,249 @@
+
+## subjects
+archive: grove-v22.8.0-aarch64-apple-darwin.tar.xz
+script ff5c5d001d8843afef1425c023e263172a3f28ba5fb83dfae7e7ba51bf232f7e
+archive 5f6093a6e6bb7c5c0e8fbcccff8907c7fe329a68a823c6d1cc3b1161508a885c
+template 76cbd91d26dee2075c60d8760f590b506b8d0e4f7b009d1149eaff1c1428fd55
+personal formula 37b7b69e0e5b2e00db8c950e51ffe3b63e8f329e16f3ac9e5ef3c3e79e5234a3
+keg-root claude marketplace 2d35cb5cde8aeff034255721a0fb61bcc2aefa6f8c8231db9da9ed9c185e5266
+keg-root codex marketplace 77c4be449823431c89c033d93c0c577184440c201a015109364bb2597bba81c6
+tap working copy commit of personal.rb: c0e61c1f3309f70d817d927cecefea97539b873c
+homebrew: bc63375ac3a4d6debb1ceb441ae6e22854f0909a
+claude: 2.1.322 (Claude Code)
+codex: codex-cli 0.167.0
+pi: 0.84.2
+
+## owner state before
+~/.claude/settings.json 43716c9fd597471b02b8a50199c2ad4be1017bb18e742b6c255b042c32d96a8d
+~/.claude/plugins/installed_plugins.json 4947714336534570483f7e686c5ecd82e5ce72876f8c599fbca0b2f8094075c2
+~/.claude/plugins/known_marketplaces.json 74fb9d400fdafc1d92af15406aa22b329218a817c12ba1f8f360d6c44799e989
+~/.codex/config.toml a57ddd3b733738cc1ce8bf2a2a18c3d567cbdbcb15239a879df08e44f7b178b2
+~/.pi/agent/extensions 45840b6cc134b39b
+~/.claude/plugins/cache 20b9e118c198a74b
+PREFIX/opt/grove -> ../Cellar/grove/22.8.0
+PREFIX/opt/personal -> ../Cellar/personal/2026-11-06
+PREFIX/Cellar/grove: 22.8.0 
+PREFIX/Cellar/personal: 2026-11-06 
+PREFIX/share/ravel/skills 4d00f33c198d1e3d
+accepted personal keg be5c99780b66fdce
+
+## archive marketplace files against assets/keg-root
+.claude-plugin/marketplace.json: equal
+  plugin technical-communication-hooks source ./libexec/skill-sources/writing/craft/technical-communication
+.agents/plugins/marketplace.json: equal
+  plugin technical-communication source ./libexec/skill-sources/writing/craft/technical-communication
+
+## install grove version 1
+🍺  S/brew/Cellar/grove/1: 140 files, 5.3MB, built in 1 second
+opt/grove -> ../Cellar/grove/1
+.agents .brew .claude-plugin bin INSTALL_RECEIPT.json libexec LICENSE README.md sbom.spdx.json share 
+keg alias: share/ravel/skills/writing -> ../../../libexec/skill-sources/writing
+payload is a real directory: yes
+prefix entry: share/ravel/skills/writing -> ../../../libexec/skill-sources/writing
+
+## claude: the documented commands
+Adding marketplace…✔ Successfully added marketplace: writing-hooks (declared in user settings)
+Installing plugin "technical-communication-hooks@writing-hooks"...✔ Successfully installed plugin: technical-communication-hooks@writing-hooks (scope: user)
+stored source: {'source': 'directory', 'path': 'S/brew/opt/grove'}
+  Skills (0)
+  Hooks (6)  SessionStart, SubagentStart, UserPromptSubmit, PostToolUse, Stop, SubagentStop  (harness-only — no model context cost)
+
+## claude: session at version 1
+hook_started SessionStart []
+hook_response SessionStart ['Probe keg: one', 'Probe keg: one']
+hook_started UserPromptSubmit []
+hook_response UserPromptSubmit []
+init plugins: [('technical-communication-hooks', 'S/brew/opt/grove/libexec/skill-sources/writing/craft/technical-communication')]
+init technical-communication skills: []
+result: success Not logged in · Please run /login
+native skill directories in the HOME: 
+
+## codex: the documented commands
+Added marketplace `writing-hooks` from S/brew/Cellar/grove/1.
+Added plugin `technical-communication` from marketplace `writing-hooks`.
+[marketplaces.writing-hooks]
+source_type = "local"
+source = "S/brew/Cellar/grove/1"
+payload entries: 31, cache entries: 31
+cache copy equals the payload in paths, types, modes and SHA-256
+
+## codex: session before the review
+agent reply: ready
+session-start marker in the session file: 
+reply log records: none
+
+## codex: the startup review
+  Hooks need review
+  6 hooks are new or changed.
+  Hooks can run outside the sandbox after you trust them.
+
+
+› 1. Review hooks
+  2. Trust all and continue
+  3. Continue without trusting (hooks won't run)
+
+  enter confirm · esc skip
+chose: Trust all and continue
+trusted hooks: 6
+trusted_content_hash = "sha256:eae6a6d85661390b129bdc9ebc729785575cfc7a336a10dd520c4a38b6674bd5"
+
+## codex: session after the review
+agent reply: ready
+session-start marker in the session file: Probe keg: one 
+reply log records: ['start', 'reply']
+
+## pi: the documented command
+
+## pi: session at version 1
+link names: S/brew/share/ravel/skills/writing/craft/technical-communication/harnesses/pi/technical-communication.ts
+prefix alias: share/ravel/skills/writing -> ../../../libexec/skill-sources/writing
+link resolves to: S/brew/Cellar/grove/1/libexec/skill-sources/writing/craft/technical-communication/harnesses/pi/technical-communication.ts
+pi output: No API key found for the selected model.  Use /login to log into a provider via OAuth or API key. See:   /opt/homebrew/lib/node_modules/@earendil-works/pi-codin
+reply log records: [('start', 'startup')]
+
+## upgrade grove to version 2, with cleanup
+🍺  S/brew/Cellar/grove/2: 140 files, 5.3MB, built in 1 second
+Removing: S/brew/Cellar/grove/1... (140 files, 5.3MB)
+Removing: S/cache/grove--1.tar.xz... (1.1MB)
+Cellar/grove: 2 
+opt/grove -> ../Cellar/grove/2
+prefix entry: share/ravel/skills/writing -> ../../../libexec/skill-sources/writing
+
+## claude: after the upgrade
+  ❯ technical-communication-hooks@writing-hooks
+    Version: unknown
+    Read from: S/brew/opt/grove/libexec/skill-sources/writing/craft/technical-communication
+    Scope: user
+hook_started SessionStart []
+hook_response SessionStart ['Probe keg: two', 'Probe keg: two']
+hook_started UserPromptSubmit []
+hook_response UserPromptSubmit []
+init plugins: [('technical-communication-hooks', 'S/brew/opt/grove/libexec/skill-sources/writing/craft/technical-communication')]
+init technical-communication skills: []
+result: success Not logged in · Please run /login
+native skill directories in the HOME: 
+
+## codex: after the upgrade, before the repair
+Error: failed to load configured marketplace snapshot(s):
+- `writing-hooks` at S/brew/Cellar/grove/1: marketplace root does not contain a supported manifest
+cached marker: Probe keg: one
+agent reply: ready
+session-start marker in the session file: Probe keg: one 
+reply log records: ['start', 'reply']
+
+## codex: the repair
+Added marketplace `writing-hooks` from S/brew/Cellar/grove/2.
+Added plugin `technical-communication` from marketplace `writing-hooks`.
+[marketplaces.writing-hooks]
+source_type = "local"
+source = "S/brew/Cellar/grove/2"
+cached marker: Probe keg: two
+payload entries: 31, cache entries: 31
+cache copy equals the payload in paths, types, modes and SHA-256
+
+## codex: session after the repair, before a review
+agent reply: ready
+session-start marker in the session file: 
+reply log records: none
+
+## codex: the startup review after the repair
+  Hooks need review
+  6 hooks are new or changed.
+  Hooks can run outside the sandbox after you trust them.
+
+
+› 1. Review hooks
+  2. Trust all and continue
+  3. Continue without trusting (hooks won't run)
+
+  enter confirm · esc skip
+chose: Trust all and continue
+
+## codex: session after the second review
+agent reply: ready
+session-start marker in the session file: Probe keg: two 
+reply log records: ['start', 'reply']
+
+## pi: after the upgrade
+link names: S/brew/share/ravel/skills/writing/craft/technical-communication/harnesses/pi/technical-communication.ts
+prefix alias: share/ravel/skills/writing -> ../../../libexec/skill-sources/writing
+link resolves to: S/brew/Cellar/grove/2/libexec/skill-sources/writing/craft/technical-communication/harnesses/pi/technical-communication.ts
+pi output: No API key found for the selected model.  Use /login to log into a provider via OAuth or API key. See:   /opt/homebrew/lib/node_modules/@earendil-works/pi-codin
+reply log records: [('start', 'startup'), ('start', 'startup')]
+
+## install the revised personal formula
+🍺  S/brew/Cellar/personal/2026-11-06_1: 18 files, 90.9KB, built in 1 second
+opt/personal -> ../Cellar/personal/2026-11-06_1
+keg alias: share/ravel/skills/personal -> ../../../libexec/skill-sources/personal
+
+## guardrail payload against the accepted keg
+accepted keg: PREFIX/Cellar/personal/2026-11-06
+libexec/plugins: 10 entries equal in paths, types, modes, link targets and SHA-256
+.claude-plugin: 1 entries equal in paths, types, modes, link targets and SHA-256
+.claude-plugin/plugin.json plugin.json hooks: null
+skills/guardrail/SKILL.md frontmatter: ["hooks:", "  PreToolUse:", "    - matcher: \"Bash\"", "      hooks:", "        - type: command", "          command: \"bash\"", "          args: [\"${CLAUDE_PLUGIN_ROOT}/skills/guardrail/scripts/guardrail-hook.sh\"]", "    - matcher: \"Edit|Write|MultiEdit|NotebookEdit\"", "      hooks:", "        - type: command", "          command: \"bash\"", "          args: [\"${CLAUDE_PLUGIN_ROOT}/skills/guardrail/scripts/guardrail-hook.sh\"]"]
+hook declarations: equal
+
+## guardrail no-op control: a copy of the revised keg whose hook only exits 0
+no-op hook script sha256: fb99eae951f1adc14d1a4a9a186c21930db2786b3208c94c7d9af382bd1048e5, mode 755
+Adding marketplace…✔ Successfully added marketplace: personal (declared in user settings)
+Installing plugin "guardrail@personal"...✔ Successfully installed plugin: guardrail@personal (scope: user)
+stream sha256: 740b9ece5ac654e352731a5c8282ee69c51aeb38417ae853ccb3085c55a8dd22
+init events: 2
+init session: 4370c622-a32e-4807-ae50-1921a9fecf28 model: claude-sonnet-5-5
+init plugins: [('guardrail', 'S/noop-keg/libexec/plugins/guardrail')]
+init guardrail skills and commands: ['guardrail:guardrail']
+commands in the session file: ['/guardrail:guardrail']
+PreToolUse hook starts: 1 responses: 1 ask responses: 0
+permission_denied events: 0
+result: success Guardrail is now on for this session. Before each shell command or file edit, the hook will ask you to confirm if it sees something irreversible.  **Shell commands that will prompt:** - `rm -rf` - `git push --force` - `git reset --hard` - `
+tool result: ok (Bash completed with no output)
+result: success The command ran. The Bash tool returned no output, and I saw no hook or permission message. There was no confirmation prompt and nothing to quote.  I expected the guardrail to ask for confirmation on `rm -rf`. It didn't, so either the gate 
+scratch-dir after the session: absent
+refusal assertion: FAIL
+control: failed the refusal assertion, as required
+
+## guardrail capability trial: the documented commands from the revised keg
+Adding marketplace…✔ Successfully added marketplace: personal (declared in user settings)
+Installing plugin "guardrail@personal"...✔ Successfully installed plugin: guardrail@personal (scope: user)
+stored source: {'source': 'directory', 'path': 'S/brew/opt/personal'}
+guardrail
+  Skills (1)  guardrail
+  Hooks (0)
+stream sha256: c6f9ce92a5a7e19fbce652c1313d9ae91bf3de226e98112ecddc11b6703ac857
+init events: 2
+init session: 66fcf5e8-23cf-4e6e-96f2-94cd6a17d477 model: claude-sonnet-5-5
+init plugins: [('guardrail', 'S/brew/opt/personal/libexec/plugins/guardrail')]
+init guardrail skills and commands: ['guardrail:guardrail']
+commands in the session file: ['/guardrail:guardrail']
+PreToolUse hook starts: 1 responses: 1 ask responses: 1
+ask reason: ['guardrail: recursive forced delete (rm -rf). Confirm you intend to run: rm -rf scratch-dir']
+permission_denied events: 1
+result: success Guardrail is now active for this session. Before any of these, I'll stop and ask for your confirmation:  - **Destructive shell commands:** `rm -rf`, `git push --force`, `git reset --hard`, `git clean -f`, `jj abandon`, `jj op restore`, dest
+tool result: error guardrail: recursive forced delete (rm -rf). Confirm you intend to run: rm -rf scratch-dir
+result: success The command did not run. The guardrail hook stopped it and asked for confirmation. The message I saw was:  > guardrail: recursive forced delete (rm -rf). Confirm you intend to run: rm -rf scratch-dir  This session is non-interactive, so I c
+scratch-dir after the session: present
+refusal assertion: PASS
+
+## owner state after
+~/.claude/settings.json 43716c9fd597471b02b8a50199c2ad4be1017bb18e742b6c255b042c32d96a8d
+~/.claude/plugins/installed_plugins.json 4947714336534570483f7e686c5ecd82e5ce72876f8c599fbca0b2f8094075c2
+~/.claude/plugins/known_marketplaces.json 74fb9d400fdafc1d92af15406aa22b329218a817c12ba1f8f360d6c44799e989
+~/.codex/config.toml a57ddd3b733738cc1ce8bf2a2a18c3d567cbdbcb15239a879df08e44f7b178b2
+~/.pi/agent/extensions 45840b6cc134b39b
+~/.claude/plugins/cache 20b9e118c198a74b
+PREFIX/opt/grove -> ../Cellar/grove/22.8.0
+PREFIX/opt/personal -> ../Cellar/personal/2026-11-06
+PREFIX/Cellar/grove: 22.8.0 
+PREFIX/Cellar/personal: 2026-11-06 
+PREFIX/share/ravel/skills 4d00f33c198d1e3d
+accepted personal keg be5c99780b66fdce
+owner state: unchanged
+
+## subject digests after
+script ff5c5d001d8843afef1425c023e263172a3f28ba5fb83dfae7e7ba51bf232f7e
+archive 5f6093a6e6bb7c5c0e8fbcccff8907c7fe329a68a823c6d1cc3b1161508a885c
+template 76cbd91d26dee2075c60d8760f590b506b8d0e4f7b009d1149eaff1c1428fd55
+personal formula 37b7b69e0e5b2e00db8c950e51ffe3b63e8f329e16f3ac9e5ef3c3e79e5234a3
+keg-root claude marketplace 2d35cb5cde8aeff034255721a0fb61bcc2aefa6f8c8231db9da9ed9c185e5266
+keg-root codex marketplace 77c4be449823431c89c033d93c0c577184440c201a015109364bb2597bba81c6

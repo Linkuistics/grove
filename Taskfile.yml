@@ -740,6 +740,22 @@ tasks:
     cmds:
       - bash scripts/shared-directory-seam.sh {{.CLI_ARGS}}
 
+  # The hook-adapter seam on revised formula output, with the guardrail
+  # capability trial and its no-op control. ARCHIVE is a native Grove archive
+  # of the working copy, and TAP the tap working copy whose personal.rb the
+  # run installs. SCRATCH must be an empty directory. The run spends real
+  # Claude Code and Codex sessions, so scripts/check.sh does not run it.
+  # "The hook adapters on the projected keg" of
+  # docs/homebrew-skill-delivery-evidence.md records its readings. For example:
+  #   task seam:hook-adapters ARCHIVE=target/archives/grove-v<ver>-aarch64-apple-darwin.tar.xz \
+  #     TAP=~/Development/Delivery/homebrew-taps SCRATCH=$(mktemp -d)
+  seam:hook-adapters:
+    desc: Register the hook adapters of revised kegs in isolated Claude Code, Codex and Pi homes across an actual upgrade, and run the guardrail capability trial with its no-op control (spends real harness sessions; not in check)
+    requires:
+      vars: [ARCHIVE, TAP, SCRATCH]
+    cmds:
+      - bash docs/evaluations/hook-adapters/projected-keg.sh "{{.SCRATCH}}" "{{.ARCHIVE}}" "{{.TAP}}"
+
   # One skill formula of the Linkuistics tap, such as `personal`, in a private
   # Homebrew-shaped prefix. FORMULA is its file in a tap working copy. REPO and
   # SHA name the commit that it installs. SOURCES lists each keg source as

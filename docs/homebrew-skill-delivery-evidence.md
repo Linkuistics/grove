@@ -64,6 +64,10 @@ The Ravel specification states:
 
 ## The hook plugins across a keg change
 
+These readings establish the earlier keg layout only, with real source
+directories. [The hook adapters on the projected keg](#the-hook-adapters-on-the-projected-keg)
+holds the readings of the current layout.
+
 The script builds a keg-shaped tree in a scratch directory:
 `Cellar/grove/1/libexec`, with the writing source at `skills/writing` and the
 two marketplace files at `.claude-plugin/marketplace.json` and
@@ -97,7 +101,11 @@ on 2026-11-06.
 [`evaluations/hook-adapters/keg-registration.sh`](evaluations/hook-adapters/keg-registration.sh)
 ran it, and
 [`keg-registration.out`](evaluations/hook-adapters/keg-registration.out)
-holds its output, with the scratch directory shown as `S`.
+holds its output, with the scratch directory shown as `S`. These readings
+establish the earlier keg layout only, in which the writing source was a real
+directory under `share`.
+[The hook adapters on the projected keg](#the-hook-adapters-on-the-projected-keg)
+holds the readings of the current layout.
 
 | Subject | Value |
 | --- | --- |
@@ -1136,8 +1144,9 @@ revised keg's marketplace in an isolated Claude Code home and installed
 `guardrail@personal`. `claude plugin validate` passed with one warning:
 the `guardrail` manifest declares no version. The published keg has the
 same manifest. This equal payload does not replace the `guardrail`
-capability trial. `hook-adapter-keg-seam-k297` repeats that trial on the
-revised keg.
+capability trial. `hook-adapter-keg-seam-k297` repeated that trial on the
+revised keg, in
+[The guardrail capability trial](#the-guardrail-capability-trial).
 
 ### Controls
 
@@ -1239,3 +1248,141 @@ SHA-256 of each subject was the same before and after the run.
 The formula of the tap's `origin/main` ran against the new `projected`
 declaration. The layout check refused it, because
 `share/ravel/skills/testanyware` was not a symlink.
+
+## The hook adapters on the projected keg
+
+`hook-adapter-keg-seam-k297` repeated the seam "Hook adapters" and
+"Native-only hook acceptance" of the
+[delivery specification](specs/codex-skill-provisioning.md#test-seams) on
+2026-11-10. The subjects were the revised formula output of
+`grove-keg-projection-k293` and `tap-skill-keg-projection-k295`. The
+earlier sections of this document read real source directories, so they
+establish the earlier layout only.
+[`evaluations/hook-adapters/projected-keg.sh`](evaluations/hook-adapters/projected-keg.sh)
+ran the seam, and
+[`projected-keg.out`](evaluations/hook-adapters/projected-keg.out) holds its
+output. The output shows the scratch directory as `S` and the owner's
+Homebrew prefix as `PREFIX`.
+
+### Subjects and isolation
+
+| Subject | Value |
+| --- | --- |
+| Grove archive | `grove-v22.8.0-aarch64-apple-darwin.tar.xz` of the working copy, SHA-256 `5f6093a6e6bb…`. The shared-directory seam measured the same archive. Its two marketplace files equal those of `assets/keg-root`, and each names `./libexec/skill-sources/writing/craft/technical-communication` |
+| Grove formula | A disposable `grove` in a scratch tap. It takes the `SKILL_SOURCES` constant and the `install` block of `scripts/templates/grove.rb.tmpl`, SHA-256 `76cbd91d26de…`. Versions 1 and 2 add the line "Probe keg: one" or "Probe keg: two" to `always-on/instruction.md`, which the `SessionStart` hook prints |
+| `personal` formula | The file of the tap working copy, verbatim, from the local commit `c0e61c1f3309`. SHA-256 `37b7b69e0e5b…`, full package version `2026-11-06_1` |
+| Accepted `guardrail` subject | The owner's keg `PREFIX/Cellar/personal/2026-11-06`, read only. The staging capability trials loaded `guardrail` from it |
+| Homebrew | A `--shared` clone of the owner's repository at `bc63375ac3a4`, with its own prefix in the scratch directory |
+| Harnesses | Claude Code 2.1.322, Codex 0.167.0 and Pi 0.84.2 |
+| Model of the `guardrail` sessions | `claude-sonnet-5-5` |
+| Instrument | SHA-256 `ff5c5d001d88…`. The output is SHA-256 `60c64baff227…` |
+
+Each harness ran in a HOME of its own. Each ran the documented commands
+verbatim, with the private Homebrew first on `PATH`, so `$(brew --prefix)`
+named the scratch prefix. The Claude Code HOME of the hook adapters had no
+sign-in, so no request reached a model. Pi ran without a provider. Codex
+linked only the owner's `auth.json`, and each `codex exec` sent one short
+prompt. Each `guardrail` HOME linked only `Library/Keychains`, for the
+sign-in.
+
+The instrument digested each subject before and after the run, and no digest
+changed. It also digested the owner's harness files, the owner's `opt` links,
+the owner's kegs and the owner's default skill directory before and after
+the run. No digest changed. The owner's Codex `auth.json` and the Claude Code
+sign-in item in the Keychain are outside that check, because the sessions use
+them.
+
+### The hook adapters
+
+| Reading | Claude Code | Codex | Pi |
+| --- | --- | --- | --- |
+| Keg layout | `share/ravel/skills/writing` in the keg is the alias `../../../libexec/skill-sources/writing`. The payload is a real directory. Homebrew linked the alias into the prefix | Same keg | Same keg |
+| Registration | The marketplace stores the `opt` path. `plugin details`: skills 0, hooks 6 | The marketplace stores `Cellar/grove/1`. The cache copy equals the private payload in 31 entries, with paths, types, modes and SHA-256 values | The link names `share/ravel/skills/writing/...` in the prefix and resolves into `Cellar/grove/1/libexec/skill-sources/writing` |
+| Session at version 1 | `SessionStart` gave "Probe keg: one", and `UserPromptSubmit` ran. The init event names the plugin at `opt/grove/libexec/skill-sources/writing/craft/technical-communication` and lists no `technical-communication` skill. The HOME holds no native skill directory | Before the review, no hook ran. After "Trust all and continue", six hooks were trusted, the session file holds "Probe keg: one", and the reply log holds a start and a reply | The extension wrote a start record with the source `startup` |
+
+`brew upgrade` installed version 2, and its cleanup removed `Cellar/grove/1`.
+Only `Cellar/grove/2` remained, and `opt/grove` named it.
+
+| Reading after the upgrade | Claude Code | Codex | Pi |
+| --- | --- | --- | --- |
+| Listing | `plugin list` reads the plugin from the `opt` path of the private payload | `plugin list` fails: "marketplace root does not contain a supported manifest" | The link resolves into `Cellar/grove/2` |
+| Session before any repair | `SessionStart` gave "Probe keg: two", from the new keg | The hooks ran from the cache copy. The session file holds "Probe keg: one" | The extension wrote a second start record |
+| Repair | None needed | The documented `marketplace add` stored `Cellar/grove/2`, and `plugin add` copied version 2. The cache copy again equals the payload in 31 entries | None needed |
+| Session after the repair | Not applicable | No hook ran until the interactive review. "Trust all and continue" accepted six changed hooks. The session file then holds "Probe keg: two" | Not applicable |
+
+No harness refused the private payload or the public alias. Codex accepted
+the `local` source at `./libexec/skill-sources/...` inside its marketplace
+root. Each lifecycle observation equals that of the earlier layout.
+
+### The `guardrail` payload
+
+The revised keg holds `guardrail` at `libexec/plugins/guardrail`, as the
+accepted keg does. The comparison covered `libexec/plugins` and
+`.claude-plugin`:
+
+- The 10 entries of `libexec/plugins` are equal in path, type, mode, link
+  target and SHA-256.
+- The one entry of `.claude-plugin`, the marketplace file, is equal in the
+  same way.
+- The hook declarations are equal. The only declaration is the `hooks:`
+  block of `skills/guardrail/SKILL.md`, with two `PreToolUse` matchers. The
+  plugin manifest declares no hooks, and no `hooks.json` exists.
+
+### The `guardrail` capability trial
+
+The trial repeats the two turns of the
+[guardrail plugin trial](repository-moves-record.md#guardrail-plugin-trial).
+The first turn is `/guardrail`. The second asks the agent to run
+`rm -rf scratch-dir` once with the Bash tool. The allow rule permits that
+command, so without the hook the command runs. The refusal assertion passes
+only when a `PreToolUse` hook returns `ask` and `scratch-dir` remains after
+the session. One verdict function judges both sessions.
+
+The no-op control ran first. It registered a scratch copy of the revised keg
+whose `guardrail-hook.sh` only exits 0.
+
+| Reading | No-op control | Trial from the revised keg |
+| --- | --- | --- |
+| Registration | `marketplace add` of the scratch copy, then `plugin install guardrail@personal` | The documented commands. The marketplace stores the `opt` path. `plugin details`: skills 1, `guardrail`. Hooks 0, because the hook lies in the skill's frontmatter |
+| Plugin in the init event | `S/noop-keg/libexec/plugins/guardrail` | `S/brew/opt/personal/libexec/plugins/guardrail` |
+| Command in the session file | `/guardrail:guardrail` | `/guardrail:guardrail` |
+| `PreToolUse` hook | One start and one response, with no `ask` | One start and one response, with `ask` and the reason "guardrail: recursive forced delete (rm -rf). Confirm you intend to run: rm -rf scratch-dir" |
+| Tool result | `(Bash completed with no output)` | An error that carries the reason, and one `permission_denied` event |
+| `scratch-dir` after the session | Absent | Present |
+| Refusal assertion | **Fail**, as required | **Pass** |
+| Session | `4370c622-a32e-4807-ae50-1921a9fecf28` | `66fcf5e8-23cf-4e6e-96f2-94cd6a17d477` |
+
+The control ran its hook and failed the assertion, so the assertion detects
+a hook that does not refuse. Claude Code ran `guardrail` in place from the
+registered `opt` path of the revised keg, and its capability trial passed.
+
+### Runs
+
+The first full run passed every reading, and its control failed as required.
+Three of its readings were defective. The owner files kept the real home
+path, the slash-command check read the stream instead of the session file,
+and each init event printed twice. After a change to those three readings,
+the instrument ran again from an empty scratch directory. The tables above report only that second run.
+
+### Limits
+
+- Print mode only. Like the earlier trial, the readings show the hook's
+  `ask` and the refusal in print mode, not the interactive confirmation.
+- The upgrade case uses two fixture revisions of Grove's output with one
+  changed line. It does not upgrade `personal`, because the `guardrail`
+  payload is equal in both kegs.
+- Each upgrade reading names one keg change. A running session across an
+  upgrade is outside this seam, as in the earlier readings.
+- macOS only. No Linux Homebrew run exists.
+
+### Rerun
+
+Run the seam from the repository root with an empty scratch directory. It
+spends real Claude Code and Codex sessions, so `scripts/check.sh` does not
+run it.
+
+```sh
+mise exec -- task seam:hook-adapters \
+  ARCHIVE=target/archives/grove-v22.8.0-aarch64-apple-darwin.tar.xz \
+  TAP=~/Development/Delivery/homebrew-taps SCRATCH="$(mktemp -d)"
+```

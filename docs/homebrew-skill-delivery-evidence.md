@@ -463,11 +463,9 @@ to `false`.
   reading shows whether an open session writes `settings.json` while a
   command changes it. The owner design gives that question a staging seam.
 
-<!-- tc: pending because skill-keg-link-layout-k291 reviews this section unchanged, and its integration converts it -->
-
 ## Directory-link layout experiment
 
-skill-keg-link-layout-k274 corrected the delivery spec's description of
+skill-keg-link-layout-k274 repaired the delivery spec's description of
 Homebrew conflict repair. The
 [layout contract](specs/codex-skill-provisioning.md#the-keg-layout) owns the
 remedy, its formula owners and the migration. The
@@ -477,7 +475,7 @@ the failing and designed paths.
 ### Instrument and subjects
 
 The [experiment source](design/skill-keg-link-layout/reproduce.rb) runs with
-`brew ruby`. It calls Homebrew's actual `Keg#link` and `Keg#unlink`; it
+`brew ruby`. It calls Homebrew's actual `Keg#link` and `Keg#unlink`. It
 substitutes only the prefix, Cellar, linked-keg record and lock directories.
 Each case owns a new temporary prefix with two kegs and a separate HOME.
 It clones the accepted Ravel build and gives that clone an installation
@@ -510,10 +508,10 @@ and conflict repair uses `link_dir` with `:mkpath` for the displaced subtree.
 | Fixture operation | alpha then beta | beta then alpha |
 | --- | --- | --- |
 | First direct-directory source linked alone | Resolves with its reference digest | Resolves with its reference digest |
-| Second direct-directory keg linked | First source expands into file links; `skill_resource_invalid` | First source expands into file links; `skill_resource_invalid` |
+| Second direct-directory keg linked | First source expands into file links. `skill_resource_invalid` | First source expands into file links. `skill_resource_invalid` |
 | Unlink and relink the displaced old keg | Both reference digests restored | Both reference digests restored |
-| Both sources projected from private payloads | Both entries remain symlinks; both reference digests retained | Both entries remain symlinks; both reference digests retained |
-| Upgrade first projected keg, then remove its old keg | Default entry reaches the replacement; both digests retained | Default entry reaches the replacement; both digests retained |
+| Both sources projected from private payloads | Both entries remain symlinks. Both reference digests retained | Both entries remain symlinks. Both reference digests retained |
+| Upgrade first projected keg, then remove its old keg | Default entry reaches the replacement. Both digests retained | Default entry reaches the replacement. Both digests retained |
 | Unlink the other projected keg | Remaining source retains its digest | Remaining source retains its digest |
 
 The task exited 0 with all assertions passed and unchanged subjects. The
@@ -521,7 +519,7 @@ direct-directory cases are the failure control for the same linker,
 fixtures and resolver used by the proposed layout. An initial exploratory
 run reproduced the defect but could not remove Ravel's read-only scratch
 snapshots. The retained instrument restores permissions on its own real
-directories before cleanup; the successful run covered every case.
+directories before cleanup. The successful run covered every case.
 
 Rerun from the repository root, using an executable with directory delivery:
 
@@ -534,8 +532,8 @@ mise exec -- task design:keg-link-layout:test \
 
 The packaging owner can hide its payload location behind the existing shared
 entry. This removes cross-formula repair from installation and preserves
-Ravel's existing source boundary. The experiment checks the actual filesystem
-operation; a model of the same operation would not establish Homebrew's
+Ravel's existing source boundary. The experiment verifies the actual filesystem
+operation. A model of the same operation would not establish Homebrew's
 behaviour.
 
 This is a design experiment on macOS, not acceptance of published formulae.
@@ -543,16 +541,15 @@ It does not run their install methods, Homebrew's cleaner, downloads or
 bottle relocation. It simulates upgrade with actual unlink/link operations
 and explicit removal of the old fixture keg. Duplicate IDs, mixed-layout
 migration and Linux packaging remain implementation acceptance obligations.
+
 Changed canonical paths also require affected hook registrations and prepared
 input comparisons to be reconciled. Rerun the seam after changes to Homebrew's
-linker; a linker that descends through source symlinks would reopen this remedy.
+linker. A linker that descends through source symlinks would reopen this remedy.
 
 The existing viewer served the revised manifest and diagram sources at port
-52710. The browser access host was unavailable, so this session did not
-verify the rendered layout or its deep-link positioning. Source and manifest
-validation alone do not establish visual rendering.
-
-<!-- tc: on -->
+52710. The browser access host was unavailable. The rendered layout and its
+deep-link positioning remain unverified. Source and manifest inspection alone
+do not establish visual rendering.
 
 ## Directory-link layout review
 

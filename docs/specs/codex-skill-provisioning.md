@@ -173,11 +173,11 @@ These facts decide the layout:
   Ravel refuses the whole resolution as `skill_resource_invalid`.
 - `Keg#link_dir` handles a symlink as a file, even when it names a directory.
   The formula-owned source symlink therefore stops traversal under both the
-  ordinary and conflict-repair strategies. Initially a parent directory may
-  be linked as a whole; after a collision, each source remains one directory
-  entry linked through its keg alias to its private payload. No source file
+  ordinary and conflict-repair strategies. Initially Homebrew may link a parent directory as a whole.
+  After a collision, each source remains one entry. The entry links through
+  its keg alias to its private payload. No source file
   is expanded into a Homebrew link. Two formulae that ship one source ID
-  conflict at that entry; never use overwrite to conceal a duplicate.
+  conflict at that entry. Never use overwrite to conceal a duplicate.
 - Homebrew's cleaner sets file modes only under `bin`, `sbin` and `lib`, so a
   keg source keeps the modes of its copy. Its prune step removes empty
   directories and dangling links under `share/`. A Git checkout holds no empty
@@ -194,7 +194,7 @@ The linking rules above are in Homebrew 7.0.12 at
 [`3ccfa1d07143`, `Keg#resolve_any_conflicts` and `Keg#link_dir`](https://github.com/Homebrew/brew/blob/3ccfa1d07143/Library/Homebrew/keg.rb).
 The [two-keg experiment](../homebrew-skill-delivery-evidence.md#directory-link-layout-experiment)
 reproduces both the failure and the proposed remedy with Homebrew itself.
-This layout amendment is designed; formula implementation and publication
+This layout amendment is a design. Formula implementation and publication
 must precede reliance on the guarantee.
 
 **Ownership and migration.** The Grove formula template and the tap's
@@ -262,7 +262,7 @@ The design rejected these layouts:
 - **Allow file links anywhere inside the same keg in Ravel.** This changes
   the generic source boundary for a packaging defect. The formula can keep
   an intact source with the existing resolver. A `mac-check` report alone
-  also leaves new installations broken; it is detection and recovery help.
+  also leaves new installations broken. It supplies detection and recovery help.
 - **`libexec/skills/<source-id>`, named by `opt` paths in the settings.**
   Homebrew links and prunes nothing there. Each user would still have to write
   the settings, so `brew install` would not be the whole setup.

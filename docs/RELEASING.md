@@ -671,6 +671,8 @@ the original signal path; relocation changes neither check. The release
 preparation must verify this with the installed binaries rather than infer it
 from the candidate's source.
 
+<!-- tc: on -->
+
 ## 3. Build and publish
 
 Build the three platform archives and render their checksums into a Homebrew
@@ -687,10 +689,10 @@ to a session. Startup and upgrade leave existing native installations,
 including snapshots written by Grove 22.8 and earlier, unchanged.
 
 Grove ships no manual installer. A release that changes an instructed verb
-must land the methodology and CLI together —
-`crates/grove-llm/tests/instructed_verbs.rs` checks that contract. A native
-skill installation that already exists can still differ from the installed CLI;
-describe verb-surface changes in the changelog.
+must deliver the methodology and CLI together.
+`crates/grove-llm/tests/instructed_verbs.rs` verifies that contract. An existing
+native skill installation can still differ from the installed CLI.
+Describe changes to the instructed verbs in the changelog.
 
 Each archive unpacks to one directory, `grove-v<version>-<target>/`, laid out
 as an installation prefix, and the formula installs the same shape into its
@@ -717,28 +719,36 @@ are the Rhai set for Ravel 2.x.
 Grove resolves independently installed Ravel from PATH. The formula installs
 `libexec/ravel-policy` and depends on `linkuistics/taps/ravel` only. That
 dependency stays unversioned through promotion, and `ravel@2` is an explicit
-opt-in prefix. An archive user
-must independently install Ravel and keep each project's whole prefix intact.
+opt-in prefix.
+
+An archive user must independently install Ravel and keep each project's whole
+prefix intact.
 The build copies `plugins/grove` of the built tree to
 `share/ravel/skills/grove-core/`. It copies each pack's source directory from
 the plain checkout of its recorded `sha` under `target/external-packs`.
 `task check:packs` made that checkout, so the keg holds the bytes that the
 check accepted.
 Each copy keeps executable bits and links.
+
 `archive_manifest` in `scripts/release-common.sh` lists every file with its
 Git mode. The build checks each archive against it as soon as it packs the
 archive. Four faults stop the build before it renders the formula. They are a
 missing or unexpected entry, an entry with another Git mode, an extra
 directory, and a pack whose `sha` has no clean checkout. The build then
-removes the failed archive. Archives are
-packed without macOS extended attributes, so they hold none of the AppleDouble
-`._*` files that macOS's `tar` would otherwise add and then hide when it reads
-them back; the check reads them as GNU `tar` would. A change that ships another
-file adds it to that list; `bash scripts/release.test.sh`, which
-`scripts/check.sh` runs, fails before any cut when the list disagrees with what
-the complete caller asset tree contains or with the formula. So a failure at this step is
-a build fault, not a stale list. Correct it and rerun `scripts/release-build.sh`;
-the tagged version is not cut again. The build also refuses a tag that differs
+removes the failed archive.
+
+Archives are
+packed without macOS extended attributes. They hold none of the AppleDouble
+`._*` files that macOS's `tar` would otherwise add and hide when it reads them
+again. The check reads them as GNU `tar` would.
+
+A change that ships another file adds it to that list.
+`scripts/check.sh` runs `bash scripts/release.test.sh` before any cut.
+It fails when the list disagrees with the complete caller asset tree or the
+formula. A failure at this step is therefore a build fault, not a stale list.
+Fix the fault and rerun `scripts/release-build.sh`.
+
+Do not cut the tagged version again. The build also refuses a tag that differs
 from the workspace version.
 
 Then smoke-test exactly the archives about to be published, as the release task
@@ -747,6 +757,8 @@ does:
 ```sh
 scripts/release-smoke.sh --archives target/dist
 ```
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 ### If the installed smoke test fails
 

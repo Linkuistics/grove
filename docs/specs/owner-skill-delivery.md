@@ -240,16 +240,18 @@ The report also checks the source entries against the
 [keg layout](codex-skill-provisioning.md#the-keg-layout). A current formula
 version with expanded file links is an invalid source layout, not version
 drift. Report the affected source and formula, with the documented upgrade
-or relink recovery. A report observes the state; it repairs no links.
+or relink recovery. A report observes the state. It repairs no links.
 
 During this cutover, real-machine preparation upgrades the four non-Grove
 formulae to revisions that supply the directory symlinks. Their source
-commits and accepted digests may remain unchanged. Preparation verifies them
+commits and accepted digests may remain unchanged.
+
+Preparation verifies them
 through the shared default directory, even while the settings keep native
-delivery active. Finish installs Grove's revised formula after publication,
-then verifies the ten default sources and their owning private payloads
-before the switch. These checks implement the layout's migration rule;
-versioned paths used by staging do not substitute for them.
+delivery active. After publication, finish installs Grove's revised formula.
+It then verifies the ten default sources and their owning private payloads
+before the switch. These checks implement the layout's migration rule.
+The versioned paths that staging used do not substitute for them.
 
 Grove's keg holds core. The delivered spine and the installed Grove therefore
 come from one release, and no separate core pin exists.
@@ -392,7 +394,7 @@ output style is a harness style rather than guidance. It stays a native hook.
 | Explanatory output style, Context7, Playwright, commit-commands, feature-dev and Swift LSP | The same enabled plugins, which hold no skills |
 | codebase-memory MCP server, hooks, agent definitions and skill copies | Unchanged. Its own updater rewrites them. |
 | herdr and Orca hooks | Unchanged. Their applications own them. |
-| `quint-kb` MCP server | Unchanged. It runs from the Quint clone, which stays. Its Codex entry sets `default_tools_approval_mode = "approve"`, because Ravel starts Codex with the approval policy `never`. The maintained manual records that line. |
+| `quint-kb` MCP server | Unchanged. It runs from the Quint clone, which stays. Its Codex entry sets `default_tools_approval_mode = "approve"`, because Ravel launches Codex with the approval policy `never`. The maintained manual records that line. |
 | TestAnyware command, application and configuration | Unchanged installations. The skill reaches them by ordinary command execution. |
 
 The repository moves and homebrew-skill-delivery-k215 supply three packaging
@@ -613,6 +615,7 @@ Sole ownership does not establish that the machine is quiet.
 5. Keep marketplace updates frozen for every plugin the operator loaded.
    Keep the tested Claude Code version and the original driver keg protected.
    Compare tool versions before the dry run and real attempt.
+<!-- tc: depart synonym-rotation because "check" elsewhere names a process inspection, not a second verb for verify -->
 6. Review the plan, staging evidence and reproducible input comparison from the dry run.
    Verify the planned native layout and that the background tools remain paused.
 7. Pause Obsidian edits and synchronisation of the maintained manual through their owning interfaces.

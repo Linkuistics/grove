@@ -1,14 +1,14 @@
 # `grove` — the methodology, as skills
 
-<!-- tc: pending because the conversion has not reached this part of the document -->
-
 Homebrew installs Grove's methodology with Grove, and Ravel delivers it to each
-session ([`../README.md`](../README.md)). The `grove` binary installs no skills. It is a shared
-**spine** skill and one `grove-<kind>` skill per session kind beside it, over
-that spine. **A kind exists iff a skill of that name exists**, so core's set is
-whatever `skills/` holds, and external packs such as RequirementsSkills,
-DesignSkills and ResearchSkills ship more: no code carries a list of kinds and no assertion counts them. Prose here describes the set as it stands, which is a different thing from
-machinery holding it.
+session ([`../README.md`](../README.md)). The `grove` binary installs no skills.
+The methodology has one shared **spine** skill, with one `grove-<kind>` skill
+beside it for each session kind. **A kind exists iff a skill of that name
+exists**, so core's set is whatever `skills/` holds. External packs such as
+RequirementsSkills, DesignSkills and ResearchSkills ship more. No code carries
+a list of kinds, and no assertion counts them.
+
+Prose here describes the current set. Machinery holds no such set.
 
 The separate [`configure-grove`](skills/configure-grove/SKILL.md) operator skill
 maintains the owner's Ravel policy, its settings and a checkout's
@@ -23,8 +23,6 @@ does not use the `grove-<kind>` prefix because it is not a lifecycle task kind.
 | design | [`../../docs/specs/module-decomposition.md`](../../docs/specs/module-decomposition.md), decision 11 and test seam 4 |
 
 ## What the spine holds, and what it does not
-
-<!-- tc: on -->
 
 **The fatness rule.** A rule that several families share is in the spine. A
 rule that one kind owns is inline in that kind's own `grove-<kind>` skill. A
@@ -127,6 +125,8 @@ Grove reads Ravel's public stdout result and its own launch teardown record to d
 whether to relaunch, finish or stop. Grove passes no session-name or root
 parameter to policy; naming the session belongs to the methodology.
 
+<!-- tc: on -->
+
 ## Installing
 
 Homebrew installs this plugin directory with Grove, at
@@ -135,6 +135,8 @@ default skill directory, `$(brew --prefix)/share/ravel/skills/`. Ravel 2.0
 reads it there with no settings and delivers it to each session. `brew install`
 and `brew upgrade` are the whole setup. Grove ships no manual installer, and no
 marketplace lists this plugin.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 Claude Code namespaces a plugin's components — *"in the UI, the agent
 `agent-creator` for the plugin with name `plugin-dev` will appear as

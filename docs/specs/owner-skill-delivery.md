@@ -288,9 +288,13 @@ come from one release, and no separate core pin exists.
 
 During this cutover, the staging trials read Grove's six sources from the
 candidate keg. Grove's real keg holds them only after Grove's release, inside
-finish. The candidate is the last published commit of this workstream's line
-that changes `plugins/grove` or `plugins/packs.json`. A later change needs a
-new candidate keg and a rerun of the trials that read the changed sources.
+finish. The candidate is a published commit of this workstream's line that
+holds the production formula template. Its `plugins/grove` and
+`plugins/packs.json` are equal to those of the last commit that changes
+either path. A later change to either path needs a new candidate keg and a
+rerun of the trials that read the changed sources. A commit earlier than the
+template change builds the earlier keg layout, and `task owner:candidate-keg`
+refuses it.
 
 A committed evidence document records the candidate commit and the accepted
 `resourceDigest` of each of Grove's six sources. Before finish, rollout builds

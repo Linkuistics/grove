@@ -2478,7 +2478,7 @@
     "sources": {
       "grove-core": {
         "formula": "linkuistics/taps/grove",
-        "resourceDigest": "8d92cd58fca8f21a87361a9d956af7e5a38e88751e25cbaff5e2384554806b51"
+        "resourceDigest": "d8eec38844f5e8ffd4e998ef34f3456a984846166b2e34cc2c8e65189b2f145e"
       },
       "requirements": {
         "formula": "linkuistics/taps/grove",

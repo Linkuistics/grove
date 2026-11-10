@@ -6345,17 +6345,28 @@ The new `staging_trial.py rerun` entry repairs that.
 
 ### The accepted sources
 
-The candidate commit is `ef8a79dd7621a437177982e24d8ec27831b4add4`, on
-`origin/gh-issue-25`. The tree ID of its `plugins/grove` is
-`885051a94eddaa81fa7a1a9900c3ac4db775aa84`, and the blob ID of its
-`plugins/packs.json` is `2cebaf5f062d08b50b22d058bd8c4db3d412f8a6`. Both IDs
-are the same at this leaf's parent commit, so the candidate keg is current.
-The candidate's archive has the SHA-256
-`fcb7603d70ccadcb3fcb071c5c2f79da165c807656f4723620142acab577546b`.
+core-candidate-restaging-k300 renewed the candidate on 2026-11-11.
+[Core candidate restaging](#core-candidate-restaging) records the build and
+the reruns. The candidate commit is
+`2a24d5e61f29070bebe1fb005fcd74fc8f2b4ca3`, on `origin/gh-issue-25`. The
+tree ID of its `plugins/grove` is
+`961fddd04bb7b271e9896d07dc0225348fa8c378`, and the blob ID of its
+`plugins/packs.json` is `2cebaf5f062d08b50b22d058bd8c4db3d412f8a6`. The
+candidate's archive has the SHA-256
+`9ab7d03193109f7bdebf1aeb6f2429a592e5bc056f447499cd72ac7a4bc680b5`.
+
+The earlier candidate was `ef8a79dd7621a437177982e24d8ec27831b4add4`, with
+the `plugins/grove` tree ID `885051a94eddaa81fa7a1a9900c3ac4db775aa84`, the
+same pack-record blob ID and the archive SHA-256
+`fcb7603d70ccadcb3fcb071c5c2f79da165c807656f4723620142acab577546b`. Its
+`grove-core` digest was
+`8d92cd58fca8f21a87361a9d956af7e5a38e88751e25cbaff5e2384554806b51`. The
+trials of this section read that earlier candidate, except where
+[Core candidate restaging](#core-candidate-restaging) names a rerun.
 
 | Source | Formula | Accepted version | Commit | Tree ID of the source directory | `resourceDigest` |
 | --- | --- | --- | --- | --- | --- |
-| `grove-core` | `linkuistics/taps/grove` | The Grove release that step 4 admits | `ef8a79dd7621a437177982e24d8ec27831b4add4`, the candidate | `885051a94eddaa81fa7a1a9900c3ac4db775aa84` | `8d92cd58fca8f21a87361a9d956af7e5a38e88751e25cbaff5e2384554806b51` |
+| `grove-core` | `linkuistics/taps/grove` | The Grove release that step 4 admits | `2a24d5e61f29070bebe1fb005fcd74fc8f2b4ca3`, the candidate | `961fddd04bb7b271e9896d07dc0225348fa8c378` | `d8eec38844f5e8ffd4e998ef34f3456a984846166b2e34cc2c8e65189b2f145e` |
 | `requirements` | `linkuistics/taps/grove` | The same | `c51ec8bebd811c0087ad19a1d66d0aa87bd01386` | `f3cf8128fd206c48d73b061cc5ef6b536d4f9d61` | `07b2d25e8bd20259c71f7419092329368d8ae48bec6ca973343a601a8ec515c8` |
 | `design` | `linkuistics/taps/grove` | The same | `aa088156d1a55e28dd9b59f0330f4ab9f1f3d330` | `dd04e268aeb5eba82c527755b1f52bee3565a216` | `d8ad3a2af1b5029bc0de93747f4d7297038651180f6877fbd738d94fcbf6aa14` |
 | `engineering` | `linkuistics/taps/grove` | The same | `8d1a2bc3e07bec4ce57e0391a6aa778dff63a017` | `d8a891cd5c13e9866f7937537afc7979fb3ef0f7` | `7e70b280e7a932489a048d108d4dae2bc63b387cf8fc6b37298663336e0fcc66` |
@@ -6392,6 +6403,12 @@ the switch writes its receipt.
 | --- | --- |
 | `home` | `/Users/antony/.local/state/owner-staging/home` |
 | `candidate_keg` | `/Users/antony/.local/state/owner-staging/candidate` |
+
+Since core-candidate-restaging-k300, `candidate_keg` holds the keg of
+`2a24d5e61f29`. The keg of the earlier candidate `ef8a79dd7621` moved to
+`/Users/antony/.local/state/owner-staging/candidate-8d92cd58`, and it is
+removable. The staging settings and both paths of `accepted.staging` kept
+their text.
 
 The staging HOME holds its own `.codex` tree, which is no link. The accepted
 Ravel 2.0 build is `/Users/antony/.local/state/owner-staging/ravel-2.0`, and
@@ -6508,11 +6525,11 @@ The paths of the records are relative to
 | --- | --- | --- | --- |
 | Isolation | `isolation-2/record.json`, 2.1.319 | The same record | Passed. [Staging setup and isolation trial](#staging-setup-and-isolation-trial) |
 | Mandatory read and implicit craft discovery | `trials/discovery-claude-1`, 2.1.319 | `trials/discovery-codex-1` | Passed. [The discovery case](#the-discovery-case) |
-| A Grove kind skill that the task names, with a relative resource | `trials/kind-skill-claude-3`, 2.1.319 | `trials/kind-skill-codex-2` | Passed. [The kind skill case](#the-kind-skill-case) |
+| A Grove kind skill that the task names, with a relative resource | `trials/kind-skill-claude-4`, 2.1.322, on the renewed candidate. Earlier `trials/kind-skill-claude-3`, 2.1.319 | `trials/kind-skill-codex-4`, on the renewed candidate. Earlier `trials/kind-skill-codex-2` | Passed. [The kind skill case](#the-kind-skill-case) and [The reruns](#the-reruns) |
 | Delegate | `trials/delegate-claude-1`, 2.1.319 | `trials/delegate-codex-1` | Passed. [The delegate case](#the-delegate-case) |
 | Compaction | `trials/compaction-claude-opus-1` and `-2`, 2.1.319 | `trials/compaction-codex-1` | Passed. [The compaction case](#the-compaction-case) |
-| Stale-copy coexistence | `trials/stale-copy-claude-1`, 2.1.319 | `trials/stale-copy-codex-1` | Passed. [The stale-copy case](#the-stale-copy-case) |
-| Off value, offline launch, missing source | No harness: `trials/sources-2` | No harness | Passed. [The affected staging trials](#the-affected-staging-trials) |
+| Stale-copy coexistence | `trials/stale-copy-claude-2`, 2.1.322, on the renewed candidate. Earlier `trials/stale-copy-claude-1`, 2.1.319 | `trials/stale-copy-codex-2`, on the renewed candidate. Earlier `trials/stale-copy-codex-1` | Passed. [The stale-copy case](#the-stale-copy-case) and [The reruns](#the-reruns) |
+| Off value, offline launch, missing source | No harness: `trials/sources-3`, on the renewed candidate. Earlier `trials/sources-2` | No harness | Passed. [The affected staging trials](#the-affected-staging-trials) and [The reruns](#the-reruns) |
 | Guidance of a disabled plugin and a nested probe | `trials/guidance-claude-1`, 2.1.319 | Not applicable | Passed. [The guidance probe case](#the-guidance-probe-case) |
 | TestAnyware command reference and real VM | `trials/testanyware-vm-claude-1`, 2.1.322 | `trials/testanyware-vm-codex-2` | Passed. [TestAnyware in staging](#testanyware-in-staging) |
 | Quint MCP server | `trials/quint-mcp-claude-1`, 2.1.322 | `trials/quint-mcp-codex-2` | Passed. [MCP servers in staging](#mcp-servers-in-staging) |
@@ -6917,3 +6934,205 @@ the stored draft's digest `09581cd77b87…` and the program digest
 A changed program, helper or input needs another dry run.
 owner-switch-rehearsal-k255 runs it after owner-switch-plan-k254. The
 probe registration change takes effect at the next real probe session.
+
+## Core candidate restaging
+
+`core-candidate-restaging-k300` delivered this section on 2026-11-11. Its
+times are UTC on 2026-11-10. skill-keg-link-layout-k292 changed
+`plugins/grove/README.md`, so the `grove-core` digest differed from
+[Staging acceptance](#staging-acceptance). This leaf built a new candidate
+keg and ran each staging trial that reads `grove-core` again.
+
+### Result
+
+The new candidate keg holds the projected layout. Its five pack digests
+equal the accepted values. Its `grove-core` digest
+`d8eec38844f5e8ffd4e998ef34f3456a984846166b2e34cc2c8e65189b2f145e` is the
+new accepted value. Each staging trial that reads `grove-core` passed on the
+new keg. No other source changed, so each other trial stays valid.
+
+Three readings need attention, and none of them concerns the core:
+
+- A real-HOME write by Claude Code's marketplace update failed one Codex
+  kind-skill run. The run after it passed.
+- Ravel 2.0 ended one passing stale-copy run with `supervision_failed`.
+  `ravel-stop-eperm-k302` owns the diagnosis.
+- The probe control `codex-native-bare` failed on `listing` only. The
+  probe's `kindSkill` observation accepted a copy that Codex found by a
+  file search.
+
+### The candidate
+
+The jj revset `(gh-issue-25..@-) & (files("plugins/grove") |
+files("plugins/packs.json"))` selected `e287b47462b8` and `fb8d99c0f9bd`.
+The later commit is `fb8d99c0f9bd9fd84276c4539ab11ce841bf9ced`, the commit
+of skill-keg-link-layout-k292. Its `plugins/grove` tree ID is
+`961fddd04bb7b271e9896d07dc0225348fa8c378`, and its `plugins/packs.json`
+blob ID is `2cebaf5f062d08b50b22d058bd8c4db3d412f8a6`.
+
+`task owner:candidate-keg` refused the keg of `fb8d99c0f9bd`. The keg's
+`share/ravel/skills/design` was a real folder, not a link to its private
+source. That commit precedes grove-keg-projection-k293, so its own formula
+template installs the earlier layout. The log is
+`~/.local/state/owner-staging/candidate-build-k300-fb8d99c0.log`. This
+leaf removed the refused output.
+
+The specification defines the candidate keg as the output of the production
+formula's install method. The template of k293 is the production template.
+The candidate is therefore `2a24d5e61f29070bebe1fb005fcd74fc8f2b4ca3`, the
+commit of owner-switch-package-identity-k299. Its `plugins/grove` tree ID
+and its pack-record blob ID equal those of `fb8d99c0f9bd`. The sentence of
+[Skill formulae](specs/owner-skill-delivery.md#skill-formulae) that defines
+the candidate now states both conditions.
+
+jj moved the bookmark `gh-issue-25` from `ef8a79dd7621` to `2a24d5e61f29`
+and pushed it. `git ls-remote origin refs/heads/gh-issue-25` then printed
+`2a24d5e61f29070bebe1fb005fcd74fc8f2b4ca3`. The pushed line holds
+`5163a5784f0c`, a commit without a description. That commit adds
+`.claude/settings.json` with one permission for `gh repo create`. A new
+description would rewrite the candidate and the subject commits that two
+review records cite. The push therefore used `--allow-empty-description`.
+
+### The candidate keg
+
+The earlier keg moved to
+`/Users/antony/.local/state/owner-staging/candidate-8d92cd58`.
+`task owner:candidate-keg` then built the new keg at the retained path
+`/Users/antony/.local/state/owner-staging/candidate`. The script reported
+that `origin/gh-issue-25` holds the commit. The log is
+`~/.local/state/owner-staging/candidate-build-k300.log`.
+
+| Subject | Value |
+| --- | --- |
+| Commit | `2a24d5e61f29070bebe1fb005fcd74fc8f2b4ca3` |
+| Archive SHA-256 | `9ab7d03193109f7bdebf1aeb6f2429a592e5bc056f447499cd72ac7a4bc680b5` |
+| `candidate.json` SHA-256 | `a779805c0f1102f6662dc673c61161625475524190f2523cb21823b17e84013c` |
+| `digests.tsv` SHA-256 | `fbbe1a21917b5dbc989bceab0ac0648e395c6910734012eedc7fc659e1f4e193` |
+| Ravel that resolved the keg | The accepted 2.0 build, `bin/ravel` SHA-256 `3a9a9129…` |
+| Layout | Each `share/ravel/skills/<id>` is a relative link to `../../../libexec/skill-sources/<id>`. Each `originPath` is the private source. |
+
+The script compared each source with a plain checkout of the same commit.
+Each digest and each list of roots was equal.
+
+| Source | Earlier `resourceDigest` | New `resourceDigest` |
+| --- | --- | --- |
+| `grove-core` | `8d92cd58fca8f21a87361a9d956af7e5a38e88751e25cbaff5e2384554806b51` | `d8eec38844f5e8ffd4e998ef34f3456a984846166b2e34cc2c8e65189b2f145e` |
+| `requirements` | `07b2d25e8bd20259c71f7419092329368d8ae48bec6ca973343a601a8ec515c8` | The same |
+| `design` | `d8ad3a2af1b5029bc0de93747f4d7297038651180f6877fbd738d94fcbf6aa14` | The same |
+| `engineering` | `7e70b280e7a932489a048d108d4dae2bc63b387cf8fc6b37298663336e0fcc66` | The same |
+| `research` | `7fb3d473f66feafb49afd8846fd94cf3e1fb7b01c584d4ad5f0e54814a8b3fdb` | The same |
+| `writing` | `56bcd07b87f46a7b9ff92eed5a5a128f10d3ce64be2f7d934be898e058782212` | The same |
+
+The release run of [Publication](#publication) reported the same new
+`grove-core` digest.
+
+### The recorded digest
+
+The `grove-core` row of
+[the moves record](repository-moves-record.md#the-ten-ravel-sources) and
+its table "The Grove candidate" name the new commit, tree ID and digest.
+The plan draft received the new digest in `accepted.sources`, and nothing
+else in the draft changed. `accepted_sources()` of `switch_plan_draft.py`
+read the moves record and returned a value equal to the draft's. A copy of
+the draft with the earlier digest compared unequal. The revised draft has
+the SHA-256 `07b76929041bf2f52a3c55d4213c9bf94a31ddb64236aa0486e065706c3f036c`.
+
+### The reruns
+
+One script ran the first six reruns one at a time, from 15:25:30Z to
+15:37:42Z. The log is `~/.local/state/owner-staging/trials/k300-reruns.log`.
+The script took the SHA-256 of each subject before and after the runs. These
+were the staging runner, `probe_lifecycle.py`, `harness_trial.py`,
+`owner_switch_probes.py`, `owner_switch.py`, the plan draft, the staging
+settings, `candidate.json`, `digests.tsv`, the Ravel build and the case
+folder. Each digest was the same after the runs. The three later runs
+recorded the digests of the draft, `candidate.json` and the settings, which
+were also unchanged.
+
+| Trial | Record | Harness | Result |
+| --- | --- | --- | --- |
+| Source trials, with `grove-core` moved | `trials/sources-3`, SHA-256 `a65db93c…` | None | Passed. The off value resolved as `disabled`. The offline launch gave the same view as the online launch. With `grove-core` moved away, Ravel exited 3 with `skill_source_missing`. After the return, the launch view held the snapshot `d8eec388…`. |
+| Kind skill | `trials/kind-skill-claude-4`, SHA-256 `f10b0cd5…` | Claude Code 2.1.322, `claude-sonnet-5-5`, low | Passed. The mandatory read was event 1. `grove-planning` from the snapshot `d8eec388…` was event 5, and `grove/references/bootstrap.md` was event 9. |
+| Kind skill | `trials/kind-skill-codex-3` | Codex 0.167.0, `gpt-6.1-sol`, low | Failed on the real-HOME check only. Its kind verdict passed. |
+| Kind skill | `trials/kind-skill-codex-4`, SHA-256 `6f26f7fb…` | Codex 0.167.0, `gpt-6.1-sol`, low | Passed. The mandatory read was event 2. `grove-planning` was event 9, and spine references were event 12. |
+| Stale copy | `trials/stale-copy-claude-2`, SHA-256 `a0919491…` | Claude Code 2.1.322, `claude-sonnet-5-5`, low | Passed. The planted copy had the pinned tree digest `d9ae18c2…`. The agent read Ravel's copy of `grove` at events 10, 12 and 13, and no file of the planted copy. |
+| Stale copy | `trials/stale-copy-codex-2`, SHA-256 `a2d27…` | Codex 0.167.0, `gpt-6.1-sol`, low | Passed the verdict. The agent read Ravel's copy at six events and no file of the planted copy. Ravel exited 5, as the next section states. |
+| Session probes, eight cases | `trials/probe-sessions-3/sessions.json`, SHA-256 `236d47ac…` | Claude Code 2.1.322 with `claude-opus-5-5`, Codex 0.167.0 with `gpt-6.1-sol`, medium | Seven cases gave their wanted result. `claude-ravel` and `codex-ravel` quoted `grove-planning` from the snapshot `d8eec388…`, and each request view gave the ten accepted digests. `codex-native-bare` exited 1 as wanted, but with another failed set. |
+| Session probe `codex-native-bare` | `trials/probe-sessions-4/sessions.json`, SHA-256 `befab768…` | Codex 0.167.0, `gpt-6.1-sol`, medium | The same result as in `probe-sessions-3` |
+| Probe resolve, five cases | `trials/probe-resolve-3/resolve.json`, SHA-256 `6a391a38…` | None | Each case gave its wanted result. The `switched` case resolved the ten accepted digests of the revised draft. |
+
+A control ran the probe resolve once with the earlier core digest in the
+draft. The `switched` case then failed, because `grove-core` gave
+`d8eec388…` and not `8d92cd58…`. The draft was then restored, and its
+SHA-256 was again `07b76929…`.
+
+The session probes and the probe resolve are not in the `accepted.trials`
+of `grove-core`. They read the core snapshot and the draft's accepted
+digests, so this leaf ran them too.
+
+### Three readings
+
+#### The real-HOME write
+
+The real `~/.claude/plugins/known_marketplaces.json`
+changed at 15:27:16Z, during `kind-skill-codex-3`. Its `lastUpdated` values
+for `claude-plugins-official` and `linkuistics` are 15:27:11Z and 15:27:16Z.
+That is Claude Code's automatic marketplace update in the real HOME. The
+staging Codex session had the staging HOME, and no event named the real
+file. owner-marketplace-freeze-k253 freezes these updates.
+
+#### The stop of Ravel 2.0
+
+In `stale-copy-codex-2`, the agent ran
+`ravel end-session staging-ok`. Ravel then exited 5 with
+`supervision_failed`. Both stop signals to the process group `-32130`
+returned `EPERM`, and Ravel then reaped the group. No other staging record
+holds this error. The verdict reads the agent's events, so it passed.
+
+A real Grove session that ends this way stops the Grove loop.
+`ravel-stop-eperm-k302` owns the diagnosis before the release cut.
+
+#### The bare native probe
+
+The `codex-native-bare` case expects both
+`listing` and `kindSkill` to fail. In both runs, Codex searched the probe
+HOME for `grove-planning`. It read the copy in Claude Code's plugin cache
+`.claude/plugins/cache/linkuistics/grove/238c3a839ab4`. The probe counts
+that copy as native, so `kindSkill` passed. The seeding of
+[Quiet interval in staging](#quiet-interval-in-staging) registered
+`grove@linkuistics` in the staging HOME after `probe-sessions-2` ran.
+
+The real switched state keeps that registration too. The probe still fails
+on `listing`, so no probe verdict changes. owner-switch-rehearsal-k255
+receives this limit.
+
+### Trials that stay valid
+
+Each trial below reads no `grove-core` content and compares no `grove-core`
+digest. The other five Grove sources and the four tap sources did not
+change.
+
+| Trial | Reason |
+| --- | --- |
+| Isolation, `isolation-2` | It measures settings isolation and sign-in. The staging settings and the keg path did not change. |
+| Discovery on both harnesses | The verdicts read the mandatory file of `superpowers` and `cli-tool-design` of `design` |
+| Delegate and compaction | The verdicts read `coding-style-bash` of `engineering` |
+| Guidance probe | It reads the native `grove@linkuistics` plugin from GitHub, and no Ravel snapshot |
+| TestAnyware, Quint, codebase-memory, native residue and the user-invoked cases | They read the other sources |
+| Inventory, `inventory-3` | It reads the staging HOME, which holds no source |
+| Quiet interval, `quiet-interval-1` | It measures writes during the switch. Its switched resolution gave the earlier core digest, and no verdict reads source content. `sources-3` and `probe-resolve-3` resolved the ten sources with the new digest. |
+| Snapshot reads in `auto` mode | The agent read `cli-tool-design` of `design` |
+| The hook seam and the `guardrail` trial of hook-adapter-keg-seam-k297 | They read `writing` and `personal` |
+
+### Limits
+
+- `task owner:switch-plan:check` refused the revised draft. The real
+  `.claude/plugins/known_marketplaces.json` changed after the draft. The
+  stored `switch-plan-check.json` and `switch-plan-report.txt` therefore
+  still name the earlier draft digest `09581cd77b87…`.
+  owner-switch-plan-k254 writes the draft again from the real HOME.
+- Each rerun ran once on each harness, except the Codex kind-skill case.
+- After the Ravel cut, the published archives must give these digests
+  again, as the finish handoff states.
+- Do not change `plugins/grove` or `plugins/packs.json` without a new
+  candidate and another rerun.

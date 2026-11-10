@@ -103,7 +103,8 @@ skill-loading-replan-k80 cut four implementation leaves here:
    beside old-layout peers. `owner-switch-package-identity-k299` reconciles
    the switch tooling. `core-candidate-restaging-k300` renews core's
    candidate and staging. `ravel-packaging-guidance-k301` corrects Ravel's
-   guidance before the cut.
+   guidance before the cut. k300 inserted `ravel-stop-eperm-k302` before
+   the rollout planner, for a `supervision_failed` stop of Ravel 2.0.
 7. discovery-rollout-k12 plans the release and finish handoff. The rollout
 planner consumes that work and coordinated-ravel-release-k36's reviewed plan.
 Plan from the delivered migration state. Grow concrete final verification,
@@ -324,6 +325,17 @@ the root charter's extension.
   source digest. core-candidate-restaging-k300 records the new candidate
   and core staging acceptance. k254 and the dry run consume that evidence,
   not the earlier core digest.
+  - The candidate is `2a24d5e61f29070bebe1fb005fcd74fc8f2b4ca3` on the
+    pushed `gh-issue-25`. Its `plugins/grove` tree ID is
+    `961fddd04bb7b271e9896d07dc0225348fa8c378`.
+  - The accepted `grove-core` digest is
+    `d8eec38844f5e8ffd4e998ef34f3456a984846166b2e34cc2c8e65189b2f145e`.
+    The earlier `8d92cd58…` is history.
+  - The section "Core candidate restaging" of
+    `docs/owner-skill-delivery-evidence.md` records the reruns.
+    ravel-stop-eperm-k302 owns a `supervision_failed` stop of Ravel 2.0
+    from one rerun. The stored plan check still names the earlier draft,
+    and k254 writes the draft again.
 - Finish's acceptance includes Ravel-first installation evidence and actual
   promotion linking beside the installed sources. It resolves all ten
   default IDs after that operation and any link-conflict recovery. A
@@ -332,7 +344,7 @@ the root charter's extension.
 
 - After the Ravel cut, record each accepted digest again with the published
   archives. Show before finish that the final line gives the `grove-core`
-  candidate's tree ID. Step 5 of the coordinated release design records that
+  candidate's tree ID `961fddd04bb7`. Step 5 of the coordinated release design records that
   ID and the accepted digests for finish. A differing digest needs that
   source's staging trials, revised acceptance and another dry run.
 - After the Ravel cut, repeat the control "With the off value and installed

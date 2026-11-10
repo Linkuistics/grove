@@ -250,10 +250,11 @@ deferred issues as prerequisites or recreate the removed kind machinery.
 handoff to the owner cutover" of `docs/repository-moves-record.md` holds its
 results for rollout. Five of them matter to later work.
 
-- The `grove-core` candidate is `7b113a28a966`, and the tree ID of its
-  `plugins/grove` is `885051a94edd`. The bookmark `gh-issue-25` holds it on
+- The `grove-core` candidate is `2a24d5e61f29`, and the tree ID of its
+  `plugins/grove` is `961fddd04bb7`. The bookmark `gh-issue-25` holds it on
   the public remote. A change to `plugins/grove` or `plugins/packs.json`
-  needs a new candidate keg.
+  needs a new candidate keg. core-candidate-restaging-k300 renewed it. The
+  earlier candidates were `7b113a28a966` and `ef8a79dd7621`.
 - The section names the published commit, the tree ID and the
   `resourceDigest` of each of the ten sources. It also names each formula and
   each difference from the earlier sections.

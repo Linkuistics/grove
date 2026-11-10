@@ -21,6 +21,13 @@ comparison with the real inputs.
   HOME.
 - owner-marketplace-freeze-k253 holds Claude Code's version. Sign-in reuse
   follows the staging contract of owner-staging-setup-k248.
+- core-candidate-restaging-k300 found a limit of the native probe. In the
+  `codex-native-bare` case, Codex searched HOME and read `grove-planning`
+  from the frozen `grove@linkuistics` copy in Claude Code's plugin cache.
+  The probe's `kindSkill` observation counts that copy as native. Only the
+  `listing` observation failed, so the probe still failed. The section
+  "Core candidate restaging" of `docs/owner-skill-delivery-evidence.md`
+  holds the records.
 
 ## Done when
 

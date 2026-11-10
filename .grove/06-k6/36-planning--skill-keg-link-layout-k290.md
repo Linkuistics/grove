@@ -15,6 +15,9 @@ installation order.
 - skill-keg-link-layout-k274 amends "The keg layout" in
   `docs/specs/codex-skill-provisioning.md`. Read its focused design review
   and any integration before planning.
+- skill-keg-link-layout-k292 integrates review findings L1 to L8. The
+  section "Directory-link layout integration" of
+  `docs/homebrew-skill-delivery-evidence.md` records each disposition.
 - `docs/homebrew-skill-delivery-evidence.md`, "Directory-link layout
   experiment", records the actual Homebrew/Ravel seam, its rerun task and
   its limits. The source is `docs/design/skill-keg-link-layout/reproduce.rb`.
@@ -33,14 +36,33 @@ installation order.
   revisions or releases, and each formula producer's future releases.
   The four non-Grove formulae can publish before finish. Grove's revised
   template reaches the installed keg through finish's existing release.
+- Each revised package has an acceptance record with its full Homebrew
+  version, including revision. Packaging-only acceptance bridges unchanged
+  commits, roots and digests to earlier source trials. A leaf reconciles
+  switch version comparisons, plan generation and fixtures with that identity.
 - The plan covers actual formula output followed by actual Keg linking:
   both fresh installation orders and an initially absent share/ravel.
-  It also covers duplicate source refusal, mixed-layout migration, upgrade,
-  uninstall and removal of the old keg. Preserve source IDs, bytes, modes, links and accepted digests.
+  It also covers duplicate refusal with whole-keg rollback, mixed-layout
+  migration, upgrade, uninstall and removal of the old keg. Preserve source IDs, bytes, modes, links and accepted digests.
+- Durable formula and release validation run the shared-directory seam of
+  the delivery spec. Include Ravel-first dependency installation and promotion
+  beside the skill formulae. Record the Homebrew subjects on each run.
+- Both Grove marketplaces name the private writing payload. Repeat the
+  hook-adapter seam on revised formula output in isolated harness homes.
+  Cover upgrade, cleanup, Codex cache copying and renewed hook trust.
+  Compare native-only plugin payloads too. Repeat guardrail's capability
+  trial, with a no-op control that fails its refusal assertion.
 - The plan reconciles archive versus installed paths, formula tests,
   candidate-keg construction, origin assertions, inventories, hook
   registrations and prepared input comparisons with private payloads.
   It names the applicable Linux packaging checks as well as macOS evidence.
+  Update the unreleased changelog when the implementation lands.
+- The TestAnyware leaf changes its release template and generated tap
+  formula together. The Ravel leaf reconciles its skill discovery spec,
+  Homebrew directory diagram and packaging guidance before the 2.0.0 cut.
+- The changed `plugins/grove/README.md` requires a new core candidate keg
+  and digest. A leaf reruns the affected core staging trials and acceptance.
+  Prepared plan inputs and the dry run must consume that evidence.
 - k93 consumes the four revised installed formulae and the source-layout
   report. The finish handoff receives final Grove installation and shared
   default-directory acceptance with the published Ravel. A direct versioned
@@ -48,7 +70,8 @@ installation order.
 
 ## Notes
 
-This design changes packaging, not source content or Ravel's link policy.
+The layout changes packaging and preserves Ravel's link policy. This
+integration also changes core's packaged README, so its source digest changes.
 Use the specified `libexec/skill-sources` payload path. The installed-smoke
 seam deliberately rejects the retired `libexec/ravel` and `libexec/skills`
 layouts. Preserve those checks.

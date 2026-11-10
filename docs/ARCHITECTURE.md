@@ -110,7 +110,7 @@ skill plugin. Ravel is an independently delivered runtime dependency:
 |---|---|---|
 | Grove CLI | `crates/` | Homebrew and the release archives install `grove` and `grove-llm`. |
 | Grove caller assets | `assets/ravel-policy/` | One set for each admitted Ravel major: TypeScript for 1.x and Rhai for 2.x. Grove archives and the formula install `libexec/ravel-policy`. The formula depends on separately versioned Ravel. [Delivery boundary](grove-delivery-contraction.md). |
-| Agent skill plugins | `plugins/grove/` | Grove's formula installs it at `share/ravel/skills/grove-core/` of the keg, and Ravel delivers it. |
+| Agent skill plugins | `plugins/grove/` | Grove's formula stores it at `libexec/skill-sources/grove-core/` of the keg. A relative directory symlink at `share/ravel/skills/grove-core` exposes it to Homebrew. Ravel delivers the intact source. |
 | External packs | Other repositories, such as `plugins/requirements/` in RequirementsSkills, `plugins/design/` in DesignSkills, `plugins/engineering/` in EngineeringSkills, `plugins/research/` in ResearchSkills, `plugins/writing/` in WritingSkills, `plugins/personal/` in PersonalSkills and `plugins/testanyware/` in TestAnyware. WritingSkills also holds the hooks plugin `technical-communication-hooks`, and PersonalSkills holds the native plugin `guardrail` | Grove's record `plugins/packs.json` pins each domain pack by commit, and Grove's formula installs it. The `personal` and `testanyware` formulae install the other two. [External pack contract](specs/external-pack-contract.md). |
 
 Their documented interfaces evolve together. `plugins/` is the authoritative

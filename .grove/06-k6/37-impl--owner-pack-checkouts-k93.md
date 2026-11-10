@@ -33,6 +33,9 @@ accepted commits. Cover each formula that publishes before finish. Make
   and publication work before this leaf: private payloads, relative directory
   symlinks and revised formula versions. The two-keg seam and migration
   limits are in `docs/homebrew-skill-delivery-evidence.md`.
+- skill-keg-link-layout-k292 distinguishes source commits from full
+  package versions. Consume the packaging acceptance records and the
+  completed shared-directory and hook seams from k290's implementation.
 
 ## Done when
 
@@ -43,9 +46,10 @@ accepted commits. Cover each formula that publishes before finish. Make
   accepted `resourceDigest`.
 - Claude Code registers the personal keg's marketplace file, and holds
   `guardrail` installed and disabled.
-- `mac-check` reports each source's installed commit against its accepted
-  commit. It tells drift from a configuration error, and a fixture control
-  shows each outcome.
+- `mac-check` compares full installed and tap package versions, including
+  revisions, using Homebrew when mise omits the revision. Source commit and
+  digest comparisons stay separate. Fixtures distinguish old revisions,
+  version drift, configuration errors and invalid source layouts.
 - Each non-Grove formula has the revised source layout. Resolution through
   the shared default directory gives its accepted IDs and digests, and each
   entry reaches the owning keg's private payload. `mac-check` distinguishes

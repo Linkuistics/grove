@@ -689,7 +689,9 @@ states why. A pack reaches a session by this route:
   ```
 
 - **Grove's formula.** Grove's archive holds a copy of the source directory at
-  that commit in `share/ravel/skills/research/`. Homebrew links it into
+  that commit in `share/ravel/skills/research/`. The formula moves it into
+  `libexec/skill-sources/research/` and creates a relative directory symlink
+  at the archive's former path. Homebrew links that entry into
   Ravel's default skill directory, `$(brew --prefix)/share/ravel/skills/`.
   [The keg layout](codex-skill-provisioning.md#the-keg-layout) states the
   layout.

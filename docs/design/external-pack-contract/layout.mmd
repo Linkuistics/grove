@@ -15,12 +15,14 @@ flowchart TB
             end
         end
     end
-    KG[("Grove's keg<br/>share/ravel/skills/research")]
+    KG[("Grove's private keg payload<br/>libexec/skill-sources/research")]
+    AL["Keg alias share/ravel/skills/research<br/>Relative directory symlink to the payload"]
     RV["Ravel snapshot<br/>accepted by resourceDigest"]
     V["claude plugin validate<br/>no route installs the manifest"]
     A -->|1| repo
     src -->|"2 Grove's release copies<br/>the source directory alone"| KG
-    KG -->|"3 Ravel: path and roots [skills]<br/>captures all but .git and .jj"| RV
+    KG -->|"3 exposed by"| AL
+    AL -->|"4 Ravel canonicalises, roots [skills]<br/>captures all but .git and .jj"| RV
     M -.->|"pack check"| V
     classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold
     class A start

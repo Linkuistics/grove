@@ -41,12 +41,19 @@ in the owner's prepared folder.
   which replaces the provisional trials of the draft. Choose a runner path
   whose content stays the same through the switch. The main checkout gains
   `rerun` only when finish moves `main`.
+- skill-keg-link-layout-k292 requires full Homebrew package versions,
+  including revisions. Read the packaging acceptance records from k290's
+  implementation and k93's installed checks. Equal source digests alone
+  do not admit a revised formula. Consume the renewed core candidate and
+  its staging evidence after the packaged README changes.
 
 ## Done when
 
 - `accepted` holds the ten sources with their accepted digests, the formula
   versions, each source's trials and the absolute staging paths. They match
-  owner-staging-acceptance-k252.
+  the current acceptance records. Non-Grove `accepted.versions` includes
+  Homebrew revisions, and Grove's admitted release identifies its package
+  revision separately from its binary version.
 - The plan names the full write set of each command and its original
   content, metadata or absence in the real HOME now. It names the expected
   native and switched inventories.

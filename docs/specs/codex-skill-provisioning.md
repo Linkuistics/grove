@@ -157,6 +157,13 @@ capture, so `originPath` names the versioned keg.
 | `superpowers` | `superpowers` | `skills` | None |
 | `quint-llm-kit` | `quint` | `skills` | None |
 
+The unversioned `ravel` formula also links into the shared ancestors
+`share/ravel` and `share`. It supplies `examples`, `notices` and
+`installation.json`, not a skill source. A fresh Grove installation links its
+Ravel dependency first. Promotion links Ravel 2.0 beside the installed skill
+formulae. Both events must preserve each source alias. The keg-only
+`ravel@2` does not link those entries before promotion.
+
 The directory name is the source ID of the
 [owner delivery design](owner-skill-delivery.md#ravel-sources). One token
 therefore names a source in the keg, in the default directory and in the
@@ -176,13 +183,16 @@ These facts decide the layout:
   ordinary and conflict-repair strategies. Initially Homebrew may link a parent directory as a whole.
   After a collision, each source remains one entry. The entry links through
   its keg alias to its private payload. No source file
-  is expanded into a Homebrew link. Two formulae that ship one source ID
-  conflict at that entry. Never use overwrite to conceal a duplicate.
+  is expanded into a Homebrew link.
+- Two formulae that ship one source ID conflict at that entry. Homebrew then
+  unlinks the whole later keg, including its other sources and executables.
+  During an upgrade, the earlier keg can also remain unlinked. Resolve the
+  ownership conflict and link the intended keg before resuming launches.
+  Never use overwrite to conceal a duplicate.
 - Homebrew's cleaner sets file modes only under `bin`, `sbin` and `lib`, so a
-  keg source keeps the modes of its copy. Its prune step removes empty
-  directories and dangling links under `share/`. A Git checkout holds no empty
-  directory, and Ravel refuses a dangling link, so the prune changes no
-  accepted source.
+  keg source keeps the modes of its copy. Its prune step skips `libexec`,
+  which holds the payload. The alias under `share` resolves to that payload,
+  so pruning preserves it too. A dangling alias is an installation defect.
 - Homebrew unlinks the earlier keg before it installs the new one. It links a
   keg, and moves its `opt` link, only after the install and the cleaner. A
   link in the default directory therefore names a complete keg, or nothing
@@ -197,12 +207,19 @@ reproduces both the failure and the proposed remedy with Homebrew itself.
 This layout amendment is a design. Formula implementation and publication
 must precede reliance on the guarantee.
 
-**Ownership and migration.** The Grove formula template and the tap's
-`personal`, `superpowers`, `quint-llm-kit` and `testanyware` formulae own the
-projection. Formula install methods move the source payload from their input
+**Ownership and migration.** The Grove formula template owns its projection.
+The tap owns the `personal`, `superpowers` and `quint-llm-kit` formulae.
+TestAnyware's `scripts/templates/testanyware.rb.tmpl` generates its tap
+formula, so both must carry the layout.
+
+Formula install methods move the source payload from their input
 archive into the private location and create the relative alias. Release
 archives can retain their existing payload layout. Neither Ravel nor a
 formula's post-install hook repairs another formula's links.
+
+Ravel's skill discovery specification and Homebrew directory view must explain
+this packaging rule before Ravel 2.0.0 publishes. Ravel's resolver remains
+unchanged. Its own formula must participate in the shared-directory acceptance.
 
 Each affected published formula needs a new revision or release, even if its
 source commit is unchanged, so an ordinary upgrade installs the remedy.
@@ -218,6 +235,10 @@ Acceptance resolves the shared default directory, checks every expected ID
 and digest, and checks that each entry canonicalises into its owning keg's
 private source. It also checks regular payload files remain regular files.
 Resolving versioned keg paths alone cannot detect the original failure.
+The durable [shared-directory seam](#shared-default-directory-acceptance)
+owns the cases and repeat conditions. The owner design's
+[formula acceptance](owner-skill-delivery.md#skill-formulae) owns acceptance
+of a revision that preserves the source commit.
 
 **Identity.** The accepted identity of a keg source is its `resourceDigest`.
 It equals the digest of a clean plain Git checkout of the same commit, made
@@ -286,8 +307,10 @@ path. No remote marketplace lists an adapter.
 The plugin root of each technical-communication adapter is the skill directory
 `craft/technical-communication` in the `writing` source. The
 [pack membership design](pack-membership.md#the-always-on-hooks) states why.
-Both marketplace files sit at the keg root and name paths inside the keg, such
-as `./share/ravel/skills/writing/craft/technical-communication`. Codex
+
+Both marketplace files sit at the keg root and name the private payload
+directly, at `./libexec/skill-sources/writing/craft/technical-communication`.
+They do not traverse the source alias under `share`. Codex
 resolves a `local` source only inside its marketplace root. No
 marketplace has the name `linkuistics`. The Codex marketplace keeps the name
 `writing-hooks` of WritingSkills, and WritingSkills removes its own root
@@ -300,8 +323,11 @@ marketplace file.
 | Codex | `codex plugin marketplace add "$(brew --prefix)/opt/grove"`, then `codex plugin add technical-communication@writing-hooks`. Then run `codex` once and choose "Trust all and continue" at its hook review | After each installation or upgrade of Grove |
 | Pi | `ln -s "$(brew --prefix)/share/ravel/skills/writing/craft/technical-communication/harnesses/pi/technical-communication.ts" ~/.pi/agent/extensions/` | Once |
 
-The [evidence](../homebrew-skill-delivery-evidence.md#the-hook-plugins-across-a-keg-change)
-decides the last column:
+The earlier [evidence](../homebrew-skill-delivery-evidence.md#the-hook-plugins-across-a-keg-change)
+used real source directories. It supports the registration lifecycle below.
+The revised layout still needs the [Hook adapters](#test-seams) acceptance
+on actual formula output. That acceptance covers the private marketplace
+paths and Pi's public alias through upgrade and cleanup.
 
 - Claude Code stores a directory marketplace by the path given. It runs the
   plugin in place through that path. A plugin registered by the `opt` path
@@ -721,9 +747,10 @@ The release takes the packs from that record:
 6. It checks each archive against the archive manifest, which lists each
    copied file with its Git mode.
 
-Each copy keeps executable bits and links. The formula installs
-`share/ravel/skills/` and the two dot directories at the keg root, beside the
-executables and `libexec/`. A cut changes only
+Each archive copy keeps executable bits and links. The formula moves those
+sources into `libexec/skill-sources/` and creates the relative directory
+symlinks under `share/ravel/skills/`. It installs the two dot directories at
+the keg root, beside the executables and `libexec/`. A cut changes only
 `CHANGELOG.md`, so the `grove-core` bytes of a release equal those of its
 candidate.
 
@@ -827,10 +854,53 @@ builds and the results.
 | Standalone | Grove sends neither `--confine` nor `--runtime-read` to Ravel 1.1 or 2.0. On the directory route of 2.0, the agent reads the required resources outside cwd. A write to a snapshot file fails by its file mode. With injection disabled, the agent reads its native roots. A force-stop publishes no output. A standalone prompt names no guidance, so Grove does not require a report or a force-stop. The confined results of 2026-11-03 and earlier, such as `missing-kind-confined-20261103T062817Z`, are historical, because the human withdrew confinement on that day. |
 | Open tree behaviour | Existing custom-kind, handle, review/integration, result and epoch tests pass. No availability check enters tree verbs or launch admission. |
 | Conformance | Core, external-pack and aggregate checks use exact supplied artefacts. `check:packs` reads Grove's record and checks each pack alone and in the aggregate with core. Removed required resources/edges and duplicate owners fail deliberate controls. The [external pack contract](external-pack-contract.md#controls-that-must-fail) lists the controls. |
-| Installed distribution | The archive manifest, `task release:smoke` and `task release:formula:test` show that the keg holds core and the five packs at the commits of Grove's record, with executable bits intact. Each test copies the Ravel 2.0 build into a private prefix, with an installation record that names the keg's `share/ravel/skills`. With no settings, `ravel skills resolve --json` reports exactly the six sources, each `originPath` inside the keg, with its `resourceDigest`. `release:formula:test` compares each digest with that of the plain checkout of the same commit. `task tap:formula:test` applies the same file, mode, root and digest checks to one formula of the tap, such as `personal`. It also registers each plugin of the keg's Claude Code marketplace file in an isolated Claude Code home. Archives and formula tests also check separate packages, both caller-asset sets with their runtimes, both configuration formats and no automatic native mutation. Exercise fresh install and upgrade at each tap state A to D of the coordinated release. At each state, Grove's dependency always resolves to an admitted Ravel major, and feature advertising follows its publication. |
-| Hook adapters | In isolated homes, each harness registers its adapter from a keg by the documented command. On Claude Code, the hooks run and no native `technical-communication` skill appears. One measurement installs a disposable formula, registers its hooks plugin by the `opt` path and runs `brew upgrade` with cleanup. A session after the upgrade runs the hooks from the new keg. The same measurement shows the Codex registration break and its repair. It also records whether a Codex session runs the cached hooks before the repair, and what the Codex hook review accepts. The [evidence](../homebrew-skill-delivery-evidence.md#the-hook-adapters-from-a-keg) holds the readings. |
+| Installed distribution | The archive manifest, `task release:smoke` and `task release:formula:test` preserve the recorded commits, executable bits, links and source digests. Archive and installed paths follow [The keg layout](#the-keg-layout). Formula acceptance includes the shared-directory seam below, with actual formula output. `task tap:formula:test` applies the same source comparisons to each affected tap formula. Archives and formula tests retain separate packages, both caller-asset sets and runtimes, both configuration formats and no automatic native mutation. Fresh installs and upgrades cover tap states A to D of the coordinated release. Each state's Grove dependency resolves to an admitted Ravel major, and feature advertising follows publication. |
+| Shared default directory | [Shared default directory acceptance](#shared-default-directory-acceptance) runs actual Homebrew linking on formula output, including Ravel's shared ancestors. A private installation record names the shared prefix directory. Direct keg resolution cannot satisfy this seam. |
+| Hook adapters | Repeat the documented commands in isolated Claude Code, Codex and Pi homes against the revised formula output. Both marketplaces name the private writing payload. Claude Code runs its hooks in place through the registered `opt` path, with no native skill. Codex accepts the local source and copies the complete plugin into its cache. Pi reaches the extension through the public alias. After actual upgrade and cleanup, check Claude Code and Pi read the new bytes. Record the Codex registration failure, cached hook behaviour, registration repair and renewed interactive trust of changed bytes. Native-only plugins receive the payload and capability acceptance below. The earlier [readings](../homebrew-skill-delivery-evidence.md#the-hook-adapters-from-a-keg) establish the old layout only. |
 | Retired listing | Before finish, an isolated Claude Code home adds the `linkuistics` marketplace from a Git remote at a commit that lists the packs, and installs `grove@linkuistics`. A refresh against a commit with the retired listing shows whether the plugin stays installed. The release notes state the result. The [evidence](../homebrew-skill-delivery-evidence.md#a-refresh-of-the-retired-listing) holds the reading. |
 | Actual harness behaviour | Claude Code and Codex each discover an applicable craft skill from a task that does not name it, and read it before the governed action. Ravel delivers every source from a keg path, and no native copy exists. |
+
+### Native-only hook acceptance
+
+Hook acceptance also compares complete native-only payloads with their
+accepted subjects. Repeat `guardrail` registration and its recorded capability
+trial from the revised personal keg. A successful no-op hook must fail the
+trial's refusal assertion. An unchanged skill source digest cannot replace
+that evidence for a native-only plugin.
+
+### Shared default directory acceptance
+
+`release:formula:test` and each applicable `tap:formula:test` run this seam
+before formula publication. Release acceptance repeats it with the published
+Ravel archives. The design experiment is a reusable failure control, not a
+substitute for formula output. `scripts/check.sh` alone does not establish
+this installation guarantee.
+
+Use a private prefix and actual Homebrew install methods, cleaner and
+`Keg#link` operations. Cover both skill-formula installation orders, absent
+shared ancestors, and Ravel-first dependency installation. Also cover Ravel
+promotion beside installed sources, mixed-layout migration, upgrade, old-keg
+cleanup and uninstall. All five skill formulae and Ravel's shared entries
+must participate in the applicable cases. A case for a duplicate ID covers
+fresh installation and upgrade, including rollback of the whole later keg.
+
+After each successful link, resolve the shared default directory with no
+source settings. Compare the exact expected ID set, roots and digests with
+the accepted sources. Compare each canonical `originPath` with its owning
+`libexec/skill-sources/<source-id>` payload. Check that regular payload files
+remain regular.
+
+After a refused duplicate, check the earlier owner's
+sources. Check that the prefix link directories contain none of the refused
+keg's source or executable entries. This does not require removal of its
+`opt` link or installed keg.
+
+Record the formula content and full package versions, Ravel build identity,
+and Homebrew revision. Digest the instrument and Homebrew's linker,
+installer and cleaner before and after the run. A changed subject invalidates
+the reading. Every formula validation reruns the seam against its Homebrew,
+so it does not depend on detecting a later linker change. Before accepting a
+new Homebrew version, repeat the failure control and both installation orders.
 
 Directory-route harness trials include supporting reads, continuation/compaction,
 one delegate, and coexistence with a stale native copy. Record

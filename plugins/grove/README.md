@@ -18,7 +18,7 @@ does not use the `grove-<kind>` prefix because it is not a lifecycle task kind.
 | | |
 |---|---|
 | skills | `grove` — the shared spine — and one `grove-<kind>` per kind |
-| installation | Grove's formula, as the source `share/ravel/skills/grove-core/` of the keg |
+| installation | Grove's formula stores `libexec/skill-sources/grove-core/` and exposes it through the relative directory symlink `share/ravel/skills/grove-core` |
 | conformance | [`conformance.sh`](conformance.sh) and its engine [`conformance.awk`](conformance.awk), with the controls in [`conformance.test.sh`](conformance.test.sh) |
 | design | [`../../docs/specs/module-decomposition.md`](../../docs/specs/module-decomposition.md), decision 11 and test seam 4 |
 
@@ -130,7 +130,8 @@ parameter to policy; naming the session belongs to the methodology.
 ## Installing
 
 Homebrew installs this plugin directory with Grove, at
-`share/ravel/skills/grove-core/` of the keg. Homebrew links it into Ravel's
+`libexec/skill-sources/grove-core/` of the keg. A relative directory symlink
+at `share/ravel/skills/grove-core` exposes it to Homebrew. Homebrew links that entry into Ravel's
 default skill directory, `$(brew --prefix)/share/ravel/skills/`. Ravel 2.0
 reads it there with no settings and delivers it to each session. `brew install`
 and `brew upgrade` are the whole setup. Grove ships no manual installer, and no

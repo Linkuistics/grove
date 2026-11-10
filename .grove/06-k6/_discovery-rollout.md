@@ -296,6 +296,20 @@ the root charter's extension.
   Staging's versioned keg paths cannot establish that. Reconcile hook registrations and prepared inputs
   for changed canonical paths. Keep the original Ravel 1.1.0 keg throughout.
 
+- skill-keg-link-layout-k292 integrates L1 to L8. k290 assigns the full
+  package-version comparisons, packaging acceptance records and durable
+  shared-directory seam before k93. It assigns the private hook marketplace
+  paths and repeated hook trials. It also assigns TestAnyware's release
+  template and Ravel's packaging guidance in their owning repositories.
+- The integration changes `plugins/grove/README.md`, which changes core's
+  source digest. k290 assigns a new candidate and core staging acceptance.
+  k254 and the dry run consume that evidence, not the earlier core digest.
+- Finish's acceptance includes Ravel-first installation evidence and actual
+  promotion linking beside the installed sources. It resolves all ten
+  default IDs after that operation and any link-conflict recovery. A
+  duplicate ID can leave the whole upgraded keg unlinked. The handoff
+  preserves recovery before any default launch or switch.
+
 - After the Ravel cut, record each accepted digest again with the published
   archives. Show before finish that the final line gives the `grove-core`
   candidate's tree ID. Step 5 of the coordinated release design records that

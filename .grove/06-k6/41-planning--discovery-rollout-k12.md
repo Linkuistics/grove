@@ -57,6 +57,17 @@ the finish sentinel.
 Consume the "Owner-delivery handoff" of the parent brief for the digest,
 tree-ID and recovery-table obligations.
 
+skill-keg-link-layout-k292 adds layout consequences to that handoff. Include
+actual Ravel-first linking and promotion beside installed sources in final
+acceptance. Use the published Ravel to resolve all ten default IDs after
+promotion and any link-conflict recovery. Check their accepted digests and
+owning private payloads before the switch or a default launch.
+
+Carry the full package revisions, revised hook registrations and renewed core
+candidate evidence into the plan comparison and dry run. Check that Ravel's
+published packaging guidance and TestAnyware's release template preserve the
+layout. k290 owns their implementation leaves before this rollout planning.
+
 The simplified switch design governs the finish handoff. The handoff names
 the owner's checklist with its pause and resume instructions, the input
 comparison, the plan, the tools and the recovery commands. It names

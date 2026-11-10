@@ -753,3 +753,104 @@ checker reports 5 and 13, and `owner-skill-delivery.md` went from 1 to 5.
 Most are semicolons, and the others are long sentences and word rotations.
 This review marked the section "Directory-link layout experiment" as pending
 for the integration to convert, and changed none of its words.
+
+## Directory-link layout integration
+
+`skill-keg-link-layout-k292` integrated the findings from review commit
+`b32012233495017dfa1c36c906d530b42965ceea`. It retained private payloads with
+relative directory symlinks. The review found no counterexample to that
+remedy. This integration repairs its contracts and acceptance obligations.
+It installs and publishes no formula.
+
+### Source verification
+
+The integration read the specifications, the experiment and the queued
+handoffs. It read the installed `Keg#link` and `Keg#unlink`, including
+whole-keg rollback after a link error. The graph supplied `gate_5` from
+`scripts/owner_switch.py`, which compares mise's `installed_version` with
+the plan's accepted string. Its call lookup reported no inbound call.
+That result establishes no absence of use, since the gate can be dispatched
+through a function table.
+
+The graph's full index generation was `2026-11-10T10:37:04Z`. Coverage
+metadata matched each requested path. It recorded partial parsing for the
+Mermaid sources, which the integration read in full. Later coverage for the
+external-pack views used generation `2026-11-10T10:47:29Z`. Clean metadata
+establishes no completeness beyond that recorded coverage.
+
+### Dispositions
+
+| Finding of skill-keg-link-layout-k291 | Classification | Result and owner |
+| --- | --- | --- |
+| L1 | Contract stated unclearly | The owner spec distinguishes full package versions from commits. Packaging-only acceptance can retain source trials after equal commits, roots and digests, plus the applicable packaging and hook seams. k290 assigns the program and fixture changes. k93 and k254 consume full revisions. |
+| L2 | Real issue | Both writing marketplaces must name the private payload directly. The Hook adapters seam repeats registration, copying, execution, cleanup and trust on revised formula output. k290 assigns that work. The earlier readings establish the earlier layout only. |
+| L3 | Real issue | The delivery spec adds Shared default directory acceptance. Formula validation runs it before publication, and release acceptance repeats it with published Ravel archives. Actual formula output and Homebrew operations replace a direct keg path as evidence of linking. |
+| L4 | Real issue | The contract includes Ravel's shared ancestors and entries. Acceptance covers Ravel-first dependency installation and promotion beside installed sources. k290 assigns the fixtures, and k12 carries actual promotion acceptance to finish. |
+| L5 | Real issue | A duplicate ID can leave every entry of the later keg unlinked. The upgrade can also leave the earlier keg unlinked. The contract requires ownership resolution and an intended linked keg before sessions resume. Acceptance covers the whole rollback. |
+| L6 | Real issue | Current Grove guidance distinguishes archive directories, private installed payloads and public aliases. The cleaner rationale now names its `libexec` exclusion. k290 assigns TestAnyware's release template and tap output together. |
+| L7 | Real issue | The delivery contract requires Ravel's packaging guidance to show intact sources behind directory symlinks. k290 assigns Ravel's spec and Homebrew directory view before the 2.0.0 cut. This session changes no Ravel file. |
+| L8 | Real issue | Preparatory change `e287b474` converts affected Grove prose before substantive edits. The experiment retains its measured subjects, observations and scope. |
+
+The repaired [keg layout](specs/codex-skill-provisioning.md#the-keg-layout)
+owns packaging. The [owner formula contract](specs/owner-skill-delivery.md#skill-formulae)
+owns revision acceptance. The
+[shared-directory seam](specs/codex-skill-provisioning.md#shared-default-directory-acceptance)
+owns repeated linking acceptance. The affected diagrams keep their existing IDs
+and now include Ravel's participation, package revisions and whole-keg
+rollback.
+
+### Consequences for queued work
+
+`skill-keg-link-layout-k290` assigns the implementation, formula publication
+and cross-repository documentation work before `owner-pack-checkouts-k93`.
+The plan must include the durable seams, not only this cutover's trials.
+The current formulae and validation programs still implement the earlier
+layout. The revised contracts are no claim that those implementations pass.
+
+Reconciliation changes `plugins/grove/README.md`, which is inside the
+`grove-core` source. Its digest therefore changes even though the skill
+procedures do not. k290 must assign a new candidate keg and the affected core
+staging trials. `owner-switch-plan-k254`, its input comparison and the dry run
+consume that renewed evidence. Unchanged sources can use the packaging-only
+bridge, but the changed core cannot.
+
+One narrow reviewer challenged the revision-acceptance contract. It found an
+unclear boundary: `guardrail` lies outside the personal source digest. An
+unchanged source therefore cannot establish unchanged native-hook behaviour.
+The owner contract now requires complete native-plugin payload comparisons
+and renewed capability trials for changes. The hook seam names guardrail's
+trial and a no-op control that must fail its refusal assertion. k290 assigns
+that acceptance.
+
+This clarification changes no source-boundary rule.
+
+Finish receives the installed ten-source acceptance after Ravel promotion,
+full package identities, revised hook registrations and current prepared
+inputs. It preserves the original Ravel 1.1.0 keg through the final signal.
+No formula link or real-HOME setting changed in this integration.
+
+### Reference sweep and validation
+
+The path-reference sweep covered Markdown, Mermaid and JSON across the
+repository, including dot directories and the task tree. It excluded generated
+`target` output and VCS internals. The same search found a known current
+payload, a deliberately wrong direct-directory fixture and its later removal.
+The retained references have these meanings:
+
+| Surface | Disposition |
+| --- | --- |
+| Current specifications, architecture, glossary, release guidance and source-layout views | Describe private installed payloads and public aliases. Archive paths remain directories. |
+| README, usage, configuration guidance and the installation decision record | Name the public default directory. That path remains valid. |
+| Current marketplace assets, harness case inputs and unreleased release note | Still describe the implementation that exists. k290 assigns their change when the new implementation lands. |
+| Staging settings, measured evidence, move records and finished task files | Preserve their recorded subjects and results. They establish no acceptance of the revised formula output. |
+| Live planning and implementation leaves | Assign revised formula output, package acceptance, core staging and the finish handoff. |
+
+`mise exec -- task check` exited 0. All 18 principal suites passed, including
+1,344 workspace tests, nine documentation tests and five final walkthrough
+validations. The workspace run skipped 29 tests. The result covers the current
+implementation. It establishes no acceptance of the future formula output.
+
+Both diagram manifests parsed. Their diagram IDs equal those of the review
+commit, and every referenced source exists. The viewer served the revised
+manifest. The browser host was unavailable, so rendered layouts and deep-link
+positions remain unverified.

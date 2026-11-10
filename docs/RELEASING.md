@@ -683,8 +683,10 @@ scripts/release-build.sh
 ```
 
 Neither binary embeds or installs skills. Each archive carries core and the
-five domain packs in `share/ravel/skills/`, one Ravel source each. Homebrew
-links them into Ravel's default skill directory, and only Ravel delivers them
+five domain packs in `share/ravel/skills/`, one Ravel source each. The formula
+moves them into `libexec/skill-sources/` and creates relative directory
+symlinks at their former paths. Homebrew links those entries into Ravel's
+default skill directory, and only Ravel delivers them
 to a session. Startup and upgrade leave existing native installations,
 including snapshots written by Grove 22.8 and earlier, unchanged.
 
@@ -695,8 +697,8 @@ native skill installation can still differ from the installed CLI.
 Describe changes to the instructed verbs in the changelog.
 
 Each archive unpacks to one directory, `grove-v<version>-<target>/`, laid out
-as an installation prefix, and the formula installs the same shape into its
-keg:
+as an installation prefix. The following listing describes the archive.
+The formula relocates its skill sources as stated below.
 
 ```text
 bin/grove
@@ -713,6 +715,14 @@ share/ravel/skills/<pack>/                       each pack of plugins/packs.json
 LICENSE
 README.md
 ```
+
+The installed keg keeps the caller assets and marketplace files at their
+archive paths. Each source becomes `libexec/skill-sources/<source-id>/`, with
+a relative directory symlink at `share/ravel/skills/<source-id>`. The
+[delivery specification](specs/codex-skill-provisioning.md#shared-default-directory-acceptance)
+requires actual Homebrew linking beside other skill formulae and Ravel.
+Formula validation and release acceptance run that seam. A resolution that
+names only one keg cannot establish the shared-directory guarantee.
 
 The `*.ts` files are the TypeScript set for Ravel 1.x, and the `*.rhai` files
 are the Rhai set for Ravel 2.x.

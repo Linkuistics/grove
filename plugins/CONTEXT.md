@@ -50,10 +50,12 @@ the README, the Taskfile and any cache in each capture.
 
 **Keg source**:
 The copy of one [[Source directory]] in a Homebrew keg, at
-`share/ravel/skills/<source-id>/`. Homebrew links it into
-[[Default skill directory]]. Its `resourceDigest` equals that of a clean
+`libexec/skill-sources/<source-id>/`. The keg exposes it through a relative
+directory symlink at `share/ravel/skills/<source-id>`. Homebrew links that
+entry into [[Default skill directory]]. Its `resourceDigest` equals that of a clean
 checkout of the same commit. `docs/specs/codex-skill-provisioning.md` states
 the keg layout.
+
 _Avoid_: the versioned path under `Cellar/`. Homebrew's cleanup erases it after
 an upgrade.
 

@@ -1,5 +1,5 @@
 {
-  "title": "Harness selection and execution — Grove caller views",
+  "title": "Harness selection and execution \u2014 Grove caller views",
   "intro": "Homebrew installs the sources and Ravel delivers them under the four single-owner simplifications. k263 integrates the review before k262 plans implementation and acceptance. Native-off covers preflight stops after promotion, and later drift refuses whole-file restore. Delivery assertions establish current health. Probe cleanup and parent observation require measured evidence. Graphs begin at Start here, sequences at their first message.",
   "groups": [
     {
@@ -44,7 +44,7 @@
       "group": "skills",
       "title": "Keep source entries whole during conflict repair",
       "source": "keg-link-layout.mmd",
-      "caption": "Designed remedy, not published formula behaviour. Homebrew treats a formula-owned directory symlink as one entry even while rebuilding a displaced subtree. The two-keg experiment reproduced the old failure and preserved the proposed sources in both orders, across upgrade and old-keg removal. Mixed layouts still need the migration procedure. This is a filesystem flow, not a checked model."
+      "caption": "Designed remedy, awaiting formula implementation and acceptance. Skill formulae and Ravel share ancestors. Homebrew preserves a source directory symlink during conflict repair. A duplicate ID instead unlinks the whole later keg. Durable acceptance must use actual formula output and shared-prefix resolution. The earlier experiment establishes its recorded cases only."
     },
     {
       "id": "owner-classes",
@@ -58,7 +58,7 @@
       "group": "owner",
       "title": "Skill formulae outside Ravel",
       "source": "owner-skill-formulae.mmd",
-      "caption": "Amended by skill-keg-link-layout-k274: each formula owns a private payload and a relative directory symlink under share. Homebrew preserves that entry during conflict repair. Implementation and publication remain ahead. An advance unlinks the earlier keg before linking the new one; a missing mandatory source refuses, and missing Grove guidance makes the session force-stop. mac-check reports version drift separately from an invalid expanded source."
+      "caption": "The design keeps each private source intact behind a relative directory symlink. Acceptance identifies full package versions, including Homebrew revisions, separately from source commits and digests. Formula validation must include Ravel linking and whole-keg duplicate rollback. mac-check reports version drift and invalid layouts separately. Implementation and publication remain ahead."
     },
     {
       "id": "owner-cutover",
@@ -86,7 +86,7 @@
       "group": "release",
       "title": "Compatible tap states",
       "source": "release-tap.mmd",
-      "caption": "Designed A–D states; implementation and acceptance remain ahead. Installing keg-only ravel@2 changes no default command. Promotion requires compatible published Grove and verified fresh-install and upgrade paths. It moves default users from policy.ts to config.rhai and deprecates ravel@2 at the promoted version. Retained old callers keep complete prefixes and settings."
+      "caption": "Designed A\u2013D states; implementation and acceptance remain ahead. Installing keg-only ravel@2 changes no default command. Promotion requires compatible published Grove and verified fresh-install and upgrade paths. It moves default users from policy.ts to config.rhai and deprecates ravel@2 at the promoted version. Retained old callers keep complete prefixes and settings."
     },
     {
       "id": "release-order",
@@ -182,8 +182,8 @@
   ],
   "discussion": {
     "title": "Preserve each source during Homebrew conflict repair",
-    "status": "Designed in k274; formula implementation and publication follow",
-    "summary": "Store payloads privately in the keg and expose directory symlinks under share. The actual Homebrew linker and accepted Ravel resolver reproduce the old failure and preserve the remedy in either installation order. Upgrade every installed skill formula during migration, and verify the shared default directory before the switch.",
+    "status": "Integrated in k292. Formula implementation and publication follow.",
+    "summary": "Private payloads and directory symlinks preserve intact sources during Homebrew conflict repair. Durable acceptance includes Ravel-first installation, promotion and whole-keg duplicate rollback. Full package revisions and native-only plugins need explicit acceptance. Upgrade every skill formula before default launches, and renew the changed core candidate.",
     "diagramIds": [
       "keg-link-layout",
       "owner-pack-checkouts",
@@ -192,11 +192,11 @@
     "updatedDiagrams": [
       {
         "id": "keg-link-layout",
-        "summary": "Added the old expansion failure and the directory-symlink remedy at the same conflict-repair boundary."
+        "summary": "Includes Ravel sharing the ancestors and whole-keg rollback for a duplicate ID."
       },
       {
         "id": "owner-pack-checkouts",
-        "summary": "Added formula-owned private payloads and directory aliases, with layout errors reported separately from version drift."
+        "summary": "Distinguishes full package revisions from source digests and requires shared-prefix acceptance before publication."
       }
     ]
   }

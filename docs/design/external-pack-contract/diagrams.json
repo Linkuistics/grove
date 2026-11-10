@@ -1,5 +1,5 @@
 {
-  "title": "External pack contract — views",
+  "title": "External pack contract \u2014 views",
   "intro": "How a skill pack outside Grove's repository joins the methodology, with ResearchSkills as the first pack, and where the disputed assets of the remaining moves go. Graphs begin at Start here; numbered edges give the order of the steps.",
   "groups": [
     {
@@ -68,7 +68,7 @@
       "group": "layout",
       "title": "One source directory, copied into the keg",
       "source": "layout.mmd",
-      "caption": "Grove's release copies plugins/research alone into its keg, so the digest covers only delivered files. Ravel reads the keg copy. The manifest stays as metadata that no route installs. The repository root holds what the pack does not deliver."
+      "caption": "The formula stores the copied research source in libexec/skill-sources/research. A relative directory symlink under share exposes the intact payload. Ravel canonicalises the alias before capture. The manifest stays as metadata, and the repository root is outside the source."
     },
     {
       "id": "edges",
@@ -89,7 +89,7 @@
       "group": "distribution",
       "title": "From a published commit to a session",
       "source": "distribution.mmd",
-      "caption": "Proposed by homebrew-delivery-design-k216. The release copies each pack from the checkout that check:packs used, so the keg holds the commit that the check accepted. Homebrew links the keg source into Ravel's default skill directory, which Ravel 2.0.0 reads with no settings. No marketplace lists a pack, and no installer links its skills."
+      "caption": "The release archive preserves its source layout. The formula moves each source into private libexec storage and creates a relative directory symlink under share. Homebrew links that entry into the shared default directory. Ravel reads the intact source. Actual formula and shared-prefix acceptance remain required."
     },
     {
       "id": "membership-formats",

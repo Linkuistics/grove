@@ -1,7 +1,7 @@
 flowchart TB
     subgraph brew["Homebrew installs, mise declares the formulae"]
         direction TB
-        A["Start here · The tap publishes<br/>an accepted formula version"]
+        A["Start here · The tap publishes<br/>an accepted package version with revision"]
         B["Owner runs brew update,<br/>then brew upgrade FORMULA"]
         E{"Download succeeds?"}
         U["Unlink the earlier keg<br/>Its entries are absent meanwhile"]
@@ -9,7 +9,8 @@ flowchart TB
         P["Private source in libexec<br/>Relative directory symlink in share"]
         O[("Default skill directory<br/>share/ravel/skills/ID")]
         F["Earlier keg keeps launching<br/>mac-check reports drift"]
-        K["mac-check compares the installed<br/>version with the tap's version"]
+        K["mac-check compares full installed<br/>and tap package versions with revisions"]
+        Q["Shared-prefix acceptance includes Ravel<br/>and whole-keg duplicate rollback"]
         A -->|1| B
         B -->|2| E
         E -->|"3 yes"| U
@@ -18,6 +19,7 @@ flowchart TB
         P -->|"6 Homebrew links the entry"| O
         E -->|"3 no, offline advance"| F
         K -.->|"reports version drift<br/>or invalid source layout"| O
+        Q -.->|"before publication"| A
     end
     subgraph ravel["Ravel 2.0 reads the directory when the settings name no sources"]
         direction TB

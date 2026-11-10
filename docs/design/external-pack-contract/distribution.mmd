@@ -3,13 +3,15 @@ flowchart TB
     R["Grove's record plugins/packs.json<br/>research: url, path, sha"]
     C["task check:packs<br/>the pack alone, then the aggregate with core"]
     A["Grove's release archive<br/>share/ravel/skills/research, modes kept"]
+    P["Formula moves source into libexec/skill-sources<br/>and adds a relative directory symlink under share"]
     K[("Default skill directory<br/>BREW_PREFIX/share/ravel/skills/research")]
     RS["Ravel reads it by default<br/>roots skills"]
     SN["Snapshot<br/>accepted by resourceDigest"]
     S -->|1| R
     R -->|"2 reads sha"| C
     C -->|"3 task release copies the source directory"| A
-    A -->|"4 brew install or upgrade links it"| K
+    A -->|"4 formula installation"| P
+    P -->|"Homebrew links the alias"| K
     K -->|5| RS
     RS -->|"6 capture at each launch"| SN
     classDef start fill:#16354a,color:#fff,stroke:#16354a,font-weight:bold

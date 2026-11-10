@@ -569,6 +569,33 @@ tasks:
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/probe_lifecycle.py sessions --out "{{.OUT}}" {{if .ONLY}}--only "{{.ONLY}}"{{end}}
 
+  # The quiet-interval measurement of the complete switch in the staging HOME
+  # beside an idle, signed-in Claude Code parent ("Claude Code's own writes"
+  # of docs/specs/owner-skill-delivery.md). WORK is a new folder outside every
+  # working copy. Run prefix, seed and prepare once, in that order, then run.
+  # STEP=controls runs the instrument's controls in the new folder WORK, with
+  # no harness. Run spends subscription usage: the parent session and the switch's two
+  # probe sessions. Run nothing else that starts Claude Code or Codex
+  # meanwhile. For example:
+  #   task owner:quiet-interval STEP=prefix WORK=~/.local/state/owner-staging/trials/quiet-interval-1
+  #   task owner:quiet-interval STEP=run WORK=...
+  owner:quiet-interval:
+    desc: Run one step (prefix, seed, prepare, run, analyse or controls) of the staging quiet-interval measurement in WORK, writing WORK/record.json after run (run spends subscription usage)
+    requires:
+      vars: [STEP, WORK]
+    vars:
+      STAGING: '{{.STAGING | default "~/.local/state/owner-staging/home"}}'
+      CANDIDATE: '{{.CANDIDATE | default "~/.local/state/owner-staging/candidate"}}'
+      RAVEL_2_0_PREFIX: '{{.RAVEL_2_0_PREFIX | default "~/.local/state/owner-staging/ravel-2.0"}}'
+    cmds:
+      - |
+        case "{{.STEP}}" in
+          prefix) python3 -I docs/evaluations/owner-skill-delivery/quiet_interval.py prefix --work {{.WORK}} --candidate {{.CANDIDATE}} --ravel {{.RAVEL_2_0_PREFIX}} ;;
+          seed|prepare|run|analyse) python3 -I docs/evaluations/owner-skill-delivery/quiet_interval.py {{.STEP}} --home {{.STAGING}} --work {{.WORK}} ;;
+          controls) python3 -I docs/evaluations/owner-skill-delivery/quiet_interval.py controls --out {{.WORK}} ;;
+          *) echo "STEP must be prefix, seed, prepare, run, analyse or controls" >&2; exit 2 ;;
+        esac
+
   # The owner switch program's fixture suite ("Test seams" of
   # docs/specs/owner-skill-delivery.md). OUT is a new directory outside every
   # working copy. ONLY limits the controls to the names that match a regular

@@ -8,7 +8,7 @@ rehearsed plan", "Rollback" and "Current health and restore eligibility".
 "Owner switch plan draft" of docs/owner-skill-delivery-evidence.md states
 each choice of this draft.
 
-    python3 -I switch_plan_draft.py draft
+    python3 -I switch_plan_draft.py draft [--home HOME --out DIR]
     python3 -I switch_plan_draft.py check --out OUT
 
 `draft` reads the real HOME and changes nothing there. It runs no harness and
@@ -28,6 +28,13 @@ from the table "The ten Ravel sources" of docs/repository-moves-record.md,
 and they are provisional. The script writes
 docs/owner-cutover/switch-plan-draft.json and the write table
 docs/owner-cutover/switch-plan-writes.tsv.
+
+`draft --home HOME --out DIR` drafts the same plan from another HOME, such
+as the staging HOME of owner-staging-hooks-k251, into DIR/plan.json and
+DIR/writes.tsv. A discovery root that HOME lacks holds no entry, and an
+inventory path that HOME lacks is left out. The plugin
+values, the accepted values and accepted.staging stay those of the real
+draft, because the staging HOME stands for the real one.
 
 `check` builds a disposable HOME in OUT/home from the draft. It copies each
 write with the program's own metadata copy, and each inventory entry, from
@@ -54,6 +61,8 @@ TABLE_OUT = os.path.join(DRAFTS, "switch-plan-writes.tsv")
 INVENTORY = os.path.join(ROOT, "docs", "owner-skill-inventory-reference.tsv")
 MOVES_RECORD = os.path.join(ROOT, "docs", "repository-moves-record.md")
 HOME = os.path.realpath(os.path.expanduser("~"))
+# True when `draft --home` names another HOME than the account's.
+OTHER_HOME = False
 
 # The five discovery roots whose superseded children the switch deactivates.
 ROOTS = (".claude/skills", ".codex/skills", ".agents/skills", ".pi/agent/skills", ".pi/agent/extensions")
@@ -246,6 +255,8 @@ def classify(rows):
     """The entry writes of the five roots, the kept children and their table rows."""
     entries, table, kept = [], [], {}
     for root in ROOTS:
+        if not os.path.isdir(os.path.join(HOME, root)):
+            continue
         for name in sorted(os.listdir(os.path.join(HOME, root))):
             rel = f"{root}/{name}"
             found = rows.get((tilde(root), name), [])
@@ -296,12 +307,16 @@ def inventory(entries):
     gone = {w["path"] for w in entries}
     before, after = [], []
     for rel in INVENTORY_PATHS:
+        if OTHER_HOME and not os.path.lexists(os.path.join(HOME, rel)):
+            continue
         item = {"path": rel, "identity": identity(os.path.join(HOME, rel))}
         before.append(item)
         after.append(item)
     for root in INVENTORY_ROOTS:
         children = {}
-        for name in sorted(os.listdir(os.path.join(HOME, root))):
+        names = os.listdir(os.path.join(HOME, root)) if OTHER_HOME and os.path.isdir(os.path.join(HOME, root)) \
+            else [] if OTHER_HOME else os.listdir(os.path.join(HOME, root))
+        for name in sorted(names):
             if f"{root}/{name}" not in CONTAINERS:
                 children[name] = identity(os.path.join(HOME, root, name))
         before.append({"root": root, "entries": children})
@@ -309,7 +324,14 @@ def inventory(entries):
     return {"before": before, "after": after}
 
 
-def draft(_args):
+def draft(args):
+    global HOME, PLAN_OUT, TABLE_OUT, OTHER_HOME
+    if bool(args.home) != bool(args.out):
+        sys.exit("usage: draft --home and --out go together")
+    if args.home:
+        HOME, OTHER_HOME = os.path.realpath(args.home), True
+        os.makedirs(args.out, exist_ok=True)
+        PLAN_OUT, TABLE_OUT = os.path.join(args.out, "plan.json"), os.path.join(args.out, "writes.tsv")
     rows = inventory_rows()
     entries, table, kept = classify(rows)
     settings = settings_values(rows)
@@ -366,7 +388,7 @@ def draft(_args):
         "native_probe": NATIVE_PROBE,
         "mac_check": MAC_CHECK,
     }
-    os.makedirs(DRAFTS, exist_ok=True)
+    os.makedirs(os.path.dirname(PLAN_OUT), exist_ok=True)
     with open(PLAN_OUT, "w") as f:
         json.dump(plan, f, indent=2, ensure_ascii=False)
         f.write("\n")
@@ -379,7 +401,8 @@ def draft(_args):
     if not os.path.exists(PROBES_SOURCE):
         print("draft: the probe program has no source yet, so the inputs do not name it")
     print(f"draft: kept in the roots: {', '.join(sorted(kept))}")
-    print(f"wrote {os.path.relpath(PLAN_OUT, ROOT)} and {os.path.relpath(TABLE_OUT, ROOT)}")
+    print(f"wrote {PLAN_OUT if OTHER_HOME else os.path.relpath(PLAN_OUT, ROOT)} and "
+          f"{TABLE_OUT if OTHER_HOME else os.path.relpath(TABLE_OUT, ROOT)}")
     return 0
 
 
@@ -612,7 +635,9 @@ def check(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("draft")
+    d = sub.add_parser("draft")
+    d.add_argument("--home")
+    d.add_argument("--out")
     sub.add_parser("check").add_argument("--out", required=True)
     args = parser.parse_args()
     return draft(args) if args.command == "draft" else check(args)

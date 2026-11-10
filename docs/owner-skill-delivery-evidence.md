@@ -5169,3 +5169,242 @@ later run now shows a regression of the fix.
   of each harness ran only in the probes, which cover Claude Code's hooks.
   No real Codex session ran with the Codex hooks plugin, which the switch
   keeps absent.
+
+## Quiet interval in staging
+
+`owner-staging-hooks-k251` delivered this section on 2026-11-10. It measures
+the complete simplified switch in the staging HOME beside an idle, signed-in
+Claude Code parent with the owner's MCP servers. The sections
+[Claude Code's own writes](specs/owner-skill-delivery.md#claude-codes-own-writes),
+[The hooks installation inside finish](specs/owner-skill-delivery.md#the-hooks-installation-inside-finish)
+and [Test seams](specs/owner-skill-delivery.md#test-seams) own the rules.
+The tool is [`quiet_interval.py`](evaluations/owner-skill-delivery/quiet_interval.py),
+and `task owner:quiet-interval` runs each of its steps.
+
+### Result
+
+The quiet-interval assumption held in this run. From 07:05:29Z to 07:08:34Z,
+the switch installed the hooks plugin, deactivated 154 entries, wrote the
+settings and ran three probes. It then ran `mac-check`, wrote its receipt and
+exited with 0. The idle parent and its MCP servers ran through that interval.
+They also ran for 136 seconds before it and for 36 seconds after it.
+
+Every write of `settings.json`, of both registries and of the Ravel settings
+came from the switch. No loaded plugin version directory and no registration
+of a loaded plugin changed. No orphan marker appeared.
+
+Claude Code was 2.1.322, at
+`/Users/antony/.local/share/claude/versions/2.1.322`. No hold exists before
+owner-marketplace-freeze-k253, and the plan draft still names 2.1.319. The
+held version of k253 therefore needs another run of this measurement unless
+it is 2.1.322.
+
+### The arrangement
+
+The parent is the switch's ancestor, as finish is. The tool started the held
+Claude Code in its own tmux server, with HOME set to the staging HOME. The
+parent ran in a new folder under `/private/tmp` with an allow-listed
+environment. The
+parent showed its prompt, and the tool waited 120 seconds. The tool then
+typed one prompt, and the parent ran `run-switch.sh` with its Bash tool and
+waited for it. Each settings temporary named its writer's PID, and its
+ancestry was the same for both Claude Code commands:
+
+```
+claude:6759 < python3:5403 (the program) < sh:5400 (run-switch.sh) < zsh:5399 < 2.1.322:85959 (the parent) < tmux
+```
+
+The parent's `/mcp` view showed `codebase-memory-mcp` and `quint-kb` with
+their tools, and `plugin:playwright:playwright` with 25 tools.
+`plugin:context7:context7` needed authentication, because the staging HOME
+copies no credential. The parent's process tree held the three local servers
+before and after the switch.
+
+These parts stand in for the real HOME:
+
+| Part | Content |
+| --- | --- |
+| Staging prefix | `quiet-interval-1/prefix` stands for `$(brew --prefix)`. Its `bin/ravel` is a clone of the accepted 2.0 build, SHA-256 `3a9a9129…`. Its installation record names its `share/ravel/skills`, which links the ten sources. `opt/grove` reaches the candidate keg. With no `sources`, the build resolved the ten accepted digests. |
+| Stubs | `brew` answered `--prefix`, `--cellar` and `info --json=v2 linkuistics/taps/grove`. `mise` answered gate 5's status query. Each other call exits 97, and none occurred. Resolution, the probes and Claude Code's commands were real. |
+| Native starting state | Copies of the plan's 154 entries, following links, so that no link leads out. A dangling link became a link to an absent path inside the staging HOME. Claude Code's commands installed and enabled `grove`, `linkuistics` and `testanyware` at `238c3a839ab4`, `superpowers` 7.0.0 and `quint-llm-kit` 1.0.0, the owner's versions. |
+| Tools | Clones of `~/.local/bin/codebase-memory-mcp` and `~/.quint-llm-kit`, which the baseline instrument reads relative to HOME. |
+| `codebase-memory-mcp` | The server is one daemon per account, and it refuses a client with another cache folder. The staging entry sets `CBM_CACHE_DIR` to the daemon's `~/.cache/codebase-memory-mcp`. Finish's own parent shares that daemon. |
+| Staging plan | `switch_plan_draft.py draft --home --out` drafted it from the staging HOME after native-off. Plan SHA-256 `35243f40617fd3eb086242772fbbd5b3c09710588096ad29724a982934f4913e`. |
+| Process inspection | `OWNER_SWITCH_REHEARSAL_SCOPE` named an empty folder, because the inspection cannot admit the parent beside the operator's own session. The probes' own checks ran unchanged. |
+| Hook points | `OWNER_SWITCH_REHEARSAL_HOOK` named a script that only records each point and its time. These marks define the program's windows. |
+| Readers and guidance | `OWNER_SWITCH_READERS` named the 11 version directories that held the parent's `.in_use/85959`. `--guidance` named the loaded `grove-finish` skill file. |
+
+The program was `scripts/owner_switch.py`, SHA-256
+`c7fabacda7aa64a5389468005f92d81bb67c781f8887878866273cde1432c2c2`. The
+probe program was SHA-256
+`176d89c865de1b9dcc22580e52bdeef0cb08aa8bf1026730144b32bc21933488`.
+
+### The writes
+
+The recorder watched `.claude`, `.claude/plugins` and `.config/ravel`, and
+the four files, from 07:03:13Z until the parent ended at 07:09:10Z.
+
+| Window | File | Writer |
+| --- | --- | --- |
+| `marketplace add` | `known_marketplaces.json`, replaced through `known_marketplaces.json.tmp.cad28f73` | The command's window. Registry temporaries name no PID. |
+| `marketplace add` | `settings.json`, replaced through `settings.json.tmp.6759.…` | The command, PID 6759, below the switch |
+| `install` | `settings.json`, replaced through `settings.json.tmp.7034.…` | The command, PID 7034, below the switch |
+| `install` | `installed_plugins.json`, replaced | The command's window. The recorder saw no temporary. |
+| Step 5, the disabled value | `settings.json`, replaced | The program, `.settings.json.owner-switch-…` |
+| Step 6 | `settings.json`, replaced | The program |
+| Step 6, last | `.config/ravel/settings.json`, replaced | The program |
+
+No write occurred outside these windows. In particular, no file changed
+before the switch, during the three probes or after the switch. Neither
+`plugin:context7` nor any server wrote a watched file.
+
+The recorder also listed entries that are no writes of a watched file. The
+parent and the Claude Code probe created and removed
+`known_marketplaces.json.lock` at their start without changing the file. The
+parent wrote `history.jsonl` when it received the prompt and when it ended.
+
+### Metadata
+
+Before and after the switch, and at each replacement, each of the four files
+had mode 0644, no ACL and only `com.apple.provenance`. No file lost
+metadata, because none held any to lose.
+
+A scratch HOME measured what the commands would lose.
+`claude plugin marketplace add` and `claude plugin install` dropped a user
+extended attribute from `settings.json` and from both registries. The
+program refused lost metadata only for `settings.json`. `lost_metadata` now
+checks all three files of `HOOK_FILES`, and the specification's section
+[Claude Code's own writes](specs/owner-skill-delivery.md#claude-codes-own-writes)
+names both registries. The controls `serial-hooks-registry-acl-appears` and
+`serial-hooks-registry-attribute-appears` cover them. A mutant that checks
+only `settings.json` fails both.
+
+The control `serial-backup-metadata` put an
+ACL on `installed_plugins.json` before a switch that installs the hooks
+plugin. The program now refuses that layout, so the control marks only the
+entry folder, its file and the Ravel settings.
+
+`task owner:switch:rehearse` then passed all 159 controls on Python 3.15.1
+and macOS 27.0.1, in 490 seconds. The program, the suite, the dry-run
+instrument, `mac-check` and its helper had the same SHA-256 digests before
+and after the run. `bash scripts/check.sh` passed all 18 checks.
+
+### Loaded plugins and markers
+
+The parent loaded 11 version directories. These are the six residue plugins
+of the official marketplace, the five superseded plugins and none other.
+Each kept its change identity without the top-level `.in_use`, and each kept
+its registration in `installed_plugins.json`. The comparison skips only the
+top-level `.in_use` of each directory, as `inventory.py` and the purge
+report do. The parent's marker was present before and after the switch.
+
+Two `.orphaned_at` markers existed before the switch, in
+`claude-plugins-official/context7/dceb15d50832` and
+`claude-plugins-official/playwright/dceb15d50832`. A seeding command created
+both directories at 06:40:03Z. Neither directory is registered, and the
+parent loaded neither. The Claude Code probe rewrote both markers 0.8
+seconds after its launch. A fresh Claude Code session marks each
+unregistered version directory again, so the real switch's probe does the
+same. No marker appeared in a registered or loaded directory.
+
+### After the measurement
+
+The staging HOME holds `technical-communication-hooks@writing-hooks`
+installed, at `cache/writing-hooks/technical-communication-hooks/unknown`,
+and enabled. `guardrail@personal` is enabled. The five superseded plugins
+stay installed and disabled, as in the real HOME after a switch. The
+receipt is
+`.local/state/owner-switch/receipts/20261110T070313166030Z-5cff82.json`.
+
+The switch left the switched Ravel settings, which name no `sources`. The
+staging tools run the accepted build, which has no installation record, so
+the original staging settings went back after the measurement, SHA-256
+`d8a49f06…`. They resolve the ten sources again. The `writing-hooks`
+marketplace names `quiet-interval-1/prefix/opt/grove` as its directory, so
+that folder stays as long as the staging HOME.
+
+The interactive parent created `Applications/Claude Code URL Handler.app` in
+the staging HOME. Its executable is a link to the Claude Code executable. It
+joins no configuration owner, but it is the one new link that leads out of
+the staging HOME.
+
+### Runs that ended early
+
+Four runs ended before a switch write. Their files are in
+`quiet-interval-1/aborted-1` to `aborted-4`.
+
+1. Claude Code 2.1.322 shows the folder trust prompt with "No, exit"
+   selected, and the tool's Enter chose it. The tool now records the trust
+   in the staging `.claude.json` before the launch.
+2. The staging settings select the vim editor mode, which shows no
+   "? for shortcuts". The readiness check now accepts its footer.
+3. The switch refused with 3. The plan's original of the Ravel settings was
+   absent, but native-off wrote the off value before the switch.
+4. The switch refused with 3, because the plan named `.agents/.grove` with
+   the identity "absent". The draft now leaves out a path that the other
+   HOME lacks, and `prepare` fails on a difference that `report` shows.
+
+The third refusal applies to the real plan too. The stored draft records the
+Ravel settings as absent, and finish runs native-off before the switch.
+owner-switch-plan-k254 received the finding: the real plan needs the
+identity of the file that native-off writes.
+
+The auto-mode classifier refused a parent in `bypassPermissions`. The parent
+therefore ran in the default permission mode, with one allow rule for
+`Bash(/bin/sh …/run-switch.sh)`. In the run of record, the parent ran the
+command without a prompt.
+
+### Controls
+
+`task owner:quiet-interval STEP=controls` gives the instrument wrong
+subjects in a scratch HOME, with no harness. Each must come back dirty:
+
+| Control | Result |
+| --- | --- |
+| A settings temporary that names the control's own PID | Recorded with that PID's ancestry, and reported as unsolicited |
+| A registry written in place | Reported outside a program window |
+| A registry replaced without its extended attribute | Reported as lost metadata |
+| The analysis of these subjects | Exit 1 |
+
+A mutant whose PID pattern never matches failed the first control. A
+mutant that ignores lost extended attributes failed the third. In the run of
+record, the recorder saw each program write. That positive control shares
+the run's files and flags.
+
+### Records
+
+The work folder is `/Users/antony/.local/state/owner-staging/trials/quiet-interval-1`.
+
+| Subject | SHA-256 |
+| --- | --- |
+| `record.json`, from the final analysis | `33c8e747d49b72b39828698adb0007b125ba4ebb01b35272979c52c19b845168` |
+| The tool of the final analysis | `9434198f41a3247f82ac4b012287387c4ec650ad4302cf36a974b25202865894` |
+| `watch.jsonl` | `8525f48385f5b3664fe931db7052026b426717aa6dc68bc379503be926bfabf0` |
+| `switch.log` | `69124a3bfaba1952a4682d99a2553b31dbe2648c875fffb6724097af9fd90ef3` |
+| `seed.json` | `052166d2061a5c3f610494a02247a7773a0a1d2968ef683a52915c281b590ea6` |
+| The tool of the run, `quiet_interval.run.py` | `6a96ef00faf3254057944f5f6560e765d52f3190a9c39e8133110c39a0779c6b` |
+
+The tool's last modification came before the run started. Later edits
+changed only its analysis and added its controls. `analyse` reads the
+recorded files again, and the record names both tool digests.
+
+### Limits
+
+- One run. It shows that this layout had a quiet interval once. It does not
+  bound how often a background writer acts.
+- Claude Code 2.1.322 is not a held version. A different held version needs
+  another run.
+- The parent ran in the default permission mode with one allow rule.
+  Finish's own permission mode may differ.
+- `plugin:context7` had no credential. It is an HTTP server with no local
+  process, so this run did not measure an authenticated Context7.
+- Registry temporaries name no PID. The analysis attributes their writes by
+  the program's windows. No such write fell outside a window.
+- The recorder lists a folder when the kernel wakes it. Two changes inside
+  one wake read as one change. The `installed_plugins.json` temporary was
+  not seen, although the replacement was.
+- The stubs replace the metadata queries of gates 4 and 5. The scope
+  variable replaces the narrow process inspection. The real switch runs
+  neither.
+- The real HOME was not measured. The staging HOME stands for it, with the
+  owner's plugin versions and MCP servers.

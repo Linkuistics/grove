@@ -720,7 +720,9 @@ Restore and stop on a failed command or unexpected configuration change.
 #### Claude Code's own writes
 
 The existing measurement found that Claude Code's install commands replace
-`settings.json` and can drop ACLs and extended attributes. Sole ownership
+`settings.json` and can drop ACLs and extended attributes. They replace
+`known_marketplaces.json` and `installed_plugins.json` in the same way, so
+each rule below about lost metadata covers all three files. Sole ownership
 does not prevent that behaviour. The simplified design omits held links and
 inode inspections because the checklist excludes other settings writers.
 

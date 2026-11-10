@@ -51,3 +51,18 @@ hooks still work through Ravel delivery.
 A failure in a pack's layout goes to that pack's repository and needs a new
 pack commit, a new candidate keg or formula, and reruns. Name that cost to
 the owner before you choose the repair.
+
+owner-staging-hooks-k251 ran the complete switch in the retained staging
+HOME. The section "Quiet interval in staging" of
+`docs/owner-skill-delivery-evidence.md` records the layout that it left:
+
+- `technical-communication-hooks@writing-hooks` is installed and enabled.
+  Its marketplace names `quiet-interval-1/prefix/opt/grove` in
+  `~/.local/state/owner-staging/trials`, so that folder must stay.
+- `guardrail@personal` is enabled. The five superseded plugins are installed
+  and disabled, as in the real HOME after a switch.
+- The original staging Ravel settings, SHA-256 `d8a49f06…`, are back in
+  place and resolve the ten sources.
+- The staging `codebase-memory-mcp` entry sets `CBM_CACHE_DIR` to the
+  account daemon's cache folder, and it connects. Context7 still needs
+  authentication.

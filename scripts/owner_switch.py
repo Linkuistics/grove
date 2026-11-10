@@ -246,7 +246,9 @@ backup, and its attempt note names the restore.
                    instrument reports no changed entry, and the gates of
                    steps 4 to 7 pass. A Claude Code command that must run
                    refuses an ACL or another attribute than
-                   com.apple.provenance on settings.json. Each --guidance
+                   com.apple.provenance on settings.json,
+                   known_marketplaces.json or installed_plugins.json, since
+                   the commands replace all three. Each --guidance
                    file is recorded by digest.
               4    Copy each planned file and entry into the backup with
                    its content, mode, ACL, extended attributes and link
@@ -2767,19 +2769,28 @@ def without(obj: dict, keys: list) -> dict:
 
 
 def lost_metadata(layout: Layout) -> str:
-    """What a Claude Code command would drop from settings.json: an ACL or another attribute than provenance."""
-    try:
-        fd = os.open(layout.path(CLAUDE_SETTINGS), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-    except FileNotFoundError:
-        return ""
-    try:
-        acl = _acl_text(fd)
-        others = [n.decode(errors="replace") for n, _ in _xattrs(fd) if n != PROVENANCE]
-    finally:
-        os.close(fd)
-    if acl:
-        return "an ACL"
-    return ("the extended attribute " + ", ".join(others)) if others else ""
+    """What a Claude Code command would drop: an ACL or another attribute than provenance, with its file.
+
+    Measured with Claude Code 2.1.322 on 2026-11-10 (owner-staging-hooks-k251):
+    `claude plugin marketplace add` and `claude plugin install` replace
+    settings.json and both registries, and each new file keeps only
+    com.apple.provenance. So each file of HOOK_FILES is checked.
+    """
+    for rel in HOOK_FILES:
+        try:
+            fd = os.open(layout.path(rel), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        except FileNotFoundError:
+            continue
+        try:
+            acl = _acl_text(fd)
+            others = [n.decode(errors="replace") for n, _ in _xattrs(fd) if n != PROVENANCE]
+        finally:
+            os.close(fd)
+        if acl:
+            return f"{rel} holds an ACL"
+        if others:
+            return f"{rel} holds the extended attribute " + ", ".join(others)
+    return ""
 
 
 def claude_command(layout: Layout, args: list, label: str, allowed: list) -> None:
@@ -2787,7 +2798,7 @@ def claude_command(layout: Layout, args: list, label: str, allowed: list) -> Non
     hook(layout, f"hooks:before:{label}")
     lost = lost_metadata(layout)
     if lost:
-        raise Stop(f"{CLAUDE_SETTINGS} holds {lost}, which `claude {' '.join(args)}` would drop")
+        raise Stop(f"{lost}, which `claude {' '.join(args)}` would drop")
     before = strict_file(layout.path(CLAUDE_SETTINGS))
     result = run_tool(layout, ["claude"] + args)
     if result.returncode != 0:
@@ -3229,7 +3240,7 @@ def preflight(layout: Layout, plan: dict, note: dict, args) -> dict:
     if hooks["kind"] == "absent":
         lost = lost_metadata(layout)
         if lost:
-            raise Stop(f"{CLAUDE_SETTINGS} holds {lost}, which Claude Code's commands would drop")
+            raise Stop(f"{lost}, which Claude Code's commands would drop")
     rows_changed = baseline_rows(layout, plan)
     if rows_changed:
         raise Stop("the baseline instrument reports changed entries: " + "; ".join(rows_changed))

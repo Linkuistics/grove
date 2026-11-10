@@ -1831,8 +1831,9 @@ def restored_record(case, note: dict) -> dict:
 
 def c_serial_backup_metadata(case):
     entry = os.path.join(case.home, ".claude/skills/grove")
-    marked = {entry: "list", os.path.join(entry, "SKILL.md"): "read", os.path.join(case.home, RAVEL): "read",
-              os.path.join(case.home, INSTALLED_PLUGINS): "read"}
+    # No mark on a file that the hooks commands replace: the program refuses that layout before any
+    # write (serial-hooks-registry-acl-appears and serial-hooks-registry-attribute-appears).
+    marked = {entry: "list", os.path.join(entry, "SKILL.md"): "read", os.path.join(case.home, RAVEL): "read"}
     for path, right in marked.items():
         mark_metadata(path, right)
     case.serial_plan()
@@ -1854,7 +1855,7 @@ def c_serial_backup_metadata(case):
     for path, right in marked.items():
         expect(f"everyone allow {right}" in acl_lines(path) and xattr_of(path, "user.owner") == "kept",
                f"restore lost the ACL or attribute of {path}")
-    return "ACLs and attributes of an entry folder, its file and two settings files survive backup and restore"
+    return "ACLs and attributes of an entry folder, its file and the Ravel settings survive backup and restore"
 
 
 def c_serial_backup_incomplete(case):
@@ -2530,6 +2531,16 @@ def serial_controls() -> list:
                                                           "path": SETTINGS}],
                         text="holds the extended attribute user.fault, which `claude plugin install",
                         check=no_command("plugin install")), SERIAL_ARGS),
+        ("serial-hooks-registry-acl-appears",
+         serial_failure("hooks:before:marketplace-add",
+                        actions=[{"point": "hooks:before:marketplace-add", "do": "acl", "path": INSTALLED_PLUGINS}],
+                        text=".claude/plugins/installed_plugins.json holds an ACL, which `claude plugin marketplace add",
+                        check=no_command("plugin marketplace add")), SERIAL_ARGS),
+        ("serial-hooks-registry-attribute-appears",
+         serial_failure("hooks:before:install", actions=[{"point": "hooks:before:install", "do": "xattr",
+                                                          "path": KNOWN_MARKETPLACES}],
+                        text=".claude/plugins/known_marketplaces.json holds the extended attribute user.fault, "
+                             "which `claude plugin install", check=no_command("plugin install")), SERIAL_ARGS),
         ("serial-manual-unwritable", serial_manual_pending("receipt:written", False), SERIAL_ARGS),
         ("serial-manual-correction-pending", serial_manual_pending("switch:final", True), SERIAL_ARGS),
         ("serial-probe-owned-live", serial_probe_owned_ended("live"), SERIAL_ARGS),

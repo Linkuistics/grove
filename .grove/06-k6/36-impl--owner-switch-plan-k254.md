@@ -76,3 +76,11 @@ owner-switch-status-k269 found two needs of the real plan:
   Before promotion, the real Ravel settings may lack `skills`. Give that
   assertion `"values"` with the off value and `{"$absent": true}`, so
   that `mac-check` reports native delivery before finish.
+
+owner-staging-hooks-k251 found that the switch refuses a plan whose
+`.config/ravel/settings.json` original is absent, as the stored draft's is.
+Finish runs `native-off` before the switch, and the switch compares each
+planned original. The real plan therefore needs the identity of the file
+that `native-off` writes. `native-off` is deterministic, so a disposable
+HOME can compute it. The section "Quiet interval in staging" of
+`docs/owner-skill-delivery-evidence.md` records the refusal.

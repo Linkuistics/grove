@@ -3056,5 +3056,38 @@ class GlobExpansionTest(unittest.TestCase):
                                  [os.path.normpath(str(skill / "SKILL.md"))])
 
 
+class CodexMcpCallTest(unittest.TestCase):
+    """A Codex `McpToolCall` item becomes a call named as Claude Code names
+    an MCP tool, with its arguments, its result text and its error."""
+
+    @staticmethod
+    def call(**changes):
+        item = {"type": "McpToolCall", "id": "exec-1", "server": "quint-kb", "tool": "quint_get_doc",
+                "arguments": {"path": "lang.md"}, "status": "completed",
+                "result": {"content": [{"type": "text", "text": "# Quint"}], "isError": False}}
+        item.update(changes)
+        return trial.CODEX.item(item, 0)
+
+    def test_a_completed_call_keeps_its_server_tool_and_result(self):
+        use, result = self.call()
+        block = use["message"]["content"][0]
+        self.assertEqual(block["name"], "mcp__quint-kb__quint_get_doc")
+        self.assertEqual(block["input"], {"path": "lang.md"})
+        outcome = result["message"]["content"][0]
+        self.assertFalse(outcome["is_error"])
+        self.assertEqual(outcome["content"], "# Quint")
+
+    def test_an_error_result_or_a_failed_status_is_an_error(self):
+        _, result = self.call(result={"content": [{"type": "text", "text": "no"}], "isError": True})
+        self.assertTrue(result["message"]["content"][0]["is_error"])
+        _, result = self.call(status="failed", result=None, error={"message": "server not running"})
+        self.assertTrue(result["message"]["content"][0]["is_error"])
+        self.assertIn("server not running", result["message"]["content"][0]["content"])
+
+    def test_the_stream_form_maps_too(self):
+        use, _ = self.call(type="mcp_tool_call")
+        self.assertEqual(use["message"]["content"][0]["name"], "mcp__quint-kb__quint_get_doc")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

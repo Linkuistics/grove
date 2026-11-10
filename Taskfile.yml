@@ -526,6 +526,19 @@ tasks:
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/staging_trial.py inventory --home "{{.STAGING}}" --out "{{.OUT}}"
 
+  # The two staging changes of the MCP entries, as `build` makes them: the
+  # account daemon's cache folder in each codebase-memory-mcp entry, and the
+  # server-wide approval of Codex's quint-kb entry. The docstring of
+  # staging_home.py gives each reason. A second run changes nothing. For
+  # example:
+  #   task owner:staging:mcp-entries STAGING=~/.local/state/owner-staging/home
+  owner:staging:mcp-entries:
+    desc: Make the two staging changes of the MCP entries of STAGING, never in the real HOME
+    requires:
+      vars: [STAGING]
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/staging_home.py mcp-entries --home "{{.STAGING}}"
+
   # The verdict tests of the staging trial runner, on synthetic events.
   owner:staging:trial-tests:
     desc: Test the verdicts of the staging trial runner without a launch

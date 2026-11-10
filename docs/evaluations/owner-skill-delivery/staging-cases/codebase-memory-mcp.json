@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "name": "codebase-memory-mcp",
+  "purpose": "The using-codebase-memory skill of the engineering source works with the codebase-memory-mcp MCP server. The task names both and asks for the server's MCP tools, not its CLI. It queries a project that the account daemon has already indexed, and it indexes nothing, so the shared cache gains no project. Expect a read of using-codebase-memory from the engineering snapshot, and then a call to a codebase-memory-mcp tool whose result is no error.",
+  "kind": "staging-mcp",
+  "prompt": "Use the `using-codebase-memory` skill and the tools of the `codebase-memory-mcp` MCP server for this task, not the server's command-line interface. The server has already indexed the project `Users-antony-Development-AgenticOrchestration-grove.gh-issue-25`. Do not index any project. Find the function `extract_events` in that project, and write its file path and its line range to `ANSWER.md` in the current directory. Then run this exact shell command as your last action: ravel end-session staging-ok",
+  "mandatoryFirst": true,
+  "mcp": { "server": "codebase-memory-mcp", "source": "engineering", "skill": "using-codebase-memory" },
+  "timeoutMinutes": 20
+}

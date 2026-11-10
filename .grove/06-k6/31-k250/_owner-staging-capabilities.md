@@ -66,6 +66,10 @@ HOME. The section "Quiet interval in staging" of
 - The staging `codebase-memory-mcp` entry sets `CBM_CACHE_DIR` to the
   account daemon's cache folder, and it connects. Context7 still needs
   authentication.
+- staging-mcp-trials-k286 ran `staging_home.py mcp-entries`. The staging
+  Codex `codebase-memory-mcp` entry now sets the same `CBM_CACHE_DIR`, and
+  the staging Codex `quint-kb` entry approves its tools. The owner's file
+  has neither change.
 
 ## Decomposition
 
@@ -88,6 +92,10 @@ own evidence section.
    found that the inventory's sole-skill rule reads the plugin-cache copy
    of `guardrail@personal`, but Claude Code loads the keg's directory. This
    leaf makes the rule read the loaded directory.
+5. `owner-quint-kb-approval-k289`: staging-mcp-trials-k286 found that Codex
+   denies each `quint-kb` call under the owner's approval policy `never`,
+   in staging and in the real HOME. A staging change repaired the trial.
+   This leaf gets the owner's decision on the real entry.
 
 Each child reconciles the items of "Not measured" that its own trials
-measure. The node is done when the four children are done.
+measure. The node is done when the five children are done.

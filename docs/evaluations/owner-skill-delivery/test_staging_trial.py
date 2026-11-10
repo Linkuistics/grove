@@ -646,6 +646,174 @@ class ForbidsVerdicts(unittest.TestCase):
                 staging_trial.CASES = original
 
 
+MCP_CASE = {"mandatoryFirst": True, "mcp": {"server": "quint-kb", "source": "quint", "skill": "quint-lang"}}
+
+
+def mcp_call(seq: int, tool: str = "quint_get_doc", error: bool = False, server: str = "quint-kb") -> dict:
+    return dict(event(seq, "other", target="path"), tool=f"mcp__{server}__{tool}", error=error,
+                resultExcerpt="# Quint")
+
+
+QUINT = [
+    event(1, "mandatory", "using-superpowers", "superpowers"),
+    event(2, "skill", "quint-lang", "quint"),
+    dict(event(3, "other", target="query"), tool="ToolSearch"),
+    mcp_call(4),
+    event(5, "action"),
+]
+SERVERS = [{"name": "quint-kb", "status": "connected", "source": "user"},
+           {"name": "codebase-memory-mcp", "status": "failed", "source": "user"}]
+
+
+def mcp_launch(events: list[dict]) -> dict:
+    described = launch(events)
+    described["transcripts"][0]["startup"]["init"]["mcp_servers"] = SERVERS
+    return described
+
+
+class McpVerdicts(unittest.TestCase):
+    def test_conforming_session_passes_and_keeps_the_startup_state(self) -> None:
+        verdict = staging_trial.judge(MCP_CASE, [mcp_launch(QUINT)], set())
+        self.assertEqual(verdict["failures"], [])
+        self.assertEqual(verdict["mcp"]["readSeq"], 2)
+        self.assertEqual(verdict["mcp"]["calls"], [{"seq": 4, "tool": "quint_get_doc", "error": False,
+                                                    "result": "# Quint"}])
+        self.assertEqual(verdict["mcp"]["startup"], [SERVERS[0]])
+
+    def test_only_failed_calls_fail(self) -> None:
+        events = [*QUINT[:3], mcp_call(4, error=True), event(5, "action")]
+        verdict = staging_trial.judge(MCP_CASE, [mcp_launch(events)], set())
+        self.assertTrue(any("no call to a tool of quint-kb succeeded (1 calls)" in f for f in verdict["failures"]))
+
+    def test_a_call_to_another_server_is_no_call(self) -> None:
+        events = [*QUINT[:3], mcp_call(4, "search_graph", server="codebase-memory-mcp"), event(5, "action")]
+        verdict = staging_trial.judge(MCP_CASE, [mcp_launch(events)], set())
+        self.assertTrue(any("(0 calls)" in f for f in verdict["failures"]))
+
+    def test_the_cli_is_no_mcp_call_and_is_kept(self) -> None:
+        case = {"mcp": {"server": "codebase-memory-mcp", "source": "engineering", "skill": "using-codebase-memory"}}
+        events = [event(1, "skill", "using-codebase-memory", "engineering"),
+                  event(2, "command", target="codebase-memory-mcp cli search_graph '{}'")]
+        verdict = staging_trial.judge(case, [mcp_launch(events)], set())
+        self.assertFalse(verdict["mcp"]["passed"])
+        self.assertEqual(verdict["mcp"]["shellSeqs"], [2])
+
+    def test_a_read_after_the_first_good_call_fails(self) -> None:
+        events = [QUINT[0], mcp_call(2), event(3, "skill", "quint-lang", "quint")]
+        verdict = staging_trial.judge(MCP_CASE, [mcp_launch(events)], set())
+        self.assertTrue(any("came after the first call" in f for f in verdict["failures"]))
+
+    def test_a_read_from_another_source_fails(self) -> None:
+        events = [QUINT[0], event(2, "skill", "quint-lang", "personal"), mcp_call(3)]
+        verdict = staging_trial.judge(MCP_CASE, [mcp_launch(events)], set())
+        self.assertTrue(any("no read of quint-lang from quint" in f for f in verdict["failures"]))
+
+    def test_a_content_read_counts_as_the_read(self) -> None:
+        command = dict(event(2, "command"), contentReads=[{"source": "quint", "skill": "quint-lang"}])
+        verdict = staging_trial.judge(MCP_CASE, [mcp_launch([QUINT[0], command, mcp_call(3)])], set())
+        self.assertTrue(verdict["mcp"]["passed"], verdict["mcp"])
+
+    def test_the_skill_of_mcp_is_a_named_skill(self) -> None:
+        # A content read is found only for a named skill.
+        self.assertIn({"source": "quint", "skill": "quint-lang"}, staging_trial.named_skills(MCP_CASE))
+
+    def test_the_record_keeps_the_start_of_each_mcp_result_only(self) -> None:
+        described = launch([dict(event(1, "other"), tool="mcp__quint-kb__quint_get_doc", resultFull="a" * 500),
+                            dict(event(2, "command"), resultFull="b" * 500)])
+        staging_trial.mark_content_reads(described, [])
+        first, second = described["transcripts"][0]["events"]
+        self.assertEqual(first["resultExcerpt"], "a" * staging_trial.MCP_RESULT_CHARS)
+        self.assertNotIn("resultExcerpt", second)
+        self.assertNotIn("resultFull", second)
+
+    def test_the_case_files_load_and_a_wrong_shape_refuses(self) -> None:
+        import json
+        import tempfile
+        for name in ("quint-mcp", "codebase-memory-mcp"):
+            self.assertEqual(set(staging_trial.load_case(name)["mcp"]), staging_trial.MCP_FIELDS)
+        with tempfile.TemporaryDirectory() as tmp:
+            cases = Path(tmp)
+            (cases / "bad.json").write_text(json.dumps({"name": "bad", "mcp": {"server": "quint-kb"}}))
+            original, staging_trial.CASES = staging_trial.CASES, cases
+            try:
+                with self.assertRaises(staging_trial.TrialFailure):
+                    staging_trial.load_case("bad")
+            finally:
+                staging_trial.CASES = original
+
+
+CODEX_CONFIG = """model = "gpt-6.1-sol"
+
+[mcp_servers.quint-kb]
+command = "node"
+
+# >>> codebase-memory-mcp MCP >>>
+[mcp_servers.codebase-memory-mcp]
+command = "/r/.local/bin/codebase-memory-mcp"
+args = []
+env_vars = ["CBM_CACHE_DIR", "CBM_RUNTIME_DIR"]
+
+[mcp_servers.codebase-memory-mcp.tools.search_graph]
+approval_mode = "approve"
+# <<< codebase-memory-mcp MCP <<<
+"""
+
+
+class JoinCbm(unittest.TestCase):
+    def home(self, tmp: str, claude_env: dict | None = None) -> Path:
+        import json
+        home = Path(tmp) / "home"
+        (home / ".codex").mkdir(parents=True)
+        entry = {"command": "/r/.local/bin/codebase-memory-mcp", "args": []}
+        if claude_env is not None:
+            entry["env"] = claude_env
+        (home / ".claude.json").write_text(json.dumps({"mcpServers": {"codebase-memory-mcp": entry,
+                                                                      "quint-kb": {"command": "node"}}}))
+        (home / ".codex" / "config.toml").write_text(CODEX_CONFIG)
+        (home / ".codex" / "config.toml").chmod(0o600)
+        return home
+
+    def test_both_entries_name_the_daemon_folder_once(self) -> None:
+        import json
+        import tempfile
+        import tomllib
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.home(tmp, {})
+            changed = staging_trial.staging_home.join_cbm(home, Path("/r"))
+            self.assertEqual(changed, [".claude.json", ".codex/config.toml"])
+            claude = json.loads((home / ".claude.json").read_text())["mcpServers"]
+            self.assertEqual(claude["codebase-memory-mcp"]["env"], {"CBM_CACHE_DIR": "/r/.cache/codebase-memory-mcp"})
+            self.assertNotIn("env", claude["quint-kb"])
+            config = tomllib.loads((home / ".codex" / "config.toml").read_text())["mcp_servers"]
+            entry = config["codebase-memory-mcp"]
+            self.assertEqual(entry["env"], {"CBM_CACHE_DIR": "/r/.cache/codebase-memory-mcp"})
+            self.assertNotIn("env_vars", entry)
+            self.assertEqual(entry["tools"]["search_graph"]["approval_mode"], "approve")
+            self.assertEqual(config["quint-kb"], {"command": "node"})
+            self.assertEqual((home / ".codex" / "config.toml").stat().st_mode & 0o777, 0o600)
+            self.assertEqual(staging_trial.staging_home.join_cbm(home, Path("/r")), [])
+
+    def test_a_joined_claude_entry_stays_and_codex_still_changes(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.home(tmp, {"CBM_CACHE_DIR": "/r/.cache/codebase-memory-mcp"})
+            self.assertEqual(staging_trial.staging_home.join_cbm(home, Path("/r")), [".codex/config.toml"])
+
+    def test_quint_kb_gets_the_server_wide_approval_once(self) -> None:
+        import tempfile
+        import tomllib
+        with tempfile.TemporaryDirectory() as tmp:
+            home = self.home(tmp, {})
+            changed = staging_trial.staging_home.stage_mcp_entries(home, Path("/r"))
+            self.assertEqual(changed, {"cbmCache": [".claude.json", ".codex/config.toml"],
+                                       "quintApproval": [".codex/config.toml"]})
+            config = tomllib.loads((home / ".codex" / "config.toml").read_text())["mcp_servers"]
+            self.assertEqual(config["quint-kb"], {"command": "node", "default_tools_approval_mode": "approve"})
+            self.assertNotIn("default_tools_approval_mode", config["codebase-memory-mcp"])
+            self.assertEqual(staging_trial.staging_home.stage_mcp_entries(home, Path("/r")),
+                             {"cbmCache": [], "quintApproval": []})
+
+
 RESIDUE = {"hooksPlugin": "technical-communication-hooks@writing-hooks", "hookSkill": "technical-communication",
            "guardrailPlugin": "guardrail@personal", "guardrailSkill": "guardrail", "gateFile": "NOTES.md",
            "blocked": "rm -rf scratch"}

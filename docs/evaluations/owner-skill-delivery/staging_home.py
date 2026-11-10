@@ -13,12 +13,28 @@ harness: a link to `Library/Keychains` for Claude Code and a link to
     staging_home.py links --home HOME
     staging_home.py launch --home HOME --ravel PREFIX --harness claude|codex --out DIR --prompt TEXT
     staging_home.py isolation --home HOME --candidate KEG --ravel PREFIX --out DIR
+    staging_home.py mcp-entries --home HOME
 
 `build` refuses an existing HOME. It copies the owner's `config.rhai`, writes
 docs/owner-cutover/settings-staging.json, derives each harness configuration
 from the real one, and registers the skill-free plugins and `guardrail` with
 Claude Code's own commands. It installs no superseded skill and does not
-register `writing-hooks`.
+register `writing-hooks`. It then runs the step of `mcp-entries`.
+
+`mcp-entries` makes two changes to the MCP entries, each in the staging HOME
+only. First, it sets the cache folder of each staging entry of
+`codebase-memory-mcp` to the account daemon's folder, `~/.cache/codebase-memory-mcp`
+of the real HOME. The server is one daemon per account, and a client whose
+cache folder differs from the daemon's refuses to start. A client in the
+staging HOME derives another folder from HOME. Claude Code's entry gets
+`env.CBM_CACHE_DIR`. Codex's entry gets `env = { CBM_CACHE_DIR = ... }` in
+place of its `env_vars` line, because the staging launcher passes neither
+forwarded name. Second, it adds `default_tools_approval_mode = "approve"`
+to Codex's `quint-kb` entry. A staging Codex session runs with the approval
+policy `never`, and Codex 0.167.0 denies each MCP call that needs approval
+under that policy. The owner's file approves each `codebase-memory-mcp` tool
+and no `quint-kb` tool, so this second change departs from the owner's file.
+A second run changes nothing.
 
 `launch` is the staging launcher. It refuses each of Claude Code's five
 location variables and any inherited `CODEX_HOME` other than the staging
@@ -206,6 +222,8 @@ def build(home: Path, candidate: Path, log: list[dict[str, Any]]) -> dict[str, A
         if (real / ".codex" / name).exists():
             shutil.copy2(real / ".codex" / name, codex / name)
 
+    stage_mcp_entries(home, real)
+
     # Claude Code's own commands register the residue plugins and guardrail.
     env = staged_env(home)
     claude_bin = shutil.which("claude", path=env["PATH"])
@@ -223,6 +241,105 @@ def build(home: Path, candidate: Path, log: list[dict[str, Any]]) -> dict[str, A
     return {"home": str(home), "candidate": str(candidate), "pluginList": plugins.stdout,
             "configRhaiSha256": sha256_file(ravel_dir / "config.rhai"),
             "settingsSha256": sha256_file(ravel_dir / "settings.json")}
+
+
+CBM_SERVER = "codebase-memory-mcp"
+CBM_HEADER = f"[mcp_servers.{CBM_SERVER}]"
+# The server-wide approval key of an MCP entry in Codex 0.167.0:
+# https://github.com/openai/codex/blob/rust-v0.167.0/codex-rs/config/src/mcp_types.rs#L287-L289
+# Under the policy `never`, a call that needs approval is denied:
+# https://github.com/openai/codex/blob/rust-v0.167.0/codex-rs/core/src/mcp_tool_call.rs#L1691-L1699
+QUINT_SERVER = "quint-kb"
+QUINT_HEADER = f"[mcp_servers.{QUINT_SERVER}]"
+QUINT_APPROVAL = 'default_tools_approval_mode = "approve"'
+
+
+def cbm_cache(real: Path) -> str:
+    return str(real / ".cache" / CBM_SERVER)
+
+
+def replace_file(path: Path, text: str) -> None:
+    """Replace PATH with TEXT through a rename, and keep its mode."""
+    tmp = path.with_name(path.name + ".mcp-entries")
+    tmp.write_text(text)
+    shutil.copymode(path, tmp)
+    os.rename(tmp, path)
+
+
+def join_cbm(home: Path, real: Path) -> list[str]:
+    """Name the account daemon's cache folder in each staging entry of
+    codebase-memory-mcp. Returns the files that changed, relative to HOME.
+    Refuses an entry that it cannot read or a result that does not parse."""
+    import tomllib
+
+    cache, changed = cbm_cache(real), []
+    claude_json = home / ".claude.json"
+    doc = json.loads(claude_json.read_text())
+    entry = (doc.get("mcpServers") or {}).get(CBM_SERVER)
+    if entry is not None and (entry.get("env") or {}).get("CBM_CACHE_DIR") != cache:
+        entry.setdefault("env", {})["CBM_CACHE_DIR"] = cache
+        replace_file(claude_json, json.dumps(doc, indent=2) + "\n")
+        changed.append(".claude.json")
+    config = home / ".codex" / "config.toml"
+    text = config.read_text()
+    servers = tomllib.loads(text).get("mcp_servers") or {}
+    if CBM_SERVER in servers:
+        if (servers[CBM_SERVER].get("env") or {}).get("CBM_CACHE_DIR") != cache \
+                or "env_vars" in servers[CBM_SERVER]:
+            lines, inside, done = text.splitlines(), False, False
+            out = []
+            for line in lines:
+                if line.startswith("["):
+                    inside = line.strip() == CBM_HEADER
+                    out.append(line)
+                    if inside and not done:
+                        out.append(f"env = {{ CBM_CACHE_DIR = {json.dumps(cache)} }}")
+                        done = True
+                    continue
+                if inside and re.match(r"\s*(env_vars|env)\s*=", line):
+                    continue
+                out.append(line)
+            joined = "\n".join(out) + "\n"
+            entry = (tomllib.loads(joined).get("mcp_servers") or {}).get(CBM_SERVER) or {}
+            if not done or entry.get("env") != {"CBM_CACHE_DIR": cache} or "env_vars" in entry:
+                raise StagingError(f"{config}: the {CBM_SERVER} entry did not take the cache folder")
+            replace_file(config, joined)
+            changed.append(".codex/config.toml")
+    return changed
+
+
+def approve_quint(home: Path) -> list[str]:
+    """Add the server-wide approval to Codex's quint-kb entry of the staging
+    HOME. Returns the files that changed, relative to HOME."""
+    import tomllib
+
+    config = home / ".codex" / "config.toml"
+    text = config.read_text()
+    entry = (tomllib.loads(text).get("mcp_servers") or {}).get(QUINT_SERVER)
+    if entry is None or entry.get("default_tools_approval_mode") == "approve":
+        return []
+    out, inside = [], False
+    for line in text.splitlines():
+        if line.startswith("["):
+            inside = line.strip() == QUINT_HEADER
+            out.append(line)
+            if inside:
+                out.append(QUINT_APPROVAL)
+            continue
+        if inside and re.match(r"\s*default_tools_approval_mode\s*=", line):
+            continue
+        out.append(line)
+    joined = "\n".join(out) + "\n"
+    if ((tomllib.loads(joined).get("mcp_servers") or {}).get(QUINT_SERVER) or {}).get(
+            "default_tools_approval_mode") != "approve":
+        raise StagingError(f"{config}: the {QUINT_SERVER} entry did not take the approval")
+    replace_file(config, joined)
+    return [".codex/config.toml"]
+
+
+def stage_mcp_entries(home: Path, real: Path) -> dict[str, list[str]]:
+    """The two staging changes of the MCP entries, as `mcp-entries` states."""
+    return {"cbmCache": join_cbm(home, real), "quintApproval": approve_quint(home)}
 
 
 # --- Observation -------------------------------------------------------------
@@ -659,11 +776,19 @@ def main() -> int:
     iso.add_argument("--candidate", type=Path, required=True)
     iso.add_argument("--ravel", type=Path, required=True)
     iso.add_argument("--out", type=Path, required=True)
+    jc = sub.add_parser("mcp-entries")
+    jc.add_argument("--home", type=Path, required=True)
     args = parser.parse_args()
     try:
         if args.command == "build":
             log: list[dict[str, Any]] = []
             print(json.dumps(build(args.home.absolute(), args.candidate.absolute(), log), indent=2))
+        elif args.command == "mcp-entries":
+            home = args.home.absolute()
+            if home.resolve() == real_home().resolve():
+                raise StagingError(f"{home} is the real HOME; mcp-entries writes only a staging HOME")
+            check_placement(home)
+            print(json.dumps(stage_mcp_entries(home, real_home())))
         elif args.command == "links":
             print(json.dumps(classify_links(args.home.absolute()), indent=2))
         elif args.command == "launch":

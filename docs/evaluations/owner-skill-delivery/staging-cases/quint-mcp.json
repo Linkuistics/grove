@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "name": "quint-mcp",
+  "purpose": "The quint-lang skill of the quint source works with the quint-kb MCP server. The task names both. Expect a read of quint-lang from the quint snapshot, and then a call to a quint-kb tool whose result is no error.",
+  "kind": "staging-mcp",
+  "prompt": "Use the `quint-lang` skill and the `quint-kb` MCP server for this task. First look up, with a tool of the `quint-kb` MCP server, how Quint declares a state variable and an action. Then write `counter.qnt` in the current directory: a module `counter` with one integer state variable `n`, an action `init` that sets `n` to 0, and an action `step` that increases `n` by 1. Report in one sentence which `quint-kb` tools you used. Then run this exact shell command as your last action: ravel end-session staging-ok",
+  "mandatoryFirst": true,
+  "mcp": { "server": "quint-kb", "source": "quint", "skill": "quint-lang" },
+  "timeoutMinutes": 20
+}

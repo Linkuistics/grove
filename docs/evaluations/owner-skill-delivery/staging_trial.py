@@ -103,6 +103,12 @@ of the session file. The verdicts are:
   the result of the blocked command must come from its hook. No Ravel
   snapshot may hold a skill of the guardrail name. The hooks plugin's
   directory must keep its digest and hold no `__pycache__`.
+- `mcp`: the agent reads the named skill from its source, and then makes at
+  least one call to a tool of the named MCP server whose result is no error.
+  Each harness names a call `mcp__<server>__<tool>`. A shell command that
+  names the server, such as the server's CLI, is no MCP call. The record
+  keeps each call with the start of its result, each such command and the
+  server's state at startup, which only Claude Code reports.
 - The native skill listing of the session holds no superseded name. The
   planted name of `staleCopy` and the skills of the `guidancePlugin`, by
   their plugin prefix, are the exceptions.
@@ -179,9 +185,13 @@ OFF_SETTINGS = ROOT / "docs" / "owner-cutover" / "settings-off.json"
 TREES = CASES / "trees"
 CASE_FIELDS = {"schemaVersion", "name", "purpose", "kind", "prompt", "mandatoryFirst", "requires",
                "timeoutMinutes", "tree", "kindSkill", "delegate", "compaction", "staleCopy", "guidancePlugin",
-               "turns", "forbids", "nativeResidue"}
+               "turns", "forbids", "nativeResidue", "mcp"}
 GUIDANCE_FIELDS = {"marketplace", "plugin", "skill", "later", "probePrompt", "probeResult"}
 NATIVE_FIELDS = {"hooksPlugin", "hookSkill", "guardrailPlugin", "guardrailSkill", "gateFile", "blocked"}
+MCP_FIELDS = {"server", "source", "skill"}
+# The characters of an MCP result that the record keeps, so a reader sees
+# what the server answered. A result is a server's answer, not a skill copy.
+MCP_RESULT_CHARS = 300
 # The placeholder of a prompt or turn that the runner replaces with the gate
 # directory: `OUT/gate`, outside the temporary roots that the document gate
 # of the technical-communication hooks skips, and outside the work tree.
@@ -301,6 +311,11 @@ def load_case(name: str) -> dict[str, Any]:
             raise TrialFailure(f"case {name}: turns is a list of texts, not {turns!r}")
         if "compaction" in case:
             raise TrialFailure(f"case {name}: compaction feeds its own turns, so it takes no turns field")
+    if "mcp" in case:
+        spec = case["mcp"]
+        if not isinstance(spec, dict) or set(spec) != MCP_FIELDS or not all(isinstance(v, str) and v
+                                                                            for v in spec.values()):
+            raise TrialFailure(f"case {name}: mcp is {{server, source, skill}}, not {spec!r}")
     if "nativeResidue" in case:
         spec = case["nativeResidue"]
         if not isinstance(spec, dict) or set(spec) != NATIVE_FIELDS:
@@ -316,7 +331,8 @@ def named_skills(case: dict[str, Any]) -> list[dict[str, str]]:
     """Every {source, skill} that a verdict of the case names."""
     return [*case.get("requires", []), *case.get("forbids", []),
             *(case[key] for key in ("kindSkill", "delegate") if key in case),
-            *([case["compaction"]["after"]] if "compaction" in case else [])]
+            *([case["compaction"]["after"]] if "compaction" in case else []),
+            *([{"source": case["mcp"]["source"], "skill": case["mcp"]["skill"]}] if "mcp" in case else [])]
 
 
 def plant_stale(work: Path, spec: dict[str, Any]) -> dict[str, Any]:
@@ -776,6 +792,8 @@ def mark_content_reads(launch: dict[str, Any], requires: list[dict[str, str]],
             marked = sorted(label for label, pair in (files or {}).items() if all(mark in result for mark in pair))
             if marked:
                 event["markReads"] = marked
+            if str(event.get("tool", "")).startswith("mcp__"):
+                event["resultExcerpt"] = result[:MCP_RESULT_CHARS]
             event["result"] = {"sha256": harness_trial.sha256_bytes(result.encode()), "chars": len(result)}
 
 
@@ -1065,6 +1083,49 @@ def forbids_verdict(events: list[dict[str, Any]], forbids: list[dict[str, str]])
     return verdicts
 
 
+def mcp_servers(launch: dict[str, Any]) -> list[dict[str, Any]]:
+    """The MCP servers and their states that the harness reported at
+    startup. Claude Code's init event names each one. Codex reports none."""
+    servers: list[dict[str, Any]] = []
+    startups = [t.get("startup") or {} for t in launch["transcripts"] if t["main"]] + [launch.get("startup") or {}]
+    for startup in startups:
+        for server in (startup.get("init") or {}).get("mcp_servers") or []:
+            if isinstance(server, dict) and server not in servers:
+                servers.append(server)
+    return servers
+
+
+def mcp_verdict(events: list[dict[str, Any]], spec: dict[str, str], servers: list[dict[str, Any]]) -> dict[str, Any]:
+    """The agent reads the named skill from its source, and then makes at
+    least one call to a tool of the named MCP server whose result is no
+    error. A call is `mcp__<server>__<tool>` on both harnesses. A shell
+    command that names the server, such as its CLI, is no MCP call. The
+    record keeps those commands and the startup state without a judgement."""
+    prefix = f"mcp__{spec['server']}__"
+    calls = [{"seq": e["seq"], "tool": str(e["tool"])[len(prefix):], "error": bool(e.get("error")),
+              "result": e.get("resultExcerpt")} for e in events if str(e.get("tool", "")).startswith(prefix)]
+    good = [call for call in calls if not call["error"]]
+    read = next((e for e in events if any(
+        r.get("class") in SKILL_READS and r.get("skill") == spec["skill"] and r.get("source") == spec["source"]
+        for r in reads_of(e))), None)
+    shell = [e["seq"] for e in events if e.get("class") in ("command", "variable")
+             and spec["server"] in str(e.get("target", ""))]
+    verdict: dict[str, Any] = {**spec, "readSeq": read["seq"] if read else None, "calls": calls,
+                               "shellSeqs": shell,
+                               "startup": [s for s in servers if s.get("name") == spec["server"]]}
+    if not read:
+        verdict.update(passed=False, reason=f"no read of {spec['skill']} from {spec['source']}")
+    elif not good:
+        verdict.update(passed=False, reason=f"no call to a tool of {spec['server']} succeeded "
+                                            f"({len(calls)} calls)")
+    elif read["seq"] > good[0]["seq"]:
+        verdict.update(passed=False, reason=f"the read of {spec['skill']} came after the first call "
+                                            f"to {spec['server']}")
+    else:
+        verdict.update(passed=True, reason=None)
+    return verdict
+
+
 def first_line(path: Path) -> str | None:
     """The first line of a file that is not blank, or None."""
     try:
@@ -1244,6 +1305,10 @@ def judge(case: dict[str, Any], launches: list[dict[str, Any]], superseded: set[
         verdict["compaction"] = compaction_verdict(events, case["compaction"])
         if not verdict["compaction"]["passed"]:
             failures.append(f"compaction: {verdict['compaction']['reason']}")
+    if "mcp" in case:
+        verdict["mcp"] = mcp_verdict(events, case["mcp"], mcp_servers(launch))
+        if not verdict["mcp"]["passed"]:
+            failures.append(f"mcp: {verdict['mcp']['reason']}")
     listed = native_listing(launch)
     verdict["nativeListing"] = listed
     planted = {case["staleCopy"]["skill"]} if "staleCopy" in case else set()
@@ -1283,7 +1348,7 @@ def render(record: dict[str, Any]) -> str:
              (f"- Started {record['started']}, ended {record['ended']}, Ravel exit {record['launch']['exit']}, "
               f"result {record['launch']['result']!r}"),
              f"- Failures: {record['verdict'].get('failures') or 'none'}"]
-    for key in ("compaction", "staleCopy", "guidancePlugin", "nativeResidue", "forbids"):
+    for key in ("compaction", "staleCopy", "guidancePlugin", "nativeResidue", "forbids", "mcp"):
         items = record["verdict"].get(key)
         for item in items if isinstance(items, list) else [items] if items else []:
             shown = {k: v for k, v in item.items() if k not in ("source", "skill")}

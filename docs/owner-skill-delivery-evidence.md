@@ -3769,6 +3769,8 @@ first, and the second run built it again.
   `codebase-memory-mcp` as `failed` in the staging HOME. `quint-kb` and the
   Playwright server connected. The staging HOME copies no credential.
   owner-staging-capabilities-k250 owns MCP use.
+  [MCP servers in staging](#mcp-servers-in-staging) records that use and
+  the two staging changes that it needed.
 - The residue plugins came from the marketplace's current state. Their
   versions can differ from the owner's installed versions.
 - Ravel's operation reports held `stop attempt 3` and `stop attempt 4` with
@@ -5610,3 +5612,186 @@ with the final file gave the same verdict for each of the five model runs.
   the staging defaults.
 - Codex has no technical-communication hooks and no guardrail, as the
   native residue states. Only the user-invoked cases ran on Codex.
+
+## MCP servers in staging
+
+`staging-mcp-trials-k286` delivered this section on 2026-11-10. It measures
+the `quint-kb` and `codebase-memory-mcp` servers with their skills, which
+Ravel delivers, on each harness. Both servers stay native after the switch,
+as [Native residue](specs/owner-skill-delivery.md#native-residue) states.
+The staging HOME held the layout that
+[Quiet interval in staging](#quiet-interval-in-staging) left.
+
+### Result
+
+Each case passed on each harness after two changes to the staging Codex
+configuration. Each change has a run before it that failed:
+
+| Run | Harness | Result |
+| --- | --- | --- |
+| `codebase-memory-mcp-codex-1` | Codex | Failed. Codex started no `codebase-memory-mcp` server, so the agent had no tool of it. |
+| `codebase-memory-mcp-codex-2` | Codex | Passed, after the first change |
+| `codebase-memory-mcp-claude-1` | Claude Code | Passed |
+| `quint-mcp-codex-1` | Codex | Failed. Codex denied each `quint-kb` call, because the approval policy is `never`. |
+| `quint-mcp-codex-2` | Codex | Passed, after the second change |
+| `quint-mcp-claude-1` | Claude Code | Passed |
+
+The second failure also applies to the real HOME. "The real HOME" below
+states the consequence.
+
+### The tool
+
+[`staging_trial.py`](evaluations/owner-skill-delivery/staging_trial.py)
+gained the case field `mcp`, `{server, source, skill}`. Its verdict needs
+a read of the skill from its source. After that read, at least one call to a
+tool of the server must have no error. The verdict needs no edit, because an
+edit does not show MCP use. A shell command that names the server, such as
+the server's CLI, is no MCP call.
+
+The record keeps each call with the first
+300 characters of its result, and the server's state at startup. Only Claude
+Code reports that state, in its init event.
+
+[`harness_trial.py`](../scripts/harness_trial.py) now maps a Codex
+`McpToolCall` item to the name `mcp__<server>__<tool>`, the form of Claude
+Code. A call has an error when its status is not `completed` or its result
+sets `isError`.
+
+[`staging_home.py`](evaluations/owner-skill-delivery/staging_home.py)
+gained the command `mcp-entries`, which `build` also runs, and
+`task owner:staging:mcp-entries` runs it. It makes the two changes below.
+It refuses the real HOME, and a second run changes nothing.
+
+The cases are
+[`quint-mcp`](evaluations/owner-skill-delivery/staging-cases/quint-mcp.json)
+and
+[`codebase-memory-mcp`](evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json).
+Each task names its skill and its server. The `codebase-memory-mcp` task
+asks for the MCP tools and not the CLI. It queries the project of this
+workspace, which the account daemon already indexes, and it indexes nothing. The
+shared cache therefore gains no project. Each case runs with
+`task owner:staging:case`, as in [Rerun commands](#rerun-commands).
+
+### Changes to the staging configuration
+
+| Change | Reason | `.codex/config.toml` |
+| --- | --- | --- |
+| The `codebase-memory-mcp` entry: `env = { CBM_CACHE_DIR = "/Users/antony/.cache/codebase-memory-mcp" }` replaces `env_vars = ["CBM_CACHE_DIR", "CBM_RUNTIME_DIR"]` | The server is one daemon per account, and a client with another cache folder refuses to start. A server that Codex starts in the staging HOME gets the folder of the staging HOME. `env_vars` forwards names from the launcher's environment, and the staging launcher passes neither name. The Claude Code entry already sets the same value. | `1faeb55d…` to `e4f41d05…` |
+| The `quint-kb` entry: `default_tools_approval_mode = "approve"` | A staging Codex session runs with the approval policy `never`. Codex 0.167.0 denies each MCP call that needs approval under that policy. The owner's file approves each of eight `codebase-memory-mcp` tools and no `quint-kb` tool. | `e4f41d05…` to `70c31040…` |
+
+The first change only joins the daemon. Before it, a direct MCP handshake
+ran `codebase-memory-mcp` 0.10.6 with the staging launcher's environment.
+Without `CBM_CACHE_DIR`, the server exited 1 with "CBM could not start
+because the active account daemon uses a different cache directory". The
+requested cache digest was `d71e36d5…`. With the variable, it answered
+`list_projects`.
+
+The staging Codex log of 2026-11-09 holds the same refusal,
+with the same digest, from the server's standard error. That log came from
+the app-server run of the compaction case. The `codex exec` runs of this
+section wrote no log there.
+
+`default_tools_approval_mode` is a field of an MCP entry in
+[`mcp_types.rs`](https://github.com/openai/codex/blob/rust-v0.167.0/codex-rs/config/src/mcp_types.rs#L287-L289).
+The denial is in
+[`mcp_tool_call.rs`](https://github.com/openai/codex/blob/rust-v0.167.0/codex-rs/core/src/mcp_tool_call.rs#L1691-L1699).
+A tool's own `approval_mode` overrides the server's value.
+
+The first change is also in `build`, so a new staging HOME reaches the
+daemon. The second change departs from the owner's file. "The real HOME"
+below gives the decision that it leaves.
+
+### The runs
+
+Each run used `claude-sonnet-5-5` or `gpt-6.1-sol` at low effort, the
+staging defaults, and ended with `staging-ok`. Each read the mandatory file
+first. The read column gives the event of the skill read.
+
+| Run | Started | Read | Calls of the server |
+| --- | --- | --- | --- |
+| `codebase-memory-mcp-codex-1` | 08:23:31Z | Event 9 | None. The agent wrote: "The available tools contain no `codebase-memory-mcp` tools." It left `ANSWER.md` unwritten. |
+| `codebase-memory-mcp-codex-2` | 08:26:35Z | Event 8 | `list_projects`, `index_status`, `search_graph`, `get_code_snippet` and `check_index_coverage`, events 10 to 15. Each had no error. `search_graph` found `extract_events` in `scripts/harness_trial.py`. |
+| `codebase-memory-mcp-claude-1` | 08:28:46Z | Event 2 | `search_graph` and `check_index_coverage`, events 5 and 6. Each had no error. The init event named the server `connected`. |
+| `quint-mcp-codex-1` | 08:27:39Z | Event 7, a content read | `quint_search_docs` twice, events 9 and 10. Each result was "MCP tool call requires approval, but approval policy is never". |
+| `quint-mcp-codex-2` | 08:31:46Z | Event 7, a content read | `quint_search_docs` twice, then `quint_get_doc` twice, events 9 to 13. None had an error. |
+| `quint-mcp-claude-1` | 08:28:25Z | Event 4 | `quint_hybrid_search`, event 5, with no error. The init event named the server `connected`. |
+
+No run used a shell command that names its server. Each verdict reads the
+error flag of the protocol, not the content. In `quint-mcp-codex-2`, the
+two searches found no match, and the first `quint_get_doc` result reported a
+missing document as text. The second `quint_get_doc` returned
+`docs/lang.md`.
+
+### The real HOME
+
+The real `config.toml` has the same `quint-kb` entry, and the owner's policy
+starts Codex with `--ask-for-approval never`. A Codex session that Ravel
+starts for the owner therefore cannot call `quint-kb` today. The switch
+does not cause this, and it leaves the entry unchanged. The specification
+requires a repair or an explicit owner scope decision for a failed case.
+`owner-quint-kb-approval-k289` asks the owner whether the real entry gains
+the approval.
+
+The `codebase-memory-mcp` entry of the real HOME needs no change. A session
+there has HOME set to the real HOME, so the server gets the daemon's folder.
+
+### Controls
+
+`task owner:staging:trial-tests` passed 92 tests, 13 of them new.
+`task trial:controls` passed 85 tests, three of them new. Each deliberate
+mutation of a scratch copy failed a test:
+
+| Mutation | Test that failed |
+| --- | --- |
+| The verdict counts a failed call as a call | `test_only_failed_calls_fail` |
+| The verdict drops the order of read and call | `test_a_read_after_the_first_good_call_fails` |
+| The verdict ignores the source of the read | `test_a_read_from_another_source_fails` |
+| The skill of `mcp` is not a named skill, so the verdict finds no content read | `test_the_skill_of_mcp_is_a_named_skill` |
+| The Codex mapping ignores `isError` | `test_an_error_result_or_a_failed_status_is_an_error` |
+| The Codex mapping keeps the item type as the name | `test_a_completed_call_keeps_its_server_tool_and_result` and `test_the_stream_form_maps_too` |
+| `mcp-entries` keeps the `env_vars` line | Each of the three `JoinCbm` tests |
+| `mcp-entries` adds no approval | `test_quint_kb_gets_the_server_wide_approval_once` |
+
+The two failed runs are the controls of the verdict on real records. Each
+failed for the reason that the change after it repaired.
+
+### Records
+
+The trial directories are in `~/.local/state/owner-staging/trials`, named
+as the runs above. Each failed run's directory holds `config.toml.before`,
+the staging Codex configuration before the change that followed it.
+
+Each run used the accepted Ravel 2.0 build `ff14cba826b0`, with the
+`bin/ravel` SHA-256 `3a9a9129…`, and the staging settings `d8a49f06…`.
+Claude Code was 2.1.322, Codex was 0.167.0, `codebase-memory-mcp` was
+0.10.6, and the Quint clone was at `cc75369f741a`.
+
+| Subject | SHA-256 |
+| --- | --- |
+| `staging_trial.py` of each run | `9cb0ca0fa9766bad74a2cd2620812c8f67353eb0cf3d6a1c670e74f111a7fb9b` |
+| `harness_trial.py` of each run | `1f10bacfee19a1756d0862ad7ca0a4a912bcb6174442b47614f0366ff21e657f` |
+| `staging_home.py` of `quint-mcp-codex-2` | `a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b` |
+| `quint-mcp.json` | `cfd378ef9934c239881cfcc717c076025cfa3992e5d23362cef7f01e99d7eaff` |
+| `codebase-memory-mcp.json` | `111e4bcdeec6ad4329827449cd7129dc5e8009f5a9566338a9db573af1b6672c` |
+
+`codebase-memory-mcp-codex-1` ran with the committed `staging_home.py`,
+SHA-256 `0b81f3c9…`. The next four runs ran with an intermediate file that
+had only the cache change, as the command `join-cbm`. No trial calls that
+command, and the launcher's code was the same in each file.
+
+The staging `.claude.json` changed from `4fc39d25…` to `03464631…` during
+the Claude Code runs. `mcp-entries` reported no change to it, and Claude
+Code rewrites that file during each session.
+
+### Limits
+
+- One run of each case. Each verdict shows that the path worked once.
+- Each task named its skill and its server. The discovery trials measured
+  implicit activation, so these cases did not repeat it.
+- Claude Code 2.1.322 is not a held version. owner-marketplace-freeze-k253
+  chooses the held version.
+- Each Claude Code session ran in `bypassPermissions`. In the owner's `auto`
+  mode, Claude Code can ask before an MCP call.
+- The `codebase-memory-mcp` cases depend on the account daemon and on an
+  index that it keeps. A staging HOME without the real daemon cannot run
+  them.

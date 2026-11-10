@@ -2072,6 +2072,15 @@ class CodexAdapter(HarnessAdapter):
             paths = list(changes) if isinstance(changes, dict) else [
                 change.get("path") for change in changes or [] if isinstance(change, dict) and change.get("path")]
             name, tool_input = "apply_patch", {"paths": paths}
+        elif kind == "mcptoolcall":
+            # A call to a tool of an MCP server, named as Claude Code names
+            # it. A failed call has another status or a result with
+            # `isError`.
+            name = f"mcp__{item.get('server')}__{item.get('tool')}"
+            tool_input = item.get("arguments") if isinstance(item.get("arguments"), dict) else {}
+            outcome = item.get("result") if isinstance(item.get("result"), dict) else {}
+            error = error or bool(outcome.get("isError")) or bool(item.get("error"))
+            result = result_text(outcome.get("content")) or str(item.get("error") or "")
         elif kind == "subagentactivity" and item.get("kind") == "started":
             # The start of a delegate. Its `id` is the call ID of the
             # parent's `spawn_agent` call.

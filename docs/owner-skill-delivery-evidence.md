@@ -5569,7 +5569,8 @@ The sole-skill rule reads `skills/` of the `installPath` in
 instead. Both trees had the tree SHA-256 `ebe97a42…` on 2026-11-10, so the
 verdict was right for this HOME. A later personal keg could add a skill
 that Claude Code loads while the cache copy stays unchanged.
-`inventory-guardrail-loaded-dir-k288` owns that repair.
+[The loaded guardrail directory](#the-loaded-guardrail-directory) records
+the repair.
 
 ### Controls
 
@@ -6076,3 +6077,116 @@ record as `record.json.first`.
   background wait of the skill. No macOS guest started.
 - Claude Code 2.1.322 is not a held version. owner-marketplace-freeze-k253
   chooses the held version.
+
+## The loaded guardrail directory
+
+`inventory-guardrail-loaded-dir-k288` delivered this section on 2026-11-10.
+[The inventory](#the-inventory) of the native residue found that the
+sole-skill rule read only the plugin-cache copy of `guardrail@personal`.
+Claude Code loads the plugin from the keg's directory instead. The rule now
+reads both directories.
+
+### Result
+
+| Check | Result |
+| --- | --- |
+| `task owner:inventory:controls` | Passed 42 of 42 controls. Five are new, and one has a new name. |
+| Each mutant of a new check | Failed the control of that check, and only that control. |
+| The previous instrument, SHA-256 `6c5195e7…` | Failed the five new cases. |
+| `task owner:staging:inventory` | Passed. The staging HOME held no anomaly row. `guardrail@personal` was the classified native residue. Each of three mutated clones reported an anomaly. |
+
+### The rule
+
+The rule first requires the registration of `personal` from
+`/opt/homebrew/opt/personal`, as before. It then reads
+`.claude-plugin/marketplace.json` in that directory. The entry of
+`guardrail` must name a string source. The rule joins that source to the
+marketplace directory, as Claude Code does. In staging, the result was
+`/opt/homebrew/opt/personal/libexec/plugins/guardrail`. That is the
+directory of the init event in
+[The native residue case](#the-native-residue-case).
+
+The rule refuses the plugin in each of these cases:
+
+- The marketplace file names no `guardrail` entry, or the entry names no
+  directory.
+- The entry declares `skills`.
+- The loaded directory lies outside `/opt/homebrew/opt/personal`.
+- In the loaded directory or in the plugin-cache copy, `skills/` holds a
+  skill other than `guardrail`.
+- In either directory, `skills/guardrail/SKILL.md` is absent.
+- In either directory, `.claude-plugin/plugin.json` declares `skills` or
+  cannot be read.
+
+The plugins reference of Claude Code
+(<https://code.claude.com/docs/en/plugins-reference>) is the source for the
+two `skills` refusals. Under "How each key combines with its default
+location", a manifest `skills` path adds to the scan of `skills/`. Under
+"Marketplace entries and the manifest", the `skills` of an entry append to
+those of the plugin. Either key could therefore add a native skill that
+`skills/` does not show.
+
+### Controls
+
+The origin is a fixed path that a fixture HOME cannot write.
+[`controls.py`](evaluations/owner-skill-delivery/controls.py) therefore
+builds a fixture keg beside each fixture HOME. It runs a copy of the
+instrument in which the literal `/opt/homebrew/opt/personal` names that
+keg. The instrument itself takes no input that changes its origin. An
+owner's run therefore cannot widen the exception.
+
+Two new cases change the loaded directory: an extra skill and a manifest
+`skills` path. Two change the marketplace entry: `skills` in the entry and
+a source outside the keg. The fifth removes the marketplace file. The earlier case of an extra skill now names the plugin-cache copy.
+Each new case expects `UNCLASSIFIED`.
+
+Each mutant removed one check from a copy of the new instrument:
+
+| Mutant | Controls that failed |
+| --- | --- |
+| No check of the loaded directory | The extra skill and the manifest `skills` path, each in the loaded directory |
+| No check of the plugin-cache copy | The extra skill in the plugin-cache copy |
+| No refusal of a manifest `skills` path | The manifest `skills` path in the loaded directory |
+| No refusal of `skills` in the entry | `skills` in the marketplace entry |
+| No containment of the loaded directory | The loaded directory outside the keg |
+
+The previous instrument failed each of the five new cases. Its output for
+each of them equalled the unchanged run.
+
+### The staging run
+
+`task owner:staging:inventory` ran the new `inventory.py` against the
+staging HOME. The record is `trials/inventory-3/record.json` in
+`~/.local/state/owner-staging`. Its staging rows and controls equal those of
+`inventory-2` in [The inventory](#the-inventory): 202 rows and no anomaly.
+The three clones held three, two and one anomaly rows.
+
+The clone controls of `staging_trial.py` can only change the clone. The
+loaded directory is in the keg under `/opt/homebrew`, so no clone control
+adds a skill there. `controls.py` covers that case.
+
+On 2026-11-10, the loaded directory and the plugin-cache copy held the same
+files with the same SHA-256 digests. The keg was `personal` 2026-11-06.
+
+### Records
+
+| Subject | SHA-256 |
+| --- | --- |
+| `inventory.py` | `880fe562fd618330e1a6471fd741666760a868c259bf91d2b712caf49c3fd98d` |
+| `controls.py` | `1324f82b55266796a1451931cfdf8daa86a5bf9d79e428340826dd25b60ef8d8` |
+| `trials/inventory-3/record.json` | `d3d6f54a92132f62c2b363ad6163f8f5d70ac246a534779c5e3f8bc80bb88bc4` |
+
+`docs/owner-cutover/switch-plan-draft.json` still gives the baseline
+instrument the earlier digest `6c5195e7…`. owner-switch-plan-k254 writes
+the draft again and copies `inventory.py` into the prepared folder.
+
+### Limits
+
+- The rule reads the marketplace file that Claude Code 2.1.322 read in
+  staging. A later version could resolve a directory marketplace in another
+  way. The init event of a later staging run would show that change.
+- The rule refuses a manifest `skills` key whatever its value. A key that
+  names only `./skills` adds no skill, but the rule still refuses it.
+- The rule does not read a `commands` key or a `commands/` folder.
+  `commands` is outside the sole-skill rule of
+  [Concurrent writers](specs/owner-skill-delivery.md#concurrent-writers).

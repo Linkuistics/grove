@@ -1151,8 +1151,9 @@ behaviour. No fixture proves a real installation or activation.
 - Add a superseded skill beside each excluded platform subtree, at both native
   roots, and through a link. Each must fail the before and after comparison.
   A change confined to `synced` or `.system` must pass. Native guardrail
-  from its sole-skill personal plugin must pass. An extra skill or wrong
-  origin must fail.
+  from its sole-skill personal plugin must pass. A wrong origin must fail.
+  An extra skill must fail, both in the directory that Claude Code loads
+  and in the plugin-cache copy.
 - A fixture of another Claude Code, Codex, Grove or Ravel process must stop
   the attempt. Exact finish ancestors are allowed. Another descendant
   harness and a background app-server are not. A harmless `caffeinate`

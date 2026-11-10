@@ -47,8 +47,14 @@ Two exceptions of "Concurrent writers" in the design:
   is not a plain directory gets an UNCLASSIFIED row.
 - An enabled guardrail@personal is the classified native residue only if the
   marketplace personal in ~/.claude/plugins/known_marketplaces.json has the
-  source directory /opt/homebrew/opt/personal and the plugin's skills/ holds
-  only guardrail. Otherwise its rows say UNCLASSIFIED.
+  source directory /opt/homebrew/opt/personal and the plugin holds only the
+  guardrail skill. Claude Code loads the plugin from the directory that the
+  marketplace's .claude-plugin/marketplace.json names, and the rule reads
+  that directory and the plugin-cache copy at installPath. In each one,
+  skills/ must hold only guardrail, and .claude-plugin/plugin.json must
+  declare no skills path. The marketplace entry must declare no skills, and
+  its directory must lie inside /opt/homebrew/opt/personal. Otherwise the
+  rows say UNCLASSIFIED.
 
 Usage:
     python3 -I inventory.py > inventory.tsv
@@ -188,17 +194,52 @@ enabled = claude_settings.get("enabledPlugins", {})
 # marketplace, with guardrail as its only skill. The registration stores the
 # path that `claude plugin marketplace add "$(brew --prefix)/opt/personal"`
 # received (docs/specs/codex-skill-provisioning.md, "Hook adapters").
+# controls.py runs a copy of this script in which this literal names a fixture
+# keg. The literal must therefore stay the only spelling of the origin.
 RESIDUE = "guardrail@personal"
-PERSONAL_SOURCE = {"source": "directory", "path": "/opt/homebrew/opt/personal"}
+PERSONAL_PREFIX = "/opt/homebrew/opt/personal"
+PERSONAL_SOURCE = {"source": "directory", "path": PERSONAL_PREFIX}
 try:
     with open(f"{H}/.claude/plugins/known_marketplaces.json", encoding="utf-8") as fh: known = json.load(fh)
 except (OSError, ValueError): known = {}
-def residue_problem(p):
-    src = known.get("personal", {}).get("source") if isinstance(known.get("personal"), dict) else None
-    if src != PERSONAL_SOURCE: return "marketplace personal is not registered from /opt/homebrew/opt/personal"
-    extra = [d for d in ls(os.path.join(p, "skills")) if d != "guardrail"]
+def read_json(path):
+    """The parsed file; {} if it is absent, None if it cannot be read as a JSON object."""
+    try:
+        with open(path, encoding="utf-8") as fh: obj = json.load(fh)
+    except FileNotFoundError: return {}
+    except (OSError, ValueError): return None
+    return obj if isinstance(obj, dict) else None
+def sole_guardrail(d):
+    """Why the plugin directory d gives Claude Code a skill other than guardrail, or None.
+    A manifest skills path adds to the skills/ scan: "How each key combines with its
+    default location" in https://code.claude.com/docs/en/plugins-reference."""
+    manifest = read_json(os.path.join(d, ".claude-plugin", "plugin.json"))
+    if manifest is None: return "unreadable .claude-plugin/plugin.json"
+    if "skills" in manifest: return "plugin.json declares skills " + json.dumps(manifest["skills"])
+    extra = [x for x in ls(os.path.join(d, "skills")) if x != "guardrail"]
     if extra: return "skills other than guardrail: " + ", ".join(extra)
-    if not os.path.isfile(os.path.join(p, "skills", "guardrail", "SKILL.md")): return "no guardrail skill"
+    if not os.path.isfile(os.path.join(d, "skills", "guardrail", "SKILL.md")): return "no guardrail skill"
+    return None
+def residue_problem(p):
+    """Why guardrail@personal with the cache copy p is not the classified residue, or None."""
+    src = known.get("personal", {}).get("source") if isinstance(known.get("personal"), dict) else None
+    if src != PERSONAL_SOURCE: return f"marketplace personal is not registered from {PERSONAL_PREFIX}"
+    # Claude Code loads a directory marketplace's plugin in place, from the
+    # entry's source under the marketplace root, not from the cache copy.
+    market = os.path.join(PERSONAL_PREFIX, ".claude-plugin", "marketplace.json")
+    plugins = (read_json(market) or {}).get("plugins")
+    name = RESIDUE.split("@")[0]
+    entry = next((e for e in plugins if isinstance(e, dict) and e.get("name") == name), None) if isinstance(plugins, list) else None
+    if entry is None: return f"{market} names no {name} plugin"
+    if not isinstance(entry.get("source"), str): return f"the {name} entry of {market} names no directory"
+    # A marketplace entry's skills append to the plugin's: "Marketplace entries
+    # and the manifest" in https://code.claude.com/docs/en/plugins-reference.
+    if "skills" in entry: return f"the {name} entry of {market} declares skills"
+    loaded = os.path.normpath(os.path.join(PERSONAL_PREFIX, entry["source"]))
+    if not loaded.startswith(PERSONAL_PREFIX + os.sep): return f"the loaded directory {loaded} lies outside {PERSONAL_PREFIX}"
+    for label, d in (("loaded directory", loaded), ("plugin-cache copy", p)):
+        problem = sole_guardrail(d)
+        if problem: return f"{label} {t(d)}: {problem}"
     return None
 active_claude = set()
 for key, entries in sorted(inst.get("plugins", {}).items()):

@@ -16,13 +16,23 @@ a link, as a nested copy and as a hidden child, must fail the instrument's
 `compare`. So must a link in place of synced, and a child named synced or
 .system in the other native root. A change inside synced or .system alone
 must pass it, and must still change that subtree's rows. The native guardrail
-from its sole-skill personal plugin must pass. An extra skill, another origin
-or no registration must fail. Each case also checks the verdict of `compare`
-against the unchanged run. The unchanged fixture must hold no anomaly row.
+from its sole-skill personal plugin must pass. An extra skill in the
+directory that Claude Code loads or in the plugin-cache copy must fail. So
+must a skills path that a plugin manifest or the marketplace entry declares,
+a loaded directory outside the keg, a marketplace with no guardrail entry,
+another origin and no registration. Each case also checks the verdict of
+`compare` against the unchanged run. The unchanged fixture must hold no
+anomaly row.
 
 The fixture stands in for the owner's HOME, so the script writes only inside
 its temporary directory. The instrument still reads the absolute tool paths
 under /opt/homebrew and /Applications, which are the same for every case.
+
+The instrument accepts the guardrail plugin only from the fixed origin
+/opt/homebrew/opt/personal, which a fixture cannot write. Each case therefore
+builds a fixture keg beside its HOME and runs a copy of the instrument in which
+that literal names the fixture keg. The instrument has no input that changes
+its origin, so an owner's run cannot widen the exception.
 
 Usage:
     python3 -I controls.py [--instrument PATH]
@@ -59,9 +69,15 @@ SYNCED = ".claude/skills/synced/account-1/docs"
 SYSTEM = ".codex/skills/.system/skill-creator"
 GUARDRAIL = ".claude/plugins/cache/personal/guardrail/unknown"
 GUARDRAIL_ROW = ("claude", "~/.claude/plugins/cache/personal", "guardrail@personal")
-PERSONAL_SOURCE = {"source": "directory", "path": "/opt/homebrew/opt/personal"}
+ORIGIN = "/opt/homebrew/opt/personal"
+KEG_PLUGIN = "libexec/plugins/guardrail"
+GUARDRAIL_SKILL = "---\nname: guardrail\n---\nGuardrail.\n"
 SUPERSEDED = "---\nname: brainstorming\n---\nSuperseded copy.\n"
 CODEX_TOML = '[mcp_servers.quint-kb]\ncommand = "node"\nargs = ["kb.js"]\n\n[plugins."visualize@openai-bundled"]\nenabled = false\n'
+
+def keg_of(home):
+    """The fixture keg that stands in for /opt/homebrew/opt/personal, beside HOME."""
+    return os.path.join(os.path.dirname(home), "keg")
 
 def build(home):
     jwrite(home, ".claude/plugins/installed_plugins.json", {"version": 2, "plugins": {"demo@linkuistics": [
@@ -88,12 +104,17 @@ def build(home):
     write(home, SYNCED + "/SKILL.md", "---\nname: docs\n---\nAccount skill.\n")
     write(home, SYSTEM + "/SKILL.md", "---\nname: skill-creator\n---\nSystem skill.\n")
     write(home, ".claude/skills/codebase-memory/SKILL.md", "---\nname: codebase-memory\n---\nTool skill.\n")
-    write(home, GUARDRAIL + "/skills/guardrail/SKILL.md", "---\nname: guardrail\n---\nGuardrail.\n")
+    write(home, GUARDRAIL + "/skills/guardrail/SKILL.md", GUARDRAIL_SKILL)
     write(home, GUARDRAIL + "/commands/guardrail.md", "Guardrail command.\n")
     edit_json(home, ".claude/plugins/installed_plugins.json", lambda o: o["plugins"].update({"guardrail@personal": [
         {"scope": "user", "installPath": os.path.join(home, GUARDRAIL), "version": "unknown"}]}))
     edit_json(home, ".claude/settings.json", lambda o: o["enabledPlugins"].update({"guardrail@personal": True}))
-    jwrite(home, ".claude/plugins/known_marketplaces.json", {"personal": {"source": PERSONAL_SOURCE, "installLocation": "/opt/homebrew/opt/personal"}})
+    keg = keg_of(home)
+    jwrite(home, ".claude/plugins/known_marketplaces.json", {"personal": {"source": {"source": "directory", "path": keg}, "installLocation": keg}})
+    # The directory that Claude Code loads, as the personal keg lays it out.
+    jwrite(keg, ".claude-plugin/marketplace.json", {"name": "personal", "plugins": [{"name": "guardrail", "source": "./" + KEG_PLUGIN}]})
+    write(keg, KEG_PLUGIN + "/.claude-plugin/plugin.json", '{"name": "guardrail"}\n')
+    write(keg, KEG_PLUGIN + "/skills/guardrail/SKILL.md", GUARDRAIL_SKILL)
     write(home, ".quint-llm-kit/repo/skills/quint-lang/SKILL.md", "---\nname: quint-lang\n---\nQuint.\n")
     # The two tools under HOME, so that the unchanged run has no anomaly row
     # and the comparison's verdict depends only on the case.
@@ -154,6 +175,14 @@ def synced_link(home):
 def other_origin(home):
     edit_json(home, ".claude/plugins/known_marketplaces.json",
               lambda o: o["personal"].update(source={"source": "directory", "path": os.path.join(home, "PersonalSkills")}))
+def marketplace_entry(home, **fields):
+    edit_json(keg_of(home), ".claude-plugin/marketplace.json", lambda o: o["plugins"][0].update(fields))
+def manifest_skills(home):
+    write(keg_of(home), KEG_PLUGIN + "/.claude-plugin/plugin.json", '{"name": "guardrail", "skills": ["./extra"]}\n')
+    write(keg_of(home), KEG_PLUGIN + "/extra/brainstorming/SKILL.md", SUPERSEDED)
+def loaded_outside(home):
+    write(home, "../elsewhere/guardrail/skills/guardrail/SKILL.md", GUARDRAIL_SKILL)
+    marketplace_entry(home, source="../elsewhere/guardrail")
 def guardrail_elsewhere(home):
     edit_json(home, ".claude/plugins/installed_plugins.json", lambda o: o["plugins"].update({"guardrail@acme": [
         {"scope": "user", "installPath": os.path.join(home, ".claude/plugins/cache/acme/guardrail/1"), "version": "1"}]}))
@@ -179,15 +208,26 @@ CASES += [
     ("changed skill inside synced", lambda h: write(h, SYNCED + "/SKILL.md", "---\nname: docs\n---\nUpdated by the account.\n"), ("passes",)),
     ("new skill inside .system", lambda h: write(h, ".codex/skills/.system/imagegen/SKILL.md", "---\nname: imagegen\n---\n"), ("passes",)),
     ("native guardrail from its sole-skill personal plugin", lambda h: None, ("residue", "native-keep (native residue)")),
-    ("extra skill in the guardrail plugin", lambda h: write(h, GUARDRAIL + "/skills/brainstorming/SKILL.md", SUPERSEDED), ("residue", "UNCLASSIFIED")),
+    ("extra skill in the loaded guardrail directory", lambda h: write(keg_of(h), KEG_PLUGIN + "/skills/brainstorming/SKILL.md", SUPERSEDED), ("residue", "UNCLASSIFIED")),
+    ("extra skill in the guardrail plugin-cache copy", lambda h: write(h, GUARDRAIL + "/skills/brainstorming/SKILL.md", SUPERSEDED), ("residue", "UNCLASSIFIED")),
+    ("skills path in the loaded guardrail manifest", manifest_skills, ("residue", "UNCLASSIFIED")),
+    ("skills in the personal marketplace entry", lambda h: marketplace_entry(h, skills=["./skills/guardrail"]), ("residue", "UNCLASSIFIED")),
+    ("loaded guardrail directory outside the keg", loaded_outside, ("residue", "UNCLASSIFIED")),
+    ("personal marketplace with no guardrail entry", lambda h: os.remove(os.path.join(keg_of(h), ".claude-plugin/marketplace.json")), ("residue", "UNCLASSIFIED")),
     ("guardrail plugin from another origin", other_origin, ("residue", "UNCLASSIFIED")),
     ("guardrail plugin with no personal registration", lambda h: os.remove(os.path.join(h, ".claude/plugins/known_marketplaces.json")), ("residue", "UNCLASSIFIED")),
     ("guardrail skill from another marketplace", guardrail_elsewhere, ("marker", "UNCLASSIFIED")),
 ]
 
+with open(instrument, encoding="utf-8") as fh: INSTRUMENT_TEXT = fh.read()
+if ORIGIN not in INSTRUMENT_TEXT: sys.exit(f"controls: {instrument} never names {ORIGIN}")
+
 def run(home):
+    """The instrument's rows for HOME, from a copy whose origin is the fixture keg."""
+    copy = os.path.join(home, "..", "inventory.py")
+    with open(copy, "w", encoding="utf-8") as fh: fh.write(INSTRUMENT_TEXT.replace(ORIGIN, keg_of(home)))
     env = {k: v for k, v in os.environ.items() if k != "CONTROL_ROOT"}; env["HOME"] = home
-    out = subprocess.run([sys.executable, "-I", instrument], env=env, capture_output=True, text=True)
+    out = subprocess.run([sys.executable, "-I", copy], env=env, capture_output=True, text=True)
     if out.returncode: return None
     with open(os.path.join(home, "..", "inventory.tsv"), "w", encoding="utf-8") as fh: fh.write(out.stdout)
     return {(r[0], r[1], r[2]): r for r in (line.split("\t") for line in out.stdout.splitlines()[1:])}

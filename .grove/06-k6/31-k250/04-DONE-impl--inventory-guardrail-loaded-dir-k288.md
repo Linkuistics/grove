@@ -35,3 +35,22 @@ plugin directory that Claude Code loads, not only the plugin-cache copy.
   check fails a control.
 - `task owner:staging:inventory` passes against the staging HOME, and its
   evidence records the new `inventory.py` digest.
+
+## Decisions (running log)
+
+- The rule resolves the loaded directory as Claude Code does. It reads
+  `.claude-plugin/marketplace.json` under the registered origin and joins the
+  `guardrail` entry's string `source` to that origin. It checks that directory
+  and the cache copy with the same sole-skill test.
+- The controls reach the fixed origin without a knob in the instrument. Each
+  case runs a copy of the instrument in which the literal
+  `/opt/homebrew/opt/personal` names that case's fixture keg. The shipped
+  instrument therefore has no input that widens the origin.
+- The source is the plugins reference of Claude Code,
+  <https://code.claude.com/docs/en/plugins-reference>. Its section "How each
+  key combines with its default location" says that a manifest `skills` key
+  adds to the default `skills/` scan. Its section "Marketplace entries and
+  the manifest" says that the `skills` of an entry append to it. The rule
+  therefore also refuses a `skills` key in either plugin manifest or in the
+  marketplace entry. It refuses a loaded directory outside the origin, a
+  non-directory source and a marketplace with no `guardrail` entry.

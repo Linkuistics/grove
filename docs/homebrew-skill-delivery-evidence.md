@@ -553,3 +553,206 @@ verify the rendered layout or its deep-link positioning. Source and manifest
 validation alone do not establish visual rendering.
 
 <!-- tc: on -->
+
+## Directory-link layout review
+
+`skill-keg-link-layout-k291` inspected producer commit
+`7e3673f3c8340c70f3675572550b981faaa36b55`. The subjects are the amended
+section "The keg layout", the matching rules of the owner design, the
+experiment above with its source, and the handoffs to
+`owner-pack-checkouts-k93`, `skill-keg-link-layout-k290` and finish. The
+review read Homebrew's installed `keg.rb`, `cleaner.rb`,
+`formula_installer.rb` and `install.rb` at `bc63375ac3a4`. It read Ravel's
+skill discovery specification and formula template at `ff14cba826b0`.
+
+The review ran no test, build or experiment. Each finding states a defect, a
+state that shows it and the rule that the state breaks. No finding proposes a
+repair. P2 marks a contract or acceptance gap that planning would otherwise
+inherit. P3 marks a consistency defect that leaves the remedy intact. No
+finding is P1, because the review found no counterexample to the remedy.
+
+### Claims that hold
+
+Each linking claim of the amendment holds in the installed linker.
+`Keg#link_dir` tests `src.symlink? || src.file?` before `src.directory?`, and
+`Pathname#find` does not descend into a symlink. A source alias is therefore
+one entry under the `:link` and the `:mkpath` strategies.
+`Keg#unlink` removes a prefix link only when its lexical target equals the keg
+entry. It therefore removes the link to the alias and nothing in the payload.
+`libexec` is not a link directory, and the prune step of the cleaner skips
+`libexec`.
+
+An upgrade of an expanded old source repairs it. The unlink removes the file
+links and the empty directories, and the link of the new keg then adds the
+alias. The direct-layout cases of the experiment are a failure control on the
+same linker, fixtures and resolver. The claims of the experiment stay inside
+what its cases ran.
+
+### L1 — P2: a revision-only formula has no accepted-version identity
+
+The amendment gives each affected formula a new revision "even if its source
+commit is unchanged". The version model of the owner design does not admit
+that change. Its terms define an accepted version as "a formula version whose
+sources passed staging". Its section "Skill formulae" states that a formula
+version names a commit. It also states that the tap publishes only accepted
+versions. Switch step 2 verifies "accepted versions".
+
+The program encodes the same model. The `accepted.versions` of the plan draft
+name `2026-11-06`, `2.8.0`, `7.0.0` and `1.0.0`. `gate_5` in
+`scripts/owner_switch.py` compares each with the `installed_version` from
+`mise bootstrap packages status --json`. The leaf k93 instead makes
+`mac-check` compare "each source's installed commit against its accepted
+commit".
+
+Consider the state after k93 upgrades `personal` to revision 1. If mise
+reports `2026-11-06_1`, gate 5 stops the switch until a plan names a version
+that no staging trial read. If mise reports `2026-11-06`, gate 5 cannot tell
+the old revision from the new one. The commit comparison sees no change in
+either case, because a revision keeps the commit.
+
+The state breaks the rule that the tap publishes only accepted versions. It
+leaves k290 and `owner-switch-plan-k254` with no rule for the identity of a
+revised version. The sentence "Their source commits and accepted digests may
+remain unchanged" implies acceptance by digest, but no rule states it.
+
+### L2 — P2: the plugin paths of the hook adapters cross the alias, and no reading covers it
+
+Both marketplace files of the keg name
+`./share/ravel/skills/writing/craft/technical-communication` as the plugin
+source. Under the amendment, `share/ravel/skills/writing` is the relative
+directory symlink of the formula. Each harness therefore reaches the plugin
+root through a symlinked path component. The section "Hook adapters" of the
+delivery spec is unchanged. It states that Codex "resolves a `local` source
+only inside its marketplace root".
+
+The readings of "The hook adapters from a keg" and "The hook plugins across a
+keg change" both used real directories. The first used the current `install`
+block of the template. The second script made `skills/writing` with
+`mkdir -p` and named that path in both marketplace files. No reading shows how
+Codex applies its root rule to a path through a directory symlink. No reading
+shows how Codex copies such a plugin to its cache, or how Claude Code runs it
+in place.
+
+The design does not decide whether the marketplace files keep the alias path
+or name the private payload. The limits above ask only that "affected hook
+registrations" be "reconciled", and k290 repeats that word. Neither asks the
+seam "Hook adapters" to run again on the projected layout. A harness that
+refuses the path loses the writing hooks. That breaks the root outcome "Hooks
+and plugin capabilities remain usable where required".
+
+### L3 — P2: the acceptance of the layout belongs to no durable seam
+
+The amendment states what acceptance must observe. It names the shared
+default directory, every ID and digest, the owning private payload and
+regular payload files. It names no seam that runs it. The test-seam table of
+the delivery spec is unchanged. Its row "Installed distribution" points an
+installation record at the `share/ravel/skills` of one keg. The amendment
+itself says that a reading of that kind "cannot detect the original failure".
+
+`task design:keg-link-layout:test` is the only instrument that links two kegs
+into one prefix. It needs a `RAVEL` executable, and `scripts/check.sh` does
+not run it. The limits above say "Rerun the seam after changes to Homebrew's
+linker", but nothing detects such a change. The installed Homebrew is
+`7.0.12-221-gbc63375`. Four commits after the cited `3ccfa1d07143` changed
+`keg.rb`. Their subjects name dry-run output only, and the experiment reports
+the cited methods unchanged.
+
+The Done when of k290 lists the cases for this cutover. After `.grove/` ends,
+the table of the spec is the only durable acceptance contract. The guarantee
+rests on internal behaviour of Homebrew, not on a documented interface. A
+later linker change can therefore reopen the defect. The layout report of
+`mac-check` then shows it only when the owner runs that report.
+
+### L4 — P3: the formula of Ravel is an unlisted co-owner of `share/ravel`
+
+The ownership paragraph names five formula owners of the projection. A sixth
+formula links into the same directory. The formula template of Ravel installs
+`share/ravel/examples` and `share/ravel/notices`, and it writes
+`share/ravel/installation.json` in the keg. The unversioned `ravel` is a
+linked formula, and the Grove formula depends on it.
+
+Two linking events follow from that. When a new machine installs Grove as
+its first skill formula after promotion, Homebrew links the dependency Ravel
+2.0 first. The keg of Ravel then holds the whole `share/ravel` link. Inside
+finish, promotion links Ravel 2.0 beside the ten sources of the owner. Under
+the old layout, promotion on a machine whose only skill formula is Grove would
+expand all six Grove sources. The facts of
+the amendment do not name that trigger.
+
+The projection keeps each source whole in both events, by the code path that
+the experiment ran. The `examples` and `notices` of Ravel become file links,
+and no source changes. The experiment and the cases of k290 name only skill
+kegs. No planned case therefore links the keg that finish links beside the
+live sources.
+
+### L5 — P3: a duplicate source ID unlinks the whole later keg
+
+The spec states that "Two formulae that ship one source ID conflict at that
+entry". The effect is wider than the entry. `Keg#link` handles a link error by
+unlinking the whole keg that it was linking. `FormulaInstaller#link` then
+reports "The formula built, but is not symlinked". In an upgrade, Homebrew
+unlinked the earlier keg before the installation. `install.rb` relinks the
+earlier keg only when the new version is not installed.
+
+Consider a Grove upgrade while another formula owns one of the six Grove IDs.
+The new Grove keg links nothing, and the earlier keg stays unlinked. All six
+Grove sources leave the default directory, `grove-core` included. Each later
+Grove session then force-stops for missing guidance. The sentence of the spec
+and the case "duplicate source refusal" of k290 both describe a refusal at one
+entry.
+
+### L6 — P3: Grove documents still describe the earlier keg layout
+
+The amendment changes where each formula puts a source. These current
+documents still state the earlier layout:
+
+- The section "The pack record and the release" of the same spec says "The
+  formula installs `share/ravel/skills/` and the two dot directories at the
+  keg root". That contradicts the amended table.
+- The glossary entry "Keg source" in `plugins/CONTEXT.md` puts a keg source at
+  `share/ravel/skills/<source-id>/`. The term of the owner design now puts it
+  in private storage behind a symlink. The two definitions of one term
+  disagree.
+- `docs/RELEASING.md` says that "the formula installs the same shape into its
+  keg". Its keg listing names `share/ravel/skills/grove-core/` and each pack
+  as directories.
+- `docs/ARCHITECTURE.md`, `plugins/grove/README.md` and the item "Grove's
+  formula" of the external pack contract put each source at
+  `share/ravel/skills/<source-id>/` of the keg.
+- The ownership paragraph names the `testanyware` formula of the tap. The
+  release of TestAnyware renders that formula from
+  `scripts/templates/testanyware.rb.tmpl` in its own repository. A change to
+  the file of the tap lasts only until the next TestAnyware release.
+- The facts bullet on the cleaner justifies the payload by the prune step
+  "under `share/`". The prune step skips `libexec`, so that reason no longer
+  reaches the payload. The conclusion still holds.
+
+The reconciliation list of k290 names formula tests, origin assertions,
+inventories and registrations. It names none of these documents. The section
+"Scope and remaining work" of the delivery spec requires implementation to
+update "installation guidance, architecture, glossary" with the behaviour.
+
+### L7 — P3: the documentation of Ravel shows the failing layout
+
+The packaging rule is now only in the Grove delivery spec, which binds "Each
+Linkuistics skill formula". The skill discovery specification of Ravel owns
+the default skill directory. It says that packages "put their sources" there.
+Its view `docs/design/skill-discovery/homebrew-directory.mmd` shows "Install
+share/ravel/skills/ID in the keg", which is the layout that fails. Ravel
+2.0.0 is not yet cut, and this grove executes that release.
+
+A package that follows the published documentation of Ravel installs a real
+source directory. The next conflict repair then expands it. Ravel then
+refuses each resolution of the whole default directory, so one such package
+blocks the sources of every other package too. The amendment names no
+document of Ravel as a consumer.
+
+### L8 — P3: the amendment adds hard prose findings to three documents
+
+The text of the producer breaks the writing rules of the project. Before the
+producer commit, the checker reported no hard finding in
+`codex-skill-provisioning.md` or in this evidence document. After it, the
+checker reports 5 and 13, and `owner-skill-delivery.md` went from 1 to 5.
+Most are semicolons, and the others are long sentences and word rotations.
+This review marked the section "Directory-link layout experiment" as pending
+for the integration to convert, and changed none of its words.

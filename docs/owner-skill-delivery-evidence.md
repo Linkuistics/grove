@@ -647,13 +647,18 @@ three subjects had the same digests before and after the run:
 - `mise bootstrap repos apply` against the real remotes.
 - A decoy credential helper against a remote that asks for a credential.
 - The size and capture time of a TestAnyware checkout subdirectory.
+  Homebrew replaced the checkout with a keg. staging-testanyware-trial-k287
+  measured the keg's source in
+  [The size and capture time of the source](#the-size-and-capture-time-of-the-source):
+  two files of 5,952 bytes, resolved in 32 to 37 ms.
 - Ravel's capture of a pack checkout that mise wrote.
 
 The staging trials in the design's cutover contract own each of these
 measurements before the switch. Of these items, the staging discovery trials
 of owner-staging-discovery-k249 measured only the plugin disable. The native
 residue trial of staging-claude-native-trial-k285 measured the root-level
-`SKILL.md`.
+`SKILL.md`. The TestAnyware trial of staging-testanyware-trial-k287
+measured the size and capture time of its source.
 
 The rehearsal of order 6 owns two more:
 
@@ -5795,3 +5800,279 @@ Code rewrites that file during each session.
 - The `codebase-memory-mcp` cases depend on the account daemon and on an
   index that it keeps. A staging HOME without the real daemon cannot run
   them.
+
+## TestAnyware in staging
+
+`staging-testanyware-trial-k287` delivered this section on 2026-11-10. It
+measures the `using-testanyware` skill, which Ravel delivers from the
+`testanyware` source, on each harness. The agent reads the skill, runs the
+tool's command reference and does one real VM operation through the
+installed `testanyware` command. The command and the TestAnyware app stay
+native after the switch, as
+[Native residue](specs/owner-skill-delivery.md#native-residue) states. The
+staging HOME held the layout that
+[Quiet interval in staging](#quiet-interval-in-staging) left.
+
+### Result
+
+The case passed on each harness. Two conditions of the staging arrangement
+needed a change before a VM could start. The section "The account's
+TestAnyware app" gives the first, and "The Codex sandbox" gives the second.
+
+| Run | Harness | Result |
+| --- | --- | --- |
+| `testanyware-vm-codex-1` | Codex | Failed, as planned. The sandbox denied the app's socket, so no VM started. |
+| `testanyware-vm-claude-1` | Claude Code | Passed. VM `testanyware-cdd0e247` started and stopped. |
+| `testanyware-vm-codex-2` | Codex | Passed, with the sandbox's network access. VM `testanyware-e98a94a6` started and stopped. |
+
+No VM of the trials ran after its session, and the runner stopped none.
+
+### The account's TestAnyware app
+
+On a macOS host, each `testanyware` command that reaches a guest goes
+through the TestAnyware app. The app runs once for each account, in the
+real HOME. The Host CLI finds the app's socket at
+`$HOME/Library/Application Support/TestAnyware/testanyware.sock`
+(`default_socket_path` in
+`cli-rs/crates/testanyware-app-protocol/src/socket.rs` at TestAnyware
+`v2.8.0`). It also derives its state and data folders from HOME. A command
+in the staging HOME therefore reaches no app.
+
+Three read-only probes of `testanyware vm list --json` 2.8.0 showed each
+step:
+
+| HOME and variables | Result |
+| --- | --- |
+| The staging HOME | `APP_UNREACHABLE` `not_running`. No socket exists below the staging HOME. |
+| A scratch HOME, with `TESTANYWARE_APP_SOCKET` set to the real socket | `APP_INCOMPATIBLE` `directories`. The client's folders were below the scratch HOME, and the app's folders were below the real HOME. |
+| The same, with a `config.rhai` that sets the real `state_dir` and `data_dir` | Listed the five golden images |
+
+The runner therefore joins the app for the TestAnyware case only. It sets
+`TESTANYWARE_APP_SOCKET` to the real socket. It also sets
+`TESTANYWARE_CONFIG` to `OUT/testanyware-config.rhai`, which names the real
+built-in folders `~/.local/state/testanyware` and
+`~/.local/share/testanyware`. The owner's `config.rhai` sets neither
+folder. Ravel passes the caller's environment to the managed process, as
+"Managed process and result" of Ravel's `docs/specs/session-execution.md`
+states. Each record lists both names in its environment.
+
+This join leaves the retained staging HOME unchanged. A link from the
+staging HOME to the real app folder would also join the app. The isolation
+rule of [Staging setup and isolation trial](#staging-setup-and-isolation-trial)
+allows only the two sign-in links to lead out of the staging HOME. The trial
+therefore uses the variables. In the real HOME, a session needs neither
+variable, because HOME already names the app's socket and folders.
+
+The runs wrote no TestAnyware file into the staging HOME. The VMs wrote
+their files into the real state folder, where the app keeps every VM.
+
+### The Codex sandbox
+
+Each Codex staging trial runs `codex exec --sandbox workspace-write` with
+the approval policy `never`. `codex sandbox` 0.167.0 measured this sandbox
+with the join variables and `testanyware vm list --json`:
+
+| Codex home and overrides | Result |
+| --- | --- |
+| An empty home, `sandbox_mode="workspace-write"` | `APP_UNREACHABLE` `socket_error`: "Operation not permitted (os error 1)" |
+| The same, with `sandbox_workspace_write.network_access=true` | Listed the five images |
+| The same, with `default_permissions=":danger-full-access"` | Listed the five images |
+| A copy of the staging `config.toml`, `sandbox_mode="workspace-write"` | `APP_UNREACHABLE` `socket_error` |
+| The same copy, with `sandbox_workspace_write.network_access=true` | Listed the five images |
+
+The staging `config.toml` sets `default_permissions = ":workspace"`. The
+last two rows show that the network override still applies with it.
+
+The first plan gave the Codex case the owner's own profile,
+`-c default_permissions=:danger-full-access`, as the owner's `config.rhai`
+passes it. Claude Code's auto-mode classifier refused that session as
+"Create Unsafe Agents". This leaf did not work around the refusal. The case
+instead keeps the trial's sandbox and approval policy, and adds
+`sandbox_workspace_write.network_access=true`. That grant is narrower than
+the owner's profile, and the third row shows that the owner's profile also
+reaches the socket.
+
+A Codex session under `workspace-write` without network access cannot use
+TestAnyware. The owner's policy does not start such a session.
+
+### The tool
+
+[`staging_trial.py`](evaluations/owner-skill-delivery/staging_trial.py)
+gained two case fields:
+
+- `testanyware`, `{source, skill, answer, screenshot}`. The runner sets the
+  two join variables. Before and after the session, it lists the names in
+  the app's state folder `vms` and the running VMs that `testanyware vm
+  list` reports. It then stops each new VM that still runs, and records the
+  stop.
+- `codexConfig`, a list of `-c` overrides that the Codex route adds. An item
+  may not set the sandbox mode, the approval policy, the permission profile,
+  the model or the effort.
+
+The verdict `testanyware` needs these events in this order:
+
+1. A read of the skill from its source.
+2. A successful `testanyware llm-instructions` or `testanyware
+   capabilities`, before the first successful `vm start`.
+3. A successful `testanyware vm start`.
+4. A successful `testanyware vm stop` at or after that start.
+
+It also needs these runner facts:
+
+- At least one VM ID gained a file in the state folder during the session.
+- The first line of `ANSWER.md` is one of those IDs.
+- No VM of the session still runs, and none keeps its spec file
+  `<id>.json`.
+- `screen.png` starts with the PNG signature.
+
+A calibration start outside Ravel set these facts. A start of a Linux VM
+took 18 s. It wrote `<id>.json`, `<id>.meta.json`, `<id>.keeper.log` and
+`<id>.tart.log`. The stop removed the first two and the VM from `vm list`,
+and kept the two logs.
+
+The record keeps the first 300 characters of each `testanyware` call's
+result. It keeps the number of files in the state folder, not their names,
+because the folder holds the logs of every earlier VM.
+
+The case is
+[`testanyware-vm`](evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json).
+It names the skill and asks the agent to read the tool's command reference
+as the skill directs, without the name of the command. It asks for a Linux
+VM, which takes no macOS guest slot. The commands are:
+
+```sh
+S=~/.local/state/owner-staging
+task owner:staging:case CASE=testanyware-vm HARNESS=claude STAGING=$S/home \
+  RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/testanyware-vm-claude-N
+task owner:staging:case CASE=testanyware-vm HARNESS=codex STAGING=$S/home \
+  RAVEL_2_0_PREFIX=$S/ravel-2.0 OUT=$S/trials/testanyware-vm-codex-N
+```
+
+The TestAnyware app must run in the real HOME. The runner refuses to start a
+session when it cannot list the VMs.
+
+### The runs
+
+Each run used `claude-sonnet-5-5` or `gpt-6.1-sol` at low effort, the
+staging defaults, and ended with `staging-ok`. Each read the mandatory file
+first. The columns give the event numbers.
+
+| Run | Started | Skill read | Reference | VM operation |
+| --- | --- | --- | --- | --- |
+| `testanyware-vm-codex-1` | 08:52:24Z | 8 | 10, `llm-instructions` | None. `testanyware doctor` at event 11 reported that the sandbox denied the socket. The agent ended without a VM. |
+| `testanyware-vm-claude-1` | 08:53:49Z | 6, by the Read tool | 7, `llm-instructions \| head -150` | One shell call at event 9 started the VM, saved a 1920×1080 screenshot of 42,778 bytes and stopped the VM |
+| `testanyware-vm-codex-2` | 08:55:50Z | 5, by `cat` | 7, `llm-instructions` | `vm start --platform linux --json` at 12, `screen capture` at 13, `vm stop` at 14. The screenshot was 1920×1080 and 63,442 bytes. |
+
+The Claude Code agent read the first 150 lines of the command reference,
+not the whole text. Before each start, both successful agents also ran `vm
+list`. The Codex agent also ran `testanyware doctor`. In each successful
+run, the state folder gained `<id>.keeper.log` and `<id>.tart.log` and kept
+no spec file.
+
+### The doctor check
+
+In `testanyware-vm-codex-2`, `testanyware doctor --json` exited 1. Its
+check `login_item` failed with "the app does not start at login", and its
+check `local_network` warned that no guest connection showed the grant
+yet. The same command in the real HOME gave the same two results after the
+runs. The VM operations still succeeded, because the app was running.
+
+The setup of the app in the TestAnyware reference turns on "Start at
+Login". Without it, the app does not run after the next login, and each VM
+command fails as `APP_UNREACHABLE` until the owner opens the app. The
+switch's session probe runs `testanyware doctor` and accepts a failed check,
+as its prompt in
+[`owner_switch_probes.py`](../scripts/owner_switch_probes.py) states. The
+setting is the owner's to change.
+
+### The size and capture time of the source
+
+"Not measured" named the size and capture time of a TestAnyware checkout
+subdirectory. Homebrew replaced the checkout with the keg, so this leaf
+measured the keg's source. `/opt/homebrew/share/ravel/skills/testanyware`
+links to `Cellar/testanyware/2.8.0/share/ravel/skills/testanyware`. It holds
+two files: `.claude-plugin/plugin.json` of 575 bytes and
+`skills/using-testanyware/SKILL.md` of 5,377 bytes.
+
+The accepted Ravel 2.0 build resolved settings that held only this source.
+Each of three runs used a new HOME, so each captured a new snapshot.
+
+| Run | Exit | Status | Time | `resourceDigest` |
+| --- | --- | --- | --- | --- |
+| 1 | 0 | `resolved` | 0.037 s | `3e9d7929eddd…` |
+| 2 | 0 | `resolved` | 0.033 s | `3e9d7929eddd…` |
+| 3 | 0 | `resolved` | 0.032 s | `3e9d7929eddd…` |
+
+The time covers the whole `ravel skills resolve --json` process. Each
+`originPath` named the versioned keg, and each digest equals the accepted
+value of [Staging setup and isolation trial](#staging-setup-and-isolation-trial).
+
+### Controls
+
+`task owner:staging:trial-tests` passed 103 tests, 11 of them new. Each
+deliberate mutation of a scratch copy failed a test:
+
+| Mutation | Test that failed |
+| --- | --- |
+| The verdict needs no reference command | `test_each_mutation_of_the_events_fails`, subtests "no reference" and "failed reference" |
+| The verdict drops the order of the reads and the start | `test_each_mutation_of_the_events_fails`, subtest "reference after start" |
+| A stop before the start counts | `test_each_mutation_of_the_events_fails`, subtest "stop before start" |
+| A failed start counts | `test_each_mutation_of_the_events_fails`, subtest "failed start" |
+| A name that ends in `testanyware`, such as a skill path, counts as a call | `test_a_message_or_a_skill_path_is_no_call` |
+| A VM that ran before the session counts as still running | `test_vm_facts_from_the_state_folder_and_the_work_tree` |
+| The verdict ignores the answer | `test_each_mutation_of_the_facts_fails`, subtests "another answer" and "no answer" |
+| Any screenshot file counts as a PNG | `test_vm_facts_from_the_state_folder_and_the_work_tree` |
+| The skill of `testanyware` is not a named skill | `test_the_skill_is_named_and_each_call_keeps_the_start_of_its_result` |
+| `codexConfig` adds no override | `test_codex_overrides_keep_the_sandbox` |
+| `codexConfig` may set a reserved key | `test_the_case_file_loads_and_a_wrong_shape_refuses`, subtest "a reserved key" |
+
+The first form of the look-behind test survived its mutation, because its
+skill path had no space after the name. The test now uses `ls
+…/using-testanyware && cat …`, and the mutation fails it.
+
+`testanyware-vm-codex-1` is the control of the verdict on real records. It
+failed for the reason that the network override removed.
+
+### Records
+
+The trial directories are in `~/.local/state/owner-staging/trials`, named as
+the runs above. Each holds `testanyware-config.rhai`, the configuration of
+its join.
+
+Each run used the accepted Ravel 2.0 build `ff14cba826b0`, with the
+`bin/ravel` SHA-256 `3a9a9129…`, and the staging settings `d8a49f06…`.
+Claude Code was 2.1.322, Codex was 0.167.0, and `testanyware` was 2.8.0 at
+`/opt/homebrew/Cellar/testanyware/2.8.0/bin/testanyware`.
+
+| Subject | SHA-256 |
+| --- | --- |
+| `staging_trial.py` of `testanyware-vm-codex-2` and of each rejudgement | `eec7932612dce5e4c69980df12b99c0136521d9d731e79d7ff0f14ae487c35a3` |
+| `staging_trial.py` of the first two runs | `b6468c3bd42961b4dfbcc4ba2987fce84bd099879fde5b994746b0e89c1c07a4` |
+| `harness_trial.py` of each run | `1f10bacfee19a1756d0862ad7ca0a4a912bcb6174442b47614f0366ff21e657f` |
+| `staging_home.py` of each run | `a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b` |
+| `testanyware-vm.json` of `testanyware-vm-codex-1`, without a Codex field | `a9d74f6e00940f656f903b6825e130bbf6c5df5da7af15a44fc660b677c52565` |
+| `testanyware-vm.json` of `testanyware-vm-claude-1`, with `codexPermissions` | `786e0d9fda27fa38e8ef65bd1c2fbaa40ad9c95d3de99f795df3e9521a26f11e` |
+| `testanyware-vm.json` of `testanyware-vm-codex-2`, the committed case | `ce9ac8037f0f47670987f856fc510915b6d465f78c04f1570a29ff4af3e632a2` |
+
+The first two runs ran before `codexConfig` replaced `codexPermissions`.
+The verdict code was the same in both files. `staging_trial.py rejudge`
+then judged both runs again with the committed file. Each new verdict
+equalled its first verdict item by item. Each directory keeps the first
+record as `record.json.first`.
+
+### Limits
+
+- One run of each case. Each verdict shows that the path worked once.
+- The task named its skill. The discovery trials measured implicit
+  activation, so this case did not repeat it.
+- The Codex case ran with the sandbox's network access, not with the owner's
+  full-access profile. A `codex sandbox` probe showed that the owner's
+  profile reaches the socket. No real Codex session ran with that profile.
+- The trial joins the real app through two variables. A session in the real
+  HOME needs neither, and no real-HOME session ran here.
+- Each Claude Code session ran in `bypassPermissions`. In the owner's `auto`
+  mode, Claude Code can ask before a shell command.
+- The case used a Linux guest. A macOS guest needs a macOS slot and the
+  background wait of the skill. No macOS guest started.
+- Claude Code 2.1.322 is not a held version. owner-marketplace-freeze-k253
+  chooses the held version.

@@ -109,6 +109,24 @@ of the session file. The verdicts are:
   names the server, such as the server's CLI, is no MCP call. The record
   keeps each call with the start of its result, each such command and the
   server's state at startup, which only Claude Code reports.
+- `testanyware`: the session joins the account's TestAnyware app through
+  two variables that only this case receives. `TESTANYWARE_APP_SOCKET`
+  names the app's real socket, and `TESTANYWARE_CONFIG` names a file in OUT
+  with the real built-in state and data folders. The retained staging HOME
+  stays unchanged. The agent reads the named skill from its source, and
+  runs `testanyware llm-instructions` or `testanyware capabilities` before
+  its first successful `vm start`. A successful `vm stop` comes at or after
+  that start. The runner lists the app's state folder and running VMs
+  before and after the session. A new VM's ID must be the line of the
+  `answer` file, no new VM may still run or keep its spec file, and the
+  `screenshot` file must be a PNG. The runner then stops each VM of the
+  session that still runs, and records the stop. The record keeps each
+  `testanyware` call with the start of its result.
+- `codexConfig`: on Codex, each item is one more `-c` override of the
+  `codex exec` route. The trial's `--sandbox workspace-write` and approval
+  policy stay, and an item may not set them. `codex exec` under
+  `workspace-write` cannot connect to the TestAnyware app's socket, and
+  `sandbox_workspace_write.network_access=true` lets it.
 - The native skill listing of the session holds no superseded name. The
   planted name of `staleCopy` and the skills of the `guidancePlugin`, by
   their plugin prefix, are the exceptions.
@@ -185,13 +203,35 @@ OFF_SETTINGS = ROOT / "docs" / "owner-cutover" / "settings-off.json"
 TREES = CASES / "trees"
 CASE_FIELDS = {"schemaVersion", "name", "purpose", "kind", "prompt", "mandatoryFirst", "requires",
                "timeoutMinutes", "tree", "kindSkill", "delegate", "compaction", "staleCopy", "guidancePlugin",
-               "turns", "forbids", "nativeResidue", "mcp"}
+               "turns", "forbids", "nativeResidue", "mcp", "testanyware", "codexConfig"}
 GUIDANCE_FIELDS = {"marketplace", "plugin", "skill", "later", "probePrompt", "probeResult"}
 NATIVE_FIELDS = {"hooksPlugin", "hookSkill", "guardrailPlugin", "guardrailSkill", "gateFile", "blocked"}
 MCP_FIELDS = {"server", "source", "skill"}
+TESTANYWARE_FIELDS = {"source", "skill", "answer", "screenshot"}
 # The characters of an MCP result that the record keeps, so a reader sees
 # what the server answered. A result is a server's answer, not a skill copy.
 MCP_RESULT_CHARS = 300
+# The TestAnyware app runs once for each account, in the real HOME. The
+# Host CLI finds the app's socket below HOME and derives its state and data
+# folders from HOME, so a command in the staging HOME reaches no app
+# (`default_socket_path` in cli-rs/crates/testanyware-app-protocol/src/socket.rs
+# of TestAnyware v2.8.0). The app refuses a client whose folders differ from
+# its own as `APP_INCOMPATIBLE` `directories`. The runner therefore names the
+# real socket and a configuration with the real built-in folders, for the
+# TestAnyware case only. The owner's `config.rhai` sets neither folder.
+TESTANYWARE_SOCKET = Path("Library/Application Support/TestAnyware/testanyware.sock")
+TESTANYWARE_STATE = Path(".local/state/testanyware")
+TESTANYWARE_DATA = Path(".local/share/testanyware")
+# A `testanyware` command in a shell call. The name may follow a path, and
+# global flags may come before the subcommand.
+TESTANYWARE_CALL = r"(?<![\w.-])testanyware(?:\s+--?[\w-]+)*\s+"
+REFERENCE_COMMAND = re.compile(TESTANYWARE_CALL + r"(?:llm-instructions|capabilities)\b")
+VM_START = re.compile(TESTANYWARE_CALL + r"vm\s+start\b")
+VM_STOP = re.compile(TESTANYWARE_CALL + r"vm\s+stop\b")
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+# The keys that the trial's own arguments set. A case's `codexConfig` adds
+# other overrides only, so the sandbox mode and the approval policy stay.
+CODEX_FIXED_KEYS = {"sandbox_mode", "approval_policy", "default_permissions", "model", "model_reasoning_effort"}
 # The placeholder of a prompt or turn that the runner replaces with the gate
 # directory: `OUT/gate`, outside the temporary roots that the document gate
 # of the technical-communication hooks skips, and outside the work tree.
@@ -316,6 +356,24 @@ def load_case(name: str) -> dict[str, Any]:
         if not isinstance(spec, dict) or set(spec) != MCP_FIELDS or not all(isinstance(v, str) and v
                                                                             for v in spec.values()):
             raise TrialFailure(f"case {name}: mcp is {{server, source, skill}}, not {spec!r}")
+    if "testanyware" in case:
+        spec = case["testanyware"]
+        if not isinstance(spec, dict) or set(spec) != TESTANYWARE_FIELDS or not all(
+                isinstance(v, str) and v for v in spec.values()):
+            raise TrialFailure(f"case {name}: testanyware is {{{', '.join(sorted(TESTANYWARE_FIELDS))}}}, "
+                               f"not {spec!r}")
+        if any(Path(spec[key]).name != spec[key] for key in ("answer", "screenshot")):
+            raise TrialFailure(f"case {name}: testanyware.answer and .screenshot are file names in the work "
+                               f"directory, not {spec['answer']!r} and {spec['screenshot']!r}")
+    if "codexConfig" in case:
+        value = case["codexConfig"]
+        if not isinstance(value, list) or not value or not all(
+                isinstance(item, str) and re.fullmatch(r"[\w.-]+=\S.*", item) for item in value):
+            raise TrialFailure(f"case {name}: codexConfig is a list of Codex `-c` overrides key=value, not {value!r}")
+        if any(item.split("=", 1)[0] in CODEX_FIXED_KEYS for item in value):
+            raise TrialFailure(f"case {name}: codexConfig may not override {sorted(CODEX_FIXED_KEYS)}")
+        if "compaction" in case or "turns" in case:
+            raise TrialFailure(f"case {name}: codexConfig applies to a single `codex exec` turn only")
     if "nativeResidue" in case:
         spec = case["nativeResidue"]
         if not isinstance(spec, dict) or set(spec) != NATIVE_FIELDS:
@@ -332,7 +390,9 @@ def named_skills(case: dict[str, Any]) -> list[dict[str, str]]:
     return [*case.get("requires", []), *case.get("forbids", []),
             *(case[key] for key in ("kindSkill", "delegate") if key in case),
             *([case["compaction"]["after"]] if "compaction" in case else []),
-            *([{"source": case["mcp"]["source"], "skill": case["mcp"]["skill"]}] if "mcp" in case else [])]
+            *([{"source": case["mcp"]["source"], "skill": case["mcp"]["skill"]}] if "mcp" in case else []),
+            *([{"source": case["testanyware"]["source"], "skill": case["testanyware"]["skill"]}]
+              if "testanyware" in case else [])]
 
 
 def plant_stale(work: Path, spec: dict[str, Any]) -> dict[str, Any]:
@@ -792,7 +852,7 @@ def mark_content_reads(launch: dict[str, Any], requires: list[dict[str, str]],
             marked = sorted(label for label, pair in (files or {}).items() if all(mark in result for mark in pair))
             if marked:
                 event["markReads"] = marked
-            if str(event.get("tool", "")).startswith("mcp__"):
+            if str(event.get("tool", "")).startswith("mcp__") or testanyware_call(event):
                 event["resultExcerpt"] = result[:MCP_RESULT_CHARS]
             event["result"] = {"sha256": harness_trial.sha256_bytes(result.encode()), "chars": len(result)}
 
@@ -1126,6 +1186,135 @@ def mcp_verdict(events: list[dict[str, Any]], spec: dict[str, str], servers: lis
     return verdict
 
 
+def testanyware_call(event: dict[str, Any]) -> bool:
+    """A shell call that runs `testanyware`. A message of the agent is no call."""
+    return event.get("class") != "text" and event.get("tool") != "text" \
+        and re.search(TESTANYWARE_CALL, str(event.get("target", ""))) is not None
+
+
+def testanyware_join(out: Path) -> dict[str, str]:
+    """The two variables that join a staging session to the account's
+    TestAnyware app: the app's real socket, and a configuration in OUT that
+    names the real built-in folders, as TESTANYWARE_SOCKET states."""
+    real = staging_home.real_home()
+    config = out / "testanyware-config.rhai"
+    config.write_text("// Written by staging_trial.py: the real HOME's built-in folders of the TestAnyware app.\n"
+                      "#{\n"
+                      f"    state_dir: {json.dumps(str(real / TESTANYWARE_STATE))},\n"
+                      f"    data_dir: {json.dumps(str(real / TESTANYWARE_DATA))},\n"
+                      "}\n")
+    return {"TESTANYWARE_APP_SOCKET": str(real / TESTANYWARE_SOCKET), "TESTANYWARE_CONFIG": str(config)}
+
+
+def codex_overrides(route: dict[str, Any], overrides: list[str]) -> dict[str, Any]:
+    """Codex's `codex exec` route with each override of the case as one more
+    `-c` pair. The trial's `--sandbox` and approval policy stay."""
+    args = list(route["fixedArgs"])
+    if "--sandbox" not in args:
+        raise TrialFailure(f"the Codex route is no `codex exec` route with --sandbox: {args}")
+    for item in overrides:
+        args += ["-c", item]
+    return {**route, "fixedArgs": args}
+
+
+def vm_state() -> dict[str, Any]:
+    """The account's TestAnyware state, read by the runner in the real HOME:
+    the file names of the state folder's `vms`, and the running VMs that the
+    app lists."""
+    real = staging_home.real_home()
+    folder = real / TESTANYWARE_STATE / "vms"
+    files = sorted(p.name for p in folder.iterdir()) if folder.is_dir() else []
+    env = {"HOME": str(real), "PATH": "/opt/homebrew/bin:" + ":".join(staging_home.SYSTEM_PATH)}
+    done = subprocess.run(["testanyware", "vm", "list", "--json"], env=env, cwd="/", capture_output=True,
+                          text=True, timeout=120, check=False)
+    try:
+        listed = json.loads(done.stdout)
+    except json.JSONDecodeError:
+        listed = {}
+    running = sorted(item["name"] for item in listed.get("items", []) if item.get("kind") == "running")
+    return {"files": files, "running": running, "listOk": bool(listed.get("ok")),
+            "listError": None if listed.get("ok") else (listed.get("code") or done.stderr.strip()[-300:])}
+
+
+def vm_facts(before: dict[str, Any], after: dict[str, Any], work: Path, spec: dict[str, str]) -> dict[str, Any]:
+    """What the session left: each VM ID that gained a file in the state
+    folder, which of them still run or keep a spec file, the line of the
+    answer file and whether the screenshot is a PNG."""
+    new_files = sorted(set(after["files"]) - set(before["files"]))
+    new_ids = sorted({name.split(".", 1)[0] for name in new_files})
+    shot = work / spec["screenshot"]
+    # The state folder holds the logs of every earlier VM, so the record
+    # keeps their number, not their names.
+    def brief(state: dict[str, Any]) -> dict[str, Any]:
+        return {**{k: v for k, v in state.items() if k != "files"}, "fileCount": len(state["files"])}
+    return {"before": brief(before), "after": brief(after), "newFiles": new_files, "newIds": new_ids,
+            "stillRunning": [vm for vm in after["running"] if vm not in before["running"]],
+            "specLeft": [vm for vm in new_ids if f"{vm}.json" in after["files"]],
+            "answer": first_line(work / spec["answer"]),
+            "screenshot": {"name": spec["screenshot"], "bytes": shot.stat().st_size if shot.is_file() else None,
+                           "png": shot.is_file() and shot.read_bytes()[:8] == PNG_SIGNATURE}}
+
+
+def stop_vms(ids: list[str]) -> list[dict[str, Any]]:
+    """Stop each VM that the session left running, and record each stop."""
+    real = staging_home.real_home()
+    env = {"HOME": str(real), "PATH": "/opt/homebrew/bin:" + ":".join(staging_home.SYSTEM_PATH)}
+    stops = []
+    for vm in ids:
+        done = subprocess.run(["testanyware", "vm", "stop", vm, "--json"], env=env, cwd="/", capture_output=True,
+                              text=True, timeout=300, check=False)
+        stops.append({"id": vm, "exit": done.returncode, "stdout": done.stdout[-600:], "stderr": done.stderr[-600:]})
+    return stops
+
+
+def testanyware_verdict(events: list[dict[str, Any]], spec: dict[str, str],
+                        facts: dict[str, Any] | None) -> dict[str, Any]:
+    """The agent reads the skill from its source and runs the tool's command
+    reference before its first successful `vm start`. A successful `vm stop`
+    comes at or after that start. The runner's facts must show a new VM whose
+    ID is the answer's line, no new VM that still runs or keeps its spec
+    file, and a PNG screenshot."""
+    calls = [e for e in events if testanyware_call(e)]
+    read = next((e for e in events if any(
+        r.get("class") in SKILL_READS and r.get("skill") == spec["skill"] and r.get("source") == spec["source"]
+        for r in reads_of(e))), None)
+    reference = next((e for e in calls if REFERENCE_COMMAND.search(str(e["target"])) and not e.get("error")), None)
+    start = next((e for e in calls if VM_START.search(str(e["target"])) and not e.get("error")), None)
+    stop = next((e for e in calls if start and e["seq"] >= start["seq"] and VM_STOP.search(str(e["target"]))
+                 and not e.get("error")), None)
+    verdict: dict[str, Any] = {
+        **spec, "readSeq": read["seq"] if read else None, "referenceSeq": reference["seq"] if reference else None,
+        "startSeq": start["seq"] if start else None, "stopSeq": stop["seq"] if stop else None,
+        "calls": [{"seq": e["seq"], "command": str(e["target"])[:200], "error": bool(e.get("error")),
+                   "result": e.get("resultExcerpt")} for e in calls],
+        "facts": facts}
+    reason = None
+    if not read:
+        reason = f"no read of {spec['skill']} from {spec['source']}"
+    elif not reference:
+        reason = "no successful run of the command reference (llm-instructions or capabilities)"
+    elif not start:
+        reason = "no successful testanyware vm start"
+    elif read["seq"] > start["seq"] or reference["seq"] > start["seq"]:
+        reason = "the skill read or the command reference came after the first successful vm start"
+    elif not stop:
+        reason = "no successful testanyware vm stop at or after the start"
+    elif facts is None:
+        reason = "the runner gathered no facts of the account's VMs"
+    elif not facts["after"]["listOk"]:
+        reason = f"the runner could not list the VMs after the session: {facts['after']['listError']}"
+    elif not facts["newIds"]:
+        reason = "no VM gained a file in the state folder during the session"
+    elif facts["answer"] not in facts["newIds"]:
+        reason = f"the answer {facts['answer']!r} names none of the new VMs {facts['newIds']}"
+    elif facts["stillRunning"] or facts["specLeft"]:
+        reason = f"VMs of the session were not gone: running {facts['stillRunning']}, spec files {facts['specLeft']}"
+    elif not facts["screenshot"]["png"]:
+        reason = f"{spec['screenshot']} is not a PNG"
+    verdict.update(passed=reason is None, reason=reason)
+    return verdict
+
+
 def first_line(path: Path) -> str | None:
     """The first line of a file that is not blank, or None."""
     try:
@@ -1276,7 +1465,8 @@ def native_verdict(facts: dict[str, Any], spec: dict[str, Any], listed: list[str
 
 
 def judge(case: dict[str, Any], launches: list[dict[str, Any]], superseded: set[str],
-          guidance: dict[str, Any] | None = None, native: dict[str, Any] | None = None) -> dict[str, Any]:
+          guidance: dict[str, Any] | None = None, native: dict[str, Any] | None = None,
+          vm: dict[str, Any] | None = None) -> dict[str, Any]:
     failures: list[str] = []
     if len(launches) != 1:
         return {"failures": [f"the case recorded {len(launches)} launches, not one"]}
@@ -1309,6 +1499,10 @@ def judge(case: dict[str, Any], launches: list[dict[str, Any]], superseded: set[
         verdict["mcp"] = mcp_verdict(events, case["mcp"], mcp_servers(launch))
         if not verdict["mcp"]["passed"]:
             failures.append(f"mcp: {verdict['mcp']['reason']}")
+    if "testanyware" in case:
+        verdict["testanyware"] = testanyware_verdict(events, case["testanyware"], vm)
+        if not verdict["testanyware"]["passed"]:
+            failures.append(f"testanyware: {verdict['testanyware']['reason']}")
     listed = native_listing(launch)
     verdict["nativeListing"] = listed
     planted = {case["staleCopy"]["skill"]} if "staleCopy" in case else set()
@@ -1348,7 +1542,7 @@ def render(record: dict[str, Any]) -> str:
              (f"- Started {record['started']}, ended {record['ended']}, Ravel exit {record['launch']['exit']}, "
               f"result {record['launch']['result']!r}"),
              f"- Failures: {record['verdict'].get('failures') or 'none'}"]
-    for key in ("compaction", "staleCopy", "guidancePlugin", "nativeResidue", "forbids", "mcp"):
+    for key in ("compaction", "staleCopy", "guidancePlugin", "nativeResidue", "forbids", "mcp", "testanyware"):
         items = record["verdict"].get(key)
         for item in items if isinstance(items, list) else [items] if items else []:
             shown = {k: v for k, v in item.items() if k not in ("source", "skill")}
@@ -1430,7 +1624,7 @@ def probe_facts(adapter: Any, guidance: dict[str, Any], home: Path, environ: dic
 
 def extract_and_judge(case: dict[str, Any], adapter: Any, records: Path, home: Path, work: Path,
                       environ: dict[str, str], stale: dict[str, Any] | None, guidance: dict[str, Any] | None = None,
-                      native_run: dict[str, Any] | None = None
+                      native_run: dict[str, Any] | None = None, vm: dict[str, Any] | None = None
                       ) -> tuple[list[dict[str, Any]], dict[str, Any], list[dict[str, Any]] | None]:
     """The launches of a case from its records, its verdict and, for a
     compaction case, the context after each compaction. A guidance case also
@@ -1454,7 +1648,7 @@ def extract_and_judge(case: dict[str, Any], adapter: Any, records: Path, home: P
     if "nativeResidue" in case and len(launches) == 1:
         native = native_facts(home, launches[0], case["nativeResidue"], 1 + len(case.get("turns", [])))
         native["run"] = native_run
-    return launches, judge(case, launches, superseded, guidance, native), context
+    return launches, judge(case, launches, superseded, guidance, native, vm), context
 
 
 def clone_home(home: Path, clone: Path) -> dict[str, Any]:
@@ -1611,6 +1805,8 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
         guidance = {"spec": spec, "clone": clone_home(home, out / "home"), "retainedBefore": retained_before}
         home = out / "home"
     env = staging_home.staged_env(home, ravel)
+    if "testanyware" in case:
+        env.update(testanyware_join(out))
     found = shutil.which(harness, path=env["PATH"])
     if not found:
         raise TrialFailure(f"no {harness} on the staging PATH {env['PATH']}")
@@ -1634,6 +1830,9 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
              **adapter.launch({"compaction": DEFAULT_COMPACTION} if compaction or turns else {}, records, program,
                               model, effort),
              "model": model, "effort": effort}
+    overrides = case.get("codexConfig") if harness == "codex" else None
+    if overrides:
+        route = codex_overrides(route, overrides)
     if compaction:
         write_turns(out, adapter, compaction)
     elif turns:
@@ -1660,8 +1859,23 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
     tree = plant_tree(work, case["tree"], env) if "tree" in case else None
     version = subprocess.run([str(program), "--version"], env=env, cwd=work, capture_output=True, text=True,
                              check=False).stdout.strip().splitlines()[0]
+    vm_before, vm, tool = None, None, None
+    if "testanyware" in case:
+        vm_before = vm_state()
+        if not vm_before["listOk"]:
+            raise TrialFailure(f"the runner cannot list the account's VMs before the launch: {vm_before['listError']}")
+        found_tool = shutil.which("testanyware", path=env["PATH"])
+        tool = {"path": found_tool, "realPath": os.path.realpath(found_tool) if found_tool else None,
+                "version": subprocess.run([found_tool, "--version"], env=env, cwd=work, capture_output=True,
+                                          text=True, check=False).stdout.strip() if found_tool else None}
     launch = start(ravel, config, case["kind"], prompt, work, env, case.get("timeoutMinutes", 20) * 60)
     (out / "ravel.stderr").write_text(launch["stderr"])
+    if vm_before is not None:
+        vm = vm_facts(vm_before, vm_state(), work, case["testanyware"])
+        vm["tool"] = tool
+        # The verdict judges what the session left. The runner then stops
+        # each VM of the session that still runs, so no trial leaves one.
+        vm["cleanup"] = stop_vms(vm["stillRunning"])
     if native_run is not None:
         native_run["hooksTreeAfter"] = plugin_tree(Path(native_run["hooksRoot"]) if native_run["hooksRoot"] else None)
         native_run["gateFiles"] = sorted(p.name for p in gate.iterdir()) if gate else []
@@ -1676,16 +1890,18 @@ def run_case(name: str, harness: str, home: Path, ravel: Path, out: Path, enviro
         isolation += [f"the staging HOME holds a copy of {case['staleCopy']['skill']} at {path} {when}"
                       for when in ("before", "after") for path in stale[f"home{when.title()}"]]
     launches, verdict, context = extract_and_judge(case, adapter, records, home, work, environ, stale, guidance,
-                                                   native_run)
+                                                   native_run, vm)
     verdict["isolation"] = isolation
     verdict["failures"] = verdict.get("failures", []) + isolation
     record = {
         "schemaVersion": 1, "case": name, "purpose": case.get("purpose"), "started": launch["started"],
         "ended": launch["ended"], "home": str(home), "retainedHome": str(retained), "work": str(work),
         "tree": tree, "inputs": inputs, "prompt": prompt, "guidance": guidance,
-        "harness": {"name": harness, "program": str(program), "version": version, "model": model, "effort": effort},
+        "harness": {"name": harness, "program": str(program), "version": version, "model": model, "effort": effort,
+                    "codexConfig": overrides},
         "config": config.read_text(), "environment": sorted(env), "launch": launch, "launches": launches,
-        "stale": stale, "compactionContext": context, "turns": turns, "native": native_run, "verdict": verdict,
+        "stale": stale, "compactionContext": context, "turns": turns, "native": native_run, "testanyware": vm,
+        "verdict": verdict,
     }
     (out / "record.json").write_text(json.dumps(record, indent=2) + "\n")
     (out / "record.md").write_text(render(record))
@@ -1797,7 +2013,8 @@ def rejudge(trial: Path, environ: dict[str, str]) -> dict[str, Any]:
     home, work = Path(record["home"]), Path(record["work"])
     adapter = harness_trial.adapter_named(record["harness"]["name"])
     launches, verdict, context = extract_and_judge(case, adapter, trial / "records", home, work, environ,
-                                                   record.get("stale"), record.get("guidance"), record.get("native"))
+                                                   record.get("stale"), record.get("guidance"), record.get("native"),
+                                                   record.get("testanyware"))
     verdict["isolation"] = record["verdict"].get("isolation", [])
     verdict["failures"] = verdict.get("failures", []) + verdict["isolation"]
     record.update(launches=launches, verdict=verdict, compactionContext=context, rejudged=now(),

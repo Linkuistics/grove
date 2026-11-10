@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "name": "testanyware-vm",
+  "purpose": "The using-testanyware skill of the testanyware source reaches its command reference and the installed testanyware command. The task names the skill and asks for one real VM operation: start an isolated Linux VM, save one screenshot, stop the VM and write its ID. A Linux guest takes no macOS guest slot. Expect a read of using-testanyware from the testanyware snapshot, a run of the tool's command reference, a successful vm start and a later successful vm stop. The runner's facts must show the new VM, gone after the session, and a PNG screenshot. On Codex the trial's workspace-write sandbox denies the app's socket, so the case enables the sandbox's network access and keeps the sandbox.",
+  "kind": "staging-testanyware",
+  "prompt": "Use the `using-testanyware` skill for this task. Before your first VM command, read the tool's own command reference as the skill directs. Then, with the installed `testanyware` command, start one isolated Linux virtual machine, save one screenshot of its screen as `screen.png` in the current directory, and stop that virtual machine. Write the ID of the virtual machine, as `vm start` printed it, as the only line of `ANSWER.md` in the current directory. Make sure that no virtual machine that you started still runs. Then run this exact shell command as your last action: ravel end-session staging-ok",
+  "mandatoryFirst": true,
+  "testanyware": { "source": "testanyware", "skill": "using-testanyware", "answer": "ANSWER.md", "screenshot": "screen.png" },
+  "codexConfig": ["sandbox_workspace_write.network_access=true"],
+  "timeoutMinutes": 30
+}

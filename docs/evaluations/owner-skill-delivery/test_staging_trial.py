@@ -742,6 +742,179 @@ class McpVerdicts(unittest.TestCase):
                 staging_trial.CASES = original
 
 
+TA_SPEC = {"source": "testanyware", "skill": "using-testanyware", "answer": "ANSWER.md", "screenshot": "screen.png"}
+TA_CASE = {"mandatoryFirst": True, "testanyware": TA_SPEC}
+VM = "testanyware-9ba6d91b"
+
+
+def ta_call(seq: int, command: str, error: bool = False) -> dict:
+    return dict(event(seq, "command", target=command), tool="Bash", error=error)
+
+
+TA_EVENTS = [
+    event(1, "mandatory", "using-superpowers", "superpowers"),
+    event(2, "skill", "using-testanyware", "testanyware"),
+    ta_call(3, "testanyware llm-instructions | head -200"),
+    ta_call(4, "testanyware vm start --platform linux"),
+    ta_call(5, f"TESTANYWARE_VM_ID={VM} testanyware screen capture -o screen.png"),
+    ta_call(6, f"testanyware vm stop {VM}"),
+    event(7, "action"),
+]
+
+
+def vm_facts(**changes: object) -> dict:
+    facts = {"before": {"running": [], "listOk": True, "listError": None, "fileCount": 4},
+             "after": {"running": [], "listOk": True, "listError": None, "fileCount": 6},
+             "newFiles": [f"{VM}.keeper.log", f"{VM}.tart.log"], "newIds": [VM], "stillRunning": [],
+             "specLeft": [], "answer": VM, "screenshot": {"name": "screen.png", "bytes": 900, "png": True}}
+    facts.update(changes)
+    return facts
+
+
+class TestanywareVerdicts(unittest.TestCase):
+    def judge(self, events: list[dict], facts: dict | None) -> dict:
+        return staging_trial.judge(TA_CASE, [launch(events)], set(), vm=facts)
+
+    def test_conforming_session_passes(self) -> None:
+        verdict = self.judge(TA_EVENTS, vm_facts())
+        self.assertEqual(verdict["failures"], [])
+        found = verdict["testanyware"]
+        self.assertEqual((found["readSeq"], found["referenceSeq"], found["startSeq"], found["stopSeq"]), (2, 3, 4, 6))
+        self.assertEqual([call["seq"] for call in found["calls"]], [3, 4, 5, 6])
+
+    def test_start_and_stop_in_one_call_pass(self) -> None:
+        events = [*TA_EVENTS[:3], ta_call(4, 'id=$(testanyware vm start --platform linux); echo "$id" > ANSWER.md; '
+                                             'testanyware screen capture --vm "$id" -o screen.png; '
+                                             'testanyware vm stop "$id"')]
+        self.assertTrue(self.judge(events, vm_facts())["testanyware"]["passed"])
+
+    def test_a_global_flag_or_a_path_before_the_subcommand_counts(self) -> None:
+        events = [*TA_EVENTS[:3], ta_call(4, "/opt/homebrew/bin/testanyware --json vm start --platform linux"),
+                  ta_call(5, f"testanyware vm stop {VM}")]
+        self.assertTrue(self.judge(events, vm_facts())["testanyware"]["passed"])
+
+    def test_each_mutation_of_the_events_fails(self) -> None:
+        cases = {
+            "no read": ([TA_EVENTS[0], *TA_EVENTS[2:]], "no read of using-testanyware"),
+            "read from another source": ([TA_EVENTS[0], event(2, "skill", "using-testanyware", "personal"),
+                                          *TA_EVENTS[2:]], "no read of using-testanyware from testanyware"),
+            "no reference": ([*TA_EVENTS[:2], *TA_EVENTS[3:]], "no successful run of the command reference"),
+            "failed reference": ([*TA_EVENTS[:2], ta_call(3, "testanyware llm-instructions", error=True),
+                                  *TA_EVENTS[3:]], "no successful run of the command reference"),
+            "reference after start": ([*TA_EVENTS[:2], TA_EVENTS[3], ta_call(5, "testanyware capabilities --json"),
+                                       TA_EVENTS[5]], "came after the first successful vm start"),
+            "failed start": ([*TA_EVENTS[:3], ta_call(4, "testanyware vm start --platform linux", error=True),
+                              TA_EVENTS[5]], "no successful testanyware vm start"),
+            "no stop": (TA_EVENTS[:5], "no successful testanyware vm stop"),
+            "stop before start": ([*TA_EVENTS[:3], ta_call(4, f"testanyware vm stop {VM}"), ta_call(5, "testanyware "
+                                   "vm start --platform linux")], "no successful testanyware vm stop"),
+            "failed stop": ([*TA_EVENTS[:5], ta_call(6, f"testanyware vm stop {VM}", error=True)],
+                            "no successful testanyware vm stop"),
+        }
+        for label, (events, reason) in cases.items():
+            with self.subTest(label):
+                verdict = self.judge(events, vm_facts())["testanyware"]
+                self.assertFalse(verdict["passed"])
+                self.assertIn(reason, verdict["reason"])
+
+    def test_each_mutation_of_the_facts_fails(self) -> None:
+        cases = {
+            "no facts": (None, "gathered no facts"),
+            "no listing after": (vm_facts(after={"running": [], "listOk": False, "listError": "APP_UNREACHABLE",
+                                                 "fileCount": 6}), "could not list the VMs after"),
+            "no new VM": (vm_facts(newFiles=[], newIds=[]), "no VM gained a file"),
+            "another answer": (vm_facts(answer="testanyware-00000000"), "names none of the new VMs"),
+            "no answer": (vm_facts(answer=None), "names none of the new VMs"),
+            "still running": (vm_facts(stillRunning=[VM]), "were not gone"),
+            "spec left": (vm_facts(specLeft=[VM]), "were not gone"),
+            "no PNG": (vm_facts(screenshot={"name": "screen.png", "bytes": None, "png": False}), "is not a PNG"),
+        }
+        for label, (facts, reason) in cases.items():
+            with self.subTest(label):
+                verdict = self.judge(TA_EVENTS, facts)["testanyware"]
+                self.assertFalse(verdict["passed"])
+                self.assertIn(reason, verdict["reason"])
+
+    def test_a_message_or_a_skill_path_is_no_call(self) -> None:
+        self.assertFalse(staging_trial.testanyware_call(
+            dict(event(1, "text", target="I will run testanyware vm start now"), tool="text")))
+        self.assertFalse(staging_trial.testanyware_call(
+            event(2, "listing", target="ls /s/skills/using-testanyware && cat /s/x/SKILL.md")))
+        self.assertTrue(staging_trial.testanyware_call(ta_call(3, "testanyware doctor")))
+
+    def test_the_skill_is_named_and_each_call_keeps_the_start_of_its_result(self) -> None:
+        self.assertIn({"source": "testanyware", "skill": "using-testanyware"}, staging_trial.named_skills(TA_CASE))
+        described = launch([dict(ta_call(1, "testanyware vm start --platform linux"), resultFull="c" * 500),
+                            dict(event(2, "command", target="ls"), resultFull="d" * 500)])
+        staging_trial.mark_content_reads(described, [])
+        first, second = described["transcripts"][0]["events"]
+        self.assertEqual(first["resultExcerpt"], "c" * staging_trial.MCP_RESULT_CHARS)
+        self.assertNotIn("resultExcerpt", second)
+
+    def test_vm_facts_from_the_state_folder_and_the_work_tree(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            (work / "ANSWER.md").write_text(f"\n{VM}\n")
+            (work / "screen.png").write_bytes(staging_trial.PNG_SIGNATURE + b"rest")
+            before = {"files": ["old.tart.log"], "running": ["other-vm"], "listOk": True, "listError": None}
+            after = {"files": ["old.tart.log", f"{VM}.json", f"{VM}.tart.log", "second-vm.tart.log"],
+                     "running": ["other-vm", "second-vm"], "listOk": True, "listError": None}
+            facts = staging_trial.vm_facts(before, after, work, TA_SPEC)
+            self.assertEqual(facts["newIds"], ["second-vm", VM])
+            self.assertEqual(facts["stillRunning"], ["second-vm"])
+            self.assertEqual(facts["specLeft"], [VM])
+            self.assertEqual(facts["answer"], VM)
+            self.assertTrue(facts["screenshot"]["png"])
+            self.assertEqual((facts["before"]["fileCount"], facts["after"]["fileCount"]), (1, 4))
+            self.assertNotIn("files", facts["after"])
+            (work / "screen.png").write_bytes(b"GIF89a")
+            self.assertFalse(staging_trial.vm_facts(before, after, work, TA_SPEC)["screenshot"]["png"])
+
+    def test_the_join_names_the_real_socket_and_folders(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            join = staging_trial.testanyware_join(Path(tmp))
+            real = staging_trial.staging_home.real_home()
+            self.assertEqual(join["TESTANYWARE_APP_SOCKET"], str(real / staging_trial.TESTANYWARE_SOCKET))
+            text = Path(join["TESTANYWARE_CONFIG"]).read_text()
+            self.assertIn(f'state_dir: "{real / staging_trial.TESTANYWARE_STATE}"', text)
+            self.assertIn(f'data_dir: "{real / staging_trial.TESTANYWARE_DATA}"', text)
+
+    def test_codex_overrides_keep_the_sandbox(self) -> None:
+        route = {"fixedArgs": ["exec", "--json", "--sandbox", "workspace-write", "-c", 'approval_policy="never"']}
+        changed = staging_trial.codex_overrides(route, ["sandbox_workspace_write.network_access=true"])
+        self.assertEqual(changed["fixedArgs"], [*route["fixedArgs"], "-c",
+                                                "sandbox_workspace_write.network_access=true"])
+        self.assertEqual(len(route["fixedArgs"]), 6)
+        with self.assertRaises(staging_trial.TrialFailure):
+            staging_trial.codex_overrides({"fixedArgs": ["app-server"]}, ["a=b"])
+
+    def test_the_case_file_loads_and_a_wrong_shape_refuses(self) -> None:
+        import json
+        import tempfile
+        self.assertEqual(set(staging_trial.load_case("testanyware-vm")["testanyware"]), staging_trial.TESTANYWARE_FIELDS)
+        bad = {
+            "short": {"testanyware": {"source": "testanyware", "skill": "using-testanyware"}},
+            "path": {"testanyware": {**TA_SPEC, "answer": "../ANSWER.md"}},
+            "not a list": {"codexConfig": "a=b"},
+            "no value": {"codexConfig": ["sandbox_workspace_write.network_access"]},
+            "a reserved key": {"codexConfig": ['default_permissions=":danger-full-access"']},
+            "turns": {"codexConfig": ["a=b"], "turns": ["next"]},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            cases = Path(tmp)
+            original, staging_trial.CASES = staging_trial.CASES, cases
+            try:
+                for label, fields in bad.items():
+                    with self.subTest(label):
+                        (cases / "bad.json").write_text(json.dumps({"name": "bad", **fields}))
+                        with self.assertRaises(staging_trial.TrialFailure):
+                            staging_trial.load_case("bad")
+            finally:
+                staging_trial.CASES = original
+
+
 CODEX_CONFIG = """model = "gpt-6.1-sol"
 
 [mcp_servers.quint-kb]

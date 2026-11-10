@@ -28,6 +28,12 @@ and resume instructions of the owner's checklist.
 - The section "The owner's checklist" lists the writers to pause. The
   narrow process inspection refuses only other Claude Code, Codex, Grove and
   Ravel processes.
+- staging-testanyware-trial-k287 found that the TestAnyware app does not
+  start at login. `testanyware doctor` fails its check `login_item` in the
+  real HOME. After a login without the app, each VM command fails as
+  `APP_UNREACHABLE` until the owner opens TestAnyware. "The doctor check" of
+  "TestAnyware in staging" in `docs/owner-skill-delivery-evidence.md` holds
+  the result. The checklist names this setting for the owner.
 
 ## Done when
 
@@ -45,6 +51,7 @@ and resume instructions of the owner's checklist.
   `mise dot watch`, herdr, Orca configuration writers and codebase-memory
   updaters. It also covers the Claude and ChatGPT applications, loaded jobs
   and login items, and Obsidian with its synchronisation.
+<!-- tc: depart synonym-rotation because "launchd" is the name of the macOS service manager, not the verb "launch" -->
 - The checklist records each inspection limit, such as Login Items that
   need authorisation. It requires no launchd scanner.
 - Each changed file follows the machine configuration contract. mise

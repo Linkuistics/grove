@@ -320,7 +320,10 @@ the root charter's extension.
     published revisions.
   - owner-switch-package-identity-k299: full package-version comparisons.
   - ravel-packaging-guidance-k301: Ravel's packaging guidance on the 2.0
-    line.
+    line. It is commit `5e778ef86b8d` on the unpushed
+    `skill-directory-delivery`, above `ff14cba826b0`. It changes
+    documentation only. The section "Packaging record of a default source"
+    of Ravel's design evidence records its checks.
 - The integration changes `plugins/grove/README.md`, which changes core's
   source digest. core-candidate-restaging-k300 records the new candidate
   and core staging acceptance. k254 and the dry run consume that evidence,

@@ -6373,6 +6373,10 @@ The plan's `accepted.versions` names the four formulae other than Grove's.
 Step 4 admits Grove's version, because Grove's release inside finish sets it.
 The plan draft already holds these ten digests and four versions.
 
+[Packaging-only acceptance](#packaging-only-acceptance) accepts a revision of
+each of the four other formulae, with the same commit and digest. Its
+records name the full package versions that the tap now publishes.
+
 ### The accepted staging paths
 
 The plan's `accepted.staging` names these two paths. Each must stay until
@@ -6612,3 +6616,193 @@ same classifier, but no run measured it.
   trials prove resolution, refusal and digest only.
 - The staging HOME does not isolate SSH, as
   [The guidance probe case](#the-guidance-probe-case) states.
+
+## Packaging-only acceptance
+
+`skill-formula-publication-k298` delivered this section on 2026-11-11. It
+applies the packaging-only rule of
+[Skill formulae](specs/owner-skill-delivery.md#skill-formulae) to the four
+revised non-Grove formulae. Each record below bridges the source trials of
+[Staging acceptance](#staging-acceptance) to a revised full package version.
+owner-switch-plan-k254 and owner-pack-checkouts-k93 read these records. No
+real keg, link or HOME changed. owner-pack-checkouts-k93 installs the
+revisions.
+
+### Result
+
+Each revision changes only the keg layout and adds `revision 1`. Its URL,
+`sha256` and upstream version are the same as in the accepted formula. Each
+source has its accepted commit, roots, tree ID and `resourceDigest`. The
+shared-directory seam passed every case with all five revised formula
+outputs and Ravel's keg. Its failure control failed on the published
+formulae, as required. Each formula is therefore accepted at its revised
+full package version.
+
+No record claims acceptance from equal source digests alone. Each record
+names the seam run, and the record of `personal` names the `guardrail`
+readings too.
+
+### The seam run
+
+`task release:formula:test` ran at 13:03Z on 2026-11-10 with `TAP` set to
+the tap working copy. It passed each earlier step, tap states A to D
+included, and then the 10 cases of the seam. The record is
+`target/shared-directory-seam/20261110T130355Z.json`, SHA-256
+`6ec2ddc291da025a…`. The instrument digested each subject before and after
+the run, and no subject changed.
+
+| Subject | Value |
+| --- | --- |
+| Grove | The native archive `5f6093a6e6bb…` of the working copy, rendered as Grove 22.8.0 in the projected layout. No change after grove-keg-projection-k293 touches `plugins`, `assets`, `crates` or the formula template |
+| Ravel | The lane 2.0 archive `289b4ac57ffd…`, build identity `58d479ed058f…`. Its `bin/ravel` is byte-equal to the accepted staging build `3a9a9129…`. The formula is the template of `skill-directory-delivery` at `ff14cba826b0`, SHA-256 `b5b22ba8b45c41b3…` |
+| Tap formulae | The four revisions of the tap working copy, at the local commit `12b53f8c449d`. The published formulae came from `origin/main` `9ca2b5e37510`, equal to the remote's `main` |
+| Homebrew | 7.0.12-221-gbc63375. Its linker, installer and cleaner have the SHA-256 values of [Shared directory seam](homebrew-skill-delivery-evidence.md#shared-directory-seam) |
+| Instrument | `shared-directory-seam.rb` `a5a45c4a184c2cd9…`, `shared-directory-seam.sh` `b34521b00eaffb66…`, `skill-formulae.json` `c166fe53d671dd81…` |
+
+Each projected case linked Grove, the four revisions and the fixtures:
+
+- `order-forward`, `order-reverse`, `ravel-first` and `ravel-promotion`
+  passed. After each link, every source matched its accepted values.
+- `upgrade-cleanup-uninstall` upgraded each keg to its next revision and
+  removed the old keg. Every source matched after each step.
+- `mixed-layout-migration` upgraded each published direct formula to its
+  revision. After the last direct keg, all 12 sources matched.
+- `duplicate-fresh` and `duplicate-upgrade` refused `seam-duplicate` 2 at
+  `share/ravel/skills/grove-core`. The other sources matched, and no entry
+  of the refused keg stayed in the prefix.
+
+The failure control linked the four published formulae and the two direct
+fixtures. In `failure-control-forward`, `personal` 2026-11-06 expanded into
+file links. In `failure-control-reverse`, `testanyware` 2.8.0 expanded.
+Ravel refused each resolution with `skill_resource_invalid`.
+
+The seam takes the accepted values of a tap formula from its own pristine
+payload. That comparison cannot show equality with the staging-accepted
+digest. The source comparison below supplies it.
+
+### The source comparison
+
+`task tap:formula:test` ran once for each revision, from 13:05Z to 13:08Z.
+Each run used the same Ravel and Homebrew inputs as the seam run. Each test
+installed the revision in a private prefix and checked the projected
+layout. It compared the payload with a plain checkout of the accepted
+commit, with Git modes. Ravel resolved the payload, and the test compared
+the result with the plain checkout.
+
+Each run then repeated the seam with the four revisions. Each passed.
+
+A script compared each printed `resourceDigest` with the table of
+[The accepted sources](#the-accepted-sources). Each digest was equal. The
+same script, given the `quint` row for the `personal` digest, reported a
+difference as required.
+
+| Formula | Seam record | `resourceDigest`, equal to the accepted value |
+| --- | --- | --- |
+| `personal` | `20261110T130553Z.json` | `dc1f26eafe9b7db6f750c95db38a7876beb29b067d829eaf63203323b89d61b6` |
+| `superpowers` | `20261110T130640Z.json` | `be1ce6e3c25064b83ba2999b37972deb7f73ce88a5f5dbbba990d88037b17230` |
+| `quint-llm-kit` | `20261110T130728Z.json` | `0a8b945fbc6732d5b7b3041a966d26cdf718ca884bd5f3fb8435297d7258edef` |
+| `testanyware` | `20261110T130819Z.json` | `3e9d7929eddd8988a6bebd9433b7f343a19e673993b3c81e8a1ce9ba913b72c6` |
+
+### The record of `personal`
+
+| Item | Value |
+| --- | --- |
+| Full package version | `2026-11-06_1`. The accepted version was `2026-11-06` |
+| Formula content | `Formula/personal.rb`, SHA-256 `37b7b69e0e5b2e00db8c950e51ffe3b63e8f329e16f3ac9e5ef3c3e79e5234a3` |
+| Archive | `PersonalSkills` at `cddcfde901cdaf8069e2aac6f3b6bc5aba9fe925`, SHA-256 `ff55ec0adea4e899…`, the accepted archive |
+| Source | `personal` from `plugins/personal`, root `craft`, tree ID `f66e0792b9507194842e5b7d44457cf12d70dd98` |
+| `resourceDigest` | `dc1f26eafe9b7db6f750c95db38a7876beb29b067d829eaf63203323b89d61b6`, equal to the accepted value |
+| Retained source trials | Isolation, `trials/sources-2`, the switched resolution of `trials/quiet-interval-1` and the inventory `trials/inventory-3` |
+| Seam run | `20261110T130355Z.json`, and the repeat in `20261110T130553Z.json` |
+| `guardrail` payload | [The `guardrail` payload](homebrew-skill-delivery-evidence.md#the-guardrail-payload): the 10 entries of `libexec/plugins`, the marketplace file and the hook declaration equal the accepted keg. The run of 13:05Z repeated the comparison over 12 entries, and they were equal |
+| `guardrail` capability | [The `guardrail` capability trial](homebrew-skill-delivery-evidence.md#the-guardrail-capability-trial): the trial passed from the revised keg's `opt` path. Its no-op control failed the refusal assertion, as required |
+
+`guardrail` lies outside the `personal` digest. Its acceptance therefore
+rests on the payload comparison and the capability trial, not on the
+source digest. The staging case `trials/native-residue-claude-1` loaded
+`guardrail` from the earlier keg. It is not retained for the revised keg.
+
+### The record of `superpowers`
+
+| Item | Value |
+| --- | --- |
+| Full package version | `7.0.0_1`. The accepted version was `7.0.0` |
+| Formula content | `Formula/superpowers.rb`, SHA-256 `169a98760750243047298f805dbf54a479b2522a727278224bd81cddcc56c272` |
+| Archive | `obra/superpowers` at `bb92a77741419a4ab5f06e711a283343f1ada0c3`, tag `v7.0.0`, SHA-256 `496b576d4a4a62c0…`, the accepted archive |
+| Source | `superpowers` from the repository root, root `skills`, tree ID `4ac675daa3415bc836f707c7e60237ac7b66c7d5` |
+| `resourceDigest` | `be1ce6e3c25064b83ba2999b37972deb7f73ce88a5f5dbbba990d88037b17230`, equal to the accepted value |
+| Retained source trials | Each harness trial of [The trials of the cutover contract](#the-trials-of-the-cutover-contract), because each reads the mandatory file `using-superpowers`. Also isolation, `trials/sources-2` and the switched resolution of `trials/quiet-interval-1` |
+| Seam run | `20261110T130355Z.json`, and the repeat in `20261110T130640Z.json` |
+| Hook readings | None applies. The formula installs a skill source only, with no native-only plugin and no marketplace file |
+
+### The record of `quint-llm-kit`
+
+| Item | Value |
+| --- | --- |
+| Full package version | `1.0.0_1`. The accepted version was `1.0.0` |
+| Formula content | `Formula/quint-llm-kit.rb`, SHA-256 `29cf32515afef6b134fcbc88f369fa7ca5589fa00b106cf511d36eaacd57d007` |
+| Archive | `quint-co/quint-llm-kit` at `cc75369f741af7d490936f82002c2d28e3b3d78d`, SHA-256 `152947a80275a1d8…`, the accepted archive |
+| Source | `quint` from `quint-llm-kit-plugin`, root `skills`, tree ID `4600ff66782fa87ea4ee8791b37d6fcc86bed5a6` |
+| `resourceDigest` | `0a8b945fbc6732d5b7b3041a966d26cdf718ca884bd5f3fb8435297d7258edef`, equal to the accepted value |
+| Retained source trials | `trials/quint-mcp-claude-1` and `trials/quint-mcp-codex-2` of [MCP servers in staging](#mcp-servers-in-staging), with [The real quint-kb approval](#the-real-quint-kb-approval). Also isolation, `trials/sources-2` and the switched resolution of `trials/quiet-interval-1` |
+| Seam run | `20261110T130355Z.json`, and the repeat in `20261110T130728Z.json` |
+| Hook readings | None applies. The formula installs a skill source only, with no native-only plugin and no marketplace file |
+
+### The record of `testanyware`
+
+| Item | Value |
+| --- | --- |
+| Full package version | `2.8.0_1`. The accepted version was `2.8.0` |
+| Formula content | `Formula/testanyware.rb`, SHA-256 `ad71af0f77f7896567dc9b87de2917d0c674060db158b07f5e48dfc33afbd957` |
+| Archive | The TestAnyware release `v2.8.0` at `1809a49068a23d9d276913f3a90227dbefb98a82`, macOS archive SHA-256 `bda57d356222e6ef…`, the accepted archive |
+| Source | `testanyware` from `plugins/testanyware`, root `skills`, tree ID `0701492a5dae89e5b967e0122a5f1085cccec291` |
+| `resourceDigest` | `3e9d7929eddd8988a6bebd9433b7f343a19e673993b3c81e8a1ce9ba913b72c6`, equal to the accepted value |
+| Retained source trials | `trials/testanyware-vm-claude-1` and `trials/testanyware-vm-codex-2` of [TestAnyware in staging](#testanyware-in-staging). Also isolation, `trials/sources-2` and the switched resolution of `trials/quiet-interval-1` |
+| Seam run | `20261110T130355Z.json`, and the repeat in `20261110T130819Z.json` |
+| Hook readings | None applies. The formula installs no native-only plugin and no marketplace file |
+
+The executables, `pkgshare` and the Linux steps of `testanyware` are the
+same as in 2.8.0. The TestAnyware trials ran those executables, so the
+revision keeps their reading.
+
+### Publication
+
+The four records existed before the push. The tap's `main` then moved from
+`9ca2b5e37510` to `12b53f8c449d` through `jj git push`, and the push
+succeeded. `12b53f8c449d` holds the revisions of `personal`, `superpowers`
+and `quint-llm-kit` from `c0e61c1f3309`, and that of `testanyware`.
+
+A new clone of `https://github.com/Linkuistics/homebrew-taps.git` read
+`main` at `12b53f8c449d`. Each published formula file has the SHA-256 of
+its record. Homebrew's formula loader read these full package versions
+from the clone:
+
+| Formula | Published full package version |
+| --- | --- |
+| `personal` | `2026-11-06_1` |
+| `superpowers` | `7.0.0_1` |
+| `quint-llm-kit` | `1.0.0_1` |
+| `testanyware` | `2.8.0_1` |
+
+After the push, each `published` declaration of `personal`, `superpowers`,
+`quint-llm-kit` and `testanyware` in `scripts/skill-formulae.json` changed
+to `projected`. `task seam:shared-directory` then ran with the tap subjects,
+the same Ravel inputs and the tap at `12b53f8c449d`. All 10 cases passed. The
+record is `20261110T142958Z.json`.
+
+In that run, the failure control linked only the direct fixtures
+`seam-fixture` 1 and `seam-control` 1. Ravel refused each order with
+`skill_resource_invalid`, as required. The fixtures therefore keep the
+failure control after the publication.
+
+### Limits
+
+- The seam runs install methods, not `FormulaInstaller` with downloads,
+  bottles and dependencies. It runs on macOS only.
+- The release run reported `grove-core` at `d8eec388…`, not at the accepted
+  `8d92cd58…`. skill-keg-link-layout-k292 changed `plugins/grove`.
+  core-candidate-restaging-k300 owns the new core candidate. Grove's
+  revised formula publishes through Grove's release inside finish, not
+  here.
+- Release acceptance repeats the seam with the published Ravel archives,
+  after their lane is in `scripts/ravel_target_inputs.py`.

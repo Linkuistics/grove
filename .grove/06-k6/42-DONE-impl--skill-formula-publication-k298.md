@@ -57,3 +57,39 @@ failure control reads the published formulae from the tap's `origin/main`.
 After the push, change each `published` declaration in
 `scripts/skill-formulae.json` to `projected`. The fixture formulae then keep
 the failure control.
+
+## Decisions (running log)
+
+- The subjects equal those of k294 to k297. The Grove archive
+  `5f6093a6e6bb…` is current, because no change since k293 touches
+  `plugins`, `assets`, `crates` or the formula template. The lane 2.0 Ravel
+  archive `289b4ac57ffd…` holds the accepted staging build: its `bin/ravel`
+  has the pinned SHA-256 `3a9a9129…`. Homebrew stays at `bc63375ac3a4`. The
+  tap's remote `main` stays at `9ca2b5e37510`.
+- The seam's "as accepted" for a tap formula compares with that formula's
+  own pristine payload, not with the staging-accepted digest. Each
+  `tap:formula:test` therefore ran again, and its digest of the plain
+  checkout was compared with "The accepted sources". All four are equal,
+  so no source needs staging trials.
+- Only `personal` installs a native-only plugin and a marketplace file. The
+  hook readings of k297 that apply are the `guardrail` payload comparison
+  and capability trial. The Grove hook-adapter readings name Grove's
+  writing payload, so no hook seam applies to `superpowers`,
+  `quint-llm-kit` or `testanyware`.
+- The acceptance records go in a new section of
+  `docs/owner-skill-delivery-evidence.md`, after "Staging acceptance".
+  owner-switch-plan-k254 and owner-pack-checkouts-k93 read accepted values
+  from that document.
+- The four records exist in "Packaging-only acceptance" of
+  `docs/owner-skill-delivery-evidence.md`. The tap push (`jj bookmark set
+  main -r 12b53f8c449d`, then `jj git push --bookmark main`) was refused by
+  the harness's permission classifier. The tap stayed unchanged. The push,
+  the fresh read and the `published` declarations wait for the human.
+- The human approved the push on retry. The tap's `main` moved from
+  `9ca2b5e37510` to `12b53f8c449d`. A new clone read each published full
+  package version with Homebrew's loader.
+- After the push, the four `published` declarations became `projected`.
+  `task seam:shared-directory` passed with the tap subjects, and its
+  failure control failed on the two direct fixtures alone.
+- The 14 older checker findings of `docs/owner-skill-delivery-evidence.md`
+  predate this leaf. This leaf adds none and converts none.

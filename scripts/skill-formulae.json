@@ -10,22 +10,22 @@
     "personal": {
       "sources": ["personal"],
       "layout": "projected",
-      "published": "direct"
+      "published": "projected"
     },
     "superpowers": {
       "sources": ["superpowers"],
       "layout": "projected",
-      "published": "direct"
+      "published": "projected"
     },
     "quint-llm-kit": {
       "sources": ["quint"],
       "layout": "projected",
-      "published": "direct"
+      "published": "projected"
     },
     "testanyware": {
       "sources": ["testanyware"],
       "layout": "projected",
-      "published": "direct"
+      "published": "projected"
     }
   }
 }

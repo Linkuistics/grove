@@ -1047,10 +1047,13 @@ The cases with all five revised formulae cannot pass before the tap formulae
 have the projected layout. `tap-skill-keg-projection-k295` changed three
 `layout` declarations in `scripts/skill-formulae.json` with their formulae,
 and `testanyware-keg-projection-k296` changed the fourth.
-`skill-formula-publication-k298` runs the seam with all five. After its
-push, it changes each `published` declaration to `projected`. Release
-acceptance repeats the seam with the published Ravel archives, after their
-lane is in `scripts/ravel_target_inputs.py`.
+`skill-formula-publication-k298` ran the seam with all five and published
+the four tap revisions. It then changed each `published` declaration to
+`projected`.
+[Packaging-only acceptance](owner-skill-delivery-evidence.md#packaging-only-acceptance)
+records those runs and the acceptance of each revision. Release acceptance
+repeats the seam with the published Ravel archives, after their lane is in
+`scripts/ravel_target_inputs.py`.
 
 ## Tap skill keg projection
 

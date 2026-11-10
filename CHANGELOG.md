@@ -55,6 +55,14 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Linkuistics tap: the tap publishes the projected revisions `personal`
+  2026-11-06_1, `superpowers` 7.0.0_1, `quint-llm-kit` 1.0.0_1 and
+  `testanyware` 2.8.0_1. Each keeps its source commit and source digest.
+  Each passed the shared directory seam beside Grove's projected output and
+  Ravel's keg. `scripts/skill-formulae.json` now declares each published
+  tap formula projected, so two direct fixture formulae carry the seam's
+  failure control.
+
 - `grove` release checks: the new shared directory seam,
   `task seam:shared-directory`, links actual formula output with Homebrew's
   own linker into private prefixes. Ravel then resolves each prefix's

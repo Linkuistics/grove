@@ -38,7 +38,8 @@ chapters after the editorial pipeline.
    the Grove release.
 3. `ravel-book-inside`, five steps: draft of chapters 7 to 9, draft of
    chapters 10 and 11, copy-edit, art and proof. The tooling comes first, so
-   chapter 11 describes tasks that exist.
+   chapter 11 describes tasks that exist. The draft of chapters 7 to 9 is the
+   node `ravel-book-inside-k307`, with one draft for each chapter.
 4. `ravel-main-landing`: rebase, full checks, changelog, specification status
    and the landing on `main`.
 5. `ravel-two-publication`: the one cut and its verification.
@@ -90,3 +91,27 @@ A change to Ravel's Rust source changes the build identity. Staging accepted
 the build `58d479ed…`. That difference is expected. The leaf
 `published-source-acceptance` resolves the sources again with the published
 archives. A change to a skill source is out of scope here.
+
+## Handed forward
+
+- **art**, chapter 7, “Find each part in the source”: the embedded
+  `source-components` figure omits two parts that the chapter now teaches.
+  They are skill preparation, `crates/ravel/src/skills/`, before the worker
+  starts, and the reader thread with the runtime of the host bridge. Its
+  description “Checks configuration script and its response” lacks an article.
+- **art**, chapter 7, “Watch the parts in one session”: the contract asks for
+  a process-and-authority figure in chapter 7. The chapter links to chapter
+  2's `process-authority` figure, which omits harness runs. In the `ravel-parts`
+  example, the Ravel CLI is the parent of the harness run `fake-advisor` and
+  of the managed process `fake-agent`. Each has its own result channel. A figure of those processes would serve the chapter.
+- **art**, chapter 7, “The host bridge carries each request to the Ravel CLI”:
+  the chapter reuses chapter 4's `evaluation-harness` figure, whose harness is
+  `claude`. The text says that the figure is general. Decide whether the
+  chapter needs its own view with the reader thread.
+- **proof**, chapter 3, “Run the first session”: a Homebrew installation
+  writes `share/ravel/installation.json`. With no `skills.sources`, an
+  installed Ravel then reads the default skill directory, also under `env -i`
+  with an empty `HOME`. If that directory holds a source, the fake prints the
+  prepared prompt, with its preamble, and the claimed standard error differs.
+  The checkout build has no record, so `task docs:examples` cannot see this.
+  Chapter 7 states the case for its own example. Lesson L75 records the check.

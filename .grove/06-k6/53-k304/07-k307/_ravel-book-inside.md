@@ -1,4 +1,4 @@
-# ravel-book-inside-k307
+# ravel-book-inside-k307 — brief
 
 ## Goal
 
@@ -33,3 +33,19 @@ Ravel, the walk through the code, and the jobs, signals and terminal.
 
 Work in `Ravel.skill-directory-delivery` on `skill-directory-delivery`. The
 paused workstream's own drafts did not run. Do not edit or run its leaves.
+
+## Decomposition
+
+The draft of 2026-11-11 found the work too large for one session and split it
+by chapter. Each child drafts one chapter, in this order:
+
+1. `ravel-book-inside-k329`: chapter 7, the parts of Ravel. It sets the
+   words and the concrete example that chapters 8 and 9 restate.
+2. `ravel-book-inside-k330`: chapter 8, the walk through the code. Its
+   evaluation section names functions that the Rhai path no longer calls.
+3. `ravel-book-inside-k331`: chapter 9, jobs, signals and the terminal. It
+   checks the claim that chapter 9 changes least. It comes last because it
+   links to headings of chapter 8.
+
+The copy-edit leaf `ravel-book-inside-k309` already stands under the parent
+node. Thus, no child cuts a copy-edit leaf.

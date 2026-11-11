@@ -152,3 +152,41 @@ archives. A change to a skill source is out of scope here.
   prepared prompt, with its preamble, and the claimed standard error differs.
   The checkout build has no record, so `task docs:examples` cannot see this.
   Chapter 7 states the case for its own example. Lesson L75 records the check.
+- **art**, chapter 9, “Stop the evaluation at its deadline” and “Let a signal
+  win over the deadline”: the contract asks chapter 9 for a cancellation
+  sequence for each phase. The chapter embeds neither sequence. The new
+  text follows `ravel-parts-deadline`. A timing or sequence figure of that
+  stop would serve both sections. Its lifelines are the Ravel CLI with its
+  latch, the runner, the harness run `fake-advisor` with its group, and the
+  Rhai worker. Its events, in this order:
+  1. The 1-second deadline expires, and `Host::settle` sets the
+     `StopRequest`.
+  2. The runner sends TERM to the run's group and the run. The run's trap
+     writes its note. In the second example, the trap also sends TERM to the
+     Ravel CLI, and the latch keeps it.
+  3. After the 5-second kill grace, the runner sends KILL to the group and the
+     run. Then come the two group KILLs, the reap and the group query.
+  4. TERM to the worker, KILL after one second if needed, and its reap.
+  5. Removal of the private directories, then the final latch read:
+     `selection_timeout`, 124, without the signal, and `selection_cancelled`,
+     143, with it.
+  No managed process starts. The figure can reuse the lifelines of
+  `selection-cancellation`, which chapter 8 embeds.
+- **art**, chapter 9, “Follow the escalation after a result”:
+  `escalation-timing` still agrees with the text for the managed process. Its
+  case A draws a managed child that ignores the TERM signal. The text now says
+  that each harness run has the same stages, with checks every 20 milliseconds
+  instead of 500 milliseconds. The example `ravel-parts-escalation` records TERM in a trap and
+  stays, which is the figure's case A. Decide whether the figure needs a note
+  for harness runs.
+- **art**, chapter 9, “Lend and recover the terminal”:
+  `terminal-lending-recovery` agrees with the text. The text now adds that a
+  harness run never receives the terminal. The figure needs no change for
+  that.
+- **proof**, chapter 9, “Know the guarantees and their limits”: the chapter
+  states the old limit “detached configuration script children” in 2.0.0
+  terms. The worker starts no process, so the limit is a process that leaves
+  a harness run's group. Contract section 1, “Emphasis”, still says
+  “detached configuration script children”. The contract is the owner's
+  text, so the draft did not change it. Check that the two agree in meaning,
+  or raise the wording with the owner.

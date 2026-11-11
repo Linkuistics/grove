@@ -76,3 +76,27 @@ reports another version than the released keg. Inside finish, that row then
 differs, so finish needs another dry run against the released keg, or a
 candidate keg built at the release commit. The section "Owner switch dry
 run" of `docs/owner-skill-delivery-evidence.md` records this limit.
+
+## Decisions (running log)
+
+- 2026-11-11: The first session stopped before the dry run. The process
+  check `owner_switch.py processes` still refused. Its list held PID 27230
+  and its `harness.sh` child 27248. It also held 15 Codex app-server
+  processes of finished trials and two debug `grove` builds. Stale
+  `uv run pytest` processes, an orphaned `ugrep` and the owner's own
+  processes were also on it. The owner
+  chose to restart the computer and then rerun Grove. Run the process
+  check again before the dry run.
+- 2026-11-11: The real Homebrew prefix cannot pass gates 4 and 6. Its
+  `bin/ravel` is 1.1.0, and Grove 22.8.0 has no keg layout. The dry run
+  therefore needs a disposable Homebrew prefix and a `brew` wrapper first
+  on `--path`. The prefix holds a copy of the real kegs, the candidate keg
+  as `Cellar/grove/<version>` with `opt/grove`, and the accepted 2.0 build
+  as `Cellar/ravel@2/2.0.0` with its `share/ravel/installation.json`.
+  `brew --prefix`, `--cellar` and `info --json=v2` must answer for that
+  prefix. Gate 5 also runs `mise -C HOME bootstrap packages status --json`.
+  `scripts/owner_switch_rehearsal.py` (`fixture_prefix`, `cmd_stub_brew`)
+  and `docs/evaluations/owner-skill-delivery/settings_drafts.py` and
+  `default_sources.py` hold the fixture forms to adapt. The candidate keg
+  is `~/.local/state/owner-staging/candidate`. The 2.0 build is
+  `~/.local/state/owner-staging/ravel-2.0`.

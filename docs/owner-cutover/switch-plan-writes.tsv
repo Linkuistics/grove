@@ -1,165 +1,165 @@
-path	type	original	key	switched	inventory_line	class	disposition
-.claude/skills/grove	entry	efc6ef16bc9727d2f548cb723e03648613e9ea9670541502155fec835c331ef0			106	stale-copy	deactivate; ravel:grove-core
-.claude/skills/terminal-browser	entry	5054d65d8b7232f832d533f95bd085d772d41a6c8148cd4f0ebca6a8aa325889			120	dangling	deactivate (dangling; no reader)
-.codex/skills/authoring-conventions	entry	716a93cf8be1eec53fcd224acd689d49a700eb5dca0b74d5aa6a6c04acbabd5c			126	owner-pack	deactivate after writer stops; ravel:personal
-.codex/skills/brainstorming	entry	e2b1b6cbd525823e5f203d2c1c78b14f24eb973e525d39611a8786c088bdb617			127	stale-copy	deactivate; ravel:superpowers
-.codex/skills/cli-tool-design	entry	8e3aa8d35f095aa8ba062820256bd6d18ac2d4b2c8be25d3c302773fa9cc73a4			128	owner-pack	deactivate after writer stops; ravel:design
-.codex/skills/codebase-design	entry	f4c02a1a25c8ed352336ce526b6460c9b47c50912d9ac30050a70b9ff8679e1c			129	owner-pack	deactivate after writer stops; ravel:design
-.codex/skills/coding-style-bash	entry	513ab3b08cb71e3ba6cfcea907f496865d92464637820e3dc8fa28cb6a20b8e2			131	owner-pack	deactivate after writer stops; ravel:engineering
-.codex/skills/coding-style-elixir	entry	fa6632bbd6108a8bf618b16d94de3e12e28f4886603d61dcc84c48a9792df5ca			132	owner-pack	deactivate after writer stops; ravel:engineering
-.codex/skills/coding-style-python	entry	35f1d1b02cde9f1fcad9c6bd44bc3e927febbcb95173df7090163ad82f47377f			133	owner-pack	deactivate after writer stops; ravel:engineering
-.codex/skills/coding-style-rust	entry	cf29d1cd35b666854a5221afba26861d1a29d93b263211d8195b72e4cf05aeae			134	owner-pack	deactivate after writer stops; ravel:engineering
-.codex/skills/coding-style-swift	entry	9982be19b88c5891faeba499c4f6aa86620c2c051123d2280ef390b9a397c331			135	owner-pack	deactivate after writer stops; ravel:engineering
-.codex/skills/coding-style-typescript	entry	868669cf565957443f2ae64c996410c6e64b17177c7b66895aa9eec16214a3aa			136	owner-pack	deactivate after writer stops; ravel:engineering
-.codex/skills/configure-grove	entry	6f81204059bdbb7352f53ad3c81c3fcac0fef45073718e44a526b593d2b756ce			137	owner-pack	deactivate after writer stops; ravel:grove-core
-.codex/skills/decision-records	entry	eeb8d36a4122533e0f4519a296dd505b7c7fcce56182b748797f58962861319d			138	owner-pack	deactivate after writer stops; ravel:design
-.codex/skills/dispatching-parallel-agents	entry	d32097f268e69ee22202dd574be14d97a829397539d2e9de80d6999ccb4e8ae0			139	stale-copy	deactivate; ravel:superpowers
-.codex/skills/doubt-driven-development	entry	ea3001ed88186786a891f2c3528ccfd188e370938e9961f2dca85735deb96470			140	owner-pack	deactivate after writer stops; ravel:engineering
-.codex/skills/executing-plans	entry	2d4cce373225d274a1efe80348f8b7108c07a255d3d5217e09b8fd6178063a75			141	stale-copy	deactivate; ravel:superpowers
-.codex/skills/finishing-a-development-branch	entry	314abec9caef0745cd8838c8c2fabe0999e5d87527ff2e9c6f1dc6564e96d862			142	stale-copy	deactivate; ravel:superpowers
-.codex/skills/grove	entry	7ca1329be12126b6271d6d06fdbc6ffa184d1c8a88a234987b3e30d0a271a8fc			143	owner-pack	deactivate after writer stops; ravel:grove-core
-.codex/skills/grove-art	entry	a8cd022ba14835000fa08e08833c3f966fe12f8287c995a6282da84bb3d169c2			144	owner-pack	deactivate after writer stops; ravel:writing
-.codex/skills/grove-combine-research	entry	58f23c22412f1a73edc64b9453ac5715684d287c60283b3e8724d1763ceb4d6c			145	owner-pack	deactivate after writer stops; ravel:research
-.codex/skills/grove-copy-edit	entry	d32f372643e112f76fed8e7ba6849deaa84b9359cfe168f50a09d7f8f8bde0e9			146	owner-pack	deactivate after writer stops; ravel:writing
-.codex/skills/grove-design	entry	93629aeceaf0393c00c685674a95ff7210bf157ba0a6873781cb8381dbafe17b			147	owner-pack	deactivate after writer stops; ravel:design
-.codex/skills/grove-draft	entry	99e899c601a1166e6ca2b8d88a2ebe19c9a5578f352cadc5ed238d740af212aa			148	owner-pack	deactivate after writer stops; ravel:writing
-.codex/skills/grove-finish	entry	36537738ec3de4c8697eeeaf62db7181da0f3df798aa1a9f6d82ee8a31ced5e4			149	owner-pack	deactivate after writer stops; ravel:grove-core
-.codex/skills/grove-impl	entry	c5d44f896664863bb99f768687a084a48a3c84fab4cbb60ff5fa62eac925e273			150	owner-pack	deactivate after writer stops; ravel:engineering
-.codex/skills/grove-integrate-review-design	entry	8a48b299b1d31ece2a53c5eab8f90f78d4b57d377d72779142b6a9432c4f72d8			151	owner-pack	deactivate after writer stops; ravel:design
-.codex/skills/grove-integrate-review-impl	entry	8dbb04dc94f158d7d16d62b86a471f12bb5f19c135a595530726684f9e8afa03			152	owner-pack	deactivate after writer stops; ravel:engineering
-.codex/skills/grove-integrate-review-planning	entry	4417db926445c2fbd5021480d21111a5b7ef2758093ebea5decb5cd316f30528			153	owner-pack	deactivate after writer stops; ravel:grove-core
-.codex/skills/grove-integrate-review-prototype	entry	fa576c932af7dd45979350ca780be37168ea8824fc3de5a4d5024dc61a22ca23			154	owner-pack	deactivate after writer stops; ravel:engineering
-.codex/skills/grove-integrate-review-requirements	entry	429b8b31d553b6794a892d5f3780ac6700fbda6bf6fc41c0920a965cd786ddd8			155	owner-pack	deactivate after writer stops; ravel:requirements
-.codex/skills/grove-planning	entry	ac0f134540d9ff643adbf642f11a55a306223a1dd1edd3dd6fcc015797410cfa			156	owner-pack	deactivate after writer stops; ravel:grove-core
-.codex/skills/grove-proof	entry	5fa38d2d99a3a0be992f0d2ebb960d1efe1051e807fd16338228411141a5e513			157	owner-pack	deactivate after writer stops; ravel:writing
-.codex/skills/grove-prototype	entry	009129da2a8e477e3add8518834dd5ae74fd7026548b5e54a03ebc00957b824e			158	owner-pack	deactivate after writer stops; ravel:engineering
-.codex/skills/grove-requirements	entry	b0f8acb2513bd2a89cef3960b2dcf407d97be51ef58472cdce6676849b0563c2			159	owner-pack	deactivate after writer stops; ravel:requirements
-.codex/skills/grove-research-a	entry	8017f2f906a398613c86f703ebf4a50cbbaf34d3441c2bc389937752d4e762f2			160	owner-pack	deactivate after writer stops; ravel:research
-.codex/skills/grove-research-b	entry	cfac0df68664aaf5c7497f370d6c150ba5a2cfc16de096dbc1072a19a7a75f18			161	owner-pack	deactivate after writer stops; ravel:research
-.codex/skills/grove-review-design	entry	009d025c48d01b668528f402441802c0d80f1a821f04d18b8b3525ed2532d7d5			162	owner-pack	deactivate after writer stops; ravel:design
-.codex/skills/grove-review-impl	entry	42daf3886415b70f47f0bd23bf9f4db675968bd723673f97e1614877dcc88215			163	owner-pack	deactivate after writer stops; ravel:engineering
-.codex/skills/grove-review-planning	entry	93fc9dd35a98cd98958790c6db7552874fa89685c73f0752dda057d740810a2c			164	owner-pack	deactivate after writer stops; ravel:grove-core
-.codex/skills/grove-review-prototype	entry	f320e7fefc77bf17056a48f53bed3af4c05c7f3380b5aedc8b3ef2b521ff97fa			165	owner-pack	deactivate after writer stops; ravel:engineering
-.codex/skills/grove-review-requirements	entry	c15db027090a460de217357b7f97c393ebf744217c24360b134b60f628f41ed9			166	owner-pack	deactivate after writer stops; ravel:requirements
-.codex/skills/machine-environment	entry	3fa4f12975fd59a6054225a95bd55c76684fd8825c2696a7cdc0d828cbc07aae			167	owner-pack	deactivate after writer stops; ravel:personal
-.codex/skills/model-led-development	entry	6d247e91be4e2ee0aba67f1d6d25164cd43705fe5e5bc5cdaa8393b01ad8fe13			168	owner-pack	deactivate after writer stops; ravel:design
-.codex/skills/receiving-code-review	entry	c47aee692bbadde84d9b45a72bd41d6b8a35b4b2a2b165872f4a0c0fd8300d36			169	stale-copy	deactivate; ravel:superpowers
-.codex/skills/requesting-code-review	entry	171f0af343a4b71f61e5d4dd2a31d519c601e68ae698c3e88010675b3db692a7			170	stale-copy	deactivate; ravel:superpowers
-.codex/skills/simplify-project	entry	2bb30896fef0dcd18a69e41d500dfb3455c648db1fc1ca9b6da3689081c60807			171	owner-pack	deactivate after writer stops; ravel:engineering
-.codex/skills/subagent-driven-development	entry	e572c6ec3eb7cabb3bd03ea30cd5d8b729f26671b9be9903b29c37b6cfaa5763			172	stale-copy	deactivate; ravel:superpowers
-.codex/skills/systematic-debugging	entry	b3a35193d5491c80aff3071f46856b9073f96e6b43e3ab20dac8c2e1fa2b9c5e			173	stale-copy	deactivate; ravel:superpowers
-.codex/skills/technical-communication	entry	828d28ec41cdc97299aebd22a483fea7d1bc551be03ff5b3a37fc33ca3757ce5			174	owner-pack	deactivate after writer stops; ravel:writing
-.codex/skills/terminal-browser	entry	1d979cd966a65c9a622c1f6c7a6e77a7121d1843b9fb6e2be6e9acde0ffbbac0			175	dangling	deactivate (dangling; no reader)
-.codex/skills/test-driven-development	entry	1fb41ac22bf5cdc1af75bb54cd0ee3a499d5d1f3a44315d36fd364f4c7d2c3ed			176	stale-copy	deactivate; ravel:superpowers
-.codex/skills/using-codebase-memory	entry	d05c04d1fbdcb2ee625b5018ca4c798c81ad7474d26b658692c1111b4ce6647d			177	owner-pack	deactivate after writer stops; ravel:engineering
-.codex/skills/using-git-worktrees	entry	9048959480fb3b01833c239f56d263feeb951359e637b62b8fe7359308539ce3			178	stale-copy	deactivate; ravel:superpowers
-.codex/skills/using-jujutsu	entry	389d5139948538263c1ccac0a049e4a8bffb29c8f321706317761d6c7acffd5d			179	owner-pack	deactivate after writer stops; ravel:personal
-.codex/skills/using-superpowers	entry	5027fd58886afb70585ab4791b8c334aa0ac785e5484b4795546b49a9f0484d9			180	stale-copy	deactivate; ravel:superpowers
-.codex/skills/using-testanyware	entry	0f4a3f9d45d59838b503c9247d481a909b38aca85737b5b5a52c10a27b8a4138			181	owner-pack	deactivate after writer stops; ravel:testanyware
-.codex/skills/verification-before-completion	entry	056f50252084afbeae80d3f1443d9fe88b1988a6ea5c759ca2bbdf7360a4c9ea			182	stale-copy	deactivate; ravel:superpowers
-.codex/skills/writing-code-walkthroughs	entry	f154efea7b57cec5882a7c1ac430569b94140c2e3895a99d739c88320a983018			183	owner-pack	deactivate after writer stops; ravel:writing
-.codex/skills/writing-plans	entry	0fa51d3b5bc270b21ad11ddac53ecba40cbcbcb1b6513e536424c47920c81589			184	stale-copy	deactivate; ravel:superpowers
-.codex/skills/writing-skills	entry	ad646e336ec551eb8384f82ca1868bd6fc2d64472b9c8bfcd87b1b2e0c8f5d02			185	stale-copy	deactivate; ravel:superpowers
-.agents/skills/authoring-conventions	entry	716a93cf8be1eec53fcd224acd689d49a700eb5dca0b74d5aa6a6c04acbabd5c			186	owner-pack	deactivate after writer stops; ravel:personal
-.agents/skills/cli-tool-design	entry	8e3aa8d35f095aa8ba062820256bd6d18ac2d4b2c8be25d3c302773fa9cc73a4			187	owner-pack	deactivate after writer stops; ravel:design
-.agents/skills/codebase-design	entry	f4c02a1a25c8ed352336ce526b6460c9b47c50912d9ac30050a70b9ff8679e1c			188	owner-pack	deactivate after writer stops; ravel:design
-.agents/skills/coding-style-bash	entry	513ab3b08cb71e3ba6cfcea907f496865d92464637820e3dc8fa28cb6a20b8e2			190	owner-pack	deactivate after writer stops; ravel:engineering
-.agents/skills/coding-style-elixir	entry	fa6632bbd6108a8bf618b16d94de3e12e28f4886603d61dcc84c48a9792df5ca			191	owner-pack	deactivate after writer stops; ravel:engineering
-.agents/skills/coding-style-python	entry	35f1d1b02cde9f1fcad9c6bd44bc3e927febbcb95173df7090163ad82f47377f			192	owner-pack	deactivate after writer stops; ravel:engineering
-.agents/skills/coding-style-rust	entry	cf29d1cd35b666854a5221afba26861d1a29d93b263211d8195b72e4cf05aeae			193	owner-pack	deactivate after writer stops; ravel:engineering
-.agents/skills/coding-style-swift	entry	9982be19b88c5891faeba499c4f6aa86620c2c051123d2280ef390b9a397c331			194	owner-pack	deactivate after writer stops; ravel:engineering
-.agents/skills/coding-style-typescript	entry	868669cf565957443f2ae64c996410c6e64b17177c7b66895aa9eec16214a3aa			195	owner-pack	deactivate after writer stops; ravel:engineering
-.agents/skills/configure-grove	entry	6f81204059bdbb7352f53ad3c81c3fcac0fef45073718e44a526b593d2b756ce			196	owner-pack	deactivate after writer stops; ravel:grove-core
-.agents/skills/decision-records	entry	eeb8d36a4122533e0f4519a296dd505b7c7fcce56182b748797f58962861319d			197	owner-pack	deactivate after writer stops; ravel:design
-.agents/skills/doubt-driven-development	entry	ea3001ed88186786a891f2c3528ccfd188e370938e9961f2dca85735deb96470			198	owner-pack	deactivate after writer stops; ravel:engineering
-.agents/skills/grove	entry	7ca1329be12126b6271d6d06fdbc6ffa184d1c8a88a234987b3e30d0a271a8fc			199	owner-pack	deactivate after writer stops; ravel:grove-core
-.agents/skills/grove-art	entry	a8cd022ba14835000fa08e08833c3f966fe12f8287c995a6282da84bb3d169c2			200	owner-pack	deactivate after writer stops; ravel:writing
-.agents/skills/grove-combine-research	entry	58f23c22412f1a73edc64b9453ac5715684d287c60283b3e8724d1763ceb4d6c			201	owner-pack	deactivate after writer stops; ravel:research
-.agents/skills/grove-copy-edit	entry	d32f372643e112f76fed8e7ba6849deaa84b9359cfe168f50a09d7f8f8bde0e9			202	owner-pack	deactivate after writer stops; ravel:writing
-.agents/skills/grove-design	entry	93629aeceaf0393c00c685674a95ff7210bf157ba0a6873781cb8381dbafe17b			203	owner-pack	deactivate after writer stops; ravel:design
-.agents/skills/grove-draft	entry	99e899c601a1166e6ca2b8d88a2ebe19c9a5578f352cadc5ed238d740af212aa			204	owner-pack	deactivate after writer stops; ravel:writing
-.agents/skills/grove-finish	entry	36537738ec3de4c8697eeeaf62db7181da0f3df798aa1a9f6d82ee8a31ced5e4			205	owner-pack	deactivate after writer stops; ravel:grove-core
-.agents/skills/grove-impl	entry	c5d44f896664863bb99f768687a084a48a3c84fab4cbb60ff5fa62eac925e273			206	owner-pack	deactivate after writer stops; ravel:engineering
-.agents/skills/grove-integrate-review-design	entry	8a48b299b1d31ece2a53c5eab8f90f78d4b57d377d72779142b6a9432c4f72d8			207	owner-pack	deactivate after writer stops; ravel:design
-.agents/skills/grove-integrate-review-impl	entry	8dbb04dc94f158d7d16d62b86a471f12bb5f19c135a595530726684f9e8afa03			208	owner-pack	deactivate after writer stops; ravel:engineering
-.agents/skills/grove-integrate-review-planning	entry	4417db926445c2fbd5021480d21111a5b7ef2758093ebea5decb5cd316f30528			209	owner-pack	deactivate after writer stops; ravel:grove-core
-.agents/skills/grove-integrate-review-prototype	entry	fa576c932af7dd45979350ca780be37168ea8824fc3de5a4d5024dc61a22ca23			210	owner-pack	deactivate after writer stops; ravel:engineering
-.agents/skills/grove-integrate-review-requirements	entry	429b8b31d553b6794a892d5f3780ac6700fbda6bf6fc41c0920a965cd786ddd8			211	owner-pack	deactivate after writer stops; ravel:requirements
-.agents/skills/grove-planning	entry	ac0f134540d9ff643adbf642f11a55a306223a1dd1edd3dd6fcc015797410cfa			212	owner-pack	deactivate after writer stops; ravel:grove-core
-.agents/skills/grove-proof	entry	5fa38d2d99a3a0be992f0d2ebb960d1efe1051e807fd16338228411141a5e513			213	owner-pack	deactivate after writer stops; ravel:writing
-.agents/skills/grove-prototype	entry	009129da2a8e477e3add8518834dd5ae74fd7026548b5e54a03ebc00957b824e			214	owner-pack	deactivate after writer stops; ravel:engineering
-.agents/skills/grove-requirements	entry	b0f8acb2513bd2a89cef3960b2dcf407d97be51ef58472cdce6676849b0563c2			215	owner-pack	deactivate after writer stops; ravel:requirements
-.agents/skills/grove-research-a	entry	8017f2f906a398613c86f703ebf4a50cbbaf34d3441c2bc389937752d4e762f2			216	owner-pack	deactivate after writer stops; ravel:research
-.agents/skills/grove-research-b	entry	cfac0df68664aaf5c7497f370d6c150ba5a2cfc16de096dbc1072a19a7a75f18			217	owner-pack	deactivate after writer stops; ravel:research
-.agents/skills/grove-review-design	entry	009d025c48d01b668528f402441802c0d80f1a821f04d18b8b3525ed2532d7d5			218	owner-pack	deactivate after writer stops; ravel:design
-.agents/skills/grove-review-impl	entry	42daf3886415b70f47f0bd23bf9f4db675968bd723673f97e1614877dcc88215			219	owner-pack	deactivate after writer stops; ravel:engineering
-.agents/skills/grove-review-planning	entry	93fc9dd35a98cd98958790c6db7552874fa89685c73f0752dda057d740810a2c			220	owner-pack	deactivate after writer stops; ravel:grove-core
-.agents/skills/grove-review-prototype	entry	f320e7fefc77bf17056a48f53bed3af4c05c7f3380b5aedc8b3ef2b521ff97fa			221	owner-pack	deactivate after writer stops; ravel:engineering
-.agents/skills/grove-review-requirements	entry	c15db027090a460de217357b7f97c393ebf744217c24360b134b60f628f41ed9			222	owner-pack	deactivate after writer stops; ravel:requirements
-.agents/skills/machine-environment	entry	3fa4f12975fd59a6054225a95bd55c76684fd8825c2696a7cdc0d828cbc07aae			223	owner-pack	deactivate after writer stops; ravel:personal
-.agents/skills/model-led-development	entry	6d247e91be4e2ee0aba67f1d6d25164cd43705fe5e5bc5cdaa8393b01ad8fe13			224	owner-pack	deactivate after writer stops; ravel:design
-.agents/skills/quint-execute-spec	entry	737689d355a22b7b1d29da63488cd5da75fd57da19368d041e19e988602b8a9e			225	third-party-pack	deactivate; ravel:quint
-.agents/skills/quint-lang	entry	7f2d1d6a1879441a56eaf6a0aefa3a1b82f455a0349251e642e9cfdb272bef48			226	third-party-pack	deactivate; ravel:quint
-.agents/skills/quint-modeling	entry	e5a25fe1dca935c1b08a051774a5d3532cbcefe1ad88575050eabe33c51f5d31			227	third-party-pack	deactivate; ravel:quint
-.agents/skills/simplify-project	entry	2bb30896fef0dcd18a69e41d500dfb3455c648db1fc1ca9b6da3689081c60807			228	owner-pack	deactivate after writer stops; ravel:engineering
-.agents/skills/technical-communication	entry	828d28ec41cdc97299aebd22a483fea7d1bc551be03ff5b3a37fc33ca3757ce5			229	owner-pack	deactivate after writer stops; ravel:writing
-.agents/skills/terminal-browser	entry	5054d65d8b7232f832d533f95bd085d772d41a6c8148cd4f0ebca6a8aa325889			230	dangling	deactivate (dangling; no reader)
-.agents/skills/using-codebase-memory	entry	d05c04d1fbdcb2ee625b5018ca4c798c81ad7474d26b658692c1111b4ce6647d			231	owner-pack	deactivate after writer stops; ravel:engineering
-.agents/skills/using-jujutsu	entry	389d5139948538263c1ccac0a049e4a8bffb29c8f321706317761d6c7acffd5d			232	owner-pack	deactivate after writer stops; ravel:personal
-.agents/skills/using-testanyware	entry	0f4a3f9d45d59838b503c9247d481a909b38aca85737b5b5a52c10a27b8a4138			233	owner-pack	deactivate after writer stops; ravel:testanyware
-.agents/skills/writing-code-walkthroughs	entry	f154efea7b57cec5882a7c1ac430569b94140c2e3895a99d739c88320a983018			234	owner-pack	deactivate after writer stops; ravel:writing
-.pi/agent/skills/authoring-conventions	entry	1842b44852767bdcb3c6a479e68a8a163531dfb669f81e0c8eb59409c1708ff3			235	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/cli-tool-design	entry	db2d1574030e1fde8d9055cf3dfd6c125f7863ae690b6cfe14740f477968bd6f			236	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/codebase-design	entry	61aead5ffe43eb4ccc1c118a27c8262d604aef9e56c6ac987f5e47aec5c5e7cb			237	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/coding-style-bash	entry	a2a00391cf51f181ee02dda804e74418c7a87420ac640f2269bdc5da669fd59b			239	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/coding-style-elixir	entry	419008a35f59bfe563a021921112a6fe72ce3a0d8524bd6ed24a407d24852f80			240	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/coding-style-python	entry	a8c32f53427035d2caa6e0f43752f2aec4bb8222ed1bc7dfd58af99a60b46799			241	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/coding-style-rust	entry	613223a939bb4ace16129eceae7cf8da86f625fae2beb26ce0e3b9ea70e4c07e			242	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/coding-style-swift	entry	5921c973ccaf542cf21cfa4dc2e6247973bef329eab1b99bba307160a83939b3			243	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/coding-style-typescript	entry	fe4c2111d3c31d07de8bfa7dcd4263cc5f481ce48fc908aeb5b4d1904d40f3b5			244	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/configure-grove	entry	2c93c5e858d3408251190dcc7780175cf510597e22738469f486a89bbd084292			245	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/decision-records	entry	8ce3f3929e4e1d2cb96e74fe5caee1b211f9277cb37cbd93154f27abc1f9a708			246	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/doubt-driven-development	entry	3e60f5003425424ac9f1ad7482e09430e2496da5bf2b1cd28d2e2b21dcd8bfbf			247	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove	entry	1716e08f97d1d4c7bf9da1632e8ac0e9d34c02446f9365d31ee875299a364eff			248	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-art	entry	d68368aba8993c49ca84d6ba442b9d3c7234879618c64a4868a5a63db1782a46			249	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-combine-research	entry	b46e8eec402cf166268fdbd6648534fa7482cdae1c4bf46e4a092ad069125060			250	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-copy-edit	entry	c73e37b40b4036fb38dcb63891b57835fd808414d927672ea8b603323014f854			251	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-design	entry	f93034776b93a6a255c614103ff229dcb5790b120eef58a74c793d07ad5df1ac			252	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-draft	entry	0c1509a6280d4f9d281656ff5ec5c22a8cb2b30c38dfa4be22f592069d68663f			253	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-finish	entry	1c248e5c18792a846bc664ff0d412413d4b11edab0165a2e9aa89d0fd5abb594			254	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-impl	entry	667f8fb6b9fd6b43632625e41925cb11b738f0077d0a0e00cfac57731f755eda			255	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-integrate-review-design	entry	8842e0b531815f2189bbdb7b9516b0f43c06fe23f46982776ffa9d9744ee508a			256	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-integrate-review-impl	entry	5eeb9ccb74ae8a629574e879d324434f779bc32f5b9e22ce11b5cb0ac6984c21			257	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-integrate-review-planning	entry	ceb8131c431ca0d2d1401a18e46c4bac0f4e8ebe07727e4f0cd5866186d664f3			258	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-integrate-review-prototype	entry	f67ff431059eda5f993bd5816dcb6f373332dc5d5e8a281146a6066634b55a51			259	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-integrate-review-requirements	entry	3a502bde9faffb7a6654a6cd1bf96341e9bb0e412dbc99b6f0f3e7f1e029b5eb			260	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-planning	entry	80eca62af033fe744c2270dc9254e7cb40dc3dbb8c53bb440979145ac3e5d0d3			261	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-proof	entry	d8199f004a5238464d9ad6dd677eee40d22783ef60a6052f6122c25ed168a911			262	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-prototype	entry	2d287f5da35d54832c57fa039c986055b9ca51c499cd81707cd1e576bb5b4703			263	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-requirements	entry	4760c7a1c56f20d47317d4f6aa8746a8b4a7549bd019597108d75959cf3bdaff			264	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-research-a	entry	45bfc55edf347207244fb2ae533ad5a6f8d65992e5f75f9ef8f6275b4515ac99			265	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-research-b	entry	9e0f9927566cd079974d5abddfaaf8e05df85a13654206f53b5d44e312a784db			266	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-review-design	entry	ac95d3ec21a14397720e2a80695e43cd58d7de887707c2dc191823da20fae66b			267	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-review-impl	entry	40330193a06d2b39a5e0bd387078116c83650930ef38aaf23e9e94d12a38ccc5			268	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-review-planning	entry	e0f33b604bbb41403ffa6d20eb5f032e58ee1ddf35792dd1b0639b8a45782ba6			269	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-review-prototype	entry	9326ef09bd9b16403fef2243ae70eb744fcdef9a0df343e23975706e31eb001f			270	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/grove-review-requirements	entry	c3081ef199260104ec20e7a54d15fbce51e5b2368a6840a0e89956aec0c22c25			271	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/machine-environment	entry	9cbdefa87e53a0acf0356b4408041ee1185dfc414a4e5f0b939f7bba58b4acac			272	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/model-led-development	entry	b34458f7062c316f413b5158077379770345e8c27cd9cf8ced0ac1fd009ce601			273	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/simplify-project	entry	1bbdca36e2a5d2134323a03d1bcca6908b8b9140a0ee1a344c7d3649ae30a9bb			274	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/technical-communication	entry	ed5b3ccbd1f7f4569c4c824a35491c03336ba7a7b216b5b704548f2ecef0a61e			275	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/using-codebase-memory	entry	e525955cfaa6ac62093a3da1163ae39059ad73d2795c627988832f7f8504f09d			276	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/using-jujutsu	entry	48e5156686c87153ec60235ee733997accbf99120060674a32c351f6976740c4			277	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/using-testanyware	entry	ec763424d8080cd5b0b55997c8173447628e9db334c0578dfaab5e5de4c07368			278	dangling	deactivate (dangling; no reader)
-.pi/agent/skills/writing-code-walkthroughs	entry	9269352b2107ae7d46e8de60cd8a1ea5e97b88ac0949f71458e1c3c029b1f979			279	dangling	deactivate (dangling; no reader)
-.pi/agent/extensions/technical-communication.ts	entry	f1bc4e4cbd71a4518608ac8fac0dba0d11266121c78a239d36e319fd12385213			354	dangling	deactivate (dangling; no reader)
-.claude/settings.json	file	f66e2a8b1903737efa53447ea92cc71b3a772645a34e71b8d88748fabf77a5ff	enabledPlugins.grove@linkuistics	false	18	owner-pack	disable
-.claude/settings.json	file	f66e2a8b1903737efa53447ea92cc71b3a772645a34e71b8d88748fabf77a5ff	enabledPlugins.linkuistics@linkuistics	false	45	owner-pack	disable; hooks move to skill-free plugin; guardrail to native-only plugin
-.claude/settings.json	file	f66e2a8b1903737efa53447ea92cc71b3a772645a34e71b8d88748fabf77a5ff	enabledPlugins.testanyware@linkuistics	false	101	owner-pack	disable
-.claude/settings.json	file	f66e2a8b1903737efa53447ea92cc71b3a772645a34e71b8d88748fabf77a5ff	enabledPlugins.superpowers@claude-plugins-official	false	84	third-party-pack	disable; SessionStart prose becomes Ravel mandatory file
-.claude/settings.json	file	f66e2a8b1903737efa53447ea92cc71b3a772645a34e71b8d88748fabf77a5ff	enabledPlugins.quint-llm-kit@quint-llm-kit	false	75	third-party-pack	disable
-.claude/settings.json	file	f66e2a8b1903737efa53447ea92cc71b3a772645a34e71b8d88748fabf77a5ff	enabledPlugins.technical-communication-hooks@writing-hooks	true		native residue	installed disabled before the switch; enabled at step 6
-.claude/settings.json	file	f66e2a8b1903737efa53447ea92cc71b3a772645a34e71b8d88748fabf77a5ff	enabledPlugins.guardrail@personal	true		native residue	installed disabled before the switch; enabled at step 6
-.claude/plugins/known_marketplaces.json	file	572472b7d6bb5c122189676caa5af7a46ef57b427f73fd0fef8cdba0f85e75bd				Claude Code registry	written by the hooks installation's commands
-.claude/plugins/installed_plugins.json	file	ac1880bad5d3e7c55e8a222eb1d160d61da97496f462e35a2e2c6b9745b2f273				Claude Code registry	written by the hooks installation's commands
-.config/ravel/settings.json	file	absent	skills	settings-switched.json		Ravel settings	native-off writes the off value before the switch; the switch writes the switched value last
+path	type	original	now	key	switched	inventory_line	class	disposition
+.claude/skills/grove	entry	efc6ef16bc9727d2f548cb723e03648613e9ea9670541502155fec835c331ef0	same			106	stale-copy	deactivate; ravel:grove-core
+.claude/skills/terminal-browser	entry	5054d65d8b7232f832d533f95bd085d772d41a6c8148cd4f0ebca6a8aa325889	same			120	dangling	deactivate (dangling; no reader)
+.codex/skills/authoring-conventions	entry	716a93cf8be1eec53fcd224acd689d49a700eb5dca0b74d5aa6a6c04acbabd5c	same			126	owner-pack	deactivate after writer stops; ravel:personal
+.codex/skills/brainstorming	entry	e2b1b6cbd525823e5f203d2c1c78b14f24eb973e525d39611a8786c088bdb617	same			127	stale-copy	deactivate; ravel:superpowers
+.codex/skills/cli-tool-design	entry	8e3aa8d35f095aa8ba062820256bd6d18ac2d4b2c8be25d3c302773fa9cc73a4	same			128	owner-pack	deactivate after writer stops; ravel:design
+.codex/skills/codebase-design	entry	f4c02a1a25c8ed352336ce526b6460c9b47c50912d9ac30050a70b9ff8679e1c	same			129	owner-pack	deactivate after writer stops; ravel:design
+.codex/skills/coding-style-bash	entry	513ab3b08cb71e3ba6cfcea907f496865d92464637820e3dc8fa28cb6a20b8e2	same			131	owner-pack	deactivate after writer stops; ravel:engineering
+.codex/skills/coding-style-elixir	entry	fa6632bbd6108a8bf618b16d94de3e12e28f4886603d61dcc84c48a9792df5ca	same			132	owner-pack	deactivate after writer stops; ravel:engineering
+.codex/skills/coding-style-python	entry	35f1d1b02cde9f1fcad9c6bd44bc3e927febbcb95173df7090163ad82f47377f	same			133	owner-pack	deactivate after writer stops; ravel:engineering
+.codex/skills/coding-style-rust	entry	cf29d1cd35b666854a5221afba26861d1a29d93b263211d8195b72e4cf05aeae	same			134	owner-pack	deactivate after writer stops; ravel:engineering
+.codex/skills/coding-style-swift	entry	9982be19b88c5891faeba499c4f6aa86620c2c051123d2280ef390b9a397c331	same			135	owner-pack	deactivate after writer stops; ravel:engineering
+.codex/skills/coding-style-typescript	entry	868669cf565957443f2ae64c996410c6e64b17177c7b66895aa9eec16214a3aa	same			136	owner-pack	deactivate after writer stops; ravel:engineering
+.codex/skills/configure-grove	entry	6f81204059bdbb7352f53ad3c81c3fcac0fef45073718e44a526b593d2b756ce	same			137	owner-pack	deactivate after writer stops; ravel:grove-core
+.codex/skills/decision-records	entry	eeb8d36a4122533e0f4519a296dd505b7c7fcce56182b748797f58962861319d	same			138	owner-pack	deactivate after writer stops; ravel:design
+.codex/skills/dispatching-parallel-agents	entry	d32097f268e69ee22202dd574be14d97a829397539d2e9de80d6999ccb4e8ae0	same			139	stale-copy	deactivate; ravel:superpowers
+.codex/skills/doubt-driven-development	entry	ea3001ed88186786a891f2c3528ccfd188e370938e9961f2dca85735deb96470	same			140	owner-pack	deactivate after writer stops; ravel:engineering
+.codex/skills/executing-plans	entry	2d4cce373225d274a1efe80348f8b7108c07a255d3d5217e09b8fd6178063a75	same			141	stale-copy	deactivate; ravel:superpowers
+.codex/skills/finishing-a-development-branch	entry	314abec9caef0745cd8838c8c2fabe0999e5d87527ff2e9c6f1dc6564e96d862	same			142	stale-copy	deactivate; ravel:superpowers
+.codex/skills/grove	entry	7ca1329be12126b6271d6d06fdbc6ffa184d1c8a88a234987b3e30d0a271a8fc	same			143	owner-pack	deactivate after writer stops; ravel:grove-core
+.codex/skills/grove-art	entry	a8cd022ba14835000fa08e08833c3f966fe12f8287c995a6282da84bb3d169c2	same			144	owner-pack	deactivate after writer stops; ravel:writing
+.codex/skills/grove-combine-research	entry	58f23c22412f1a73edc64b9453ac5715684d287c60283b3e8724d1763ceb4d6c	same			145	owner-pack	deactivate after writer stops; ravel:research
+.codex/skills/grove-copy-edit	entry	d32f372643e112f76fed8e7ba6849deaa84b9359cfe168f50a09d7f8f8bde0e9	same			146	owner-pack	deactivate after writer stops; ravel:writing
+.codex/skills/grove-design	entry	93629aeceaf0393c00c685674a95ff7210bf157ba0a6873781cb8381dbafe17b	same			147	owner-pack	deactivate after writer stops; ravel:design
+.codex/skills/grove-draft	entry	99e899c601a1166e6ca2b8d88a2ebe19c9a5578f352cadc5ed238d740af212aa	same			148	owner-pack	deactivate after writer stops; ravel:writing
+.codex/skills/grove-finish	entry	36537738ec3de4c8697eeeaf62db7181da0f3df798aa1a9f6d82ee8a31ced5e4	same			149	owner-pack	deactivate after writer stops; ravel:grove-core
+.codex/skills/grove-impl	entry	c5d44f896664863bb99f768687a084a48a3c84fab4cbb60ff5fa62eac925e273	same			150	owner-pack	deactivate after writer stops; ravel:engineering
+.codex/skills/grove-integrate-review-design	entry	8a48b299b1d31ece2a53c5eab8f90f78d4b57d377d72779142b6a9432c4f72d8	same			151	owner-pack	deactivate after writer stops; ravel:design
+.codex/skills/grove-integrate-review-impl	entry	8dbb04dc94f158d7d16d62b86a471f12bb5f19c135a595530726684f9e8afa03	same			152	owner-pack	deactivate after writer stops; ravel:engineering
+.codex/skills/grove-integrate-review-planning	entry	4417db926445c2fbd5021480d21111a5b7ef2758093ebea5decb5cd316f30528	same			153	owner-pack	deactivate after writer stops; ravel:grove-core
+.codex/skills/grove-integrate-review-prototype	entry	fa576c932af7dd45979350ca780be37168ea8824fc3de5a4d5024dc61a22ca23	same			154	owner-pack	deactivate after writer stops; ravel:engineering
+.codex/skills/grove-integrate-review-requirements	entry	429b8b31d553b6794a892d5f3780ac6700fbda6bf6fc41c0920a965cd786ddd8	same			155	owner-pack	deactivate after writer stops; ravel:requirements
+.codex/skills/grove-planning	entry	ac0f134540d9ff643adbf642f11a55a306223a1dd1edd3dd6fcc015797410cfa	same			156	owner-pack	deactivate after writer stops; ravel:grove-core
+.codex/skills/grove-proof	entry	5fa38d2d99a3a0be992f0d2ebb960d1efe1051e807fd16338228411141a5e513	same			157	owner-pack	deactivate after writer stops; ravel:writing
+.codex/skills/grove-prototype	entry	009129da2a8e477e3add8518834dd5ae74fd7026548b5e54a03ebc00957b824e	same			158	owner-pack	deactivate after writer stops; ravel:engineering
+.codex/skills/grove-requirements	entry	b0f8acb2513bd2a89cef3960b2dcf407d97be51ef58472cdce6676849b0563c2	same			159	owner-pack	deactivate after writer stops; ravel:requirements
+.codex/skills/grove-research-a	entry	8017f2f906a398613c86f703ebf4a50cbbaf34d3441c2bc389937752d4e762f2	same			160	owner-pack	deactivate after writer stops; ravel:research
+.codex/skills/grove-research-b	entry	cfac0df68664aaf5c7497f370d6c150ba5a2cfc16de096dbc1072a19a7a75f18	same			161	owner-pack	deactivate after writer stops; ravel:research
+.codex/skills/grove-review-design	entry	009d025c48d01b668528f402441802c0d80f1a821f04d18b8b3525ed2532d7d5	same			162	owner-pack	deactivate after writer stops; ravel:design
+.codex/skills/grove-review-impl	entry	42daf3886415b70f47f0bd23bf9f4db675968bd723673f97e1614877dcc88215	same			163	owner-pack	deactivate after writer stops; ravel:engineering
+.codex/skills/grove-review-planning	entry	93fc9dd35a98cd98958790c6db7552874fa89685c73f0752dda057d740810a2c	same			164	owner-pack	deactivate after writer stops; ravel:grove-core
+.codex/skills/grove-review-prototype	entry	f320e7fefc77bf17056a48f53bed3af4c05c7f3380b5aedc8b3ef2b521ff97fa	same			165	owner-pack	deactivate after writer stops; ravel:engineering
+.codex/skills/grove-review-requirements	entry	c15db027090a460de217357b7f97c393ebf744217c24360b134b60f628f41ed9	same			166	owner-pack	deactivate after writer stops; ravel:requirements
+.codex/skills/machine-environment	entry	3fa4f12975fd59a6054225a95bd55c76684fd8825c2696a7cdc0d828cbc07aae	same			167	owner-pack	deactivate after writer stops; ravel:personal
+.codex/skills/model-led-development	entry	6d247e91be4e2ee0aba67f1d6d25164cd43705fe5e5bc5cdaa8393b01ad8fe13	same			168	owner-pack	deactivate after writer stops; ravel:design
+.codex/skills/receiving-code-review	entry	c47aee692bbadde84d9b45a72bd41d6b8a35b4b2a2b165872f4a0c0fd8300d36	same			169	stale-copy	deactivate; ravel:superpowers
+.codex/skills/requesting-code-review	entry	171f0af343a4b71f61e5d4dd2a31d519c601e68ae698c3e88010675b3db692a7	same			170	stale-copy	deactivate; ravel:superpowers
+.codex/skills/simplify-project	entry	2bb30896fef0dcd18a69e41d500dfb3455c648db1fc1ca9b6da3689081c60807	same			171	owner-pack	deactivate after writer stops; ravel:engineering
+.codex/skills/subagent-driven-development	entry	e572c6ec3eb7cabb3bd03ea30cd5d8b729f26671b9be9903b29c37b6cfaa5763	same			172	stale-copy	deactivate; ravel:superpowers
+.codex/skills/systematic-debugging	entry	b3a35193d5491c80aff3071f46856b9073f96e6b43e3ab20dac8c2e1fa2b9c5e	same			173	stale-copy	deactivate; ravel:superpowers
+.codex/skills/technical-communication	entry	828d28ec41cdc97299aebd22a483fea7d1bc551be03ff5b3a37fc33ca3757ce5	same			174	owner-pack	deactivate after writer stops; ravel:writing
+.codex/skills/terminal-browser	entry	1d979cd966a65c9a622c1f6c7a6e77a7121d1843b9fb6e2be6e9acde0ffbbac0	same			175	dangling	deactivate (dangling; no reader)
+.codex/skills/test-driven-development	entry	1fb41ac22bf5cdc1af75bb54cd0ee3a499d5d1f3a44315d36fd364f4c7d2c3ed	same			176	stale-copy	deactivate; ravel:superpowers
+.codex/skills/using-codebase-memory	entry	d05c04d1fbdcb2ee625b5018ca4c798c81ad7474d26b658692c1111b4ce6647d	same			177	owner-pack	deactivate after writer stops; ravel:engineering
+.codex/skills/using-git-worktrees	entry	9048959480fb3b01833c239f56d263feeb951359e637b62b8fe7359308539ce3	same			178	stale-copy	deactivate; ravel:superpowers
+.codex/skills/using-jujutsu	entry	389d5139948538263c1ccac0a049e4a8bffb29c8f321706317761d6c7acffd5d	same			179	owner-pack	deactivate after writer stops; ravel:personal
+.codex/skills/using-superpowers	entry	5027fd58886afb70585ab4791b8c334aa0ac785e5484b4795546b49a9f0484d9	same			180	stale-copy	deactivate; ravel:superpowers
+.codex/skills/using-testanyware	entry	0f4a3f9d45d59838b503c9247d481a909b38aca85737b5b5a52c10a27b8a4138	same			181	owner-pack	deactivate after writer stops; ravel:testanyware
+.codex/skills/verification-before-completion	entry	056f50252084afbeae80d3f1443d9fe88b1988a6ea5c759ca2bbdf7360a4c9ea	same			182	stale-copy	deactivate; ravel:superpowers
+.codex/skills/writing-code-walkthroughs	entry	f154efea7b57cec5882a7c1ac430569b94140c2e3895a99d739c88320a983018	same			183	owner-pack	deactivate after writer stops; ravel:writing
+.codex/skills/writing-plans	entry	0fa51d3b5bc270b21ad11ddac53ecba40cbcbcb1b6513e536424c47920c81589	same			184	stale-copy	deactivate; ravel:superpowers
+.codex/skills/writing-skills	entry	ad646e336ec551eb8384f82ca1868bd6fc2d64472b9c8bfcd87b1b2e0c8f5d02	same			185	stale-copy	deactivate; ravel:superpowers
+.agents/skills/authoring-conventions	entry	716a93cf8be1eec53fcd224acd689d49a700eb5dca0b74d5aa6a6c04acbabd5c	same			186	owner-pack	deactivate after writer stops; ravel:personal
+.agents/skills/cli-tool-design	entry	8e3aa8d35f095aa8ba062820256bd6d18ac2d4b2c8be25d3c302773fa9cc73a4	same			187	owner-pack	deactivate after writer stops; ravel:design
+.agents/skills/codebase-design	entry	f4c02a1a25c8ed352336ce526b6460c9b47c50912d9ac30050a70b9ff8679e1c	same			188	owner-pack	deactivate after writer stops; ravel:design
+.agents/skills/coding-style-bash	entry	513ab3b08cb71e3ba6cfcea907f496865d92464637820e3dc8fa28cb6a20b8e2	same			190	owner-pack	deactivate after writer stops; ravel:engineering
+.agents/skills/coding-style-elixir	entry	fa6632bbd6108a8bf618b16d94de3e12e28f4886603d61dcc84c48a9792df5ca	same			191	owner-pack	deactivate after writer stops; ravel:engineering
+.agents/skills/coding-style-python	entry	35f1d1b02cde9f1fcad9c6bd44bc3e927febbcb95173df7090163ad82f47377f	same			192	owner-pack	deactivate after writer stops; ravel:engineering
+.agents/skills/coding-style-rust	entry	cf29d1cd35b666854a5221afba26861d1a29d93b263211d8195b72e4cf05aeae	same			193	owner-pack	deactivate after writer stops; ravel:engineering
+.agents/skills/coding-style-swift	entry	9982be19b88c5891faeba499c4f6aa86620c2c051123d2280ef390b9a397c331	same			194	owner-pack	deactivate after writer stops; ravel:engineering
+.agents/skills/coding-style-typescript	entry	868669cf565957443f2ae64c996410c6e64b17177c7b66895aa9eec16214a3aa	same			195	owner-pack	deactivate after writer stops; ravel:engineering
+.agents/skills/configure-grove	entry	6f81204059bdbb7352f53ad3c81c3fcac0fef45073718e44a526b593d2b756ce	same			196	owner-pack	deactivate after writer stops; ravel:grove-core
+.agents/skills/decision-records	entry	eeb8d36a4122533e0f4519a296dd505b7c7fcce56182b748797f58962861319d	same			197	owner-pack	deactivate after writer stops; ravel:design
+.agents/skills/doubt-driven-development	entry	ea3001ed88186786a891f2c3528ccfd188e370938e9961f2dca85735deb96470	same			198	owner-pack	deactivate after writer stops; ravel:engineering
+.agents/skills/grove	entry	7ca1329be12126b6271d6d06fdbc6ffa184d1c8a88a234987b3e30d0a271a8fc	same			199	owner-pack	deactivate after writer stops; ravel:grove-core
+.agents/skills/grove-art	entry	a8cd022ba14835000fa08e08833c3f966fe12f8287c995a6282da84bb3d169c2	same			200	owner-pack	deactivate after writer stops; ravel:writing
+.agents/skills/grove-combine-research	entry	58f23c22412f1a73edc64b9453ac5715684d287c60283b3e8724d1763ceb4d6c	same			201	owner-pack	deactivate after writer stops; ravel:research
+.agents/skills/grove-copy-edit	entry	d32f372643e112f76fed8e7ba6849deaa84b9359cfe168f50a09d7f8f8bde0e9	same			202	owner-pack	deactivate after writer stops; ravel:writing
+.agents/skills/grove-design	entry	93629aeceaf0393c00c685674a95ff7210bf157ba0a6873781cb8381dbafe17b	same			203	owner-pack	deactivate after writer stops; ravel:design
+.agents/skills/grove-draft	entry	99e899c601a1166e6ca2b8d88a2ebe19c9a5578f352cadc5ed238d740af212aa	same			204	owner-pack	deactivate after writer stops; ravel:writing
+.agents/skills/grove-finish	entry	36537738ec3de4c8697eeeaf62db7181da0f3df798aa1a9f6d82ee8a31ced5e4	same			205	owner-pack	deactivate after writer stops; ravel:grove-core
+.agents/skills/grove-impl	entry	c5d44f896664863bb99f768687a084a48a3c84fab4cbb60ff5fa62eac925e273	same			206	owner-pack	deactivate after writer stops; ravel:engineering
+.agents/skills/grove-integrate-review-design	entry	8a48b299b1d31ece2a53c5eab8f90f78d4b57d377d72779142b6a9432c4f72d8	same			207	owner-pack	deactivate after writer stops; ravel:design
+.agents/skills/grove-integrate-review-impl	entry	8dbb04dc94f158d7d16d62b86a471f12bb5f19c135a595530726684f9e8afa03	same			208	owner-pack	deactivate after writer stops; ravel:engineering
+.agents/skills/grove-integrate-review-planning	entry	4417db926445c2fbd5021480d21111a5b7ef2758093ebea5decb5cd316f30528	same			209	owner-pack	deactivate after writer stops; ravel:grove-core
+.agents/skills/grove-integrate-review-prototype	entry	fa576c932af7dd45979350ca780be37168ea8824fc3de5a4d5024dc61a22ca23	same			210	owner-pack	deactivate after writer stops; ravel:engineering
+.agents/skills/grove-integrate-review-requirements	entry	429b8b31d553b6794a892d5f3780ac6700fbda6bf6fc41c0920a965cd786ddd8	same			211	owner-pack	deactivate after writer stops; ravel:requirements
+.agents/skills/grove-planning	entry	ac0f134540d9ff643adbf642f11a55a306223a1dd1edd3dd6fcc015797410cfa	same			212	owner-pack	deactivate after writer stops; ravel:grove-core
+.agents/skills/grove-proof	entry	5fa38d2d99a3a0be992f0d2ebb960d1efe1051e807fd16338228411141a5e513	same			213	owner-pack	deactivate after writer stops; ravel:writing
+.agents/skills/grove-prototype	entry	009129da2a8e477e3add8518834dd5ae74fd7026548b5e54a03ebc00957b824e	same			214	owner-pack	deactivate after writer stops; ravel:engineering
+.agents/skills/grove-requirements	entry	b0f8acb2513bd2a89cef3960b2dcf407d97be51ef58472cdce6676849b0563c2	same			215	owner-pack	deactivate after writer stops; ravel:requirements
+.agents/skills/grove-research-a	entry	8017f2f906a398613c86f703ebf4a50cbbaf34d3441c2bc389937752d4e762f2	same			216	owner-pack	deactivate after writer stops; ravel:research
+.agents/skills/grove-research-b	entry	cfac0df68664aaf5c7497f370d6c150ba5a2cfc16de096dbc1072a19a7a75f18	same			217	owner-pack	deactivate after writer stops; ravel:research
+.agents/skills/grove-review-design	entry	009d025c48d01b668528f402441802c0d80f1a821f04d18b8b3525ed2532d7d5	same			218	owner-pack	deactivate after writer stops; ravel:design
+.agents/skills/grove-review-impl	entry	42daf3886415b70f47f0bd23bf9f4db675968bd723673f97e1614877dcc88215	same			219	owner-pack	deactivate after writer stops; ravel:engineering
+.agents/skills/grove-review-planning	entry	93fc9dd35a98cd98958790c6db7552874fa89685c73f0752dda057d740810a2c	same			220	owner-pack	deactivate after writer stops; ravel:grove-core
+.agents/skills/grove-review-prototype	entry	f320e7fefc77bf17056a48f53bed3af4c05c7f3380b5aedc8b3ef2b521ff97fa	same			221	owner-pack	deactivate after writer stops; ravel:engineering
+.agents/skills/grove-review-requirements	entry	c15db027090a460de217357b7f97c393ebf744217c24360b134b60f628f41ed9	same			222	owner-pack	deactivate after writer stops; ravel:requirements
+.agents/skills/machine-environment	entry	3fa4f12975fd59a6054225a95bd55c76684fd8825c2696a7cdc0d828cbc07aae	same			223	owner-pack	deactivate after writer stops; ravel:personal
+.agents/skills/model-led-development	entry	6d247e91be4e2ee0aba67f1d6d25164cd43705fe5e5bc5cdaa8393b01ad8fe13	same			224	owner-pack	deactivate after writer stops; ravel:design
+.agents/skills/quint-execute-spec	entry	737689d355a22b7b1d29da63488cd5da75fd57da19368d041e19e988602b8a9e	same			225	third-party-pack	deactivate; ravel:quint
+.agents/skills/quint-lang	entry	7f2d1d6a1879441a56eaf6a0aefa3a1b82f455a0349251e642e9cfdb272bef48	same			226	third-party-pack	deactivate; ravel:quint
+.agents/skills/quint-modeling	entry	e5a25fe1dca935c1b08a051774a5d3532cbcefe1ad88575050eabe33c51f5d31	same			227	third-party-pack	deactivate; ravel:quint
+.agents/skills/simplify-project	entry	2bb30896fef0dcd18a69e41d500dfb3455c648db1fc1ca9b6da3689081c60807	same			228	owner-pack	deactivate after writer stops; ravel:engineering
+.agents/skills/technical-communication	entry	828d28ec41cdc97299aebd22a483fea7d1bc551be03ff5b3a37fc33ca3757ce5	same			229	owner-pack	deactivate after writer stops; ravel:writing
+.agents/skills/terminal-browser	entry	5054d65d8b7232f832d533f95bd085d772d41a6c8148cd4f0ebca6a8aa325889	same			230	dangling	deactivate (dangling; no reader)
+.agents/skills/using-codebase-memory	entry	d05c04d1fbdcb2ee625b5018ca4c798c81ad7474d26b658692c1111b4ce6647d	same			231	owner-pack	deactivate after writer stops; ravel:engineering
+.agents/skills/using-jujutsu	entry	389d5139948538263c1ccac0a049e4a8bffb29c8f321706317761d6c7acffd5d	same			232	owner-pack	deactivate after writer stops; ravel:personal
+.agents/skills/using-testanyware	entry	0f4a3f9d45d59838b503c9247d481a909b38aca85737b5b5a52c10a27b8a4138	same			233	owner-pack	deactivate after writer stops; ravel:testanyware
+.agents/skills/writing-code-walkthroughs	entry	f154efea7b57cec5882a7c1ac430569b94140c2e3895a99d739c88320a983018	same			234	owner-pack	deactivate after writer stops; ravel:writing
+.pi/agent/skills/authoring-conventions	entry	1842b44852767bdcb3c6a479e68a8a163531dfb669f81e0c8eb59409c1708ff3	same			235	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/cli-tool-design	entry	db2d1574030e1fde8d9055cf3dfd6c125f7863ae690b6cfe14740f477968bd6f	same			236	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/codebase-design	entry	61aead5ffe43eb4ccc1c118a27c8262d604aef9e56c6ac987f5e47aec5c5e7cb	same			237	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/coding-style-bash	entry	a2a00391cf51f181ee02dda804e74418c7a87420ac640f2269bdc5da669fd59b	same			239	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/coding-style-elixir	entry	419008a35f59bfe563a021921112a6fe72ce3a0d8524bd6ed24a407d24852f80	same			240	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/coding-style-python	entry	a8c32f53427035d2caa6e0f43752f2aec4bb8222ed1bc7dfd58af99a60b46799	same			241	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/coding-style-rust	entry	613223a939bb4ace16129eceae7cf8da86f625fae2beb26ce0e3b9ea70e4c07e	same			242	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/coding-style-swift	entry	5921c973ccaf542cf21cfa4dc2e6247973bef329eab1b99bba307160a83939b3	same			243	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/coding-style-typescript	entry	fe4c2111d3c31d07de8bfa7dcd4263cc5f481ce48fc908aeb5b4d1904d40f3b5	same			244	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/configure-grove	entry	2c93c5e858d3408251190dcc7780175cf510597e22738469f486a89bbd084292	same			245	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/decision-records	entry	8ce3f3929e4e1d2cb96e74fe5caee1b211f9277cb37cbd93154f27abc1f9a708	same			246	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/doubt-driven-development	entry	3e60f5003425424ac9f1ad7482e09430e2496da5bf2b1cd28d2e2b21dcd8bfbf	same			247	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove	entry	1716e08f97d1d4c7bf9da1632e8ac0e9d34c02446f9365d31ee875299a364eff	same			248	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-art	entry	d68368aba8993c49ca84d6ba442b9d3c7234879618c64a4868a5a63db1782a46	same			249	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-combine-research	entry	b46e8eec402cf166268fdbd6648534fa7482cdae1c4bf46e4a092ad069125060	same			250	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-copy-edit	entry	c73e37b40b4036fb38dcb63891b57835fd808414d927672ea8b603323014f854	same			251	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-design	entry	f93034776b93a6a255c614103ff229dcb5790b120eef58a74c793d07ad5df1ac	same			252	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-draft	entry	0c1509a6280d4f9d281656ff5ec5c22a8cb2b30c38dfa4be22f592069d68663f	same			253	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-finish	entry	1c248e5c18792a846bc664ff0d412413d4b11edab0165a2e9aa89d0fd5abb594	same			254	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-impl	entry	667f8fb6b9fd6b43632625e41925cb11b738f0077d0a0e00cfac57731f755eda	same			255	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-integrate-review-design	entry	8842e0b531815f2189bbdb7b9516b0f43c06fe23f46982776ffa9d9744ee508a	same			256	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-integrate-review-impl	entry	5eeb9ccb74ae8a629574e879d324434f779bc32f5b9e22ce11b5cb0ac6984c21	same			257	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-integrate-review-planning	entry	ceb8131c431ca0d2d1401a18e46c4bac0f4e8ebe07727e4f0cd5866186d664f3	same			258	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-integrate-review-prototype	entry	f67ff431059eda5f993bd5816dcb6f373332dc5d5e8a281146a6066634b55a51	same			259	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-integrate-review-requirements	entry	3a502bde9faffb7a6654a6cd1bf96341e9bb0e412dbc99b6f0f3e7f1e029b5eb	same			260	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-planning	entry	80eca62af033fe744c2270dc9254e7cb40dc3dbb8c53bb440979145ac3e5d0d3	same			261	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-proof	entry	d8199f004a5238464d9ad6dd677eee40d22783ef60a6052f6122c25ed168a911	same			262	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-prototype	entry	2d287f5da35d54832c57fa039c986055b9ca51c499cd81707cd1e576bb5b4703	same			263	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-requirements	entry	4760c7a1c56f20d47317d4f6aa8746a8b4a7549bd019597108d75959cf3bdaff	same			264	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-research-a	entry	45bfc55edf347207244fb2ae533ad5a6f8d65992e5f75f9ef8f6275b4515ac99	same			265	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-research-b	entry	9e0f9927566cd079974d5abddfaaf8e05df85a13654206f53b5d44e312a784db	same			266	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-review-design	entry	ac95d3ec21a14397720e2a80695e43cd58d7de887707c2dc191823da20fae66b	same			267	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-review-impl	entry	40330193a06d2b39a5e0bd387078116c83650930ef38aaf23e9e94d12a38ccc5	same			268	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-review-planning	entry	e0f33b604bbb41403ffa6d20eb5f032e58ee1ddf35792dd1b0639b8a45782ba6	same			269	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-review-prototype	entry	9326ef09bd9b16403fef2243ae70eb744fcdef9a0df343e23975706e31eb001f	same			270	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/grove-review-requirements	entry	c3081ef199260104ec20e7a54d15fbce51e5b2368a6840a0e89956aec0c22c25	same			271	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/machine-environment	entry	9cbdefa87e53a0acf0356b4408041ee1185dfc414a4e5f0b939f7bba58b4acac	same			272	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/model-led-development	entry	b34458f7062c316f413b5158077379770345e8c27cd9cf8ced0ac1fd009ce601	same			273	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/simplify-project	entry	1bbdca36e2a5d2134323a03d1bcca6908b8b9140a0ee1a344c7d3649ae30a9bb	same			274	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/technical-communication	entry	ed5b3ccbd1f7f4569c4c824a35491c03336ba7a7b216b5b704548f2ecef0a61e	same			275	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/using-codebase-memory	entry	e525955cfaa6ac62093a3da1163ae39059ad73d2795c627988832f7f8504f09d	same			276	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/using-jujutsu	entry	48e5156686c87153ec60235ee733997accbf99120060674a32c351f6976740c4	same			277	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/using-testanyware	entry	ec763424d8080cd5b0b55997c8173447628e9db334c0578dfaab5e5de4c07368	same			278	dangling	deactivate (dangling; no reader)
+.pi/agent/skills/writing-code-walkthroughs	entry	9269352b2107ae7d46e8de60cd8a1ea5e97b88ac0949f71458e1c3c029b1f979	same			279	dangling	deactivate (dangling; no reader)
+.pi/agent/extensions/technical-communication.ts	entry	f1bc4e4cbd71a4518608ac8fac0dba0d11266121c78a239d36e319fd12385213	same			354	dangling	deactivate (dangling; no reader)
+.claude/settings.json	file	46e949c97e1765ca2b743a89ecbe2ae4579edc8d343e6cdfa0826dac0f1ffd95	same	enabledPlugins.grove@linkuistics	false	18	owner-pack	disable
+.claude/settings.json	file	46e949c97e1765ca2b743a89ecbe2ae4579edc8d343e6cdfa0826dac0f1ffd95	same	enabledPlugins.linkuistics@linkuistics	false	45	owner-pack	disable; hooks move to skill-free plugin; guardrail to native-only plugin
+.claude/settings.json	file	46e949c97e1765ca2b743a89ecbe2ae4579edc8d343e6cdfa0826dac0f1ffd95	same	enabledPlugins.testanyware@linkuistics	false	101	owner-pack	disable
+.claude/settings.json	file	46e949c97e1765ca2b743a89ecbe2ae4579edc8d343e6cdfa0826dac0f1ffd95	same	enabledPlugins.superpowers@claude-plugins-official	false	84	third-party-pack	disable; SessionStart prose becomes Ravel mandatory file
+.claude/settings.json	file	46e949c97e1765ca2b743a89ecbe2ae4579edc8d343e6cdfa0826dac0f1ffd95	same	enabledPlugins.quint-llm-kit@quint-llm-kit	false	75	third-party-pack	disable
+.claude/settings.json	file	46e949c97e1765ca2b743a89ecbe2ae4579edc8d343e6cdfa0826dac0f1ffd95	same	enabledPlugins.technical-communication-hooks@writing-hooks	true		native residue	installed disabled before the switch; enabled at step 6
+.claude/settings.json	file	46e949c97e1765ca2b743a89ecbe2ae4579edc8d343e6cdfa0826dac0f1ffd95	same	enabledPlugins.guardrail@personal	true		native residue	installed disabled before the switch; enabled at step 6
+.claude/plugins/known_marketplaces.json	file	b292a05ef39ee9e131e52ed15fd5c232cfdeb33df3dd8f9a7cf0ccba3b4c6c31	same				Claude Code registry	written by the hooks installation's commands
+.claude/plugins/installed_plugins.json	file	68c86dada752cb476764ddb52eb3887379655ad03f002c045f49451219a5e760	same				Claude Code registry	written by the hooks installation's commands
+.config/ravel/settings.json	file	b0fda62224cefb05af731020533a251c7747506cd0be7abec754d5931069c55a	absent	skills	settings-switched.json		Ravel settings	native-off writes the off value before the switch, so the original is its file; the switch writes the switched value last; restore writes the original whole and then runs native-off, which enforces the off value over an older backup's absent key, the one exception to whole-file restoration

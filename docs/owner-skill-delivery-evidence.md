@@ -6462,7 +6462,8 @@ in this workspace, which the finish sequence keeps. Before finish, the main
 checkout holds an earlier runner without `rerun`. Its content would change
 when finish moves `main`, and the dry-run comparison would then report a
 changed input. owner-switch-plan-k254 can choose another path whose content
-stays the same through the switch.
+stays the same through the switch. It chose a frozen copy in the prepared
+folder, as [The frozen staging runner](#the-frozen-staging-runner) states.
 
 The command name is `<trial>-<harness>`, or `sources` for the source trials.
 The Claude Code compaction trial adds `--model claude-opus-5-5 --effort high`,
@@ -7414,3 +7415,212 @@ enabled plugin holds a marker. `~/.local/share/claude/versions` holds 2.1.319,
 - The `env` block reaches only a session that reads the user settings.
 - The check after one day belongs to a separate leaf before
   owner-switch-rehearsal-k255.
+
+## Owner switch plan
+
+owner-switch-plan-k254 completed the real switch plan on 2026-11-11. It
+placed the plan, the program and their helpers in the owner's prepared
+folder `/Users/antony/.local/state/owner-switch/prepared`. The sections
+[The switch inside finish](specs/owner-skill-delivery.md#the-switch-inside-finish),
+[Resuming the switch](specs/owner-skill-delivery.md#resuming-the-switch) and
+[The rehearsed plan](specs/owner-skill-delivery.md#the-rehearsed-plan) own
+the rules.
+
+### Result
+
+The plan is [`switch-plan-draft.json`](owner-cutover/switch-plan-draft.json),
+SHA-256 `abb8ab18c7cc3c425565eb8ddeae95199471c14d6b257e2cd9712e5659f2193b`.
+The prepared `plan.json` holds the same bytes. The read-only plan report
+against the real HOME exited 0 and changed none of 330 identities.
+`mac-check --only "Owner skill switch"` reports "Native skill delivery is
+verified against the prepared plan."
+
+The plan changes only through `task owner:switch-plan:draft`. A second draft
+gave the same bytes. `task owner:switch-plan:prepare` copies the files into
+the prepared folder after a digest check of each planned input. It writes no
+other path.
+
+### The accepted values
+
+`accepted.sources` holds the ten digests of
+[The accepted sources](#the-accepted-sources). The draft reads that table
+and stops unless the moves record names the same formula and digest for
+each source.
+
+`accepted.versions` holds the full package versions of
+[Publication](#publication), with their Homebrew revisions:
+
+| Formula | Accepted version |
+| --- | --- |
+| `linkuistics/taps/personal` | `2026-11-06_1` |
+| `linkuistics/taps/testanyware` | `2.8.0_1` |
+| `linkuistics/taps/superpowers` | `7.0.0_1` |
+| `linkuistics/taps/quint-llm-kit` | `1.0.0_1` |
+
+Grove's version comes from step 4, because Grove's release inside finish
+sets it. Step 4 now admits three values: `grove_version`, the full package
+version that names the keg, `grove_binary_version`, which `grove --version`
+prints, and `grove_revision`, the tap's revision. Before this change the
+result held the full package version only. Step 5 compares the full package
+version. The new control `grove-revision-admitted` links a Grove keg
+`1_1` whose binary prints `grove 1`. Step 4 admitted `1_1`, `1` and `1`,
+and step 5 accepted `1_1`.
+
+`accepted.trials` holds the 21 commands of [Trials for gate 4](#trials-for-gate-4):
+five for `grove-core`, one each for `requirements` and `research`, three
+for `design`, seven for `engineering` and two for `writing`. The Claude Code
+compaction trial adds `--model claude-opus-5-5 --effort high`.
+
+`accepted.staging` names `/Users/antony/.local/state/owner-staging/home` and
+`/Users/antony/.local/state/owner-staging/candidate`. Both exist, and the
+candidate keg holds `2a24d5e61f29`.
+
+### The frozen staging runner
+
+The trial commands run the runner at
+`/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py`.
+Neither repository path stays the same through finish. The main checkout
+gains `rerun` only when finish moves `main`. Finish rebases this workspace
+onto `main`, so its working copy can change too.
+
+The runner finds `harness_trial.py`, `staging_home.py`, the cases, the
+settings drafts and the launch wrapper by their places in the repository.
+`staging/` therefore copies 23 files at their repository paths. A static
+pass loaded the copy and found each of its seven repository paths inside
+`staging/`. It loaded each named case.
+
+Two runs used gate 4's environment. HOME and the working folder were the
+staging HOME, and `CODEX_HOME` was its `.codex` tree. No `RAVEL_*`, Grove
+or Claude Code location variable was set.
+
+| Run | Result |
+| --- | --- |
+| `rerun --trial sources` for `research` with a wrong digest | Exit 1 before any launch, with the acceptance work in the message |
+| The same command with the accepted digest | Passed. Record `trials/rerun-research-sources-20261111T035110Z/record.json`, SHA-256 `84b87d4cf86c1109e06834752f15a042ea0e3c35c3cb9de10c5e019442410bcf`. |
+
+Each run of the runner writes `__pycache__` beside its modules. These folders
+are no plan input. This leaf removed the two from its own run.
+
+### The write set
+
+The plan names 158 writes: 154 entries and four files. The entries and the
+three Claude Code files are as in
+[Owner switch contraction](#owner-switch-contraction), with identities of the
+real HOME now. [`switch-plan-writes.tsv`](owner-cutover/switch-plan-writes.tsv)
+states each write's planned original and its identity now. Each write except
+one has its planned original in the real HOME now.
+
+The exception is `.config/ravel/settings.json`. The real HOME has no such
+file. Finish runs `native-off` before the switch, and the switch compares
+each planned original, as [Quiet interval in staging](#quiet-interval-in-staging)
+found. The plan therefore names the file that `native-off` writes, identity
+`b0fda62224cefb05af731020533a251c7747506cd0be7abec754d5931069c55a`. The draft
+computes it with the program's own `native-off` in a disposable HOME that
+copies the real `.config/ravel`.
+
+The write table records the off-value exception. Restore writes the Ravel
+settings whole, then runs `native-off`. Over an older backup that records an
+absent key, that step enforces the off value. It is the one exception to
+whole-file restoration.
+
+The plan keeps `assertions` and `native_assertions` apart from the restore
+identities of `writes`. The native assertion of the Ravel settings accepts
+the off value or an absent key, so `mac-check` reports native delivery
+before finish.
+
+The plan holds no `session.mcp` field, no process pattern, no cell field and
+no part recovery field. Its fields are those of `owner-switch-plan/2`, and
+the check found no field outside the schema.
+
+### Command inputs and prefixes
+
+The plan names 28 command inputs by content. The program runs no file that
+the inputs leave out:
+
+- The prepared program, the baseline instrument `inventory.py`, the probe
+  program and its helper `harness_trial.py`.
+- The 23 files of the frozen staging runner. Each has its own role.
+- `mac-check` and its helper `check.py`.
+
+The interpreters and the external tools are rows of the dry run's input
+table, not plan inputs. The plan's commands use `$python`, the interpreter
+that runs the program.
+
+The comparison allows three logical prefix substitutions. `home` maps the
+dry run's `<OUT>/home` to `/Users/antony`. `grove-keg` maps the candidate keg
+to the released keg that `/opt/homebrew/opt/grove` reaches. `ravel` maps the
+`ravel@2` keg to the promoted keg that `/opt/homebrew/opt/ravel` reaches. The
+prepared instructions name the comparison command with these prefixes.
+
+### The prepared folder
+
+`INSTRUCTIONS.md` is
+[`prepared-instructions.md`](owner-cutover/prepared-instructions.md). It
+names the exact `native-off`, `status`, comparison, `attempt` and
+`restore --backup` commands with the interpreter
+`/opt/homebrew/opt/python@3.14/bin/python3.14`. It also states the fields of
+the attempt note. It stays readable after `.grove/` teardown.
+
+| File | SHA-256 |
+| --- | --- |
+| `plan.json` | `abb8ab18c7cc3c425565eb8ddeae95199471c14d6b257e2cd9712e5659f2193b` |
+| `owner_switch.py` | `76ed17260bb1e0305c3011ec2c6d5eab171b1454a498a2a5e6ceef9cba090f7d` |
+| `inventory.py` | `93a6c14e76304ffa2cd5ca79d728a743597ce75c3c1b96462b1dd4047bde16c5` |
+| `owner_switch_probes.py` | `176d89c865de1b9dcc22580e52bdeef0cb08aa8bf1026730144b32bc21933488` |
+| `harness_trial.py` | `917d67517063932f8b334049a217e8b6c3d0f43020c08ec5a22c2864a2bec83d` |
+| `owner_switch_dry_run.py` | `656f5fec09442c1c4e36f6d029afbc97ad4b172ade37292de2753932d7ab0911` |
+| `INSTRUCTIONS.md` | `14bcf8e6ace63d108049fb8604fbbed196d1fd323b61144f39af6cd0845c1dc1` |
+| `staging/docs/evaluations/owner-skill-delivery/staging_trial.py` | `a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b` |
+| `staging/docs/evaluations/owner-skill-delivery/staging_home.py` | `a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b` |
+| `staging/docs/evaluations/owner-skill-delivery/inventory.py` | `93a6c14e76304ffa2cd5ca79d728a743597ce75c3c1b96462b1dd4047bde16c5` |
+| `staging/scripts/harness_trial.py` | `917d67517063932f8b334049a217e8b6c3d0f43020c08ec5a22c2864a2bec83d` |
+| `staging/scripts/harness-trials/builds.json` | `29569fef4fc8e64b1ecf8b8f74d1eb85e10c8bfe0c136a4560763f69c3b5cfdf` |
+| `staging/scripts/harness-trials/trial-launch.sh` | `59d3115f29d689e022377e550378ab44d34b7f2fbc19a98f489b52c14fd1618d` |
+| `staging/docs/owner-cutover/settings-off.json` | `6cdd20fd11675506d53584624ff8d8333c4f3c1f3d0c93b36c275865a7f306fa` |
+| `staging/docs/owner-cutover/settings-staging.json` | `d8a49f066310b0976cb4e13674c524d96d31b6aa0ba5bfc6923fc0b097623145` |
+
+The plan's `inputs` name the digest of each of the 14 case and tree files.
+The probe program's digest equals that of the quiet-interval measurement.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| `task owner:switch-plan:check` | Passed. The report exited 0, each original was in place after `native-off`, the inventory matched and the native assertions held. All ten controls passed. |
+| `owner_switch.py report` of the prepared plan against the real HOME | Exit 0, "nothing written". It lists each write with its original and its identity now, each set value with its value now, each input and each command. 330 identities of writes and inventory entries were the same before and after. |
+| `mac-check --only "Owner skill switch"` | OK, native delivery |
+| `task owner:switch:rehearse` | Passed all 168 controls, with the new `grove-revision-admitted`. A mutant that admits revision 0 failed that control only. |
+| `bash scripts/check.sh` | All 18 principal checks passed |
+
+The report lists the gates, the probes, the native probes and `mac_check`.
+It does not list the trial commands of `accepted.trials`, which gate 4 runs
+only when a source differs.
+
+### Processes that stop the switch now
+
+`native-off` in the draft's first disposable HOME refused, because another
+Ravel process ran. That process is PID 27230, a Ravel 1.1.0 fixture of
+22 October in a removed temporary folder. Its parent is launchd, and its
+child is a `harness.sh` of a standalone `release-notes` invocation. It ran
+for 19 days. This leaf signalled no process.
+
+The draft and the check now give `native-off` in a disposable HOME an empty
+`OWNER_SWITCH_REHEARSAL_SCOPE`, since that HOME has no other writer. The
+program refuses that scope in the real HOME, so finish's `native-off` still
+refuses while PID 27230 runs.
+
+The check's process listing named 21 other tool processes and 11 that need
+review. Each stops the switch now. They include orphaned Codex app-server
+daemons of earlier trials, two debug `grove` builds in
+`/private/tmp/grove-session-recovery`, the Ravel fixture above and stale
+`uv run pytest` and Python processes. The owner ends each before the dry run
+and before finish. The checklist owns that step.
+
+### Limits
+
+- The plan names a dry-run result at
+  `/Users/antony/.local/state/owner-switch/dry-run/result.json` in the
+  comparison command. owner-switch-rehearsal-k255 writes that result.
+- A change to the plan, the program, a helper, a command input or a tool
+  version after this leaf needs another dry run.
+- The real HOME holds no backup, attempt note or receipt.

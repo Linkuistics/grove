@@ -98,3 +98,29 @@ planned original. The real plan therefore needs the identity of the file
 that `native-off` writes. `native-off` is deterministic, so a disposable
 HOME can compute it. The section "Quiet interval in staging" of
 `docs/owner-skill-delivery-evidence.md` records the refusal.
+
+## Decisions (running log)
+
+- The trial runner of `accepted.trials` is a frozen copy in
+  `<state>/prepared/staging`, at its repository paths. Reason: the runner
+  finds its helpers, cases, settings drafts and launch wrapper by their
+  repository places. The main checkout lacks `rerun` until finish moves
+  `main`, and finish's rebase can change this workspace. The plan names
+  each of the 23 copied files as an input.
+- The Ravel settings original is the file that `native-off` writes, computed
+  by the program in a disposable HOME. The write table adds a column with
+  each write's identity in the real HOME now, so the plan states both.
+- Step 4 now admits `grove_binary_version` and `grove_revision` beside the
+  full package version. The control `grove-revision-admitted` covers it.
+- `switch_plan_draft.py prepare` and `task owner:switch-plan:prepare` write
+  the prepared folder after a digest check of each planned input. The
+  comparison instrument and `INSTRUCTIONS.md` go there too.
+- The accepted sources now come from "Staging acceptance", and the draft
+  stops unless the moves record names the same digests.
+- A 19-day-old Ravel fixture, PID 27230, made `native-off` refuse even in a
+  disposable HOME. The draft scopes the disposable process inspection to an
+  empty folder, which the program refuses in the real HOME. This leaf
+  signalled no process. The owner ends the leftovers before the dry run.
+- Verification: the check passed with ten controls. The report against the
+  real HOME changed none of 330 identities. `mac-check` reports native
+  delivery. The frozen runner passed `rerun --trial sources` for `research`.

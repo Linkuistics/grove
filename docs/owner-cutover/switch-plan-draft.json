@@ -1085,7 +1085,7 @@
       "path": ".claude/settings.json",
       "type": "file",
       "original": {
-        "identity": "f66e2a8b1903737efa53447ea92cc71b3a772645a34e71b8d88748fabf77a5ff"
+        "identity": "46e949c97e1765ca2b743a89ecbe2ae4579edc8d343e6cdfa0826dac0f1ffd95"
       },
       "set": [
         {
@@ -1143,21 +1143,21 @@
       "path": ".claude/plugins/known_marketplaces.json",
       "type": "file",
       "original": {
-        "identity": "572472b7d6bb5c122189676caa5af7a46ef57b427f73fd0fef8cdba0f85e75bd"
+        "identity": "b292a05ef39ee9e131e52ed15fd5c232cfdeb33df3dd8f9a7cf0ccba3b4c6c31"
       }
     },
     {
       "path": ".claude/plugins/installed_plugins.json",
       "type": "file",
       "original": {
-        "identity": "ac1880bad5d3e7c55e8a222eb1d160d61da97496f462e35a2e2c6b9745b2f273"
+        "identity": "68c86dada752cb476764ddb52eb3887379655ad03f002c045f49451219a5e760"
       }
     },
     {
       "path": ".config/ravel/settings.json",
       "type": "file",
       "original": {
-        "absent": true
+        "identity": "b0fda62224cefb05af731020533a251c7747506cd0be7abec754d5931069c55a"
       },
       "set": [
         {
@@ -1609,12 +1609,132 @@
     {
       "role": "program",
       "path": "$program",
-      "digest": "029f81af4c26d9d159ed450dc37eb5a434ea10ec9e2092cc7f24e46cf8e21379"
+      "digest": "76ed17260bb1e0305c3011ec2c6d5eab171b1454a498a2a5e6ceef9cba090f7d"
     },
     {
       "role": "baseline instrument",
       "path": "/Users/antony/.local/state/owner-switch/prepared/inventory.py",
       "digest": "93a6c14e76304ffa2cd5ca79d728a743597ce75c3c1b96462b1dd4047bde16c5"
+    },
+    {
+      "role": "probe program",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "digest": "176d89c865de1b9dcc22580e52bdeef0cb08aa8bf1026730144b32bc21933488"
+    },
+    {
+      "role": "probe helper harness_trial.py",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
+      "digest": "917d67517063932f8b334049a217e8b6c3d0f43020c08ec5a22c2864a2bec83d"
+    },
+    {
+      "role": "staging runner file scripts/harness_trial.py",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness_trial.py",
+      "digest": "917d67517063932f8b334049a217e8b6c3d0f43020c08ec5a22c2864a2bec83d"
+    },
+    {
+      "role": "staging runner file scripts/harness-trials/builds.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness-trials/builds.json",
+      "digest": "29569fef4fc8e64b1ecf8b8f74d1eb85e10c8bfe0c136a4560763f69c3b5cfdf"
+    },
+    {
+      "role": "staging runner file scripts/harness-trials/trial-launch.sh",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness-trials/trial-launch.sh",
+      "digest": "59d3115f29d689e022377e550378ab44d34b7f2fbc19a98f489b52c14fd1618d"
+    },
+    {
+      "role": "staging runner",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging_home.py",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/inventory.py",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/inventory.py",
+      "digest": "93a6c14e76304ffa2cd5ca79d728a743597ce75c3c1b96462b1dd4047bde16c5"
+    },
+    {
+      "role": "staging runner file docs/owner-cutover/settings-off.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/owner-cutover/settings-off.json",
+      "digest": "6cdd20fd11675506d53584624ff8d8333c4f3c1f3d0c93b36c275865a7f306fa"
+    },
+    {
+      "role": "staging runner file docs/owner-cutover/settings-staging.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/owner-cutover/settings-staging.json",
+      "digest": "d8a49f066310b0976cb4e13674c524d96d31b6aa0ba5bfc6923fc0b097623145"
+    },
+    {
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json",
+      "digest": "111e4bcdeec6ad4329827449cd7129dc5e8009f5a9566338a9db573af1b6672c"
+    },
+    {
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/compaction.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/compaction.json",
+      "digest": "3f644af34706548164a108c242bb3f406c5955a602f61d56c9262e4ac5d63502"
+    },
+    {
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/delegate.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/delegate.json",
+      "digest": "849dff902c5989ca373473f2a87049fa437d438769adefd9ee08c3c48fadefe9"
+    },
+    {
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/discovery.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/discovery.json",
+      "digest": "293b8a3cda8d77cc635b671b893fee5117e3bc33bc40386af0d47cf19fcd5f5a"
+    },
+    {
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/guidance-probe.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/guidance-probe.json",
+      "digest": "54188df33e453fe1638046116c103b6afb24e13a0c97b3835af7ebf1933b7de9"
+    },
+    {
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/kind-skill.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/kind-skill.json",
+      "digest": "935b03141173214358200a06b69b6856facc2e415e566fe7c932ff0d54354068"
+    },
+    {
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/native-residue.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/native-residue.json",
+      "digest": "7c5569c04adf87662e04c5129356c46f1177de69b585ae88cdad51b707bb25c1"
+    },
+    {
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/quint-mcp.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/quint-mcp.json",
+      "digest": "cfd378ef9934c239881cfcc717c076025cfa3992e5d23362cef7f01e99d7eaff"
+    },
+    {
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/stale-copy.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/stale-copy.json",
+      "digest": "d7a69e8537255f109700d37ff57272c595ab51c0a53c22479f4ca36140a2003f"
+    },
+    {
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json",
+      "digest": "ce9ac8037f0f47670987f856fc510915b6d465f78c04f1570a29ff4af3e632a2"
+    },
+    {
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json",
+      "digest": "5cd604038c6cade999601334d51e80403cec21759ac2f559abb80e49e760d351"
+    },
+    {
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/user-invoked.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/user-invoked.json",
+      "digest": "e9941d804ea18a3e685361ce79460fc631380dd9227b4b68b3788e681ac42ab0"
+    },
+    {
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/01-planning--word-tools-k1.md",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/01-planning--word-tools-k1.md",
+      "digest": "a68628eb9171033b9c110e051b7ae1b9f68c4b69ec6c32a3e0a61a85b501cf8c"
+    },
+    {
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/_BRIEF.md",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/_BRIEF.md",
+      "digest": "69af98f8c7bd7ffb33159cd972cc2cb4131ec9a8a7412866c4df0a8ca66f42a3"
     },
     {
       "role": "mac-check command",
@@ -1624,12 +1744,7 @@
     {
       "role": "mac-check helper",
       "path": "/Users/antony/.local/lib/machine-config/check.py",
-      "digest": "5c7a3bd43c08e43e02859c6c0c22edcb59e0bf0b38dcbe7b040784be247e9201"
-    },
-    {
-      "role": "probe program",
-      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
-      "digest": "176d89c865de1b9dcc22580e52bdeef0cb08aa8bf1026730144b32bc21933488"
+      "digest": "e3dea9b9b302e2dbb51d570bb20243d7fe53c2e2033f827304528b5966ff473e"
     }
   ],
   "assertions": [
@@ -2526,61 +2641,404 @@
     "trials": {
       "design": [
         {
-          "name": "provisional-design",
+          "name": "sources",
           "argv": [
-            "/bin/sh",
-            "-c",
-            "echo 'provisional staging trial of design: owner-switch-plan-k254 replaces it' >&2; exit 1"
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "sources"
+          ]
+        },
+        {
+          "name": "discovery-claude",
+          "argv": [
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "discovery",
+            "--harness",
+            "claude"
+          ]
+        },
+        {
+          "name": "discovery-codex",
+          "argv": [
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "discovery",
+            "--harness",
+            "codex"
           ]
         }
       ],
       "engineering": [
         {
-          "name": "provisional-engineering",
+          "name": "sources",
           "argv": [
-            "/bin/sh",
-            "-c",
-            "echo 'provisional staging trial of engineering: owner-switch-plan-k254 replaces it' >&2; exit 1"
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "sources"
+          ]
+        },
+        {
+          "name": "delegate-claude",
+          "argv": [
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "delegate",
+            "--harness",
+            "claude"
+          ]
+        },
+        {
+          "name": "delegate-codex",
+          "argv": [
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "delegate",
+            "--harness",
+            "codex"
+          ]
+        },
+        {
+          "name": "compaction-claude",
+          "argv": [
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "compaction",
+            "--harness",
+            "claude",
+            "--model",
+            "claude-opus-5-5",
+            "--effort",
+            "high"
+          ]
+        },
+        {
+          "name": "compaction-codex",
+          "argv": [
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "compaction",
+            "--harness",
+            "codex"
+          ]
+        },
+        {
+          "name": "codebase-memory-mcp-claude",
+          "argv": [
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "codebase-memory-mcp",
+            "--harness",
+            "claude"
+          ]
+        },
+        {
+          "name": "codebase-memory-mcp-codex",
+          "argv": [
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "codebase-memory-mcp",
+            "--harness",
+            "codex"
           ]
         }
       ],
       "grove-core": [
         {
-          "name": "provisional-grove-core",
+          "name": "sources",
           "argv": [
-            "/bin/sh",
-            "-c",
-            "echo 'provisional staging trial of grove-core: owner-switch-plan-k254 replaces it' >&2; exit 1"
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "sources"
+          ]
+        },
+        {
+          "name": "kind-skill-claude",
+          "argv": [
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "kind-skill",
+            "--harness",
+            "claude"
+          ]
+        },
+        {
+          "name": "kind-skill-codex",
+          "argv": [
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "kind-skill",
+            "--harness",
+            "codex"
+          ]
+        },
+        {
+          "name": "stale-copy-claude",
+          "argv": [
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "stale-copy",
+            "--harness",
+            "claude"
+          ]
+        },
+        {
+          "name": "stale-copy-codex",
+          "argv": [
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "stale-copy",
+            "--harness",
+            "codex"
           ]
         }
       ],
       "requirements": [
         {
-          "name": "provisional-requirements",
+          "name": "sources",
           "argv": [
-            "/bin/sh",
-            "-c",
-            "echo 'provisional staging trial of requirements: owner-switch-plan-k254 replaces it' >&2; exit 1"
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "sources"
           ]
         }
       ],
       "research": [
         {
-          "name": "provisional-research",
+          "name": "sources",
           "argv": [
-            "/bin/sh",
-            "-c",
-            "echo 'provisional staging trial of research: owner-switch-plan-k254 replaces it' >&2; exit 1"
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "sources"
           ]
         }
       ],
       "writing": [
         {
-          "name": "provisional-writing",
+          "name": "sources",
           "argv": [
-            "/bin/sh",
-            "-c",
-            "echo 'provisional staging trial of writing: owner-switch-plan-k254 replaces it' >&2; exit 1"
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "sources"
+          ]
+        },
+        {
+          "name": "native-residue-claude",
+          "argv": [
+            "$python",
+            "-I",
+            "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+            "rerun",
+            "--home",
+            "/Users/antony/.local/state/owner-staging/home",
+            "--candidate",
+            "/Users/antony/.local/state/owner-staging/candidate",
+            "--ravel",
+            "/Users/antony/.local/state/owner-staging/ravel-2.0",
+            "--trials",
+            "/Users/antony/.local/state/owner-staging/trials",
+            "--trial",
+            "native-residue",
+            "--harness",
+            "claude"
           ]
         }
       ]

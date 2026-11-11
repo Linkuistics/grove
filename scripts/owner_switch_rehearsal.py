@@ -3008,7 +3008,8 @@ def c_gates_evidence(case):
     expect("compare with finish's own skill listing: claude | built-in | debug" in out,
            "step 3 did not print the built-in row for finish's listing")
     four = backup_evidence(note, "4")[0]["result"]
-    expect(four["admitted"] == {"grove_version": "1", "digests": {}} and four["reran"] == [],
+    expect(four["admitted"] == {"grove_version": "1", "grove_binary_version": "1", "grove_revision": 0,
+                                "digests": {}} and four["reran"] == [],
            f"step 4 admitted {four.get('admitted')}")
     six = backup_evidence(note, "6")[0]["result"]
     expect(sorted(six["sources"]) == sorted(load(case.r.plan, {})["accepted"]["sources"]), "step 6 kept other sources")
@@ -3096,6 +3097,18 @@ def c_opt_elsewhere(case):
 def c_grove_version(case):
     write_script(os.path.join(case.root, "prefix/Cellar/grove/1/bin/grove"), "#!/bin/sh\necho 'grove 0'\n")
     switch_refused(case, "printed 'grove 0', not 'grove 1'")
+
+
+def c_grove_revision(case):
+    """The tap revises Grove: step 4 admits the package revision apart from the binary version."""
+    relink_formula(case, "grove", "1_1")
+    case.set_control({"tap_grove": "1_1"})
+    note, _ = switched(case)
+    four = backup_evidence(note, "4")[0]["result"]
+    expect(four["admitted"] == {"grove_version": "1_1", "grove_binary_version": "1", "grove_revision": 1,
+                                "digests": {}}, f"step 4 admitted {four.get('admitted')}")
+    five = backup_evidence(note, "5")[0]["result"]
+    expect(five["formulae"].get("linkuistics/taps/grove") == "1_1", f"step 5 accepted {five.get('formulae')}")
 
 
 def c_formula(override: dict, text: str):
@@ -3392,6 +3405,7 @@ def gate_controls() -> list:
         ("grove-opt-elsewhere", c_opt_elsewhere, SERIAL_ARGS),
         ("grove-source-outside-payload", c_grove_source_outside_payload, SERIAL_ARGS),
         ("grove-version-differs", c_grove_version, SERIAL_ARGS),
+        ("grove-revision-admitted", c_grove_revision, SERIAL_ARGS),
         ("formula-missing", c_formula({"linkuistics/taps/personal": {"state": "missing"}},
                                       "step 5: linkuistics/taps/personal is missing, not installed"), SERIAL_ARGS),
         ("formula-undeclared", c_formula({"linkuistics/taps/testanyware": None},

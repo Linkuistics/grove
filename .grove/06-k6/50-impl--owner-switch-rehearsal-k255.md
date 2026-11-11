@@ -28,6 +28,17 @@ comparison with the real inputs.
   `listing` observation failed, so the probe still failed. The section
   "Core candidate restaging" of `docs/owner-skill-delivery-evidence.md`
   holds the records.
+- owner-switch-plan-k254 prepared the plan, SHA-256 `abb8ab18…`, in
+  `~/.local/state/owner-switch/prepared`. Its `INSTRUCTIONS.md` names the
+  comparison command with the result
+  `~/.local/state/owner-switch/dry-run/result.json`. Retain the result
+  there, or change the instructions and prepare again. The trial commands
+  run a frozen staging runner in `prepared/staging`. The section "Owner
+  switch plan" of `docs/owner-skill-delivery-evidence.md` names each digest.
+- On 2026-11-11, 21 leftover tool processes and 11 that need review would
+  stop the switch. They include the orphaned Ravel fixture PID 27230, which
+  also makes the real `native-off` refuse. The section "Processes that stop
+  the switch now" names them. The owner ends them before the dry run.
 
 ## Done when
 

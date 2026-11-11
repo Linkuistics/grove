@@ -195,8 +195,8 @@ has the digest OWNER_SWITCH_PLAN_DIGEST.
        to its own .codex tree. Stop if a source has no trial, a trial fails,
        or the staging HOME or the candidate keg is missing. Each source must
        come from its private payload libexec/skill-sources/<id> in that keg.
-       The result admits Grove's full package version and each rerun
-       source's digest.
+       The result admits Grove's full package version, its binary version
+       and its tap revision separately, and each rerun source's digest.
     5  Stop unless `mise -C HOME bootstrap packages status --json` shows each
        skill formula declared and installed, and the keg that Homebrew links
        is its accepted full package version, with its revision. The plan's
@@ -2098,7 +2098,10 @@ def installed_grove() -> dict:
     if problems:
         raise Stop("step 4: the installed Grove is not the latest published release: " + "; ".join(problems))
     log(f"step 4: Grove {version} is the tap's current version, and {opt} reaches its keg")
-    return {"version": version, "keg": os.path.realpath(keg), "opt": opt, "prefix": prefix}
+    # The full package version names the keg. The binary reports only the
+    # upstream version, and the tap's revision is the separate suffix.
+    return {"version": version, "binary_version": stable, "revision": revision,
+            "keg": os.path.realpath(keg), "opt": opt, "prefix": prefix}
 
 
 def gate_4(gate: Gate) -> None:
@@ -2147,7 +2150,9 @@ def gate_4(gate: Gate) -> None:
         digests[sid] = report[sid]["installed"]
     emit({"step": "4", "grove": grove, "ravel": resolution["version"], "ravel_path": resolution["ravel"],
           "sources": report, "reran": rerun,
-          "trials": trials, "admitted": {"grove_version": grove["version"], "digests": digests}})
+          "trials": trials, "admitted": {"grove_version": grove["version"],
+                                         "grove_binary_version": grove["binary_version"],
+                                         "grove_revision": grove["revision"], "digests": digests}})
 
 
 def linked_package(name: str) -> dict:

@@ -10,6 +10,7 @@ each choice of this draft.
 
     python3 -I switch_plan_draft.py draft [--home HOME --out DIR]
     python3 -I switch_plan_draft.py check --out OUT
+    python3 -I switch_plan_draft.py prepare
 
 `draft` reads the real HOME and changes nothing there. It runs no harness and
 no tool, and it reads Claude Code's version from the path of its installed
@@ -20,15 +21,25 @@ starts with "deactivate", becomes an entry write. Each other child must have
 a row with a kept class, or be a container whose children have such rows. A
 child without a row stops the draft. Each write carries the restore identity
 of its original, or its absence, as `owner_switch.py restore-identity`
-prints it. Each inventory item carries the change identity that
-`owner_switch.py identity` prints. Each command input carries the digest of
-its content. A prepared input that does not exist yet carries the digest of
-the repository file that preparation copies there. The accepted sources come
-from the table "The ten Ravel sources" of docs/repository-moves-record.md,
-and they are provisional. The accepted versions are full package versions.
-The draft stops unless the table of "Publication" in "Packaging-only
-acceptance" of docs/owner-skill-delivery-evidence.md names each one. The
-script writes
+prints it. The Ravel settings are the one exception: finish runs
+`native-off` before the switch, so their original is the file that
+`native-off` writes. The draft runs the program's `native-off` in a
+disposable HOME that holds a copy of the real `.config/ravel`, and it plans
+the identity of the result. The write table states each write's identity in
+the real HOME now beside its planned original. Each inventory item carries
+the change identity that `owner_switch.py identity` prints. Each command
+input carries the digest of its content. Each prepared input carries the
+digest of the repository file that `prepare` copies there, so the draft
+names the prepared files before they exist. The accepted sources come from
+the table "The accepted sources" in "Staging acceptance" of
+docs/owner-skill-delivery-evidence.md, and the draft stops unless the table
+"The ten Ravel sources" of docs/repository-moves-record.md names the same
+digests. The accepted versions are full package versions. The draft stops
+unless the table of "Publication" in "Packaging-only acceptance" of the
+evidence names each one. The trials of each Grove source are the
+`staging_trial.py rerun` commands of "Trials for gate 4" in that section.
+They run the frozen copy of the staging runner in <state>/prepared/staging,
+whose content stays the same through finish. The script writes
 docs/owner-cutover/switch-plan-draft.json and the write table
 docs/owner-cutover/switch-plan-writes.tsv.
 
@@ -41,7 +52,8 @@ draft, because the staging HOME stands for the real one.
 
 `check` builds a disposable HOME in OUT/home from the draft. It copies each
 write with the program's own metadata copy, and each inventory entry, from
-the real HOME. It stops unless each copy has the draft's identity. It then
+the real HOME. It runs `native-off` there for the Ravel settings, as finish
+does. It stops unless each copy has the draft's identity. It then
 runs the program's loader and `report`, six plan controls that must be
 refused, three layout changes that the report must show, and one change that
 it must not show: a change inside .claude/skills/synced and
@@ -50,14 +62,25 @@ path of each executable of the four tools, and it runs the program's narrow
 process inspection on the real process table. OUT holds record.json,
 report.txt and processes.txt. OUT must not exist. The real HOME, launchd and
 the process table are read only.
+
+`prepare` writes the owner's prepared folder HOME/.local/state/owner-switch/
+prepared from the draft and the repository: plan.json, the program
+owner_switch.py, inventory.py, owner_switch_probes.py, harness_trial.py, the
+comparison instrument owner_switch_dry_run.py, INSTRUCTIONS.md and the
+frozen staging runner in staging/. It stops unless each copied input has its
+planned digest. A folder that already holds the same bytes stays; a
+different prepared file stops it, and nothing else in HOME changes.
 """
 
-import argparse, copy, hashlib, importlib.util, json, os, re, shutil, subprocess, sys
+import argparse, copy, hashlib, importlib.util, json, os, re, shutil, subprocess, sys, tempfile
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 PROGRAM = os.path.join(ROOT, "scripts", "owner_switch.py")
 INVENTORY_SCRIPT = os.path.join(ROOT, "docs", "evaluations", "owner-skill-delivery", "inventory.py")
 PROBES_SOURCE = os.path.join(ROOT, "scripts", "owner_switch_probes.py")
+HARNESS_SOURCE = os.path.join(ROOT, "scripts", "harness_trial.py")
+DRY_RUN_SOURCE = os.path.join(ROOT, "scripts", "owner_switch_dry_run.py")
+INSTRUCTIONS_SOURCE = os.path.join(ROOT, "docs", "owner-cutover", "prepared-instructions.md")
 DRAFTS = os.path.join(ROOT, "docs", "owner-cutover")
 PLAN_OUT = os.path.join(DRAFTS, "switch-plan-draft.json")
 TABLE_OUT = os.path.join(DRAFTS, "switch-plan-writes.tsv")
@@ -103,6 +126,25 @@ INVENTORY_PATHS = (".agents/.grove",)
 INVENTORY_ROOTS = ROOTS + (".claude/agents", ".codex/agents")
 
 PROBES_PROGRAM = PREPARED + "/owner_switch_probes.py"
+# The interpreter of the owner's commands in INSTRUCTIONS.md: mac-check's
+# machine interpreter, which no project's mise setting replaces.
+OWNER_PYTHON = "/opt/homebrew/opt/python@3.14/bin/python3.14"
+
+# The frozen staging runner of gate 4 ("Trials for gate 4" of the evidence).
+# The runner finds its helpers by their places in the repository, so the
+# copy keeps those relative paths. Each case file and the kind-skill tree
+# are inputs too. The main checkout gains `rerun` only when finish moves
+# main, and this workspace changes at the rebase, so neither has stable
+# content through the switch.
+STAGING_RUNNER = PREPARED + "/staging"
+RUNNER_FILES = ("scripts/harness_trial.py", "scripts/harness-trials/builds.json",
+                "scripts/harness-trials/trial-launch.sh",
+                "docs/evaluations/owner-skill-delivery/staging_trial.py",
+                "docs/evaluations/owner-skill-delivery/staging_home.py",
+                "docs/evaluations/owner-skill-delivery/inventory.py",
+                "docs/owner-cutover/settings-off.json", "docs/owner-cutover/settings-staging.json")
+RUNNER_TREES = ("docs/evaluations/owner-skill-delivery/staging-cases",)
+RUNNER = "docs/evaluations/owner-skill-delivery/staging_trial.py"
 
 
 def probe(name, *args):
@@ -124,20 +166,55 @@ GATES = {"4": [{"name": "grove-release", "argv": ["$python", "-I", "$program", "
          "6": [{"name": "resolved-sources", "argv": ["$python", "-I", "$program", "gate", "6"]}],
          "7": [{"name": "reader-evidence", "argv": ["$python", "-I", "$program", "gate", "7"]}]}
 
-# Provisional accepted values. The formula versions are the full package
-# versions, with their revisions, of "Packaging-only acceptance" in
-# docs/owner-skill-delivery-evidence.md. The tap published them on 2026-11-11.
+# The formula versions are the full package versions, with their revisions,
+# of "Packaging-only acceptance" in docs/owner-skill-delivery-evidence.md. The
+# tap published them on 2026-11-11.
 VERSIONS = {"linkuistics/taps/personal": "2026-11-06_1", "linkuistics/taps/testanyware": "2.8.0_1",
             "linkuistics/taps/superpowers": "7.0.0_1", "linkuistics/taps/quint-llm-kit": "1.0.0_1"}
 GROVE_SOURCES = ("design", "engineering", "grove-core", "requirements", "research", "writing")
-# owner-staging-setup-k248 records the final paths.
+# "The accepted staging paths" of "Staging acceptance" names both paths.
 STAGING = {"home": os.path.join(HOME, ".local/state/owner-staging/home"),
            "candidate_keg": os.path.join(HOME, ".local/state/owner-staging/candidate")}
+STAGING_RAVEL = os.path.join(HOME, ".local/state/owner-staging/ravel-2.0")
+STAGING_TRIALS = os.path.join(HOME, ".local/state/owner-staging/trials")
+
+# "Trials for gate 4" of "Staging acceptance": each Grove source's trials, as
+# (trial, harness). None is the source trial, which launches no model.
+TRIALS = {"grove-core": [("sources", None), ("kind-skill", "claude"), ("kind-skill", "codex"),
+                         ("stale-copy", "claude"), ("stale-copy", "codex")],
+          "requirements": [("sources", None)],
+          "design": [("sources", None), ("discovery", "claude"), ("discovery", "codex")],
+          "engineering": [("sources", None), ("delegate", "claude"), ("delegate", "codex"),
+                          ("compaction", "claude"), ("compaction", "codex"),
+                          ("codebase-memory-mcp", "claude"), ("codebase-memory-mcp", "codex")],
+          "research": [("sources", None)],
+          "writing": [("sources", None), ("native-residue", "claude")]}
+# "Rerun commands": the Claude Code compaction case fails with the staging
+# default model, so it runs with the owner's impl model and effort.
+TRIAL_OPTIONS = {("compaction", "claude"): ["--model", "claude-opus-5-5", "--effort", "high"]}
 
 
-def provisional_trial(sid):
-    message = f"provisional staging trial of {sid}: owner-switch-plan-k254 replaces it"
-    return {"name": f"provisional-{sid}", "argv": ["/bin/sh", "-c", f"echo '{message}' >&2; exit 1"]}
+def rerun_trial(trial, harness):
+    """One command of accepted.trials: the frozen runner's `rerun`, as "Trials for gate 4" states it."""
+    argv = ["$python", "-I", os.path.join(HOME, STAGING_RUNNER, RUNNER), "rerun",
+            "--home", STAGING["home"], "--candidate", STAGING["candidate_keg"],
+            "--ravel", STAGING_RAVEL, "--trials", STAGING_TRIALS, "--trial", trial]
+    if harness:
+        argv += ["--harness", harness]
+    argv += TRIAL_OPTIONS.get((trial, harness), [])
+    return {"name": f"{trial}-{harness}" if harness else "sources", "argv": argv}
+
+
+def runner_files():
+    """Each file of the frozen staging runner: its path inside the copy, and its repository source."""
+    out = [(rel, os.path.join(ROOT, rel)) for rel in RUNNER_FILES]
+    for tree in RUNNER_TREES:
+        for folder, dirs, files in os.walk(os.path.join(ROOT, tree)):
+            dirs[:] = sorted(d for d in dirs if d != "__pycache__")
+            for name in sorted(files):
+                src = os.path.join(folder, name)
+                out.append((os.path.relpath(src, ROOT), src))
+    return out
 
 
 def load_program():
@@ -165,6 +242,48 @@ def identity(path):
 def original(rel):
     found = program_line("restore-identity", os.path.join(HOME, rel))
     return {"absent": True} if found == "absent" else {"identity": found}
+
+
+def native_off_original():
+    """The Ravel settings that native-off writes from the real .config/ravel, as a planned original.
+
+    owner-staging-hooks-k251 found that the switch refuses an absent
+    original, because finish runs native-off before it. native-off is
+    deterministic, so a disposable HOME computes its result.
+    """
+    module = load_program()
+    work = tempfile.mkdtemp(prefix="native-off-")
+    try:
+        home = os.path.join(work, "home")
+        os.makedirs(os.path.join(home, ".config"))
+        real = os.path.join(HOME, os.path.dirname(RAVEL_SETTINGS))
+        if os.path.isdir(real) and not os.path.islink(real):
+            module.copy_tree(real, os.path.join(home, os.path.dirname(RAVEL_SETTINGS)))
+        result = subprocess.run([sys.executable, "-I", PROGRAM, "native-off", "--home", home],
+                                capture_output=True, text=True, env=disposable_env(work))
+        if result.returncode != 0:
+            sys.exit(f"stop: native-off in a disposable HOME exited {result.returncode}: "
+                     f"{(result.stdout + result.stderr).strip()[-400:]}")
+        return {"identity": program_line("restore-identity", os.path.join(home, RAVEL_SETTINGS))}
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def disposable_env(work):
+    """The environment of native-off in a disposable HOME.
+
+    native-off refuses while another Ravel process runs, which protects the
+    real settings. A disposable HOME has no other writer, so the process
+    inspection there covers only an empty folder. The program refuses that
+    scope when HOME is the account's home directory.
+    """
+    scope = os.path.join(work, "no-processes")
+    os.makedirs(scope, exist_ok=True)
+    return dict(os.environ, OWNER_SWITCH_REHEARSAL_SCOPE=scope)
+
+
+def real_now(rel):
+    return program_line("restore-identity", os.path.join(HOME, rel))
 
 
 def file_digest(path):
@@ -200,8 +319,23 @@ def published_versions():
     return found
 
 
+def staging_accepted():
+    """The table of "The accepted sources" in "Staging acceptance": source -> (formula, digest)."""
+    text = open(EVIDENCE, encoding="utf-8").read()
+    section = text.split("\n## Staging acceptance\n", 1)[1].split("\n## ", 1)[0]
+    section = section.split("\n### The accepted sources\n", 1)[1].split("\n### ", 1)[0]
+    found = {}
+    for line in section.splitlines():
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) == 6 and re.fullmatch(r"`[a-z-]+`", cells[0]):
+            digest = cells[5].strip("`")
+            if re.fullmatch(r"[0-9a-f]{64}", digest):
+                found[cells[0].strip("`")] = (cells[1].strip("`"), digest)
+    return found
+
+
 def accepted_sources():
-    """The table "The ten Ravel sources" of the moves record."""
+    """The accepted sources of "Staging acceptance", which the moves record's table "The ten Ravel sources" repeats."""
     text = open(MOVES_RECORD, encoding="utf-8").read()
     section = text.split("### The ten Ravel sources", 1)[1].split("\n### ", 1)[0]
     sources = {}
@@ -213,6 +347,11 @@ def accepted_sources():
                 sources[sid] = {"formula": "linkuistics/taps/" + formula, "resourceDigest": digest}
     if sorted(sources) != sorted(GROVE_SOURCES + ("personal", "testanyware", "superpowers", "quint")):
         sys.exit(f"stop: the moves record names the sources {sorted(sources)}, not the ten")
+    accepted = staging_accepted()
+    for sid, source in sources.items():
+        if accepted.get(sid) != (source["formula"], source["resourceDigest"]):
+            sys.exit(f"stop: \"Staging acceptance\" accepts {sid} as {accepted.get(sid)}, and the moves record "
+                     f"names {source['formula']} {source['resourceDigest']}")
     published = published_versions()
     for formula, version in VERSIONS.items():
         name = formula.rsplit("/", 1)[1]
@@ -250,24 +389,34 @@ def original_ravel():
     return keg
 
 
+def prepared_files():
+    """Each file of the prepared folder that a command runs or reads: (role, path relative to HOME, source)."""
+    rows = [("program", PREPARED + "/owner_switch.py", PROGRAM),
+            ("baseline instrument", PREPARED + "/inventory.py", INVENTORY_SCRIPT),
+            ("probe program", PROBES_PROGRAM, PROBES_SOURCE),
+            # The probe program imports owner_switch and harness_trial from its own folder.
+            ("probe helper harness_trial.py", PREPARED + "/harness_trial.py", HARNESS_SOURCE)]
+    for rel, src in runner_files():
+        role = "staging runner" if rel == RUNNER else f"staging runner file {rel}"
+        rows.append((role, f"{STAGING_RUNNER}/{rel}", src))
+    return rows
+
+
 def inputs():
     """Each file that a command runs or reads, by content.
 
-    A prepared file that preparation copies from the repository carries the
-    digest of its repository source until owner-switch-plan-k254 copies it.
-    The probe program's source is scripts/owner_switch_probes.py. Without it,
-    the inputs do not name the probe program.
+    Each prepared file carries the digest of the repository file that
+    `prepare` copies there. "$program" names the prepared program. The
+    interpreters and the external tools are the dry run's rows ("The
+    rehearsed plan"), not inputs of the plan.
     """
     mac_check = os.path.join(HOME, ".local/bin/mac-check")
-    rows = [{"role": "program", "path": "$program", "digest": file_digest(PROGRAM)},
-            {"role": "baseline instrument", "path": os.path.join(HOME, PREPARED, "inventory.py"),
-             "digest": file_digest(INVENTORY_SCRIPT)},
-            {"role": "mac-check command", "path": mac_check, "digest": file_digest(mac_check)},
-            {"role": "mac-check helper", "path": os.path.join(HOME, ".local/lib/machine-config/check.py"),
-             "digest": file_digest(os.path.join(HOME, ".local/lib/machine-config/check.py"))}]
-    if os.path.exists(PROBES_SOURCE):
-        rows.append({"role": "probe program", "path": os.path.join(HOME, PROBES_PROGRAM),
-                     "digest": file_digest(PROBES_SOURCE)})
+    helper = os.path.join(HOME, ".local/lib/machine-config/check.py")
+    rows = [{"role": "program", "path": "$program", "digest": file_digest(PROGRAM)}]
+    rows += [{"role": role, "path": os.path.join(HOME, rel), "digest": file_digest(src)}
+             for role, rel, src in prepared_files() if role != "program"]
+    rows += [{"role": "mac-check command", "path": mac_check, "digest": file_digest(mac_check)},
+             {"role": "mac-check helper", "path": helper, "digest": file_digest(helper)}]
     return rows
 
 
@@ -361,7 +510,7 @@ def draft(args):
          "set": [v for v, _ in settings]},
         {"path": KNOWN_MARKETPLACES, "type": "file", "original": original(KNOWN_MARKETPLACES)},
         {"path": INSTALLED_PLUGINS, "type": "file", "original": original(INSTALLED_PLUGINS)},
-        {"path": RAVEL_SETTINGS, "type": "file", "original": original(RAVEL_SETTINGS),
+        {"path": RAVEL_SETTINGS, "type": "file", "original": native_off_original(),
          "set": [{"key": ["skills"], "value": switched}]},
     ]
     for value, source in settings:
@@ -371,8 +520,10 @@ def draft(args):
         table.append([w["path"], "file", show_original(w), "", "", "", "Claude Code registry",
                       "written by the hooks installation's commands"])
     table.append([RAVEL_SETTINGS, "file", show_original(files[3]), "skills", "settings-switched.json", "",
-                  "Ravel settings", "native-off writes the off value before the switch; the switch writes the "
-                                    "switched value last"])
+                  "Ravel settings", "native-off writes the off value before the switch, so the original is its "
+                                    "file; the switch writes the switched value last; restore writes the original "
+                                    "whole and then runs native-off, which enforces the off value over an older "
+                                    "backup's absent key, the one exception to whole-file restoration"])
     writes = entries + files
     restore = [RAVEL_SETTINGS, KNOWN_MARKETPLACES, INSTALLED_PLUGINS, CLAUDE_SETTINGS] + [w["path"] for w in entries]
     assertions = [{"path": RAVEL_SETTINGS, "key": ["skills"], "value": switched}]
@@ -401,7 +552,7 @@ def draft(args):
         "accepted": {
             "sources": accepted_sources(),
             "versions": VERSIONS,
-            "trials": {sid: [provisional_trial(sid)] for sid in GROVE_SOURCES},
+            "trials": {sid: [rerun_trial(t, h) for t, h in TRIALS[sid]] for sid in GROVE_SOURCES},
             "staging": STAGING,
         },
         "probes": PROBES,
@@ -412,14 +563,18 @@ def draft(args):
     with open(PLAN_OUT, "w") as f:
         json.dump(plan, f, indent=2, ensure_ascii=False)
         f.write("\n")
+    # The identity of each write in the real HOME now, beside its planned original.
+    now = {w["path"]: real_now(w["path"]) for w in writes}
     with open(TABLE_OUT, "w") as f:
-        f.write("path\ttype\toriginal\tkey\tswitched\tinventory_line\tclass\tdisposition\n")
+        f.write("path\ttype\toriginal\tnow\tkey\tswitched\tinventory_line\tclass\tdisposition\n")
         for row in table:
-            f.write("\t".join(str(x) for x in row) + "\n")
+            current = now[row[0]]
+            f.write("\t".join(str(x) for x in [*row[:3], "same" if current == row[2] else current, *row[3:]])
+                    + "\n")
     print(f"draft: {len(entries)} entry writes, {len(files)} file writes, "
           f"{len(plan['inventory']['before'])} inventory items, {len(plan['inputs'])} command inputs")
-    if not os.path.exists(PROBES_SOURCE):
-        print("draft: the probe program has no source yet, so the inputs do not name it")
+    differ = sorted(p for p, i in now.items() if i != show_original(next(w for w in writes if w["path"] == p)))
+    print(f"draft: writes whose real identity now differs from the planned original: {', '.join(differ) or 'none'}")
     print(f"draft: kept in the roots: {', '.join(sorted(kept))}")
     print(f"wrote {PLAN_OUT if OTHER_HOME else os.path.relpath(PLAN_OUT, ROOT)} and "
           f"{TABLE_OUT if OTHER_HOME else os.path.relpath(TABLE_OUT, ROOT)}")
@@ -444,6 +599,15 @@ def build_layout(module, plan, home):
     drift = []
     for w in plan["writes"]:
         src, dst = os.path.join(HOME, w["path"]), os.path.join(home, w["path"])
+        if w["path"] == RAVEL_SETTINGS:
+            # Finish runs native-off before the switch, so the planned original is its result.
+            if os.path.lexists(src):
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                module.copy_tree(src, dst)
+            code, text = program("native-off", "--home", home, env=disposable_env(os.path.dirname(home)))
+            if code != 0 or module.restore_identity(dst) != w["original"].get("identity"):
+                drift.append(f"{w['path']} (native-off exit {code})")
+            continue
         if w["original"].get("absent"):
             if os.path.lexists(src):
                 drift.append(w["path"])
@@ -475,8 +639,8 @@ def build_layout(module, plan, home):
     return len(plan["writes"]), copied
 
 
-def program(*args):
-    result = subprocess.run([sys.executable, "-I", PROGRAM, *args], capture_output=True, text=True)
+def program(*args, env=None):
+    result = subprocess.run([sys.executable, "-I", PROGRAM, *args], capture_output=True, text=True, env=env)
     return result.returncode, result.stdout + result.stderr
 
 
@@ -652,6 +816,50 @@ def check(args):
     return 0 if passed else 1
 
 
+# --- prepare ----------------------------------------------------------------------
+
+def prepare(_args):
+    """Write HOME/<state>/prepared from the draft and the repository, and change nothing else."""
+    plan = json.load(open(PLAN_OUT, encoding="utf-8"))
+    files = [(rel, src) for _, rel, src in prepared_files()]
+    files += [(PREPARED + "/plan.json", PLAN_OUT), (PREPARED + "/owner_switch_dry_run.py", DRY_RUN_SOURCE),
+              (PREPARED + "/INSTRUCTIONS.md", INSTRUCTIONS_SOURCE)]
+    planned = {os.path.join(HOME, PREPARED, "owner_switch.py") if r["path"] == "$program" else r["path"]: r["digest"]
+               for r in plan["inputs"]}
+    problems = []
+    for rel, src in files:
+        dst = os.path.join(HOME, rel)
+        want = planned.get(dst)
+        if want is not None and file_digest(src) != want:
+            problems.append(f"{os.path.relpath(src, ROOT)} has another digest than the plan's input {dst}")
+        if os.path.lexists(dst) and (os.path.islink(dst) or file_digest(dst) != file_digest(src)):
+            problems.append(f"{dst} exists with other content")
+    missing = sorted(set(planned) - {os.path.join(HOME, rel) for rel, _ in files} - {
+        r["path"] for r in plan["inputs"] if not r["path"].startswith(os.path.join(HOME, PREPARED) + os.sep)})
+    if missing:
+        problems.append("the plan names prepared inputs that prepare does not copy: " + ", ".join(missing))
+    if problems:
+        sys.exit("stop: " + "; ".join(problems))
+    written = 0
+    for rel, src in files:
+        dst = os.path.join(HOME, rel)
+        if os.path.exists(dst):
+            continue
+        os.makedirs(os.path.dirname(dst), 0o755, exist_ok=True)
+        tmp = dst + ".prepare-tmp"
+        shutil.copyfile(src, tmp)
+        os.chmod(tmp, 0o755 if os.access(src, os.X_OK) else 0o644)
+        os.replace(tmp, dst)
+        written += 1
+    for rel, src in files:
+        if file_digest(os.path.join(HOME, rel)) != file_digest(src):
+            sys.exit(f"stop: {os.path.join(HOME, rel)} does not read back as {src}")
+    print(f"prepare: {len(files)} files in {os.path.join(HOME, PREPARED)}, {written} written, "
+          f"{len(files) - written} already equal")
+    print(f"prepare: plan {file_digest(PLAN_OUT)}")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -659,8 +867,9 @@ def main():
     d.add_argument("--home")
     d.add_argument("--out")
     sub.add_parser("check").add_argument("--out", required=True)
+    sub.add_parser("prepare")
     args = parser.parse_args()
-    return draft(args) if args.command == "draft" else check(args)
+    return {"draft": draft, "check": check, "prepare": prepare}[args.command](args)
 
 
 if __name__ == "__main__":

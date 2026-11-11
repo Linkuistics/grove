@@ -450,14 +450,19 @@ tasks:
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/default_sources.py "{{.RAVEL_2_0_PREFIX}}" {{if .PLAN}}--plan "{{.PLAN}}"{{end}} {{range $f := splitList " " .FORMULAE}}{{if $f}}--formula "{{$f}}" {{end}}{{end}}
 
-  # The owner's real switch plan draft in docs/owner-cutover ("Owner switch
-  # plan draft" of docs/owner-skill-delivery-evidence.md). The draft task
-  # reads the real HOME and the reference inventory, runs no tool, and writes
-  # the plan and its write table. The check task builds a disposable HOME
-  # from the draft in the new directory OUT, runs the program's loader,
-  # `report` and ten controls, and lists the real process tree through the
-  # narrow process inspection. Neither changes the real HOME. For example:
+  # The owner's real switch plan in docs/owner-cutover ("Owner switch plan"
+  # of docs/owner-skill-delivery-evidence.md). The draft task reads the real
+  # HOME and the reference inventory, runs only native-off in a disposable
+  # HOME, and writes the plan and its write table. The check task builds a
+  # disposable HOME from the draft in the new directory OUT, runs the
+  # program's loader, `report` and ten controls, and lists the real process
+  # tree through the narrow process inspection. Neither changes the real HOME.
+  # The prepare task copies the plan, the program, its helpers, the frozen
+  # staging runner and the instructions into
+  # ~/.local/state/owner-switch/prepared, and it changes nothing else. For
+  # example:
   #   task owner:switch-plan:check OUT="$SCRATCH/switch-plan"
+  #   task owner:switch-plan:prepare
   owner:switch-plan:draft:
     desc: Write docs/owner-cutover/switch-plan-draft.json and its write table from the real HOME, reading only
     cmds:
@@ -469,6 +474,11 @@ tasks:
       vars: [OUT]
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/switch_plan_draft.py check --out "{{.OUT}}"
+
+  owner:switch-plan:prepare:
+    desc: Copy the switch plan draft, the program, its helpers, the frozen staging runner and the instructions into ~/.local/state/owner-switch/prepared, after a digest check of each planned input
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/switch_plan_draft.py prepare
 
   # The candidate keg of the staging trials ("Skill formulae" and "Cutover
   # contract" of docs/specs/owner-skill-delivery.md). COMMIT names the

@@ -104,3 +104,30 @@ the earlier `~/.local/state/owner-switch/dry-run` aside first. The section
 "Owner switch rehearsal" of `docs/owner-skill-delivery-evidence.md` names
 the command, its copied paths, OUT outside HOME and the mise shims folder
 removed from PATH. The prepared `INSTRUCTIONS.md` states the same.
+
+## Decisions (running log)
+
+**State at entry, 2026-11-11.** Read-only queries showed tap state A. Ravel
+lists only the releases 1.1.0, 1.0.0 and 0.1.0, and its remote has no `v2`
+tag. Ravel `main` is `24a545236185` on the remote and locally. The line
+`skill-directory-delivery` ends at `576811bcb4b0` and holds the
+release-channel design commit `2a77ffbda3b2`. Its release scripts do not
+implement `CHANNEL` or `release:promote`. The tap clone
+`/Users/antony/Development/Delivery/homebrew-taps` is at `12b53f8c449d`, with
+no `ravel@2.rb`. Homebrew holds Grove 22.8.0 and Ravel 1.1.0. No user
+`brew.env` sets `HOMEBREW_NO_CLEANUP_FORMULAE`. The crate `grove-llm` has no
+source change since `main` `238c3a839ab4`, only test changes.
+
+**The Ravel book before the cut, 2026-11-11.** On the release line, chapters
+10 and 11 still describe the Bun worker, the SDK and the `libexec` layout.
+Chapters 7 and 8 have one or two such lines each. The human chose to run the
+editorial pipeline over chapters 7 to 11 in this grove before the cut: two
+drafts, copy-edit, art and proof. The owner's Read 1 and Read 2 stay with
+the paused Rhai workstream, and this grove marks none of its goals done.
+
+**No planning review, 2026-11-11.** The leaves apply two reviewed designs:
+the coordinated release and the simplified owner switch. The first
+irreversible step is the cut in ravel-two-publication-k313, eight sessions
+later. Each producer of release tooling and the finish handoff may cut its
+own `review-impl` before the work that consumes it. The leaf bodies name
+where that review goes.

@@ -107,11 +107,25 @@ skill-loading-replan-k80 cut four implementation leaves here:
    candidate and staging. `ravel-packaging-guidance-k301` corrects Ravel's
    guidance before the cut. k300 inserted `ravel-stop-eperm-k302` before
    the rollout planner, for a `supervision_failed` stop of Ravel 2.0.
-7. discovery-rollout-k12 plans the release and finish handoff. The rollout
-planner consumes that work and coordinated-ravel-release-k36's reviewed plan.
-Plan from the delivered migration state. Grow concrete final verification,
-documentation/handoff and independent Ravel integration/release work before
-Grove finish.
+7. discovery-rollout-k12 planned the release and the finish handoff from the
+   delivered state. It cut these working increments, in dependency order:
+   - `ravel-two-release-k304` publishes Ravel 2.0.0 through `ravel@2` only.
+     This is tap state B. It holds the channel and promotion tooling, the
+     editorial pipeline over book chapters 7 to 11, the landing on Ravel
+     `main` and the one cut. The human chose that book scope on 2026-11-11.
+   - `grove-ravel-two-pins-k314` and `published-source-acceptance-k315` make
+     Grove and the accepted sources pass against the published archives.
+   - `homebrew-cleanup-protection-k316`, `grove-docs-reconciliation-k317` and
+     `promotion-upgrade-rehearsal-k318` prepare state C and the rehearsed
+     promotion. The rehearsal needs the candidate Grove formula that k317
+     corrects.
+   - `cross-repo-docs-reconciliation-k319` and `paused-grove-handoffs-k320`
+     finish the documentation and the brief-update text.
+   - `release-readiness-checks-k321` and `owner-final-inventory-k322` measure
+     the final working result and the owner's installed set.
+   - `root-charter-conversion-k323` converts the root brief as its own
+     change. `finish-handoff-k324` then writes the finish handoff and the
+     root charter's extension.
 
 Grove's final main integration and minor release remain owned by its
 driver-created finish session under CLAUDE.md. Do not create a competing manual

@@ -91,8 +91,9 @@ skill-loading-replan-k80 cut four implementation leaves here:
    `owner-marketplace-freeze-k253`, `owner-switch-plan-k254` and
    `owner-switch-rehearsal-k255` then finish order 6. They freeze automatic
    updates, write the owner's checklist, complete the real plan and dry-run
-   it. k253 inserted `owner-freeze-day-check-k303` before k255, for the
-   check of the freeze after one day.
+   it. k253 inserted `owner-freeze-day-check-k303` before k255, for a
+   check of the freeze. The owner removed its 24-hour minimum, and the
+   check ran 3 hours and 20 minutes after the baseline.
 6. skill-keg-link-layout-k290 cut nine leaves before k93, for the revised
    keg layout. `grove-keg-projection-k293` revises Grove's template and its
    packaging checks. `shared-directory-seam-k294` delivers the durable
@@ -377,7 +378,12 @@ the root charter's extension.
   run the purge report before purge.
 - The handoff names the Claude Code version that owner-marketplace-freeze-k253
   held, and how the owner releases the hold after the switch. It also names
-  the frozen marketplaces. The receipt lists the staging HOME and the
+  the frozen marketplaces.
+- Before the switch, finish runs
+  `task owner:freeze:check BASELINE=docs/owner-cutover/update-freeze-baseline.json`,
+  `claude --version` and `claude doctor`. The check needs no minimum period.
+  A break needs another dry run before the switch, and a changed Claude Code
+  version also needs `task owner:quiet-interval`. The receipt lists the staging HOME and the
   candidate keg as removable after the receipt.
 
 ### Other facts for rollout

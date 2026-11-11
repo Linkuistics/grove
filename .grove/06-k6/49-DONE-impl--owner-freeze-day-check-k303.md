@@ -23,7 +23,8 @@ the result for the dry run and the finish handoff.
 
 ## Done when
 
-- The check ran at least 24 hours after the baseline and reported 0 breaks.
+- The check ran after the baseline and reported 0 breaks. The owner removed
+  the 24-hour minimum on 2026-11-11.
   `claude --version` reported `2.1.322 (Claude Code)`. `claude doctor`
   reported `Auto-updates: disabled (set by env: DISABLE_AUTOUPDATER)`.
 - The section "Update freeze" of `docs/owner-skill-delivery-evidence.md`
@@ -34,7 +35,21 @@ the result for the dry run and the finish handoff.
 
 ## Notes
 
-If fewer than 24 hours have passed since the baseline, hand the leaf back to
-the owner with the time remaining. Keep the leaf live.
+The 24-hour hand-back rule no longer applies. See the decisions below.
 
 Change no setting and pause no tool in this leaf. Inspect read only.
+
+## Decisions (running log)
+
+- 2026-11-11: The owner removed the 24-hour minimum. The rest of the owner's
+  work depends on this grove, so a one-day pause blocks it. A 24-hour period
+  may also contain no Claude Code release. Two later controls catch a break
+  before mutation. The comparison command compares tool versions before each
+  attempt. Finish compares its loaded cache paths and registrations. Finish
+  also runs the freeze check again before the switch, with no minimum period.
+  The finish handoff in `_discovery-rollout.md` names that run.
+- 2026-11-11: The check ran at 06:53:31Z, 3 hours and 20 minutes after the
+  baseline. It reported 0 breaks and 13 notes for orphaned directories that
+  Claude Code removed. `claude --version` and `claude doctor` gave the
+  expected lines. "The check before the dry run" in the evidence document
+  records the result.

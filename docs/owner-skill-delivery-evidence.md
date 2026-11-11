@@ -7407,14 +7407,40 @@ superseded version from an earlier update. No installed version of an
 enabled plugin holds a marker. `~/.local/share/claude/versions` holds 2.1.319,
 2.1.321 and 2.1.322.
 
+### The check before the dry run
+
+owner-freeze-day-check-k303 ran the check at 2026-11-11T06:53:31Z, 3 hours
+and 20 minutes after the baseline. The plan asked for 24 hours. The owner
+removed that minimum on 2026-11-11, because the wait blocked dependent work.
+
+| Measurement | Result |
+| --- | --- |
+| `task owner:freeze:check BASELINE=docs/owner-cutover/update-freeze-baseline.json` | 0 breaks, 13 notes, exit 0 |
+| `claude --version` | `2.1.322 (Claude Code)` |
+| `claude doctor` | `Auto-updates: disabled (set by env: DISABLE_AUTOUPDATER)` |
+
+Each note is `cleanup removed orphaned` for a directory that held
+`.orphaned_at` in the baseline. Claude Code removes such a directory 14 days
+after its marker. Ten notes are `claude-plugins-official` directories at
+`41f619d61b99`. The other three are `explanatory-output-style`,
+`learning-output-style` and `ralph-loop` at `1.0.0`.
+
+This period is short. It may contain no Claude Code release, so it does not
+show that the hold stops a background update.
+
+Two later controls cover that risk. The comparison command compares tool versions before each attempt.
+Finish compares its loaded cache paths and registrations before mutation.
+Finish also runs the check again before the switch, with no minimum period.
+That run covers the whole interval from the baseline.
+
 ### Limits
 
 - The legacy `"autoUpdates": false` in `~/.claude.json` was set while
   Claude Code moved from 2.1.319 to 2.1.322. The record cannot tell whether a
   background update or a manual `claude update` made those moves.
 - The `env` block reaches only a session that reads the user settings.
-- The check after one day belongs to a separate leaf before
-  owner-switch-rehearsal-k255.
+- The check before the dry run covered 3 hours and 20 minutes, not one day.
+  "The check before the dry run" states the controls that cover this limit.
 
 ## Owner switch plan
 

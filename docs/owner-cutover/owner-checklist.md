@@ -81,9 +81,9 @@ directory 14 days after its marker. The check reports that removal as a note
 and passes. `task owner:freeze:controls` shows that the check sees each class
 of change.
 
-The check after one day belongs to the leaf before
-owner-switch-rehearsal-k255. Repeat the check before the dry run and before
-each real attempt.
+Repeat the check before the dry run and before each real attempt. The check
+needs no minimum period after the baseline. The run before the switch covers
+the whole interval from the baseline.
 
 ### Release the holds
 

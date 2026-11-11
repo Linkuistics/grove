@@ -56,6 +56,11 @@ root charter with the finish steps that the designs assign to that session.
 
 ## Notes
 
+Ravel `docs/specs/release-channels.md`, sections "Promotion interface" and
+"Consumer readiness receipt", give the exact command line, the receipt
+shape, the receipt command and the example receipt
+`docs/specs/release-channels-readiness.example.json`.
+
 A request to plan is not the finish confirmation. The finish session proposes
 the concrete whole sequence and obtains its one confirmation.
 

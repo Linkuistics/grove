@@ -39,5 +39,13 @@ Grove and Ravel pair.
 
 ## Notes
 
+Ravel `docs/specs/release-channels.md`, sections "Promotion interface" and
+"Consumer readiness receipt", give the exact command line, the receipt
+shape, the receipt command and the example receipt
+`docs/specs/release-channels-readiness.example.json`.
+`RAVEL_TAP_DIR` selects a scratch tap. `release-install.sh` installs from
+`linkuistics/taps`, so a scratch Homebrew must tap the scratch clone under
+that name.
+
 This leaf may prove bigger than one session. If so, decompose it and do only
 the first child.

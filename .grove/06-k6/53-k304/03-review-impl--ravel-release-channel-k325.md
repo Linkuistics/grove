@@ -54,3 +54,9 @@ doubts:
 
 The recovery prose of book chapter 11 is out of scope. The book pipeline
 after this review owns it.
+
+ravel-release-promote-k306 changed two files of this artifact after its
+commit. `release-install.sh` gained `--version` and a check that every earlier
+`ravel` and `ravel@2` keg keeps its `bin/ravel`. `release-formula.sh` gained
+`--test` and loads the promotion's deprecated `ravel@2.rb` through Homebrew.
+Read the current files on `skill-directory-delivery`.

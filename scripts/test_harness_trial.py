@@ -3057,6 +3057,26 @@ class GlobExpansionTest(unittest.TestCase):
                                  [os.path.normpath(str(skill / "SKILL.md"))])
 
 
+class CodexSkillListingTest(unittest.TestCase):
+    """Codex 0.167.0 names a skill by the plugin folder that holds its file.
+    A native link into `.../plugins/grove/skills/grove-planning` shows as
+    `grove:grove-planning`, so the listing keeps a namespaced name whole."""
+
+    def test_namespaced_names_stay_in_the_listing(self):
+        text = ("<skills_instructions>\n## Skills\n### Skill roots\n- `r0` = `/home/.agents/skills`\n"
+                "### Available skills\n"
+                "- imagegen: Make images. (file: /home/.codex/skills/.system/imagegen/SKILL.md)\n"
+                "- grove:grove-planning: The `planning` session kind: grow the tree. "
+                "(file: /home/.agents/.grove/current/plugins/grove/skills/grove-planning/SKILL.md)\n"
+                "- pages:write-page: Write a page. (file: /home/.codex/plugins/pages/skills/write-page/SKILL.md)\n"
+                "</skills_instructions>")
+        listing = trial.CodexAdapter.skills(text)
+        self.assertEqual(listing["names"], ["imagegen", "grove:grove-planning", "pages:write-page"])
+        self.assertEqual(listing["skillCount"], 3)
+        self.assertEqual(listing["files"][1],
+                         "/home/.agents/.grove/current/plugins/grove/skills/grove-planning/SKILL.md")
+
+
 class CodexMcpCallTest(unittest.TestCase):
     """A Codex `McpToolCall` item becomes a call named as Claude Code names
     an MCP tool, with its arguments, its result text and its error."""

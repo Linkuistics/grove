@@ -88,11 +88,29 @@ The comparison allows only three logical prefix substitutions:
 | Name | Path in the dry run | Path at the real attempt |
 | --- | --- | --- |
 | `home` | The dry run's disposable HOME, `<OUT>/home` | `/Users/antony` |
-| `grove-keg` | The candidate keg `/Users/antony/.local/state/owner-staging/candidate` | The released Grove keg that `/opt/homebrew/opt/grove` reaches |
+| `grove-keg` | The Grove keg that the dry run named | The released Grove keg that `/opt/homebrew/opt/grove` reaches |
 | `ravel` | The `ravel@2` keg that the dry run named | The promoted Ravel keg that `/opt/homebrew/opt/ravel` reaches |
 
 The comparison resolves each given prefix to its canonical path. A
 substitution passes only when the content and the versions are equal.
+
+### The result before finish
+
+owner-switch-rehearsal-k255 retained the first result at
+`/Users/antony/.local/state/owner-switch/dry-run/result.json` on
+2026-11-11. That run used a stand-in Homebrew prefix,
+`/Users/antony/.local/state/owner-switch-dry-run/prefix`. The prefix holds
+clones of the installed skill kegs, the candidate Grove keg 22.8.0 and the
+accepted Ravel 2.0 build. Its comparison passes only with
+`--path /Users/antony/.local/state/owner-switch-dry-run/prefix/bin` and the
+prefixes of that run. With the command above, the rows of `brew`, `ravel`,
+`grove` and the ten sources differ, and so does the plan's retained path.
+
+Finish therefore runs the dry run again after the Grove release and the
+Ravel promotion. That run uses the real prefix and no stand-in. Move the
+earlier `dry-run` folder aside first. Then compare with the command above.
+The section "Owner switch rehearsal" of
+`docs/owner-skill-delivery-evidence.md` names the full dry-run command.
 
 ## The attempt note
 

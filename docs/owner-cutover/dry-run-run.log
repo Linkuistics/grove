@@ -1,0 +1,456 @@
+copied 28 of 29 paths from /Users/antony into /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home
+linked the sign-in store /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/Library/Keychains -> /Users/antony/Library/Keychains
+linked the sign-in store /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.codex/auth.json -> /Users/antony/.codex/auth.json
+$ /opt/homebrew/Cellar/python@3.14/3.14.10/Frameworks/Python.framework/Versions/3.14/bin/python3.14 -I /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py native-off --home /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home
+  native-off: wrote the off value to .config/ravel/settings.json (the file was absent)
+  persistence: temporary file F_FULLFSYNC; folder F_FULLFSYNC
+  result: off value in place
+  (native-off: exit 0)
+$ /opt/homebrew/Cellar/python@3.14/3.14.10/Frameworks/Python.framework/Versions/3.14/bin/python3.14 -I /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py attempt --plan /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/plan.json --home /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home
+  command claude --version: exit 0
+  attempt note: /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/attempts/20261111T085409467683Z-d61a3b.json
+  switch: /opt/homebrew/opt/python@3.14/bin/python3.14 -I /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py switch --plan /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/plan.json --home /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home --attempt /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/attempts/20261111T085409467683Z-d61a3b.json
+  restore: /opt/homebrew/opt/python@3.14/bin/python3.14 -I /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py restore --backup /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/backups/20261111T085409467683Z-d61a3b --attempt /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/attempts/20261111T085409467683Z-d61a3b.json --home /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home
+  native-off: /opt/homebrew/opt/python@3.14/bin/python3.14 -I /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py native-off --home /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home
+  (attempt: exit 0)
+$ /opt/homebrew/Cellar/python@3.14/3.14.10/Frameworks/Python.framework/Versions/3.14/bin/python3.14 -I /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py switch --plan /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/plan.json --home /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home --attempt /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/attempts/20261111T085409467683Z-d61a3b.json
+  program: 76ed17260bb1e0305c3011ec2c6d5eab171b1454a498a2a5e6ceef9cba090f7d
+  plan: 6df8d97d645a479d5de42cfa93c6ed9d9d02cf64b4f38591f66b028afe341625
+  attempt: 20261111T085409467683Z-d61a3b (/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/attempts/20261111T085409467683Z-d61a3b.json)
+  command claude --version: exit 0
+    admitted ancestor process 1930 (parent 1541) Grove (native executable): grove
+    admitted ancestor process 1942 (parent 1930) Ravel (native executable): /opt/homebrew/Cellar/ravel/1.1.0/bin/ravel start-session --kind=impl --prompt=**Load the `grove-impl` skill now** — on Claude Code, where plugin skills are namespaced, that is `grove:grove-impl`. Your kind is `impl`; Grove resolved that before this session existed, so there is no selection for you t
+    admitted ancestor process 1944 (parent 1942) Claude Code (versioned executable): claude --add-dir /Users/antony/Development/AgenticOrchestration/grove --model claude-opus-5-5 --effort high **Load the `grove-impl` skill now** — on Claude Code, where plugin skills are namespaced, that is `grove:grove-impl`. Your kind is `impl`; Grove resolved that before this session existed, so t
+  gate: no other Claude Code, Codex, Grove or Ravel process before the switch
+  command brew --prefix: exit 0
+  command claude plugin list --json: exit 0
+  command claude plugin marketplace list --json: exit 0
+  command inventory (step 3): exit 0
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | artifact-capabilities | built-in skill (session listing) | artifact-capabilities | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | artifact-design | built-in skill (session listing) | artifact-design | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | artifact-diagramming | built-in skill (session listing) | artifact-diagramming | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | claude-api | built-in skill (session listing) | claude-api | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | claude-in-chrome | built-in skill (session listing) | claude-in-chrome | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | code-review | built-in skill (session listing) | code-review | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | dataviz | built-in skill (session listing) | dataviz | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | fewer-permission-prompts | built-in skill (session listing) | fewer-permission-prompts | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | init | built-in skill (session listing) | init | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | keybindings-help | built-in skill (session listing) | keybindings-help | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | loop | built-in skill (session listing) | loop | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | plugin-authoring | built-in skill (session listing) | plugin-authoring | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | run | built-in skill (session listing) | run | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | schedule | built-in skill (session listing) | schedule | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | security-review | built-in skill (session listing) | security-review | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | simplify | built-in skill (session listing) | simplify | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | update-config | built-in skill (session listing) | update-config | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  baseline: compare with finish's own skill listing: claude | Claude Code 2.1.316 built-in | workflow-authoring | built-in skill (session listing) | workflow-authoring | unverified | 0 | platform-managed | Claude Code | - | native-keep | -
+  command grove-release (step 4): exit 0
+    | step 4: Grove 22.8.0 is the tap's current version, and /Users/antony/.local/state/owner-switch-dry-run/prefix/opt/grove reaches its keg
+    | resolved with /Users/antony/.local/state/owner-switch-dry-run/prefix/bin/ravel (ravel 1.1.0): design, engineering, grove-core, personal, quint, requirements, research, superpowers, testanyware, writing
+    | step 4: design gives its accepted digest d8ad3a2af1b5029bc0de93747f4d7297038651180f6877fbd738d94fcbf6aa14
+    | step 4: engineering gives its accepted digest 7e70b280e7a932489a048d108d4dae2bc63b387cf8fc6b37298663336e0fcc66
+    | step 4: grove-core gives its accepted digest d8eec38844f5e8ffd4e998ef34f3456a984846166b2e34cc2c8e65189b2f145e
+    | step 4: requirements gives its accepted digest 07b2d25e8bd20259c71f7419092329368d8ae48bec6ca973343a601a8ec515c8
+    | step 4: research gives its accepted digest 7fb3d473f66feafb49afd8846fd94cf3e1fb7b01c584d4ad5f0e54814a8b3fdb
+    | step 4: writing gives its accepted digest 56bcd07b87f46a7b9ff92eed5a5a128f10d3ce64be2f7d934be898e058782212
+  command skill-formulae (step 5): exit 0
+    | step 5: linkuistics/taps/grove is installed and linked at its accepted version 22.8.0
+    | step 5: linkuistics/taps/personal is installed and linked at its accepted version 2026-11-06_1
+    | step 5: linkuistics/taps/quint-llm-kit is installed and linked at its accepted version 1.0.0_1
+    | step 5: linkuistics/taps/superpowers is installed and linked at its accepted version 7.0.0_1
+    | step 5: linkuistics/taps/testanyware is installed and linked at its accepted version 2.8.0_1
+  command resolved-sources (step 6): exit 0
+    | resolved with /Users/antony/.local/state/owner-switch-dry-run/prefix/bin/ravel (ravel 1.1.0): design, engineering, grove-core, personal, quint, requirements, research, superpowers, testanyware, writing
+    | step 6: the ten sources resolve with their accepted digests
+  command reader-evidence (step 7): exit 0
+    | step 7: commit-commands@claude-plugins-official reads /Users/antony/.claude/plugins/cache/claude-plugins-official/commit-commands/1.0.1
+    | step 7: context7@claude-plugins-official reads /Users/antony/.claude/plugins/cache/claude-plugins-official/context7/dceb15d50832
+    | step 7: explanatory-output-style@claude-plugins-official reads /Users/antony/.claude/plugins/cache/claude-plugins-official/explanatory-output-style/1.0.1
+    | step 7: feature-dev@claude-plugins-official reads /Users/antony/.claude/plugins/cache/claude-plugins-official/feature-dev/1.0.1
+    | step 7: grove@linkuistics reads /Users/antony/.claude/plugins/cache/linkuistics/grove/238c3a839ab4
+    | step 7: linkuistics@linkuistics reads /Users/antony/.claude/plugins/cache/linkuistics/linkuistics/238c3a839ab4
+    | step 7: playwright@claude-plugins-official reads /Users/antony/.claude/plugins/cache/claude-plugins-official/playwright/dceb15d50832
+    | step 7: quint-llm-kit@quint-llm-kit reads /Users/antony/.claude/plugins/cache/quint-llm-kit/quint-llm-kit/1.0.0
+    | step 7: superpowers@claude-plugins-official reads /Users/antony/.claude/plugins/cache/claude-plugins-official/superpowers/7.0.0
+    | step 7: swift-lsp@claude-plugins-official reads /Users/antony/.claude/plugins/cache/claude-plugins-official/swift-lsp/1.0.0
+    | step 7: testanyware@linkuistics reads /Users/antony/.claude/plugins/cache/linkuistics/testanyware/238c3a839ab4
+  backup: /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/backups/20261111T085409467683Z-d61a3b
+    admitted ancestor process 1930 (parent 1541) Grove (native executable): grove
+    admitted ancestor process 1942 (parent 1930) Ravel (native executable): /opt/homebrew/Cellar/ravel/1.1.0/bin/ravel start-session --kind=impl --prompt=**Load the `grove-impl` skill now** — on Claude Code, where plugin skills are namespaced, that is `grove:grove-impl`. Your kind is `impl`; Grove resolved that before this session existed, so there is no selection for you t
+    admitted ancestor process 1944 (parent 1942) Claude Code (versioned executable): claude --add-dir /Users/antony/Development/AgenticOrchestration/grove --model claude-opus-5-5 --effort high **Load the `grove-impl` skill now** — on Claude Code, where plugin skills are namespaced, that is `grove:grove-impl`. Your kind is `impl`; Grove resolved that before this session existed, so t
+  gate: no other Claude Code, Codex, Grove or Ravel process before the first switch write
+  command claude plugin list --json: exit 0
+  command claude plugin marketplace list --json: exit 0
+  command claude plugin marketplace add /Users/antony/.local/state/owner-switch-dry-run/prefix/opt/grove: exit 0
+  command claude plugin list --json: exit 0
+  command claude plugin marketplace list --json: exit 0
+  command claude plugin install technical-communication-hooks@writing-hooks: exit 0
+  command claude plugin list --json: exit 0
+  command claude plugin marketplace list --json: exit 0
+  write: .claude/settings.json: enabledPlugins.technical-communication-hooks@writing-hooks = false
+  command claude plugin list --json: exit 0
+  command claude plugin marketplace list --json: exit 0
+  hooks installation: the plugin is installed and disabled
+  deactivated: .claude/skills/grove
+  deactivated: .claude/skills/terminal-browser
+  deactivated: .codex/skills/authoring-conventions
+  deactivated: .codex/skills/brainstorming
+  deactivated: .codex/skills/cli-tool-design
+  deactivated: .codex/skills/codebase-design
+  deactivated: .codex/skills/coding-style-bash
+  deactivated: .codex/skills/coding-style-elixir
+  deactivated: .codex/skills/coding-style-python
+  deactivated: .codex/skills/coding-style-rust
+  deactivated: .codex/skills/coding-style-swift
+  deactivated: .codex/skills/coding-style-typescript
+  deactivated: .codex/skills/configure-grove
+  deactivated: .codex/skills/decision-records
+  deactivated: .codex/skills/dispatching-parallel-agents
+  deactivated: .codex/skills/doubt-driven-development
+  deactivated: .codex/skills/executing-plans
+  deactivated: .codex/skills/finishing-a-development-branch
+  deactivated: .codex/skills/grove
+  deactivated: .codex/skills/grove-art
+  deactivated: .codex/skills/grove-combine-research
+  deactivated: .codex/skills/grove-copy-edit
+  deactivated: .codex/skills/grove-design
+  deactivated: .codex/skills/grove-draft
+  deactivated: .codex/skills/grove-finish
+  deactivated: .codex/skills/grove-impl
+  deactivated: .codex/skills/grove-integrate-review-design
+  deactivated: .codex/skills/grove-integrate-review-impl
+  deactivated: .codex/skills/grove-integrate-review-planning
+  deactivated: .codex/skills/grove-integrate-review-prototype
+  deactivated: .codex/skills/grove-integrate-review-requirements
+  deactivated: .codex/skills/grove-planning
+  deactivated: .codex/skills/grove-proof
+  deactivated: .codex/skills/grove-prototype
+  deactivated: .codex/skills/grove-requirements
+  deactivated: .codex/skills/grove-research-a
+  deactivated: .codex/skills/grove-research-b
+  deactivated: .codex/skills/grove-review-design
+  deactivated: .codex/skills/grove-review-impl
+  deactivated: .codex/skills/grove-review-planning
+  deactivated: .codex/skills/grove-review-prototype
+  deactivated: .codex/skills/grove-review-requirements
+  deactivated: .codex/skills/machine-environment
+  deactivated: .codex/skills/model-led-development
+  deactivated: .codex/skills/receiving-code-review
+  deactivated: .codex/skills/requesting-code-review
+  deactivated: .codex/skills/simplify-project
+  deactivated: .codex/skills/subagent-driven-development
+  deactivated: .codex/skills/systematic-debugging
+  deactivated: .codex/skills/technical-communication
+  deactivated: .codex/skills/terminal-browser
+  deactivated: .codex/skills/test-driven-development
+  deactivated: .codex/skills/using-codebase-memory
+  deactivated: .codex/skills/using-git-worktrees
+  deactivated: .codex/skills/using-jujutsu
+  deactivated: .codex/skills/using-superpowers
+  deactivated: .codex/skills/using-testanyware
+  deactivated: .codex/skills/verification-before-completion
+  deactivated: .codex/skills/writing-code-walkthroughs
+  deactivated: .codex/skills/writing-plans
+  deactivated: .codex/skills/writing-skills
+  deactivated: .agents/skills/authoring-conventions
+  deactivated: .agents/skills/cli-tool-design
+  deactivated: .agents/skills/codebase-design
+  deactivated: .agents/skills/coding-style-bash
+  deactivated: .agents/skills/coding-style-elixir
+  deactivated: .agents/skills/coding-style-python
+  deactivated: .agents/skills/coding-style-rust
+  deactivated: .agents/skills/coding-style-swift
+  deactivated: .agents/skills/coding-style-typescript
+  deactivated: .agents/skills/configure-grove
+  deactivated: .agents/skills/decision-records
+  deactivated: .agents/skills/doubt-driven-development
+  deactivated: .agents/skills/grove
+  deactivated: .agents/skills/grove-art
+  deactivated: .agents/skills/grove-combine-research
+  deactivated: .agents/skills/grove-copy-edit
+  deactivated: .agents/skills/grove-design
+  deactivated: .agents/skills/grove-draft
+  deactivated: .agents/skills/grove-finish
+  deactivated: .agents/skills/grove-impl
+  deactivated: .agents/skills/grove-integrate-review-design
+  deactivated: .agents/skills/grove-integrate-review-impl
+  deactivated: .agents/skills/grove-integrate-review-planning
+  deactivated: .agents/skills/grove-integrate-review-prototype
+  deactivated: .agents/skills/grove-integrate-review-requirements
+  deactivated: .agents/skills/grove-planning
+  deactivated: .agents/skills/grove-proof
+  deactivated: .agents/skills/grove-prototype
+  deactivated: .agents/skills/grove-requirements
+  deactivated: .agents/skills/grove-research-a
+  deactivated: .agents/skills/grove-research-b
+  deactivated: .agents/skills/grove-review-design
+  deactivated: .agents/skills/grove-review-impl
+  deactivated: .agents/skills/grove-review-planning
+  deactivated: .agents/skills/grove-review-prototype
+  deactivated: .agents/skills/grove-review-requirements
+  deactivated: .agents/skills/machine-environment
+  deactivated: .agents/skills/model-led-development
+  deactivated: .agents/skills/quint-execute-spec
+  deactivated: .agents/skills/quint-lang
+  deactivated: .agents/skills/quint-modeling
+  deactivated: .agents/skills/simplify-project
+  deactivated: .agents/skills/technical-communication
+  deactivated: .agents/skills/terminal-browser
+  deactivated: .agents/skills/using-codebase-memory
+  deactivated: .agents/skills/using-jujutsu
+  deactivated: .agents/skills/using-testanyware
+  deactivated: .agents/skills/writing-code-walkthroughs
+  deactivated: .pi/agent/skills/authoring-conventions
+  deactivated: .pi/agent/skills/cli-tool-design
+  deactivated: .pi/agent/skills/codebase-design
+  deactivated: .pi/agent/skills/coding-style-bash
+  deactivated: .pi/agent/skills/coding-style-elixir
+  deactivated: .pi/agent/skills/coding-style-python
+  deactivated: .pi/agent/skills/coding-style-rust
+  deactivated: .pi/agent/skills/coding-style-swift
+  deactivated: .pi/agent/skills/coding-style-typescript
+  deactivated: .pi/agent/skills/configure-grove
+  deactivated: .pi/agent/skills/decision-records
+  deactivated: .pi/agent/skills/doubt-driven-development
+  deactivated: .pi/agent/skills/grove
+  deactivated: .pi/agent/skills/grove-art
+  deactivated: .pi/agent/skills/grove-combine-research
+  deactivated: .pi/agent/skills/grove-copy-edit
+  deactivated: .pi/agent/skills/grove-design
+  deactivated: .pi/agent/skills/grove-draft
+  deactivated: .pi/agent/skills/grove-finish
+  deactivated: .pi/agent/skills/grove-impl
+  deactivated: .pi/agent/skills/grove-integrate-review-design
+  deactivated: .pi/agent/skills/grove-integrate-review-impl
+  deactivated: .pi/agent/skills/grove-integrate-review-planning
+  deactivated: .pi/agent/skills/grove-integrate-review-prototype
+  deactivated: .pi/agent/skills/grove-integrate-review-requirements
+  deactivated: .pi/agent/skills/grove-planning
+  deactivated: .pi/agent/skills/grove-proof
+  deactivated: .pi/agent/skills/grove-prototype
+  deactivated: .pi/agent/skills/grove-requirements
+  deactivated: .pi/agent/skills/grove-research-a
+  deactivated: .pi/agent/skills/grove-research-b
+  deactivated: .pi/agent/skills/grove-review-design
+  deactivated: .pi/agent/skills/grove-review-impl
+  deactivated: .pi/agent/skills/grove-review-planning
+  deactivated: .pi/agent/skills/grove-review-prototype
+  deactivated: .pi/agent/skills/grove-review-requirements
+  deactivated: .pi/agent/skills/machine-environment
+  deactivated: .pi/agent/skills/model-led-development
+  deactivated: .pi/agent/skills/simplify-project
+  deactivated: .pi/agent/skills/technical-communication
+  deactivated: .pi/agent/skills/using-codebase-memory
+  deactivated: .pi/agent/skills/using-jujutsu
+  deactivated: .pi/agent/skills/using-testanyware
+  deactivated: .pi/agent/skills/writing-code-walkthroughs
+  deactivated: .pi/agent/extensions/technical-communication.ts
+  write: .claude/settings.json: enabledPlugins.grove@linkuistics = false, enabledPlugins.linkuistics@linkuistics = false, enabledPlugins.testanyware@linkuistics = false, enabledPlugins.superpowers@claude-plugins-official = false, enabledPlugins.quint-llm-kit@quint-llm-kit = false, enabledPlugins.technical-communication-hooks@writing-hooks = true, enabledPlugins.guardrail@personal = true
+  write: .config/ravel/settings.json: skills = {"mandatory":[{"path":"skills/using-superpowers/SKILL.md","source":"superpowers"}],"schemaVersion":1}
+  command resolve-switched (step 7): exit 0
+    | resolve: passed
+  command claude-switched (step 7): exit 0
+    | core/lib/tools/skills/playwright-cli/references/tracing.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/tools/skills/playwright-cli/references/video-recording.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/tools/skills/playwright-component-testing", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/tools/skills/playwright-component-testing/SKILL.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/tools/skills/playwright-component-testing/references", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/tools/skills/playwright-component-testing/references/gallery-spec.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/tools/skills/playwright-component-testing/references/migration.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/tools/skills/playwright-component-testing/references/react.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/tools/skills/playwright-component-testing/references/typing.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/tools/skills/playwright-component-testing/references/vue.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/tools/skills/playwright-trace", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/tools/skills/playwright-trace/SKILL.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/tools/utils", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/tools/utils/extension.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/tools/utils/socketConnection.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/utilsBundle.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/utilsBundle.js.LICENSE", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/dashboard", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/dashboard/assets", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/dashboard/assets/codeMirrorModule--QdMvsKi.css", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/dashboard/assets/codeMirrorModule-D5SeAdMv.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/dashboard/assets/codicon-DCmgc-ay.ttf", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/dashboard/assets/firefox-1bWoP6pv.svg", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/dashboard/assets/firefox-beta-k3eOH_eK.svg", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/dashboard/assets/firefox-nightly-Cp5nfeDT.svg", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/dashboard/assets/index-BnQkOdFO.css", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/dashboard/assets/index-C_gcIYdA.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/dashboard/assets/safari-na3_-uQk.svg", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/dashboard/index.html", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/dashboard/playwright-logo.svg", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/htmlReport", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/htmlReport/index.html", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/htmlReport/report.css", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/htmlReport/report.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/recorder", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/recorder/assets", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/recorder/assets/codeMirrorModule--QdMvsKi.css", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/recorder/assets/codeMirrorModule-ClnuDfLq.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/recorder/assets/codicon-DCmgc-ay.ttf", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/recorder/assets/index-BZpYJZ-P.css", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/recorder/assets/index-BwOPSdeb.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/recorder/index.html", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/recorder/playwright-logo.svg", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/assets", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/assets/codeMirrorModule-DNqxPF-E.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/assets/defaultSettingsView-CkxhuqSy.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/assets/rolldown-runtime-QTnfLwEv.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/assets/urlMatch-Cgl6axSs.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/assets/xtermModule-Cv6bi7od.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/codeMirrorModule.-QdMvsKi.css", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/codicon.DCmgc-ay.ttf", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/defaultSettingsView.C8BeHuxd.css", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/index.B_TqY17P.css", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/index.BiNy7aX9.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/index.html", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/manifest.webmanifest", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/playwright-logo.svg", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/snapshot.-ChLTbql.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/snapshot.html", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/sw.bundle.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/uiMode.CyMfwkXJ.css", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/uiMode.DwiFqwky.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/uiMode.html", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/vite/traceViewer/xtermModule.kHJ-D0s7.css", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/webp_codec.LICENSE", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/webp_codec.wasm", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/lib/xdg-open", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/package.json", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/types", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/types/protocol.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/types/structs.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright-core/types/types.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/LICENSE", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/NOTICE", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/README.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/ThirdPartyNotices.txt", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/cli.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/index.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/index.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/index.mjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/agents", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/agents/agentParser.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/agents/copilot-setup-steps.yml", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/agents/generateAgents.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/agents/playwright-test-coverage.prompt.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/agents/playwright-test-generate.prompt.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/agents/playwright-test-generator.agent.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/agents/playwright-test-heal.prompt.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/agents/playwright-test-healer.agent.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/agents/playwright-test-plan.prompt.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/agents/playwright-test-planner.agent.md", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/cli", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/cli/reportActions.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/cli/testActions.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/common", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/common/index.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/common/index.js.txt", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/errorContext.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/globals.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/index.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/isomorphic.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/isomorphic.js.txt", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/loader", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/loader/loaderProcessEntry.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/loader/loaderProcessEntry.js.txt", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/matchers", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/matchers/expect.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/matchers/expect.js.LICENSE", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/matchers/expect.js.txt", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/mcp", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/mcp/test", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/mcp/test/browserBackend.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/mcp/test/generatorTools.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/mcp/test/plannerTools.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/mcp/test/seed.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/mcp/test/streams.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/mcp/test/testBackend.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/mcp/test/testContext.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/mcp/test/testTool.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/mcp/test/testTools.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/package.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/program.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/runner", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/runner/index.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/runner/index.js.txt", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/transform", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/transform/babelBundle.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/transform/babelBundle.js.LICENSE", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/transform/babelBundle.js.txt", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/transform/esmLoader.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/transform/esmLoader.js.LICENSE", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/transform/esmLoader.js.txt", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/util.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/worker", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/worker/workerProcessEntry.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/lib/worker/workerProcessEntry.js.txt", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/package.json", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/test.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/test.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/test.mjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/types", "type": "dir"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/types/test.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/node_modules/playwright/types/testReporter.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/package-lock.json", "type": "file"}, {"change": "added", "path": ".npm/_npx/9833c18b2d85bc59/package.json", "type": "file"}], "scope": ["each top-level entry of HOME", ".claude", ".codex", ".agents", ".pi", ".config/ravel", ".config/testanyware", ".cache/ravel", ".local/share/claude", ".local/state/ravel", ".local/state/technical-communication", ".npm/_npx", "Library/Keychains", "Library/Application Support/TestAnyware"], "skillCopiesChanged": [".claude/skills/synced/1d6de60d-d89c-4a57-8d15-6582492c5251_a7839482-bb69-4ef4-8067-9849c78a0fb2/.last-complete-round", ".claude/skills/synced/1d6de60d-d89c-4a57-8d15-6582492c5251_a7839482-bb69-4ef4-8067-9849c78a0fb2/manifest.json"]}}
+    | session: passed
+  command codex-switched (step 7): exit 0
+    | e_modules/zod/v4/locales/kh.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/kh.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/kh.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/kh.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/km.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/km.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/km.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/km.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/kn.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/kn.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/kn.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/kn.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ko.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ko.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ko.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ko.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/lt.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/lt.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/lt.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/lt.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/mk.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/mk.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/mk.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/mk.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ms.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ms.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ms.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ms.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ne.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ne.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ne.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ne.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/nl.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/nl.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/nl.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/nl.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/nn.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/nn.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/nn.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/nn.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/no.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/no.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/no.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/no.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ota.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ota.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ota.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ota.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/package.json", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/pl.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/pl.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/pl.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/pl.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ps.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ps.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ps.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ps.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/pt-BR.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/pt-BR.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/pt-BR.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/pt-BR.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/pt.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/pt.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/pt.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/pt.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ro.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ro.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ro.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ro.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ru.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ru.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ru.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ru.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/sk.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/sk.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/sk.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/sk.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/sl.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/sl.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/sl.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/sl.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/sv.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/sv.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/sv.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/sv.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ta.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ta.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ta.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ta.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/tg.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/tg.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/tg.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/tg.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/th.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/th.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/th.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/th.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/tk.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/tk.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/tk.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/tk.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/tr.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/tr.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/tr.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/tr.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ua.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ua.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ua.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ua.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/uk.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/uk.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/uk.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/uk.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ur.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ur.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ur.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/ur.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/uz.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/uz.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/uz.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/uz.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/vi.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/vi.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/vi.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/vi.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/yo.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/yo.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/yo.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/yo.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/zh-CN.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/zh-CN.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/zh-CN.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/zh-CN.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/zh-TW.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/zh-TW.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/zh-TW.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/locales/zh-TW.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini", "type": "dir"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/checks.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/checks.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/checks.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/checks.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/coerce.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/coerce.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/coerce.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/coerce.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/deep-partial.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/deep-partial.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/deep-partial.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/deep-partial.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/external.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/external.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/external.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/external.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/in-out.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/in-out.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/in-out.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/in-out.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/index.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/index.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/index.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/index.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/iso.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/iso.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/iso.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/iso.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/package.json", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/parse.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/parse.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/parse.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/parse.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/schemas.cjs", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/schemas.d.cts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/schemas.d.ts", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/mini/schemas.js", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/node_modules/zod/v4/package.json", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/package-lock.json", "type": "file"}, {"change": "added", "path": ".npm/_npx/eea2bd7412d4593b/package.json", "type": "file"}], "scope": ["each top-level entry of HOME", ".claude", ".codex", ".agents", ".pi", ".config/ravel", ".config/testanyware", ".cache/ravel", ".local/share/claude", ".local/state/ravel", ".local/state/technical-communication", ".npm/_npx", "Library/Keychains", "Library/Application Support/TestAnyware"], "skillCopiesChanged": []}}
+    | session: passed
+  probe-owned processes: 26 recorded, none runs
+    admitted ancestor process 1930 (parent 1541) Grove (native executable): grove
+    admitted ancestor process 1942 (parent 1930) Ravel (native executable): /opt/homebrew/Cellar/ravel/1.1.0/bin/ravel start-session --kind=impl --prompt=**Load the `grove-impl` skill now** — on Claude Code, where plugin skills are namespaced, that is `grove:grove-impl`. Your kind is `impl`; Grove resolved that before this session existed, so there is no selection for you t
+    admitted ancestor process 1944 (parent 1942) Claude Code (versioned executable): claude --add-dir /Users/antony/Development/AgenticOrchestration/grove --model claude-opus-5-5 --effort high **Load the `grove-impl` skill now** — on Claude Code, where plugin skills are namespaced, that is `grove:grove-impl`. Your kind is `impl`; Grove resolved that before this session existed, so t
+  gate: no other Claude Code, Codex, Grove or Ravel process before the final comparison
+  command mac-check (step 8): exit 0
+  command resolved-sources (step 8): exit 0
+    | resolved with /Users/antony/.local/state/owner-switch-dry-run/prefix/bin/ravel (ravel 1.1.0): design, engineering, grove-core, personal, quint, requirements, research, superpowers, testanyware, writing
+    | step 6: the ten sources resolve with their accepted digests
+  receipt: /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/receipts/20261111T085409467683Z-d61a3b.json
+  manual: appended the success observation
+  result: switched
+  (switch: exit 0)
+$ /opt/homebrew/opt/python@3.14/bin/python3.14 -I /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py restore --backup /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/backups/20261111T085409467683Z-d61a3b --attempt /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/attempts/20261111T085409467683Z-d61a3b.json --home /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home
+  restore: attempt 20261111T085409467683Z-d61a3b from /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/backups/20261111T085409467683Z-d61a3b
+    admitted ancestor process 1930 (parent 1541) Grove (native executable): grove
+    admitted ancestor process 1942 (parent 1930) Ravel (native executable): /opt/homebrew/Cellar/ravel/1.1.0/bin/ravel start-session --kind=impl --prompt=**Load the `grove-impl` skill now** — on Claude Code, where plugin skills are namespaced, that is `grove:grove-impl`. Your kind is `impl`; Grove resolved that before this session existed, so there is no selection for you t
+    admitted ancestor process 1944 (parent 1942) Claude Code (versioned executable): claude --add-dir /Users/antony/Development/AgenticOrchestration/grove --model claude-opus-5-5 --effort high **Load the `grove-impl` skill now** — on Claude Code, where plugin skills are namespaced, that is `grove:grove-impl`. Your kind is `impl`; Grove resolved that before this session existed, so t
+  gate: no other Claude Code, Codex, Grove or Ravel process before restore
+  restore: later
+  recovery note: /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/attempts/20261111T085712457686Z-69cbc8.json
+  if this restore is interrupted, repeat under the same quiet interval: /opt/homebrew/opt/python@3.14/bin/python3.14 -I /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py restore --backup /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/backups/20261111T085409467683Z-d61a3b --attempt /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/attempts/20261111T085409467683Z-d61a3b.json --home /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home --recovery /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/attempts/20261111T085712457686Z-69cbc8.json
+  backup: /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/backups/20261111T085712457686Z-69cbc8
+  native-off: .config/ravel/settings.json holds the off value; nothing changed
+  restored: .config/ravel/settings.json
+  restored: .claude/plugins/known_marketplaces.json
+  restored: .claude/plugins/installed_plugins.json
+  restored: .claude/settings.json
+  restored: .claude/skills/grove
+  restored: .claude/skills/terminal-browser
+  restored: .codex/skills/authoring-conventions
+  restored: .codex/skills/brainstorming
+  restored: .codex/skills/cli-tool-design
+  restored: .codex/skills/codebase-design
+  restored: .codex/skills/coding-style-bash
+  restored: .codex/skills/coding-style-elixir
+  restored: .codex/skills/coding-style-python
+  restored: .codex/skills/coding-style-rust
+  restored: .codex/skills/coding-style-swift
+  restored: .codex/skills/coding-style-typescript
+  restored: .codex/skills/configure-grove
+  restored: .codex/skills/decision-records
+  restored: .codex/skills/dispatching-parallel-agents
+  restored: .codex/skills/doubt-driven-development
+  restored: .codex/skills/executing-plans
+  restored: .codex/skills/finishing-a-development-branch
+  restored: .codex/skills/grove
+  restored: .codex/skills/grove-art
+  restored: .codex/skills/grove-combine-research
+  restored: .codex/skills/grove-copy-edit
+  restored: .codex/skills/grove-design
+  restored: .codex/skills/grove-draft
+  restored: .codex/skills/grove-finish
+  restored: .codex/skills/grove-impl
+  restored: .codex/skills/grove-integrate-review-design
+  restored: .codex/skills/grove-integrate-review-impl
+  restored: .codex/skills/grove-integrate-review-planning
+  restored: .codex/skills/grove-integrate-review-prototype
+  restored: .codex/skills/grove-integrate-review-requirements
+  restored: .codex/skills/grove-planning
+  restored: .codex/skills/grove-proof
+  restored: .codex/skills/grove-prototype
+  restored: .codex/skills/grove-requirements
+  restored: .codex/skills/grove-research-a
+  restored: .codex/skills/grove-research-b
+  restored: .codex/skills/grove-review-design
+  restored: .codex/skills/grove-review-impl
+  restored: .codex/skills/grove-review-planning
+  restored: .codex/skills/grove-review-prototype
+  restored: .codex/skills/grove-review-requirements
+  restored: .codex/skills/machine-environment
+  restored: .codex/skills/model-led-development
+  restored: .codex/skills/receiving-code-review
+  restored: .codex/skills/requesting-code-review
+  restored: .codex/skills/simplify-project
+  restored: .codex/skills/subagent-driven-development
+  restored: .codex/skills/systematic-debugging
+  restored: .codex/skills/technical-communication
+  restored: .codex/skills/terminal-browser
+  restored: .codex/skills/test-driven-development
+  restored: .codex/skills/using-codebase-memory
+  restored: .codex/skills/using-git-worktrees
+  restored: .codex/skills/using-jujutsu
+  restored: .codex/skills/using-superpowers
+  restored: .codex/skills/using-testanyware
+  restored: .codex/skills/verification-before-completion
+  restored: .codex/skills/writing-code-walkthroughs
+  restored: .codex/skills/writing-plans
+  restored: .codex/skills/writing-skills
+  restored: .agents/skills/authoring-conventions
+  restored: .agents/skills/cli-tool-design
+  restored: .agents/skills/codebase-design
+  restored: .agents/skills/coding-style-bash
+  restored: .agents/skills/coding-style-elixir
+  restored: .agents/skills/coding-style-python
+  restored: .agents/skills/coding-style-rust
+  restored: .agents/skills/coding-style-swift
+  restored: .agents/skills/coding-style-typescript
+  restored: .agents/skills/configure-grove
+  restored: .agents/skills/decision-records
+  restored: .agents/skills/doubt-driven-development
+  restored: .agents/skills/grove
+  restored: .agents/skills/grove-art
+  restored: .agents/skills/grove-combine-research
+  restored: .agents/skills/grove-copy-edit
+  restored: .agents/skills/grove-design
+  restored: .agents/skills/grove-draft
+  restored: .agents/skills/grove-finish
+  restored: .agents/skills/grove-impl
+  restored: .agents/skills/grove-integrate-review-design
+  restored: .agents/skills/grove-integrate-review-impl
+  restored: .agents/skills/grove-integrate-review-planning
+  restored: .agents/skills/grove-integrate-review-prototype
+  restored: .agents/skills/grove-integrate-review-requirements
+  restored: .agents/skills/grove-planning
+  restored: .agents/skills/grove-proof
+  restored: .agents/skills/grove-prototype
+  restored: .agents/skills/grove-requirements
+  restored: .agents/skills/grove-research-a
+  restored: .agents/skills/grove-research-b
+  restored: .agents/skills/grove-review-design
+  restored: .agents/skills/grove-review-impl
+  restored: .agents/skills/grove-review-planning
+  restored: .agents/skills/grove-review-prototype
+  restored: .agents/skills/grove-review-requirements
+  restored: .agents/skills/machine-environment
+  restored: .agents/skills/model-led-development
+  restored: .agents/skills/quint-execute-spec
+  restored: .agents/skills/quint-lang
+  restored: .agents/skills/quint-modeling
+  restored: .agents/skills/simplify-project
+  restored: .agents/skills/technical-communication
+  restored: .agents/skills/terminal-browser
+  restored: .agents/skills/using-codebase-memory
+  restored: .agents/skills/using-jujutsu
+  restored: .agents/skills/using-testanyware
+  restored: .agents/skills/writing-code-walkthroughs
+  restored: .pi/agent/skills/authoring-conventions
+  restored: .pi/agent/skills/cli-tool-design
+  restored: .pi/agent/skills/codebase-design
+  restored: .pi/agent/skills/coding-style-bash
+  restored: .pi/agent/skills/coding-style-elixir
+  restored: .pi/agent/skills/coding-style-python
+  restored: .pi/agent/skills/coding-style-rust
+  restored: .pi/agent/skills/coding-style-swift
+  restored: .pi/agent/skills/coding-style-typescript
+  restored: .pi/agent/skills/configure-grove
+  restored: .pi/agent/skills/decision-records
+  restored: .pi/agent/skills/doubt-driven-development
+  restored: .pi/agent/skills/grove
+  restored: .pi/agent/skills/grove-art
+  restored: .pi/agent/skills/grove-combine-research
+  restored: .pi/agent/skills/grove-copy-edit
+  restored: .pi/agent/skills/grove-design
+  restored: .pi/agent/skills/grove-draft
+  restored: .pi/agent/skills/grove-finish
+  restored: .pi/agent/skills/grove-impl
+  restored: .pi/agent/skills/grove-integrate-review-design
+  restored: .pi/agent/skills/grove-integrate-review-impl
+  restored: .pi/agent/skills/grove-integrate-review-planning
+  restored: .pi/agent/skills/grove-integrate-review-prototype
+  restored: .pi/agent/skills/grove-integrate-review-requirements
+  restored: .pi/agent/skills/grove-planning
+  restored: .pi/agent/skills/grove-proof
+  restored: .pi/agent/skills/grove-prototype
+  restored: .pi/agent/skills/grove-requirements
+  restored: .pi/agent/skills/grove-research-a
+  restored: .pi/agent/skills/grove-research-b
+  restored: .pi/agent/skills/grove-review-design
+  restored: .pi/agent/skills/grove-review-impl
+  restored: .pi/agent/skills/grove-review-planning
+  restored: .pi/agent/skills/grove-review-prototype
+  restored: .pi/agent/skills/grove-review-requirements
+  restored: .pi/agent/skills/machine-environment
+  restored: .pi/agent/skills/model-led-development
+  restored: .pi/agent/skills/simplify-project
+  restored: .pi/agent/skills/technical-communication
+  restored: .pi/agent/skills/using-codebase-memory
+  restored: .pi/agent/skills/using-jujutsu
+  restored: .pi/agent/skills/using-testanyware
+  restored: .pi/agent/skills/writing-code-walkthroughs
+  restored: .pi/agent/extensions/technical-communication.ts
+  command resolve-disabled (step restore): exit 0
+    | resolve: passed
+  command claude-native (step restore): exit 0
+    | session: passed
+  command codex-native (step restore): exit 0
+    | session: passed
+  probe-owned processes: 13 recorded, none runs
+    admitted ancestor process 1930 (parent 1541) Grove (native executable): grove
+    admitted ancestor process 1942 (parent 1930) Ravel (native executable): /opt/homebrew/Cellar/ravel/1.1.0/bin/ravel start-session --kind=impl --prompt=**Load the `grove-impl` skill now** — on Claude Code, where plugin skills are namespaced, that is `grove:grove-impl`. Your kind is `impl`; Grove resolved that before this session existed, so there is no selection for you t
+    admitted ancestor process 1944 (parent 1942) Claude Code (versioned executable): claude --add-dir /Users/antony/Development/AgenticOrchestration/grove --model claude-opus-5-5 --effort high **Load the `grove-impl` skill now** — on Claude Code, where plugin skills are namespaced, that is `grove:grove-impl`. Your kind is `impl`; Grove resolved that before this session existed, so t
+  gate: no other Claude Code, Codex, Grove or Ravel process before the end of restore
+  receipt: invalidated /private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/receipts/20261111T085409467683Z-d61a3b.json: the owner returned to native delivery
+  manual: appended the correction
+  manual: appended the native return
+  restore: native delivery verified
+  result: restored
+  (restore: exit 0)

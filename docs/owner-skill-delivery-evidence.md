@@ -7454,9 +7454,17 @@ the rules.
 
 ### Result
 
-The plan is [`switch-plan-draft.json`](owner-cutover/switch-plan-draft.json),
-SHA-256 `abb8ab18c7cc3c425565eb8ddeae95199471c14d6b257e2cd9712e5659f2193b`.
-The prepared `plan.json` holds the same bytes. The read-only plan report
+The plan is [`switch-plan-draft.json`](owner-cutover/switch-plan-draft.json).
+This leaf prepared it with SHA-256
+`abb8ab18c7cc3c425565eb8ddeae95199471c14d6b257e2cd9712e5659f2193b`.
+owner-switch-rehearsal-k255 repaired `scripts/harness_trial.py`, a plan
+input, and drafted the plan again as SHA-256
+`60c34eb7b3edf9f0452b5f1461575a1890008c9dbeccb2e4dc364082cc268ae7`. Only
+the two digests of that helper changed.
+
+The prepared `plan.json` holds the same bytes. [Owner switch rehearsal](#owner-switch-rehearsal) records the
+change, and the table in [The prepared folder](#the-prepared-folder) names
+the current digests. The read-only plan report
 against the real HOME exited 0 and changed none of 330 identities.
 `mac-check --only "Owner skill switch"` reports "Native skill delivery is
 verified against the prepared plan."
@@ -7589,17 +7597,17 @@ the attempt note. It stays readable after `.grove/` teardown.
 
 | File | SHA-256 |
 | --- | --- |
-| `plan.json` | `abb8ab18c7cc3c425565eb8ddeae95199471c14d6b257e2cd9712e5659f2193b` |
+| `plan.json` | `60c34eb7b3edf9f0452b5f1461575a1890008c9dbeccb2e4dc364082cc268ae7` |
 | `owner_switch.py` | `76ed17260bb1e0305c3011ec2c6d5eab171b1454a498a2a5e6ceef9cba090f7d` |
 | `inventory.py` | `93a6c14e76304ffa2cd5ca79d728a743597ce75c3c1b96462b1dd4047bde16c5` |
 | `owner_switch_probes.py` | `176d89c865de1b9dcc22580e52bdeef0cb08aa8bf1026730144b32bc21933488` |
-| `harness_trial.py` | `917d67517063932f8b334049a217e8b6c3d0f43020c08ec5a22c2864a2bec83d` |
-| `owner_switch_dry_run.py` | `656f5fec09442c1c4e36f6d029afbc97ad4b172ade37292de2753932d7ab0911` |
-| `INSTRUCTIONS.md` | `14bcf8e6ace63d108049fb8604fbbed196d1fd323b61144f39af6cd0845c1dc1` |
+| `harness_trial.py` | `2a6a3790438aa86b9468839e1f5f133d4ef1005b3d5556886adf9107a6a4c5a5` |
+| `owner_switch_dry_run.py` | `bc74fba7e713be269d71ce1a527c9ff3b610868f28715308b3e8ab896ff89d86` |
+| `INSTRUCTIONS.md` | `f50f75632690e94518e82506e834ed3c65c026c53d5f1ea7d86208a8c7925003` |
 | `staging/docs/evaluations/owner-skill-delivery/staging_trial.py` | `a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b` |
 | `staging/docs/evaluations/owner-skill-delivery/staging_home.py` | `a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b` |
 | `staging/docs/evaluations/owner-skill-delivery/inventory.py` | `93a6c14e76304ffa2cd5ca79d728a743597ce75c3c1b96462b1dd4047bde16c5` |
-| `staging/scripts/harness_trial.py` | `917d67517063932f8b334049a217e8b6c3d0f43020c08ec5a22c2864a2bec83d` |
+| `staging/scripts/harness_trial.py` | `2a6a3790438aa86b9468839e1f5f133d4ef1005b3d5556886adf9107a6a4c5a5` |
 | `staging/scripts/harness-trials/builds.json` | `29569fef4fc8e64b1ecf8b8f74d1eb85e10c8bfe0c136a4560763f69c3b5cfdf` |
 | `staging/scripts/harness-trials/trial-launch.sh` | `59d3115f29d689e022377e550378ab44d34b7f2fbc19a98f489b52c14fd1618d` |
 | `staging/docs/owner-cutover/settings-off.json` | `6cdd20fd11675506d53584624ff8d8333c4f3c1f3d0c93b36c275865a7f306fa` |
@@ -7650,3 +7658,277 @@ and before finish. The checklist owns that step.
 - A change to the plan, the program, a helper, a command input or a tool
   version after this leaf needs another dry run.
 - The real HOME holds no backup, attempt note or receipt.
+
+## Owner switch rehearsal
+
+owner-switch-rehearsal-k255 executed the prepared plan once in a disposable
+copy of HOME on 2026-11-11, with full restore. The sections
+[The rehearsed plan](specs/owner-skill-delivery.md#the-rehearsed-plan) and
+[Settings isolation and the staging HOME](specs/owner-skill-delivery.md#settings-isolation-and-the-staging-home)
+own the rules. The section [Owner switch dry run](#owner-switch-dry-run)
+describes the instrument.
+
+### Result
+
+The seventh run, `run-20261111T085127Z`, passed. Its plan is
+`60c34eb7b3edf9f0452b5f1461575a1890008c9dbeccb2e4dc364082cc268ae7`, and its
+program is `76ed17260bb1e0305c3011ec2c6d5eab171b1454a498a2a5e6ceef9cba090f7d`.
+
+| Step | Exit | Seconds |
+| --- | --- | --- |
+| `native-off`, with no backup before it | 0 | 0.25 |
+| `attempt` | 0 | 0.08 |
+| `switch`: gates 4 to 7, ordinary writes, hooks commands, probes, probe cleanup and final comparison | 0 | 182.86 |
+| The attempt note's literal `restore` command, with its native probes | 0 | 24.32 |
+
+`native-off` wrote `{"schemaVersion": 1, "sources": []}`. The switch wrote
+its receipt with the result "switched". Each of the 328 restore comparison
+items was equal. None of the 163 input rows changed during the run. The
+run changed no copied path of the source HOME and no entry of the
+account's `~/Library/LaunchAgents`.
+
+The result is in the repository and in the owner's state folder:
+
+| File | SHA-256 |
+| --- | --- |
+| [`dry-run-result.json`](owner-cutover/dry-run-result.json) | `d05a510a87427df25488ed44d43de15f3385328b27c875fa3317ad1e9e34b2aa` |
+| [`dry-run-summary.txt`](owner-cutover/dry-run-summary.txt) | `52ce14748066d5ea2e3a557b51cac7b7406d8e31c14e526e2cf0bfa885e18e7a` |
+| [`dry-run-run.log`](owner-cutover/dry-run-run.log) | `28e2e398531c793c4e238ae88ecd94c34a05e3f23c56ea3124aaccd926768b21` |
+| [`dry-run-comparison-stand-in.txt`](owner-cutover/dry-run-comparison-stand-in.txt) | `c7e1256e66d343418fc4e2e3a235cb51a546706992e5a2d7371e1aad2e83696d` |
+| [`dry-run-comparison-real-prefix.txt`](owner-cutover/dry-run-comparison-real-prefix.txt) | `1de51f0bc7caf60c82a33193dd63b6b695d705e81b16d0db259c7ea4b55187d1` |
+| [`dry-run-prefix.json`](owner-cutover/dry-run-prefix.json) | `36512824cc794fe15e100a9564c9d5745740ce18d4408aa671ead6cda95ea47a` |
+
+Each comparison also has its JSON record beside its text. The folder
+`/Users/antony/.local/state/owner-switch/dry-run` holds the same result,
+summary, log and comparisons. The prepared instructions name that result.
+Never edit a result by hand. Run the dry run again instead.
+
+### Per-probe outcomes
+
+| Phase | Probe | Exit | Evidence |
+| --- | --- | --- | --- |
+| switch | `resolve-switched` | 0 | The ten accepted sources with their digests and the mandatory file |
+| switch | `claude-switched` | 0 | Claude Code 2.1.322, `claude-opus-5-5`, medium. Each of `mandatoryFirst`, `craftSkill`, `kindSkill`, `testanyware`, `hooks`, `listing` and `digests` passed. Cleanup found no survivor of 12 owned processes. |
+| switch | `codex-switched` | 0 | Codex 0.167.0, `gpt-6.1-sol`, medium. Each of `mandatoryFirst`, `craftSkill`, `kindSkill`, `testanyware`, `listing` and `digests` passed. Cleanup found no survivor of 14 owned processes. |
+| restore | `resolve-disabled` | 0 | The status "disabled" |
+| restore | `claude-native` | 0 | The program keeps only the exit status |
+| restore | `codex-native` | 0 | The program keeps only the exit status |
+
+The hooks commands ran with Claude Code 2.1.322, the version that
+owner-marketplace-freeze-k253 held. They registered the marketplace at
+`<prefix>/opt/grove` and installed
+`technical-communication-hooks@writing-hooks`. Then the program disabled
+the plugin with an ordinary write.
+
+### The command
+
+The owner's state folder `~/.local/state/owner-switch-dry-run` holds the
+stand-in prefix and the console output of each run. OUT lies outside HOME.
+These commands repeat the run:
+
+```sh
+D="$HOME/.local/state/owner-switch-dry-run"
+task owner:switch:dry-run-prefix OUT="$D/prefix" \
+  GROVE_KEG="$HOME/.local/state/owner-staging/candidate/brew/Cellar/grove/22.8.0" \
+  RAVEL="$HOME/.local/state/owner-staging/ravel-2.0"
+NOSHIM=$(echo "$PATH" | tr ':' '\n' | grep -vx "$HOME/.local/share/mise/shims" | paste -sd: -)
+env PATH="$NOSHIM" task owner:switch:dry-run OUT="/private/tmp/owner-switch-dry-run/run-<UTC time>" ARGS="\
+  --python /opt/homebrew/opt/python@3.14/bin/python3.14 --path $D/prefix/bin \
+  --prefix grove-keg=$D/prefix/Cellar/grove/22.8.0 --prefix ravel=$D/prefix/Cellar/ravel@2/2.0.0 \
+  --sign-in --include .config/mise --include .homebrew/trust.json --include .claude/plugins \
+  --include .codex/config.toml --include .codex/hooks.json --include .codex/plugins \
+  --include .codex/AGENTS.md --include .codex/instructions.md --include .quint-llm-kit/repo \
+  --include .local/bin/codebase-memory-mcp"
+```
+
+Run `owner_switch.py processes --home "$HOME"` first. Its result must be
+"clear".
+
+### The stand-in prefix
+
+Before finish, the real prefix cannot pass gates 4 and 6. Its `bin/ravel` is
+Ravel 1.1.0, and its Grove 22.8.0 has no keg layout.
+`docs/evaluations/owner-skill-delivery/dry_run_prefix.py` builds a stand-in
+prefix, and its module docstring states the layout. Four measurements shaped
+it:
+
+- Homebrew refuses a prefix in its temporary folder `/private/tmp`.
+- `bin/brew` takes its prefix from its own folder. Homebrew takes the
+  repository's Cellar when the repository holds one. The stand-in's
+  `Homebrew` folder therefore holds links to the real `bin/brew` and
+  `Library` only.
+- Homebrew counts no link out of its Cellar as a keg. It stopped with
+  "is not inside a keg". Each keg is therefore an APFS clone.
+- `mise bootstrap packages status` reads only the real `/opt/homebrew`. It
+  ignores `HOMEBREW_PREFIX`, `HOMEBREW_CELLAR`, `MISE_BREW_PREFIX` and
+  `MISE_BREW_CELLAR`. Gate 5 therefore compares the real versions with the
+  stand-in's linked kegs. The candidate keg is 22.8.0, as is the installed
+  Grove, and each clone keeps its real version.
+
+The stand-in's Ravel is a clone of the accepted 2.0 build, SHA-256
+`3a9a9129573e4d827a317f6b793ba990044080a31a7b667b64cc153a2f974a0b`. It reports
+`ravel 1.1.0` before the cut. Its `share/ravel/installation.json` names the
+stand-in's skill directory. All ten sources resolved from it with their
+accepted digests. A second build with the task gave equal keg digests,
+the same Ravel binary and the same aliases.
+
+### The copied layout
+
+The plan's paths alone did not hold the inputs of the switch. Each
+`--include` above copies one path that a command reads:
+
+| Path | Reader |
+| --- | --- |
+| `.codex/config.toml`, `.codex/hooks.json`, `.local/bin/codebase-memory-mcp`, `.quint-llm-kit/repo` | The baseline instrument of step 3. Without them, it reported four changed entries. |
+| `.homebrew/trust.json` | Homebrew 7, which refuses a formula of an untrusted tap |
+| `.config/mise` | Gate 5. mise reads `[bootstrap.packages]` there. |
+| `.claude/plugins`, `.codex/plugins`, `.codex/AGENTS.md`, `.codex/instructions.md` | The harnesses of the probes, as in the real HOME |
+
+`--sign-in` links `Library/Keychains` and `.codex/auth.json` to the real
+HOME, as the staging contract allows. A copied login keychain would be a
+second, locked keychain. No run copies `.claude.json`. This session's
+Claude Code changed the real file during the second run and again after it,
+so the source-HOME check would fail on that writer. The probes therefore ran
+without the owner's user-level Claude Code MCP servers. The Codex probes
+started the Codex MCP servers of the copied configuration.
+
+### The runs
+
+Each failed run stopped before any write of the real HOME. Each change
+below came before the next run.
+
+| Run | Stop | Change |
+| --- | --- | --- |
+| `run-20261111T075753Z` | Step 3: four changed entries of absent inputs | Copy the inputs of the baseline instrument |
+| `run-20261111T080458Z` | Step 4: Homebrew refused the untrusted tap. The real `~/.claude.json` changed. | Copy the trust store, and stop copying `.claude.json` |
+| `run-20261111T080944Z` | Step 5: mise read the real `~/.config/mise/config.local.toml` as an untrusted project file | Put OUT outside HOME |
+| `run-20261111T081407Z` | Step 5: `sandbox-exec` refused the real HOME's mise shim of `ruby` | Remove `~/.local/share/mise/shims` from PATH |
+| `run-20261111T081847Z` | Restore exit 4: `codex-native` failed `listing` | Repair the Codex listing of `scripts/harness_trial.py` |
+| `run-20261111T083910Z` | None, but the switch's probes were missing from the per-probe outcomes | Read the probe lines from each step's whole output |
+| `run-20261111T085127Z` | None | None |
+
+The first four runs used OUT inside HOME, and the third showed why that is
+wrong. mise reads `<folder>/.config/mise` and Claude Code reads
+`<folder>/.claude/skills` in each parent folder of its working folder. With
+the real HOME, mise counts `~/.local/share/mise/shims` as its own and skips
+it. With the disposable HOME, it does not. Without the shims folder, only
+`ruby`, `node` and `npx` resolve to other files, Homebrew's. No row of the
+input table changes.
+
+### The Codex listing
+
+In the fifth run, Codex read `grove-planning` from its native copy and
+quoted the asked line, but the probe found no `grove-planning` in the
+listing. Codex 0.167.0 names a linked skill after the plugin folder that
+holds its target. The real `.agents/skills` links reach
+`.agents/.grove/current/plugins/grove/skills/...`, so `codex debug
+prompt-input` listed `grove:grove-planning`. The listing pattern of
+`CodexAdapter.skills` dropped every name with a colon. A real restore
+fails in the same way. The staging case `codex-native` passed, because the
+staging trial copied its native entries as folders, not as links.
+
+The pattern now keeps a namespaced name whole, and `CodexSkillListingTest`
+covers it. Before the repair, the test listed only `imagegen`. After the
+switch, Codex listed 26 names: its system skills, `codebase-memory` and its
+own app plugins such as `pages:write-page`. None was a Grove, Linkuistics,
+TestAnyware or quint-llm-kit skill, so the switched probe hid nothing.
+
+The helper is a plan input, so `task owner:switch-plan:draft` wrote the plan
+again. Only the two digests of the helper changed.
+`task owner:switch-plan:check` passed the new plan, with each of its ten
+controls.
+
+### Instrument changes
+
+- `run --sign-in` links the two sign-in stores and states the limit in the
+  result. The control `dry-run-sign-in` checks both links.
+- `run` refuses an OUT inside HOME. The control `dry-run-refusals` checks
+  the refusal.
+- The per-probe outcomes read each step's whole output. The result keeps a
+  tail of 20,000 characters, and the real switch printed more. The control
+  `dry-run-long-output` pads a probe's output so that the tail loses the
+  probe line.
+- The report of undeclared helpers counts the prepared program as declared.
+  The plan names it as `$program`, and the probes import it.
+
+A mutant of each of the first three changes failed its control.
+
+### The comparison
+
+The comparison against the real prepared inputs used the prepared
+instrument, the stand-in's `bin` folder and the run's prefixes. It exited 0:
+163 rows, 88 as `substituted home` and the others equal, and no plan value
+differed.
+
+The comparison with the prepared instructions' real prefixes exited 1, as
+expected before finish. 14 rows and one plan value differ:
+
+- `tool:brew` differs in its version line. The stand-in's repository folder
+  has no Git history.
+- `tool:ravel` is the real 1.1.0. `tool:grove` is the released 22.8.0, which
+  has no keg layout.
+- The real prefix holds none of Grove's six sources. The four other sources
+  have equal content at the stand-in's clone paths, which no declared prefix
+  covers.
+- The plan's `retained` path names `/opt/homebrew/Cellar/ravel/1.1.0`. Today
+  `/opt/homebrew/opt/ravel` reaches that keg, so the real plan names it
+  `${ravel}`. After promotion this difference goes. Before promotion, it
+  stops an attempt.
+
+### The real HOME
+
+After the run, these checks held for the real HOME:
+
+- `task owner:freeze:check` reported 0 breaks.
+- `owner_switch.py status` reported the health "native" and no restore.
+- `mac-check --only "Owner skill switch"` reported native delivery verified
+  against the prepared plan.
+- The state folder held only `prepared` and the retained `dry-run`.
+- `~/.config/ravel/settings.json` did not exist.
+- `codex login status` and `claude auth status` reported a sign-in.
+  `~/.codex/auth.json` stayed a regular file of 9 November.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| `scripts/test_harness_trial.py` | All 86 tests passed |
+| `scripts/test_owner_switch_probes.py` | All 42 tests passed |
+| `docs/evaluations/owner-skill-delivery/test_staging_trial.py` | All 110 tests passed |
+| `task owner:switch:rehearse ONLY=dry-run` | All 14 dry-run controls passed |
+| `task owner:switch:rehearse` | All 170 controls passed, with `dry-run-sign-in` and `dry-run-long-output` |
+| `bash scripts/check.sh` | All 18 principal checks passed |
+
+### When another dry run is necessary
+
+Run the dry run again before an attempt after any of these changes:
+
+- the plan, or any of its accepted source digests
+- the program, a probe program or a helper, such as `harness_trial.py`
+- a command input, such as `mac-check` or its `check.py`
+- a tool version: Claude Code, Codex, Homebrew, mise, Ravel or Grove
+- the release of Grove, or the promotion of Ravel
+
+Finish needs its own dry run after the Grove release and the Ravel
+promotion. That run uses the real prefix and no stand-in. This result
+compares only through the stand-in, and the released Grove keg will report
+another version than the candidate. A changed released source first needs
+its affected staging trials and revised acceptance. Matching content at a
+declared prefix alone needs no new run.
+
+### Limits
+
+- The stand-in prefix stands for the released Grove and the promoted Ravel.
+  This result supplies rehearsal evidence of the plan, the program, the
+  helpers and the harnesses, not of the published archives.
+- The probes ran without the owner's user-level Claude Code MCP servers,
+  because no run copies `.claude.json`. The staging trials measured those
+  servers.
+- The run removed the real HOME's mise shims folder from PATH. A real switch
+  runs with the real HOME, where mise skips that folder.
+- The restore keeps only the exit status of each native probe, so the result
+  holds no observation of them.
+- The frozen staging runner holds the repaired `harness_trial.py`. Gate 4
+  runs its trials only when a source digest differs, and no run used it.
+- The sign-in stores were links to the real HOME. A token refresh writes
+  through them, and the source-HOME check does not cover them.

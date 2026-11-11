@@ -61,7 +61,8 @@ fixture flag "probe_owned" makes the switched probe leave a service running:
 "live" in a new session, "reparent" reparented to launchd, "moved" and
 "reused" with a record whose executable or creation time differs, and
 "journal" named only in the probe's journal by a probe that dies before its
-result line. The off-value controls make their backup through the program's own
+result line. A fixture probe's argument "pad=N" makes it print one line of N
+characters and a result line before its verdict. The off-value controls make their backup through the program's own
 `create_backup`, because the switch refuses without the off value.
 
 The gate controls run the switch with the evidence of steps 4 to 7 and the
@@ -495,7 +496,7 @@ def environment_problems(name: str) -> list:
     return problems
 
 
-def cmd_fixture(name: str) -> int:
+def cmd_fixture(name: str, extra=()) -> int:
     root = case_root()
     home = os.environ["OWNER_SWITCH_HOME"]
     leaked = environment_problems(name)
@@ -551,6 +552,13 @@ def cmd_fixture(name: str) -> int:
             print("probe-switched: died before its result line")
             return 1
         print("owner-switch-result: " + json.dumps({"owned": [rec]}))
+    # A further argument "pad=N" makes a probe print one line of N characters and
+    # a result line, as a real harness probe prints a long write record. The
+    # program echoes the tail of a command that reports a result.
+    padding = next((int(a[4:]) for a in extra if a.startswith("pad=")), 0)
+    if padding:
+        print("p" * padding)
+        print("owner-switch-result: " + json.dumps({"padding": padding}))
     if name == "probe-switched":
         ok = ravel == SWITCHED and not link
     elif name == "probe-native":
@@ -3787,6 +3795,46 @@ def c_dry_run_source_written(case):
            f"a write into the source HOME passed (exit {code}): {moved}: {text[-1500:]}")
 
 
+def c_dry_run_long_output(case):
+    """The per-probe outcomes come from each step's whole output, not from the tail that the result keeps."""
+    def padded(plan):
+        plan["probes"][0]["argv"].append("pad=60000")
+    dry_run_prepare(case, padded)
+    code, text, result = dry_run(case)
+    expect_dry_passed(code, text, result)
+    switch = next(s for s in result["steps"] if s["step"] == "switch")
+    expect("probe-switched (step 7)" not in switch["output"],
+           "the kept tail of the switch's output still holds the probe line, so the control proves nothing")
+    probes = [(p["phase"], p["name"], p["exit"]) for p in result["probes"]]
+    expect(probes == [("switch", "probe-switched", 0), ("restore", "probe-native", 0)],
+           f"the per-probe outcomes after long probe output are {probes}")
+
+
+def c_dry_run_sign_in(case):
+    """--sign-in links the two sign-in stores of the staging contract, and the result states the limit."""
+    dry_run_prepare(case)
+    stores = {"Library/Keychains": os.path.join(case.home, "Library/Keychains"),
+              ".codex/auth.json": os.path.join(case.home, ".codex/auth.json")}
+    write(os.path.join(stores["Library/Keychains"], "login.keychain-db"), "fixture keychain\n")
+    write(stores[".codex/auth.json"], "{\"fixture\": true}\n")
+    before = case.snapshot()
+    code, text, result = dry_run(case, "--sign-in")
+    expect_dry_passed(code, text, result)
+    links = {rel: os.path.join(result["dry_home"], rel) for rel in stores}
+    expect(all(os.path.islink(p) and os.readlink(p) == stores[rel] for rel, p in links.items()),
+           f"the sign-in stores are not links to the case's HOME: "
+           f"{[(p, os.path.islink(p) and os.readlink(p)) for p in links.values()]}")
+    expect(sorted(s["path"] for s in result.get("sign_in", [])) == sorted(stores),
+           f"the result names the sign-in links {result.get('sign_in')}")
+    expect(any("sign-in stores" in line for line in result["limits"]),
+           f"the result does not state the sign-in limit: {result['limits']}")
+    expect(case.snapshot() == before, "the dry run with --sign-in changed the case's HOME")
+    code, text, result = dry_run(case, out="no-sign-in")
+    expect_dry_passed(code, text, result)
+    expect(result.get("sign_in") == [] and not os.path.lexists(os.path.join(result["dry_home"], ".codex/auth.json")),
+           f"a run without --sign-in linked or copied a sign-in store: {result.get('sign_in')}")
+
+
 def c_dry_run_refusals(case):
     dry_run_prepare(case)
     busy = os.path.join(case.root, "busy")
@@ -3796,6 +3844,9 @@ def c_dry_run_refusals(case):
     code, text = dry_invoke(case, ["run", "--home", case.home, "--out", os.path.join(case.home, STATE, "dry"),
                                    "--path", case.r.stubs], "run inside")
     expect(code == 3 and "inside the copied path" in text, f"an OUT inside a copied path was accepted: {text[-800:]}")
+    code, text = dry_invoke(case, ["run", "--home", case.home, "--out", os.path.join(case.home, "dry-elsewhere"),
+                                   "--path", case.r.stubs], "run inside HOME")
+    expect(code == 3 and "inside HOME" in text, f"an OUT inside HOME was accepted: {text[-800:]}")
     code, text, _ = dry_run(case, "--prefix", f"home={case.root}", out="home-prefix")
     expect(code == 2 and "not a declared substitution" in text, f"a home prefix was accepted: {text[-800:]}")
     os.remove(os.path.join(case.home, STATE, "prepared/plan.json"))
@@ -3816,6 +3867,8 @@ def dry_run_controls() -> list:
         ("dry-run-tool-version", c_dry_run_tool_version, DRY_ARGS),
         ("dry-run-failed-probe", c_dry_run_failed_probe, DRY_ARGS),
         ("dry-run-source-written", c_dry_run_source_written, DRY_ARGS),
+        ("dry-run-sign-in", c_dry_run_sign_in, DRY_ARGS),
+        ("dry-run-long-output", c_dry_run_long_output, DRY_ARGS),
         ("dry-run-refusals", c_dry_run_refusals, DRY_ARGS),
     ]
 
@@ -3850,7 +3903,7 @@ def cmd_rehearse(args) -> int:
 
 def main() -> int:
     if len(sys.argv) > 1 and sys.argv[1] == "fixture-command":
-        return cmd_fixture(sys.argv[2])
+        return cmd_fixture(sys.argv[2], sys.argv[3:])
     if len(sys.argv) > 1 and sys.argv[1] == "hook":
         return cmd_hook(sys.argv[2])
     if len(sys.argv) > 1 and sys.argv[1] == "stub-claude":

@@ -1,0 +1,2346 @@
+{
+  "schema": "owner-switch-dry-run-comparison/1",
+  "equal": true,
+  "at": "2026-11-11T20:01:13+1100",
+  "result": "/Users/antony/.local/state/owner-switch/dry-run/result.json",
+  "result_digest": "d05a510a87427df25488ed44d43de15f3385328b27c875fa3317ad1e9e34b2aa",
+  "instrument": {
+    "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_dry_run.py",
+    "digest": "bc74fba7e713be269d71ce1a527c9ff3b610868f28715308b3e8ab896ff89d86"
+  },
+  "home": "/Users/antony",
+  "prefixes": {
+    "dry": {
+      "grove-keg": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0",
+      "ravel": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/ravel@2/2.0.0",
+      "home": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home"
+    },
+    "real": {
+      "home": "/Users/antony",
+      "grove-keg": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0",
+      "ravel": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/ravel@2/2.0.0"
+    }
+  },
+  "rows": [
+    {
+      "logical": "plan",
+      "role": "plan",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/plan.json",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/plan.json",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "program",
+      "role": "program",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:program",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:$python",
+      "role": "interpreter",
+      "dry_path": "/opt/homebrew/Cellar/python@3.14/3.14.10/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+      "real_path": "/opt/homebrew/Cellar/python@3.14/3.14.10/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "input:baseline instrument",
+      "role": "baseline instrument",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/inventory.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/inventory.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:probe program",
+      "role": "probe program",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:probe helper harness_trial.py",
+      "role": "probe helper harness_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/harness_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file scripts/harness_trial.py",
+      "role": "staging runner file scripts/harness_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/scripts/harness_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file scripts/harness-trials/builds.json",
+      "role": "staging runner file scripts/harness-trials/builds.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/scripts/harness-trials/builds.json",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness-trials/builds.json",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file scripts/harness-trials/trial-launch.sh",
+      "role": "staging runner file scripts/harness-trials/trial-launch.sh",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/scripts/harness-trials/trial-launch.sh",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness-trials/trial-launch.sh",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner",
+      "role": "staging runner",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging_home.py",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/inventory.py",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/inventory.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/inventory.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/inventory.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/owner-cutover/settings-off.json",
+      "role": "staging runner file docs/owner-cutover/settings-off.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/owner-cutover/settings-off.json",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/owner-cutover/settings-off.json",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/owner-cutover/settings-staging.json",
+      "role": "staging runner file docs/owner-cutover/settings-staging.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/owner-cutover/settings-staging.json",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/owner-cutover/settings-staging.json",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/compaction.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/compaction.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/compaction.json",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/compaction.json",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/delegate.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/delegate.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/delegate.json",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/delegate.json",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/discovery.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/discovery.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/discovery.json",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/discovery.json",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/guidance-probe.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/guidance-probe.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/guidance-probe.json",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/guidance-probe.json",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/kind-skill.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/kind-skill.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/kind-skill.json",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/kind-skill.json",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/native-residue.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/native-residue.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/native-residue.json",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/native-residue.json",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/quint-mcp.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/quint-mcp.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/quint-mcp.json",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/quint-mcp.json",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/stale-copy.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/stale-copy.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/stale-copy.json",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/stale-copy.json",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/user-invoked.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/user-invoked.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/user-invoked.json",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/user-invoked.json",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/01-planning--word-tools-k1.md",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/01-planning--word-tools-k1.md",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/01-planning--word-tools-k1.md",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/01-planning--word-tools-k1.md",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/_BRIEF.md",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/_BRIEF.md",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/_BRIEF.md",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/_BRIEF.md",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:mac-check command",
+      "role": "mac-check command",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/bin/mac-check",
+      "real_path": "/Users/antony/.local/bin/mac-check",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "input:mac-check helper",
+      "role": "mac-check helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/lib/machine-config/check.py",
+      "real_path": "/Users/antony/.local/lib/machine-config/check.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "command:baseline/inventory:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/inventory.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/inventory.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.design/sources:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.design/sources:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.design/sources:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.design/sources:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.design/discovery-claude:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.design/discovery-claude:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.design/discovery-claude:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.design/discovery-claude:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.design/discovery-codex:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.design/discovery-codex:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.design/discovery-codex:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.design/discovery-codex:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.engineering/sources:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.engineering/sources:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.engineering/sources:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.engineering/sources:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.engineering/delegate-claude:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.engineering/delegate-claude:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.engineering/delegate-claude:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.engineering/delegate-claude:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.engineering/delegate-codex:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.engineering/delegate-codex:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.engineering/delegate-codex:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.engineering/delegate-codex:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.engineering/compaction-claude:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.engineering/compaction-claude:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.engineering/compaction-claude:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.engineering/compaction-claude:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.engineering/compaction-codex:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.engineering/compaction-codex:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.engineering/compaction-codex:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.engineering/compaction-codex:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.engineering/codebase-memory-mcp-claude:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.engineering/codebase-memory-mcp-claude:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.engineering/codebase-memory-mcp-claude:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.engineering/codebase-memory-mcp-claude:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.engineering/codebase-memory-mcp-codex:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.engineering/codebase-memory-mcp-codex:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.engineering/codebase-memory-mcp-codex:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.engineering/codebase-memory-mcp-codex:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.grove-core/sources:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.grove-core/sources:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.grove-core/sources:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.grove-core/sources:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.grove-core/kind-skill-claude:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.grove-core/kind-skill-claude:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.grove-core/kind-skill-claude:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.grove-core/kind-skill-claude:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.grove-core/kind-skill-codex:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.grove-core/kind-skill-codex:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.grove-core/kind-skill-codex:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.grove-core/kind-skill-codex:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.grove-core/stale-copy-claude:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.grove-core/stale-copy-claude:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.grove-core/stale-copy-claude:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.grove-core/stale-copy-claude:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.grove-core/stale-copy-codex:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.grove-core/stale-copy-codex:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.grove-core/stale-copy-codex:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.grove-core/stale-copy-codex:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.requirements/sources:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.requirements/sources:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.requirements/sources:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.requirements/sources:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.research/sources:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.research/sources:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.research/sources:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.research/sources:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.writing/sources:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.writing/sources:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.writing/sources:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.writing/sources:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:accepted.trials.writing/native-residue-claude:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.writing/native-residue-claude:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:accepted.trials.writing/native-residue-claude:2 staging_home",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.writing/native-residue-claude:2 staging_home",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:probes/resolve-switched:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:probes/resolve-switched:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:probes/resolve-switched:2 harness_trial",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/harness_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:probes/resolve-switched:2 harness_trial",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:probes/resolve-switched:2 owner_switch",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:probes/resolve-switched:2 owner_switch",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:probes/claude-switched:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:probes/claude-switched:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:probes/claude-switched:2 harness_trial",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/harness_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:probes/claude-switched:2 harness_trial",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:probes/claude-switched:2 owner_switch",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:probes/claude-switched:2 owner_switch",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:probes/codex-switched:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:probes/codex-switched:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:probes/codex-switched:2 harness_trial",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/harness_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:probes/codex-switched:2 harness_trial",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:probes/codex-switched:2 owner_switch",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:probes/codex-switched:2 owner_switch",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:native_probe/resolve-disabled:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:native_probe/resolve-disabled:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:native_probe/resolve-disabled:2 harness_trial",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/harness_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:native_probe/resolve-disabled:2 harness_trial",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:native_probe/resolve-disabled:2 owner_switch",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:native_probe/resolve-disabled:2 owner_switch",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:native_probe/claude-native:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:native_probe/claude-native:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:native_probe/claude-native:2 harness_trial",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/harness_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:native_probe/claude-native:2 harness_trial",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:native_probe/claude-native:2 owner_switch",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:native_probe/claude-native:2 owner_switch",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:native_probe/codex-native:2",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:native_probe/codex-native:2",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:native_probe/codex-native:2 harness_trial",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/harness_trial.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:native_probe/codex-native:2 harness_trial",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:native_probe/codex-native:2 owner_switch",
+      "role": "imported local helper",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py",
+      "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:helper:command:native_probe/codex-native:2 owner_switch",
+      "role": "script interpreter",
+      "dry_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "real_path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "command:mac_check/mac-check:0",
+      "role": "invoked script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/bin/mac-check",
+      "real_path": "/Users/antony/.local/bin/mac-check",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "interpreter:command:mac_check/mac-check:0",
+      "role": "script interpreter",
+      "dry_path": "/opt/homebrew/Cellar/bash/5.3.20/bin/bash",
+      "real_path": "/opt/homebrew/Cellar/bash/5.3.20/bin/bash",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:mac_check/mac-check:0 /opt/homebrew/opt/python@3.14/bin/python3.14",
+      "role": "referenced executable",
+      "dry_path": "/opt/homebrew/Cellar/python@3.14/3.14.10/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+      "real_path": "/opt/homebrew/Cellar/python@3.14/3.14.10/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "helper:command:mac_check/mac-check:0 $HOME/.local/lib/machine-config/check.py",
+      "role": "referenced script",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/lib/machine-config/check.py",
+      "real_path": "/Users/antony/.local/lib/machine-config/check.py",
+      "verdict": "substituted home",
+      "reasons": []
+    },
+    {
+      "logical": "tool:claude",
+      "role": "external tool",
+      "dry_path": "/Users/antony/.local/share/claude/versions/2.1.322",
+      "real_path": "/Users/antony/.local/share/claude/versions/2.1.322",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "tool:brew",
+      "role": "external tool",
+      "dry_path": "/opt/homebrew/bin/brew",
+      "real_path": "/opt/homebrew/bin/brew",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "tool:mise",
+      "role": "external tool",
+      "dry_path": "/opt/homebrew/Cellar/mise/2026.11.4/bin/mise",
+      "real_path": "/opt/homebrew/Cellar/mise/2026.11.4/bin/mise",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "tool:ravel",
+      "role": "external tool",
+      "dry_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/ravel@2/2.0.0/bin/ravel",
+      "real_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/ravel@2/2.0.0/bin/ravel",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "tool:grove",
+      "role": "external tool",
+      "dry_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/bin/grove",
+      "real_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/bin/grove",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "source:design",
+      "role": "skill source",
+      "dry_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/design",
+      "real_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/design",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "source:engineering",
+      "role": "skill source",
+      "dry_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/engineering",
+      "real_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/engineering",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "source:grove-core",
+      "role": "skill source",
+      "dry_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/grove-core",
+      "real_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/grove-core",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "source:personal",
+      "role": "skill source",
+      "dry_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/personal/2026-11-06_1/libexec/skill-sources/personal",
+      "real_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/personal/2026-11-06_1/libexec/skill-sources/personal",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "source:quint",
+      "role": "skill source",
+      "dry_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/quint-llm-kit/1.0.0_1/libexec/skill-sources/quint",
+      "real_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/quint-llm-kit/1.0.0_1/libexec/skill-sources/quint",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "source:requirements",
+      "role": "skill source",
+      "dry_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/requirements",
+      "real_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/requirements",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "source:research",
+      "role": "skill source",
+      "dry_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/research",
+      "real_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/research",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "source:superpowers",
+      "role": "skill source",
+      "dry_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/superpowers/7.0.0_1/libexec/skill-sources/superpowers",
+      "real_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/superpowers/7.0.0_1/libexec/skill-sources/superpowers",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "source:testanyware",
+      "role": "skill source",
+      "dry_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/testanyware/2.8.0_1/libexec/skill-sources/testanyware",
+      "real_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/testanyware/2.8.0_1/libexec/skill-sources/testanyware",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "source:writing",
+      "role": "skill source",
+      "dry_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/writing",
+      "real_path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/writing",
+      "verdict": "equal",
+      "reasons": []
+    }
+  ],
+  "plan_differences": [],
+  "problems": [],
+  "real_inputs": [
+    {
+      "logical": "plan",
+      "role": "plan",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/plan.json",
+      "digest": "60c34eb7b3edf9f0452b5f1461575a1890008c9dbeccb2e4dc364082cc268ae7",
+      "normalised": "57b78f7e449ea39b51f56b42e023d0c03c95a1c41f3f11d843eb74569f3e3754"
+    },
+    {
+      "logical": "program",
+      "role": "program",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
+      "digest": "76ed17260bb1e0305c3011ec2c6d5eab171b1454a498a2a5e6ceef9cba090f7d"
+    },
+    {
+      "logical": "interpreter:program",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "interpreter:$python",
+      "role": "interpreter",
+      "path": "/opt/homebrew/Cellar/python@3.14/3.14.10/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+      "digest": "5504147b44ff4544bb4f1039d2b4a7bed66aac3cfa4534471e32ef559687f28d",
+      "version": "3.14.10"
+    },
+    {
+      "logical": "input:baseline instrument",
+      "role": "baseline instrument",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/inventory.py",
+      "digest": "93a6c14e76304ffa2cd5ca79d728a743597ce75c3c1b96462b1dd4047bde16c5",
+      "planned": "93a6c14e76304ffa2cd5ca79d728a743597ce75c3c1b96462b1dd4047bde16c5"
+    },
+    {
+      "logical": "input:probe program",
+      "role": "probe program",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "digest": "176d89c865de1b9dcc22580e52bdeef0cb08aa8bf1026730144b32bc21933488",
+      "planned": "176d89c865de1b9dcc22580e52bdeef0cb08aa8bf1026730144b32bc21933488"
+    },
+    {
+      "logical": "input:probe helper harness_trial.py",
+      "role": "probe helper harness_trial.py",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
+      "digest": "2a6a3790438aa86b9468839e1f5f133d4ef1005b3d5556886adf9107a6a4c5a5",
+      "planned": "2a6a3790438aa86b9468839e1f5f133d4ef1005b3d5556886adf9107a6a4c5a5"
+    },
+    {
+      "logical": "input:staging runner file scripts/harness_trial.py",
+      "role": "staging runner file scripts/harness_trial.py",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness_trial.py",
+      "digest": "2a6a3790438aa86b9468839e1f5f133d4ef1005b3d5556886adf9107a6a4c5a5",
+      "planned": "2a6a3790438aa86b9468839e1f5f133d4ef1005b3d5556886adf9107a6a4c5a5"
+    },
+    {
+      "logical": "input:staging runner file scripts/harness-trials/builds.json",
+      "role": "staging runner file scripts/harness-trials/builds.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness-trials/builds.json",
+      "digest": "29569fef4fc8e64b1ecf8b8f74d1eb85e10c8bfe0c136a4560763f69c3b5cfdf",
+      "planned": "29569fef4fc8e64b1ecf8b8f74d1eb85e10c8bfe0c136a4560763f69c3b5cfdf"
+    },
+    {
+      "logical": "input:staging runner file scripts/harness-trials/trial-launch.sh",
+      "role": "staging runner file scripts/harness-trials/trial-launch.sh",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness-trials/trial-launch.sh",
+      "digest": "59d3115f29d689e022377e550378ab44d34b7f2fbc19a98f489b52c14fd1618d",
+      "planned": "59d3115f29d689e022377e550378ab44d34b7f2fbc19a98f489b52c14fd1618d"
+    },
+    {
+      "logical": "input:staging runner",
+      "role": "staging runner",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b",
+      "planned": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging_home.py",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging_home.py",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b",
+      "planned": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/inventory.py",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/inventory.py",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/inventory.py",
+      "digest": "93a6c14e76304ffa2cd5ca79d728a743597ce75c3c1b96462b1dd4047bde16c5",
+      "planned": "93a6c14e76304ffa2cd5ca79d728a743597ce75c3c1b96462b1dd4047bde16c5"
+    },
+    {
+      "logical": "input:staging runner file docs/owner-cutover/settings-off.json",
+      "role": "staging runner file docs/owner-cutover/settings-off.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/owner-cutover/settings-off.json",
+      "digest": "6cdd20fd11675506d53584624ff8d8333c4f3c1f3d0c93b36c275865a7f306fa",
+      "planned": "6cdd20fd11675506d53584624ff8d8333c4f3c1f3d0c93b36c275865a7f306fa"
+    },
+    {
+      "logical": "input:staging runner file docs/owner-cutover/settings-staging.json",
+      "role": "staging runner file docs/owner-cutover/settings-staging.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/owner-cutover/settings-staging.json",
+      "digest": "d8a49f066310b0976cb4e13674c524d96d31b6aa0ba5bfc6923fc0b097623145",
+      "planned": "d8a49f066310b0976cb4e13674c524d96d31b6aa0ba5bfc6923fc0b097623145"
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json",
+      "digest": "111e4bcdeec6ad4329827449cd7129dc5e8009f5a9566338a9db573af1b6672c",
+      "planned": "111e4bcdeec6ad4329827449cd7129dc5e8009f5a9566338a9db573af1b6672c"
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/compaction.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/compaction.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/compaction.json",
+      "digest": "3f644af34706548164a108c242bb3f406c5955a602f61d56c9262e4ac5d63502",
+      "planned": "3f644af34706548164a108c242bb3f406c5955a602f61d56c9262e4ac5d63502"
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/delegate.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/delegate.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/delegate.json",
+      "digest": "849dff902c5989ca373473f2a87049fa437d438769adefd9ee08c3c48fadefe9",
+      "planned": "849dff902c5989ca373473f2a87049fa437d438769adefd9ee08c3c48fadefe9"
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/discovery.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/discovery.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/discovery.json",
+      "digest": "293b8a3cda8d77cc635b671b893fee5117e3bc33bc40386af0d47cf19fcd5f5a",
+      "planned": "293b8a3cda8d77cc635b671b893fee5117e3bc33bc40386af0d47cf19fcd5f5a"
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/guidance-probe.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/guidance-probe.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/guidance-probe.json",
+      "digest": "54188df33e453fe1638046116c103b6afb24e13a0c97b3835af7ebf1933b7de9",
+      "planned": "54188df33e453fe1638046116c103b6afb24e13a0c97b3835af7ebf1933b7de9"
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/kind-skill.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/kind-skill.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/kind-skill.json",
+      "digest": "935b03141173214358200a06b69b6856facc2e415e566fe7c932ff0d54354068",
+      "planned": "935b03141173214358200a06b69b6856facc2e415e566fe7c932ff0d54354068"
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/native-residue.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/native-residue.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/native-residue.json",
+      "digest": "7c5569c04adf87662e04c5129356c46f1177de69b585ae88cdad51b707bb25c1",
+      "planned": "7c5569c04adf87662e04c5129356c46f1177de69b585ae88cdad51b707bb25c1"
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/quint-mcp.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/quint-mcp.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/quint-mcp.json",
+      "digest": "cfd378ef9934c239881cfcc717c076025cfa3992e5d23362cef7f01e99d7eaff",
+      "planned": "cfd378ef9934c239881cfcc717c076025cfa3992e5d23362cef7f01e99d7eaff"
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/stale-copy.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/stale-copy.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/stale-copy.json",
+      "digest": "d7a69e8537255f109700d37ff57272c595ab51c0a53c22479f4ca36140a2003f",
+      "planned": "d7a69e8537255f109700d37ff57272c595ab51c0a53c22479f4ca36140a2003f"
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json",
+      "digest": "ce9ac8037f0f47670987f856fc510915b6d465f78c04f1570a29ff4af3e632a2",
+      "planned": "ce9ac8037f0f47670987f856fc510915b6d465f78c04f1570a29ff4af3e632a2"
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json",
+      "digest": "5cd604038c6cade999601334d51e80403cec21759ac2f559abb80e49e760d351",
+      "planned": "5cd604038c6cade999601334d51e80403cec21759ac2f559abb80e49e760d351"
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/user-invoked.json",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/user-invoked.json",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/user-invoked.json",
+      "digest": "e9941d804ea18a3e685361ce79460fc631380dd9227b4b68b3788e681ac42ab0",
+      "planned": "e9941d804ea18a3e685361ce79460fc631380dd9227b4b68b3788e681ac42ab0"
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/01-planning--word-tools-k1.md",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/01-planning--word-tools-k1.md",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/01-planning--word-tools-k1.md",
+      "digest": "a68628eb9171033b9c110e051b7ae1b9f68c4b69ec6c32a3e0a61a85b501cf8c",
+      "planned": "a68628eb9171033b9c110e051b7ae1b9f68c4b69ec6c32a3e0a61a85b501cf8c"
+    },
+    {
+      "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/_BRIEF.md",
+      "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/_BRIEF.md",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/_BRIEF.md",
+      "digest": "69af98f8c7bd7ffb33159cd972cc2cb4131ec9a8a7412866c4df0a8ca66f42a3",
+      "planned": "69af98f8c7bd7ffb33159cd972cc2cb4131ec9a8a7412866c4df0a8ca66f42a3"
+    },
+    {
+      "logical": "input:mac-check command",
+      "role": "mac-check command",
+      "path": "/Users/antony/.local/bin/mac-check",
+      "digest": "b6738bfa2b04b21742a4693e9d4d5e86c9f69d56ccd8c73d36a484d6ade0a5e8",
+      "planned": "b6738bfa2b04b21742a4693e9d4d5e86c9f69d56ccd8c73d36a484d6ade0a5e8"
+    },
+    {
+      "logical": "input:mac-check helper",
+      "role": "mac-check helper",
+      "path": "/Users/antony/.local/lib/machine-config/check.py",
+      "digest": "e3dea9b9b302e2dbb51d570bb20243d7fe53c2e2033f827304528b5966ff473e",
+      "planned": "e3dea9b9b302e2dbb51d570bb20243d7fe53c2e2033f827304528b5966ff473e"
+    },
+    {
+      "logical": "command:baseline/inventory:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/inventory.py",
+      "digest": "93a6c14e76304ffa2cd5ca79d728a743597ce75c3c1b96462b1dd4047bde16c5"
+    },
+    {
+      "logical": "command:accepted.trials.design/sources:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.design/sources:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.design/sources:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.design/sources:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.design/discovery-claude:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.design/discovery-claude:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.design/discovery-claude:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.design/discovery-claude:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.design/discovery-codex:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.design/discovery-codex:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.design/discovery-codex:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.design/discovery-codex:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.engineering/sources:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.engineering/sources:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.engineering/sources:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.engineering/sources:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.engineering/delegate-claude:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.engineering/delegate-claude:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.engineering/delegate-claude:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.engineering/delegate-claude:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.engineering/delegate-codex:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.engineering/delegate-codex:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.engineering/delegate-codex:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.engineering/delegate-codex:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.engineering/compaction-claude:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.engineering/compaction-claude:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.engineering/compaction-claude:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.engineering/compaction-claude:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.engineering/compaction-codex:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.engineering/compaction-codex:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.engineering/compaction-codex:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.engineering/compaction-codex:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.engineering/codebase-memory-mcp-claude:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.engineering/codebase-memory-mcp-claude:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.engineering/codebase-memory-mcp-claude:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.engineering/codebase-memory-mcp-claude:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.engineering/codebase-memory-mcp-codex:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.engineering/codebase-memory-mcp-codex:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.engineering/codebase-memory-mcp-codex:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.engineering/codebase-memory-mcp-codex:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.grove-core/sources:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.grove-core/sources:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.grove-core/sources:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.grove-core/sources:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.grove-core/kind-skill-claude:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.grove-core/kind-skill-claude:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.grove-core/kind-skill-claude:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.grove-core/kind-skill-claude:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.grove-core/kind-skill-codex:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.grove-core/kind-skill-codex:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.grove-core/kind-skill-codex:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.grove-core/kind-skill-codex:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.grove-core/stale-copy-claude:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.grove-core/stale-copy-claude:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.grove-core/stale-copy-claude:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.grove-core/stale-copy-claude:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.grove-core/stale-copy-codex:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.grove-core/stale-copy-codex:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.grove-core/stale-copy-codex:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.grove-core/stale-copy-codex:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.requirements/sources:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.requirements/sources:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.requirements/sources:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.requirements/sources:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.research/sources:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.research/sources:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.research/sources:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.research/sources:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.writing/sources:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.writing/sources:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.writing/sources:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.writing/sources:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:accepted.trials.writing/native-residue-claude:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "digest": "a19b5406daad525f7b777c83172a93105152456ce3c321a72af9f29ed5c2751b"
+    },
+    {
+      "logical": "interpreter:command:accepted.trials.writing/native-residue-claude:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:accepted.trials.writing/native-residue-claude:2 staging_home",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "digest": "a392b0438330e4c04ba3d8490808096c1b31036d13eb847daf7beafb75cc4a3b"
+    },
+    {
+      "logical": "interpreter:helper:command:accepted.trials.writing/native-residue-claude:2 staging_home",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:probes/resolve-switched:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "digest": "176d89c865de1b9dcc22580e52bdeef0cb08aa8bf1026730144b32bc21933488"
+    },
+    {
+      "logical": "interpreter:command:probes/resolve-switched:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:probes/resolve-switched:2 harness_trial",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
+      "digest": "2a6a3790438aa86b9468839e1f5f133d4ef1005b3d5556886adf9107a6a4c5a5"
+    },
+    {
+      "logical": "interpreter:helper:command:probes/resolve-switched:2 harness_trial",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:probes/resolve-switched:2 owner_switch",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
+      "digest": "76ed17260bb1e0305c3011ec2c6d5eab171b1454a498a2a5e6ceef9cba090f7d"
+    },
+    {
+      "logical": "interpreter:helper:command:probes/resolve-switched:2 owner_switch",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:probes/claude-switched:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "digest": "176d89c865de1b9dcc22580e52bdeef0cb08aa8bf1026730144b32bc21933488"
+    },
+    {
+      "logical": "interpreter:command:probes/claude-switched:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:probes/claude-switched:2 harness_trial",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
+      "digest": "2a6a3790438aa86b9468839e1f5f133d4ef1005b3d5556886adf9107a6a4c5a5"
+    },
+    {
+      "logical": "interpreter:helper:command:probes/claude-switched:2 harness_trial",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:probes/claude-switched:2 owner_switch",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
+      "digest": "76ed17260bb1e0305c3011ec2c6d5eab171b1454a498a2a5e6ceef9cba090f7d"
+    },
+    {
+      "logical": "interpreter:helper:command:probes/claude-switched:2 owner_switch",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:probes/codex-switched:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "digest": "176d89c865de1b9dcc22580e52bdeef0cb08aa8bf1026730144b32bc21933488"
+    },
+    {
+      "logical": "interpreter:command:probes/codex-switched:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:probes/codex-switched:2 harness_trial",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
+      "digest": "2a6a3790438aa86b9468839e1f5f133d4ef1005b3d5556886adf9107a6a4c5a5"
+    },
+    {
+      "logical": "interpreter:helper:command:probes/codex-switched:2 harness_trial",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:probes/codex-switched:2 owner_switch",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
+      "digest": "76ed17260bb1e0305c3011ec2c6d5eab171b1454a498a2a5e6ceef9cba090f7d"
+    },
+    {
+      "logical": "interpreter:helper:command:probes/codex-switched:2 owner_switch",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:native_probe/resolve-disabled:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "digest": "176d89c865de1b9dcc22580e52bdeef0cb08aa8bf1026730144b32bc21933488"
+    },
+    {
+      "logical": "interpreter:command:native_probe/resolve-disabled:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:native_probe/resolve-disabled:2 harness_trial",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
+      "digest": "2a6a3790438aa86b9468839e1f5f133d4ef1005b3d5556886adf9107a6a4c5a5"
+    },
+    {
+      "logical": "interpreter:helper:command:native_probe/resolve-disabled:2 harness_trial",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:native_probe/resolve-disabled:2 owner_switch",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
+      "digest": "76ed17260bb1e0305c3011ec2c6d5eab171b1454a498a2a5e6ceef9cba090f7d"
+    },
+    {
+      "logical": "interpreter:helper:command:native_probe/resolve-disabled:2 owner_switch",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:native_probe/claude-native:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "digest": "176d89c865de1b9dcc22580e52bdeef0cb08aa8bf1026730144b32bc21933488"
+    },
+    {
+      "logical": "interpreter:command:native_probe/claude-native:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:native_probe/claude-native:2 harness_trial",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
+      "digest": "2a6a3790438aa86b9468839e1f5f133d4ef1005b3d5556886adf9107a6a4c5a5"
+    },
+    {
+      "logical": "interpreter:helper:command:native_probe/claude-native:2 harness_trial",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:native_probe/claude-native:2 owner_switch",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
+      "digest": "76ed17260bb1e0305c3011ec2c6d5eab171b1454a498a2a5e6ceef9cba090f7d"
+    },
+    {
+      "logical": "interpreter:helper:command:native_probe/claude-native:2 owner_switch",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:native_probe/codex-native:2",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "digest": "176d89c865de1b9dcc22580e52bdeef0cb08aa8bf1026730144b32bc21933488"
+    },
+    {
+      "logical": "interpreter:command:native_probe/codex-native:2",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:native_probe/codex-native:2 harness_trial",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
+      "digest": "2a6a3790438aa86b9468839e1f5f133d4ef1005b3d5556886adf9107a6a4c5a5"
+    },
+    {
+      "logical": "interpreter:helper:command:native_probe/codex-native:2 harness_trial",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "helper:command:native_probe/codex-native:2 owner_switch",
+      "role": "imported local helper",
+      "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
+      "digest": "76ed17260bb1e0305c3011ec2c6d5eab171b1454a498a2a5e6ceef9cba090f7d"
+    },
+    {
+      "logical": "interpreter:helper:command:native_probe/codex-native:2 owner_switch",
+      "role": "script interpreter",
+      "path": "/Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15",
+      "digest": "3717db37edbc1b46d46a979f0cdacb9d328c009e603ffa73a3261f2fe153e229"
+    },
+    {
+      "logical": "command:mac_check/mac-check:0",
+      "role": "invoked script",
+      "path": "/Users/antony/.local/bin/mac-check",
+      "digest": "b6738bfa2b04b21742a4693e9d4d5e86c9f69d56ccd8c73d36a484d6ade0a5e8"
+    },
+    {
+      "logical": "interpreter:command:mac_check/mac-check:0",
+      "role": "script interpreter",
+      "path": "/opt/homebrew/Cellar/bash/5.3.20/bin/bash",
+      "digest": "2c9bd30bc768f8ee44742705071558e81365487b4c8e00cd79519a8c2d83f9d6"
+    },
+    {
+      "logical": "helper:command:mac_check/mac-check:0 /opt/homebrew/opt/python@3.14/bin/python3.14",
+      "role": "referenced executable",
+      "path": "/opt/homebrew/Cellar/python@3.14/3.14.10/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+      "digest": "5504147b44ff4544bb4f1039d2b4a7bed66aac3cfa4534471e32ef559687f28d"
+    },
+    {
+      "logical": "helper:command:mac_check/mac-check:0 $HOME/.local/lib/machine-config/check.py",
+      "role": "referenced script",
+      "path": "/Users/antony/.local/lib/machine-config/check.py",
+      "digest": "e3dea9b9b302e2dbb51d570bb20243d7fe53c2e2033f827304528b5966ff473e"
+    },
+    {
+      "logical": "tool:claude",
+      "role": "external tool",
+      "path": "/Users/antony/.local/share/claude/versions/2.1.322",
+      "digest": "a9d237949db816a0b7afd88a9a8e1df36b3a597a30f5a41d1c0539eb180a3450",
+      "version": "2.1.322 (Claude Code)"
+    },
+    {
+      "logical": "tool:brew",
+      "role": "external tool",
+      "path": "/opt/homebrew/bin/brew",
+      "digest": "c9a27029eb72dab04f4595041f7670bb03b4cb467297abba817883afb23e0bf3",
+      "version": "Homebrew >=4.3.0 (shallow or no git repository)"
+    },
+    {
+      "logical": "tool:mise",
+      "role": "external tool",
+      "path": "/opt/homebrew/Cellar/mise/2026.11.4/bin/mise",
+      "digest": "6edfdcebe39cbff88df13ffbd3ea57264e222aa28b7e9fe31b490aed02cc5e67",
+      "version": "2026.11.4 macos-arm64 (2026-11-07)"
+    },
+    {
+      "logical": "tool:ravel",
+      "role": "external tool",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/ravel@2/2.0.0/bin/ravel",
+      "digest": "3a9a9129573e4d827a317f6b793ba990044080a31a7b667b64cc153a2f974a0b",
+      "version": "ravel 1.1.0"
+    },
+    {
+      "logical": "tool:grove",
+      "role": "external tool",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/bin/grove",
+      "digest": "26eb8745bf9078a93b0beb3bd711b0c8f1dfa95698885e9f3e48db77c6248058",
+      "version": "grove 22.8.0"
+    },
+    {
+      "logical": "source:design",
+      "role": "skill source",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/design",
+      "digest": "cbb206bdab180ece94b38e0780566744c881bcedddab0cdf06236e9ac4fd7215"
+    },
+    {
+      "logical": "source:engineering",
+      "role": "skill source",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/engineering",
+      "digest": "1921e8173a85edefa208382b372e6bf48158329c9af86884bc874f0831645b67"
+    },
+    {
+      "logical": "source:grove-core",
+      "role": "skill source",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/grove-core",
+      "digest": "32d9608e4d1e3ee9f2b99cff77cf7e353b1b069f8ff61900f3dee6bfa276d670"
+    },
+    {
+      "logical": "source:personal",
+      "role": "skill source",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/personal/2026-11-06_1/libexec/skill-sources/personal",
+      "digest": "1ebb3a2ec73b2483068161f50a6a57e790ecdbf88b267febab089262820c4b6d"
+    },
+    {
+      "logical": "source:quint",
+      "role": "skill source",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/quint-llm-kit/1.0.0_1/libexec/skill-sources/quint",
+      "digest": "ae2bb83f08f2e13f05a2496fd2a87c4eaf811d798d103dcc2f911ccde6c4f796"
+    },
+    {
+      "logical": "source:requirements",
+      "role": "skill source",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/requirements",
+      "digest": "df99c6bf9e39dad0417a4fe30cf23ecde68bb5c595ca8797db4495b4c3a28ce0"
+    },
+    {
+      "logical": "source:research",
+      "role": "skill source",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/research",
+      "digest": "80f4eab5c007b5c245490d8857d346c21012d7bb021f3afa92b7f49be24302bc"
+    },
+    {
+      "logical": "source:superpowers",
+      "role": "skill source",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/superpowers/7.0.0_1/libexec/skill-sources/superpowers",
+      "digest": "60d84fe6c2a619f4448bd745fcf8a87586e70c54310d027b21ec1c376b8fe316"
+    },
+    {
+      "logical": "source:testanyware",
+      "role": "skill source",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/testanyware/2.8.0_1/libexec/skill-sources/testanyware",
+      "digest": "02ecbe364bd32aa6ff956fa180b948693bf993beb3f485549877cd305f1dc251"
+    },
+    {
+      "logical": "source:writing",
+      "role": "skill source",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/writing",
+      "digest": "c496c5e87f8f359e968d473f6a80b17574eaf80c0410c0cc049d459b3c27b21b"
+    }
+  ]
+}

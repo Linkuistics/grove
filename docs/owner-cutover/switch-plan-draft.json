@@ -1624,12 +1624,12 @@
     {
       "role": "probe helper harness_trial.py",
       "path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
-      "digest": "917d67517063932f8b334049a217e8b6c3d0f43020c08ec5a22c2864a2bec83d"
+      "digest": "2a6a3790438aa86b9468839e1f5f133d4ef1005b3d5556886adf9107a6a4c5a5"
     },
     {
       "role": "staging runner file scripts/harness_trial.py",
       "path": "/Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness_trial.py",
-      "digest": "917d67517063932f8b334049a217e8b6c3d0f43020c08ec5a22c2864a2bec83d"
+      "digest": "2a6a3790438aa86b9468839e1f5f133d4ef1005b3d5556886adf9107a6a4c5a5"
     },
     {
       "role": "staging runner file scripts/harness-trials/builds.json",

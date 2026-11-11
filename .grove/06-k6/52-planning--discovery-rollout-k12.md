@@ -92,3 +92,15 @@ release bump its row differs from the released keg's. The handoff must
 choose one route: another dry run inside finish against the released keg,
 or a candidate keg built at the release commit. The section "Owner switch
 dry run" of `docs/owner-skill-delivery-evidence.md` records the limit.
+
+owner-switch-rehearsal-k255 settled that route. Its passing result used a
+stand-in Homebrew prefix, `~/.local/state/owner-switch-dry-run/prefix`, with
+clones of the installed kegs, the candidate Grove keg and the accepted 2.0
+build. That result compares as equal only with the stand-in's `bin` folder
+on PATH. With the real prefixes, 14 rows and the plan's `retained` path
+differ. Finish therefore runs the dry run again after the Grove release and
+the Ravel promotion, against the real prefix and with no stand-in. It moves
+the earlier `~/.local/state/owner-switch/dry-run` aside first. The section
+"Owner switch rehearsal" of `docs/owner-skill-delivery-evidence.md` names
+the command, its copied paths, OUT outside HOME and the mise shims folder
+removed from PATH. The prepared `INSTRUCTIONS.md` states the same.

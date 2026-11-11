@@ -2127,7 +2127,9 @@ class CodexAdapter(HarnessAdapter):
     def skills(text: str) -> dict[str, Any]:
         """The skill roots and the listed skills of Codex's skills instructions."""
         roots = dict(re.findall(r"^- `(r\d+)` = `([^`]+)`$", text, re.MULTILINE))
-        listed = re.findall(r"^- ([^:\n]+): .*\(file: ([^)]+)\)$", text, re.MULTILINE)
+        # A name can hold a plugin namespace, as `grove:grove-planning`. The
+        # name ends at the first ": ", because a name holds no space.
+        listed = re.findall(r"^- ([^\s:][^\s]*?): .*\(file: ([^)]+)\)$", text, re.MULTILINE)
         return {"roots": roots, "skillCount": len(listed), "names": [name for name, _ in listed],
                 "files": [file for _, file in listed]}
 

@@ -1,0 +1,108 @@
+{
+  "schema": "owner-switch-dry-run-prefix/1",
+  "prefix": "/Users/antony/.local/state/owner-switch-dry-run/prefix",
+  "real": "/opt/homebrew",
+  "kegs": [
+    {
+      "formula": "personal",
+      "version": "2026-11-06_1",
+      "source": "/opt/homebrew/Cellar/personal/2026-11-06_1",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/personal/2026-11-06_1",
+      "digest": "f090918f01d4c1144bc59ce282b8b6a879803174f2aeb9a270014b7d24cf1d29"
+    },
+    {
+      "formula": "quint-llm-kit",
+      "version": "1.0.0_1",
+      "source": "/opt/homebrew/Cellar/quint-llm-kit/1.0.0_1",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/quint-llm-kit/1.0.0_1",
+      "digest": "8bf362d69d53ad29e63335ec6320da0018eef907b3826c0ca1424f3fe509bb3f"
+    },
+    {
+      "formula": "superpowers",
+      "version": "7.0.0_1",
+      "source": "/opt/homebrew/Cellar/superpowers/7.0.0_1",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/superpowers/7.0.0_1",
+      "digest": "ec3013ff7b252322ebe6794baabbd2bdb6eeef959db276112b1579d76c2f4834"
+    },
+    {
+      "formula": "testanyware",
+      "version": "2.8.0_1",
+      "source": "/opt/homebrew/Cellar/testanyware/2.8.0_1",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/testanyware/2.8.0_1",
+      "digest": "1a7aec3514ec2a332a66d9980092e672c1953fb1673e8ea5dd3e63e23691b1ec"
+    },
+    {
+      "formula": "grove",
+      "version": "22.8.0",
+      "source": "/Users/antony/.local/state/owner-staging/candidate/brew/Cellar/grove/22.8.0",
+      "path": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0",
+      "digest": "466eef2058a15d01b8472cf87c67ad1fd12985468a28ba4eca76881107196532"
+    }
+  ],
+  "ravel": {
+    "source": "/Users/antony/.local/state/owner-staging/ravel-2.0",
+    "keg": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/ravel@2/2.0.0",
+    "record": "/Users/antony/.local/state/owner-switch-dry-run/prefix/share/ravel/skills",
+    "bin": "3a9a9129573e4d827a317f6b793ba990044080a31a7b667b64cc153a2f974a0b"
+  },
+  "aliases": {
+    "personal": "../../../Cellar/personal/2026-11-06_1/share/ravel/skills/personal",
+    "quint": "../../../Cellar/quint-llm-kit/1.0.0_1/share/ravel/skills/quint",
+    "superpowers": "../../../Cellar/superpowers/7.0.0_1/share/ravel/skills/superpowers",
+    "testanyware": "../../../Cellar/testanyware/2.8.0_1/share/ravel/skills/testanyware",
+    "design": "../../../Cellar/grove/22.8.0/share/ravel/skills/design",
+    "engineering": "../../../Cellar/grove/22.8.0/share/ravel/skills/engineering",
+    "grove-core": "../../../Cellar/grove/22.8.0/share/ravel/skills/grove-core",
+    "requirements": "../../../Cellar/grove/22.8.0/share/ravel/skills/requirements",
+    "research": "../../../Cellar/grove/22.8.0/share/ravel/skills/research",
+    "writing": "../../../Cellar/grove/22.8.0/share/ravel/skills/writing"
+  },
+  "brew": {
+    "prefix": "/Users/antony/.local/state/owner-switch-dry-run/prefix",
+    "cellar": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar",
+    "version": "Homebrew >=4.3.0 (shallow or no git repository)",
+    "info": {
+      "personal": {
+        "stable": "2026-11-06",
+        "revision": 1,
+        "linked_keg": "2026-11-06_1",
+        "installed": [
+          "2026-11-06_1"
+        ]
+      },
+      "quint-llm-kit": {
+        "stable": "1.0.0",
+        "revision": 1,
+        "linked_keg": "1.0.0_1",
+        "installed": [
+          "1.0.0_1"
+        ]
+      },
+      "superpowers": {
+        "stable": "7.0.0",
+        "revision": 1,
+        "linked_keg": "7.0.0_1",
+        "installed": [
+          "7.0.0_1"
+        ]
+      },
+      "testanyware": {
+        "stable": "2.8.0",
+        "revision": 1,
+        "linked_keg": "2.8.0_1",
+        "installed": [
+          "2.8.0_1"
+        ]
+      },
+      "grove": {
+        "stable": "22.8.0",
+        "revision": 0,
+        "linked_keg": "22.8.0",
+        "installed": [
+          "22.8.0"
+        ]
+      }
+    }
+  },
+  "problems": []
+}

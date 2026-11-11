@@ -9,8 +9,8 @@ not a passing token").
 
 Usage:
     python3 -I owner_switch_dry_run.py run     --out OUT [--home HOME] [--state REL] [--include REL]...
-                                               [--path DIR]... [--tool NAME]... [--prefix NAME=DIR]...
-                                               [--guidance PATH]... [--python PATH]
+                                               [--sign-in] [--path DIR]... [--tool NAME]...
+                                               [--prefix NAME=DIR]... [--guidance PATH]... [--python PATH]
     python3 -I owner_switch_dry_run.py inputs  [--home HOME] [--state REL] [--path DIR]... [--tool NAME]...
                                                [--python PATH] [--json]
     python3 -I owner_switch_dry_run.py compare --result RESULT [--home HOME] [--prefix NAME=DIR]...
@@ -22,7 +22,9 @@ HOME/STATE/prepared/plan.json and HOME/STATE/prepared/owner_switch.py, as
 for the switch and `mac-check`. Each --path folder comes first on PATH, for
 the program, its commands and the version commands.
 
-run. OUT is a new or empty folder, and the disposable HOME is OUT/home. The
+run. OUT is a new or empty folder outside HOME, and the disposable HOME is
+OUT/home. mise and Claude Code search each parent folder of their working
+folder, so a disposable HOME inside HOME would read HOME's own files. The
 source HOME is only read.
     1. Copy the relevant layout from HOME into OUT/home with `cp -pPR`, which
        keeps content, mode, ACL, extended attributes and link text: the
@@ -31,6 +33,11 @@ source HOME is only read.
        helper of the input table under HOME, and each --include. No file
        content changes, so an absolute path inside a copied file still names
        HOME. That limit is in the result.
+       With --sign-in, OUT/home/Library/Keychains and OUT/home/.codex/auth.json
+       are links to the same paths of HOME, as "Settings isolation and the
+       staging HOME" of the specification allows. A harness signs in and
+       refreshes its token through them, so the source-HOME check of step 5
+       does not cover them. That limit is in the result too.
     2. Write the executed plan to OUT/home/STATE/prepared/plan.json. It
        differs from the prepared plan only in its declared path fields, where
        the prefix HOME becomes OUT/home. The declared path fields are each
@@ -150,6 +157,9 @@ PROGRAM_VARS = (HOOK_VAR, SCOPE_VAR, "OWNER_SWITCH_PLAN", "OWNER_SWITCH_PLAN_DIG
 PLATFORM_SUBTREES = (".claude/skills/synced", ".codex/skills/.system")
 SCRIPT_SUFFIXES = (".py", ".sh", ".bash", ".zsh", ".js", ".mjs", ".cjs", ".rb", ".pl")
 SHELLS = ("sh", "bash", "zsh", "dash", "ksh")
+# The sign-in stores that a staging HOME reuses through a link ("Settings
+# isolation and the staging HOME" of docs/specs/owner-skill-delivery.md).
+SIGN_IN_LINKS = ("Library/Keychains", ".codex/auth.json")
 # A path token of a shell script: absolute, or under $HOME, ${HOME} or ~.
 SHELL_TOKEN = re.compile(r"(?:\$HOME|\$\{HOME\}|~)(/[A-Za-z0-9._@+/-]+)|(?<![\w$}~./-])(/[A-Za-z0-9._@+-][A-Za-z0-9._@+/-]*)")
 RESULT_MARK = "owner-switch-result: "
@@ -658,10 +668,14 @@ class Run:
         self.tools = list(dict.fromkeys(list(DEFAULT_TOOLS) + list(args.tool or [])))
         self.paths = args.path or []
         self.includes = [check_relative(r, "--include") for r in args.include or []]
+        self.sign_in = bool(args.sign_in)
         self.declared = parse_prefixes(args.prefix)
         self.fixture = bool(args.fixture or args.fixture_hook or args.fixture_scope)
         self.log = []
         self.steps = []
+        # Each step's whole output. The result keeps a tail, and the per-probe
+        # outcomes read the whole output, because a real switch prints far more.
+        self.outputs = {}
 
     def say(self, line: str = "") -> None:
         self.log.append(line)
@@ -688,8 +702,31 @@ class Run:
         record = {"step": name, "argv": argv, "exit": r.returncode, "passed": r.returncode in want,
                   "seconds": round(time.time() - started, 2), "output": out[-20000:]}
         self.steps.append(record)
+        self.outputs[name] = out
         self.say(f"  ({name}: exit {r.returncode}{'' if record['passed'] else ', not passed'})")
         return record
+
+    def link_sign_in(self, rels: list) -> list:
+        """Link each sign-in store of HOME into the disposable HOME, replacing a copy of it."""
+        out = []
+        for rel in SIGN_IN_LINKS:
+            src = os.path.join(self.source, rel)
+            if not os.path.lexists(src):
+                self.say(f"no sign-in store ~/{rel} to link")
+                continue
+            if any(under(r, rel) and r != rel for r in rels):
+                raise Refused(f"the copied path ~/{next(r for r in rels if under(r, rel))} lies inside the sign-in "
+                              f"store ~/{rel}")
+            dst = os.path.join(self.home, rel)
+            if os.path.isdir(dst) and not os.path.islink(dst):
+                shutil.rmtree(dst)
+            elif os.path.lexists(dst):
+                os.remove(dst)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            os.symlink(src, dst)
+            out.append({"path": rel, "target": src})
+            self.say(f"linked the sign-in store {dst} -> {src}")
+        return out
 
     def identity(self, command: str, path: str) -> str:
         r = subprocess.run(self.program(command, path), cwd=self.home, env=self.env(), capture_output=True, text=True)
@@ -734,12 +771,19 @@ class Run:
         for rel in plan_paths(plan) + [self.state] + self.includes:
             if under(self.out, os.path.join(self.source, rel)):
                 raise Refused(f"OUT {self.out} lies inside the copied path ~/{rel}")
+        if under(self.out, self.source):
+            # mise reads <folder>/.config/mise and Claude Code reads <folder>/.claude/skills
+            # in each parent folder of its working folder, so a disposable HOME inside HOME
+            # reads HOME's own files.
+            raise Refused(f"OUT {self.out} lies inside HOME {self.source}; a tool that searches parent "
+                          f"folders would read HOME's own configuration")
         os.makedirs(self.home)
         source_rows = self.table(self.source, plan, plan_path, program_path)
         rels = copy_list(plan, source_rows, self.source, self.state, self.includes)
         watched_before = self.watched(rels)
         copied = [rel for rel in rels if copy_into(self.source, self.home, rel)]
         self.say(f"copied {len(copied)} of {len(rels)} paths from {self.source} into {self.home}")
+        sign_in = self.link_sign_in(rels) if self.sign_in else []
         dry_plan = map_path_fields(plan, lambda p: replace_prefix(p, self.source, self.home))
         dry_plan_path = os.path.join(self.home, self.state, "prepared", "plan.json")
         with open(dry_plan_path, "w") as f:
@@ -782,7 +826,9 @@ class Run:
         moved = [k for k in sorted(set(watched_before) | set(watched_after))
                  if watched_before.get(k) != watched_after.get(k)]
 
-        probes = probe_outcomes(dry_plan, note, switch, restore, self.home, self.state)
+        whole = {name: dict(rec, output=self.outputs[name]) if rec else None
+                 for name, rec in (("switch", switch), ("restore", restore))}
+        probes = probe_outcomes(dry_plan, note, whole["switch"], whole["restore"], self.home, self.state)
         steps_ok = bool(off["passed"] and note and switch and switch["passed"] and restore and restore["passed"])
         restore_ok = bool(restore_rows) and all(r["equal"] for r in restore_rows)
         passed = steps_ok and restore_ok and not changed and not moved
@@ -796,7 +842,7 @@ class Run:
             "source_home": self.source, "dry_home": self.home, "state": self.state,
             "substitutions": dict(self.declared, home=self.home),
             "tools": self.tools, "python": self.python, "path": [os.path.realpath(p) for p in self.paths],
-            "includes": self.includes, "copied": copied,
+            "includes": self.includes, "copied": copied, "sign_in": sign_in,
             "plan": {"source": plan_path, "executed": dry_plan_path,
                      "normalised": normalised_plan(dry_plan, dict(self.declared, home=self.home))},
             "inputs": before,
@@ -809,8 +855,8 @@ class Run:
             "restore_comparison": {"equal": restore_ok, "rows": restore_rows},
             "source_unchanged": {"equal": not moved, "moved": moved, "before": watched_before,
                                  "after": watched_after},
-            "undeclared": undeclared(before, dry_plan, self.home),
-            "limits": limits(self.fixture, self.includes),
+            "undeclared": undeclared(before, dry_plan, self.home, dry_program),
+            "limits": limits(self.fixture, self.includes, sign_in),
         }
         with open(os.path.join(self.out, "result.json"), "w") as f:
             json.dump(result, f, indent=2)
@@ -884,10 +930,14 @@ def probe_outcomes(plan: dict, note: dict, switch, restore, home: str, state: st
     return out
 
 
-def undeclared(rows: list, plan: dict, home: str) -> list:
-    """Each script, helper or input under HOME that the plan's `inputs` does not name."""
+def undeclared(rows: list, plan: dict, home: str, program: str) -> list:
+    """Each script, helper or input under HOME that the plan's `inputs` does not name.
+
+    "$program" names the prepared program, which a probe also imports as a helper.
+    """
     declared = {os.path.realpath(r["path"]) for r in plan.get("inputs") or []
                 if isinstance(r, dict) and isinstance(r.get("path"), str) and r["path"] != "$program"}
+    declared.add(os.path.realpath(program))
     out = []
     for row in rows:
         if row["logical"] in ("plan", "program") or not row.get("path"):
@@ -897,7 +947,7 @@ def undeclared(rows: list, plan: dict, home: str) -> list:
     return out
 
 
-def limits(fixture: bool, includes: list) -> list:
+def limits(fixture: bool, includes: list, sign_in=()) -> list:
     out = [
         "Copied files keep their bytes, so an absolute path inside one still names the source HOME, and the "
         "run reads through it. The source-HOME check covers only the copied paths.",
@@ -914,6 +964,10 @@ def limits(fixture: bool, includes: list) -> list:
         out.insert(0, "Real staging and cutover probes remain the acceptance seam for harness behaviour.")
     if not includes:
         out.append("No --include extended the copied layout.")
+    if sign_in:
+        out.append("The sign-in stores " + ", ".join(f"~/{s['path']}" for s in sign_in) + " are links to the "
+                   "source HOME, as the staging contract allows. A harness signs in and refreshes its token "
+                   "through them, and the source-HOME check does not cover them.")
     return out
 
 
@@ -1073,6 +1127,8 @@ def main(argv=None) -> int:
     p.add_argument("--out", required=True)
     p.add_argument("--state", default=DEFAULT_STATE)
     p.add_argument("--include", action="append", help="another path of HOME to copy; repeatable")
+    p.add_argument("--sign-in", action="store_true",
+                   help="link ~/Library/Keychains and ~/.codex/auth.json, the staging contract's sign-in stores")
     p.add_argument("--prefix", action="append", help="grove-keg=DIR or ravel=DIR: a declared dry-run prefix")
     p.add_argument("--guidance", action="append", help="a guidance file that the operator read; repeatable")
     p.add_argument("--fixture", action="store_true", help=argparse.SUPPRESS)

@@ -1,0 +1,164 @@
+substituted home         plan  /Users/antony/.local/state/owner-switch/prepared/plan.json
+substituted home         program  /Users/antony/.local/state/owner-switch/prepared/owner_switch.py
+equal                    interpreter:program  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+equal                    interpreter:$python  /opt/homebrew/Cellar/python@3.14/3.14.10/Frameworks/Python.framework/Versions/3.14/bin/python3.14
+substituted home         input:baseline instrument  /Users/antony/.local/state/owner-switch/prepared/inventory.py
+substituted home         input:probe program  /Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py
+substituted home         input:probe helper harness_trial.py  /Users/antony/.local/state/owner-switch/prepared/harness_trial.py
+substituted home         input:staging runner file scripts/harness_trial.py  /Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness_trial.py
+substituted home         input:staging runner file scripts/harness-trials/builds.json  /Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness-trials/builds.json
+substituted home         input:staging runner file scripts/harness-trials/trial-launch.sh  /Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness-trials/trial-launch.sh
+substituted home         input:staging runner  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+substituted home         input:staging runner file docs/evaluations/owner-skill-delivery/staging_home.py  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+substituted home         input:staging runner file docs/evaluations/owner-skill-delivery/inventory.py  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/inventory.py
+substituted home         input:staging runner file docs/owner-cutover/settings-off.json  /Users/antony/.local/state/owner-switch/prepared/staging/docs/owner-cutover/settings-off.json
+substituted home         input:staging runner file docs/owner-cutover/settings-staging.json  /Users/antony/.local/state/owner-switch/prepared/staging/docs/owner-cutover/settings-staging.json
+substituted home         input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json
+substituted home         input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/compaction.json  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/compaction.json
+substituted home         input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/delegate.json  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/delegate.json
+substituted home         input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/discovery.json  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/discovery.json
+substituted home         input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/guidance-probe.json  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/guidance-probe.json
+substituted home         input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/kind-skill.json  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/kind-skill.json
+substituted home         input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/native-residue.json  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/native-residue.json
+substituted home         input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/quint-mcp.json  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/quint-mcp.json
+substituted home         input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/stale-copy.json  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/stale-copy.json
+substituted home         input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json
+substituted home         input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json
+substituted home         input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/user-invoked.json  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/user-invoked.json
+substituted home         input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/01-planning--word-tools-k1.md  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/01-planning--word-tools-k1.md
+substituted home         input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/_BRIEF.md  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/_BRIEF.md
+substituted home         input:mac-check command  /Users/antony/.local/bin/mac-check
+substituted home         input:mac-check helper  /Users/antony/.local/lib/machine-config/check.py
+substituted home         command:baseline/inventory:2  /Users/antony/.local/state/owner-switch/prepared/inventory.py
+substituted home         command:accepted.trials.design/sources:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.design/sources:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.design/sources:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.design/sources:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.design/discovery-claude:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.design/discovery-claude:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.design/discovery-claude:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.design/discovery-claude:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.design/discovery-codex:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.design/discovery-codex:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.design/discovery-codex:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.design/discovery-codex:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.engineering/sources:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.engineering/sources:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.engineering/sources:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.engineering/sources:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.engineering/delegate-claude:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.engineering/delegate-claude:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.engineering/delegate-claude:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.engineering/delegate-claude:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.engineering/delegate-codex:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.engineering/delegate-codex:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.engineering/delegate-codex:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.engineering/delegate-codex:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.engineering/compaction-claude:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.engineering/compaction-claude:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.engineering/compaction-claude:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.engineering/compaction-claude:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.engineering/compaction-codex:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.engineering/compaction-codex:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.engineering/compaction-codex:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.engineering/compaction-codex:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.engineering/codebase-memory-mcp-claude:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.engineering/codebase-memory-mcp-claude:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.engineering/codebase-memory-mcp-claude:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.engineering/codebase-memory-mcp-claude:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.engineering/codebase-memory-mcp-codex:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.engineering/codebase-memory-mcp-codex:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.engineering/codebase-memory-mcp-codex:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.engineering/codebase-memory-mcp-codex:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.grove-core/sources:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.grove-core/sources:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.grove-core/sources:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.grove-core/sources:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.grove-core/kind-skill-claude:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.grove-core/kind-skill-claude:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.grove-core/kind-skill-claude:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.grove-core/kind-skill-claude:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.grove-core/kind-skill-codex:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.grove-core/kind-skill-codex:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.grove-core/kind-skill-codex:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.grove-core/kind-skill-codex:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.grove-core/stale-copy-claude:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.grove-core/stale-copy-claude:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.grove-core/stale-copy-claude:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.grove-core/stale-copy-claude:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.grove-core/stale-copy-codex:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.grove-core/stale-copy-codex:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.grove-core/stale-copy-codex:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.grove-core/stale-copy-codex:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.requirements/sources:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.requirements/sources:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.requirements/sources:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.requirements/sources:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.research/sources:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.research/sources:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.research/sources:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.research/sources:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.writing/sources:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.writing/sources:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.writing/sources:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.writing/sources:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:accepted.trials.writing/native-residue-claude:2  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py
+equal                    interpreter:command:accepted.trials.writing/native-residue-claude:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:accepted.trials.writing/native-residue-claude:2 staging_home  /Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py
+equal                    interpreter:helper:command:accepted.trials.writing/native-residue-claude:2 staging_home  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:probes/resolve-switched:2  /Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py
+equal                    interpreter:command:probes/resolve-switched:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:probes/resolve-switched:2 harness_trial  /Users/antony/.local/state/owner-switch/prepared/harness_trial.py
+equal                    interpreter:helper:command:probes/resolve-switched:2 harness_trial  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:probes/resolve-switched:2 owner_switch  /Users/antony/.local/state/owner-switch/prepared/owner_switch.py
+equal                    interpreter:helper:command:probes/resolve-switched:2 owner_switch  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:probes/claude-switched:2  /Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py
+equal                    interpreter:command:probes/claude-switched:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:probes/claude-switched:2 harness_trial  /Users/antony/.local/state/owner-switch/prepared/harness_trial.py
+equal                    interpreter:helper:command:probes/claude-switched:2 harness_trial  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:probes/claude-switched:2 owner_switch  /Users/antony/.local/state/owner-switch/prepared/owner_switch.py
+equal                    interpreter:helper:command:probes/claude-switched:2 owner_switch  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:probes/codex-switched:2  /Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py
+equal                    interpreter:command:probes/codex-switched:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:probes/codex-switched:2 harness_trial  /Users/antony/.local/state/owner-switch/prepared/harness_trial.py
+equal                    interpreter:helper:command:probes/codex-switched:2 harness_trial  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:probes/codex-switched:2 owner_switch  /Users/antony/.local/state/owner-switch/prepared/owner_switch.py
+equal                    interpreter:helper:command:probes/codex-switched:2 owner_switch  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:native_probe/resolve-disabled:2  /Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py
+equal                    interpreter:command:native_probe/resolve-disabled:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:native_probe/resolve-disabled:2 harness_trial  /Users/antony/.local/state/owner-switch/prepared/harness_trial.py
+equal                    interpreter:helper:command:native_probe/resolve-disabled:2 harness_trial  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:native_probe/resolve-disabled:2 owner_switch  /Users/antony/.local/state/owner-switch/prepared/owner_switch.py
+equal                    interpreter:helper:command:native_probe/resolve-disabled:2 owner_switch  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:native_probe/claude-native:2  /Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py
+equal                    interpreter:command:native_probe/claude-native:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:native_probe/claude-native:2 harness_trial  /Users/antony/.local/state/owner-switch/prepared/harness_trial.py
+equal                    interpreter:helper:command:native_probe/claude-native:2 harness_trial  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:native_probe/claude-native:2 owner_switch  /Users/antony/.local/state/owner-switch/prepared/owner_switch.py
+equal                    interpreter:helper:command:native_probe/claude-native:2 owner_switch  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:native_probe/codex-native:2  /Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py
+equal                    interpreter:command:native_probe/codex-native:2  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:native_probe/codex-native:2 harness_trial  /Users/antony/.local/state/owner-switch/prepared/harness_trial.py
+equal                    interpreter:helper:command:native_probe/codex-native:2 harness_trial  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         helper:command:native_probe/codex-native:2 owner_switch  /Users/antony/.local/state/owner-switch/prepared/owner_switch.py
+equal                    interpreter:helper:command:native_probe/codex-native:2 owner_switch  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
+substituted home         command:mac_check/mac-check:0  /Users/antony/.local/bin/mac-check
+equal                    interpreter:command:mac_check/mac-check:0  /opt/homebrew/Cellar/bash/5.3.20/bin/bash
+equal                    helper:command:mac_check/mac-check:0 /opt/homebrew/opt/python@3.14/bin/python3.14  /opt/homebrew/Cellar/python@3.14/3.14.10/Frameworks/Python.framework/Versions/3.14/bin/python3.14
+substituted home         helper:command:mac_check/mac-check:0 $HOME/.local/lib/machine-config/check.py  /Users/antony/.local/lib/machine-config/check.py
+equal                    tool:claude  /Users/antony/.local/share/claude/versions/2.1.322
+equal                    tool:brew  /opt/homebrew/bin/brew
+equal                    tool:mise  /opt/homebrew/Cellar/mise/2026.11.4/bin/mise
+equal                    tool:ravel  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/ravel@2/2.0.0/bin/ravel
+equal                    tool:grove  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/bin/grove
+equal                    source:design  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/design
+equal                    source:engineering  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/engineering
+equal                    source:grove-core  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/grove-core
+equal                    source:personal  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/personal/2026-11-06_1/libexec/skill-sources/personal
+equal                    source:quint  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/quint-llm-kit/1.0.0_1/libexec/skill-sources/quint
+equal                    source:requirements  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/requirements
+equal                    source:research  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/research
+equal                    source:superpowers  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/superpowers/7.0.0_1/libexec/skill-sources/superpowers
+equal                    source:testanyware  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/testanyware/2.8.0_1/libexec/skill-sources/testanyware
+equal                    source:writing  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/writing
+comparison: equal: 163 rows, 0 differ, 0 plan values differ

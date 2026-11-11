@@ -674,15 +674,33 @@ tasks:
   # HOME/.local/state/owner-switch/prepared, copies the relevant layout of
   # HOME into OUT/home, and runs native-off, the switch and full restore
   # there. HOME is only read. OUT is a new or empty directory. ARGS passes
-  # further options, such as --path, --include, --tool or
+  # further options, such as --path, --include, --sign-in, --tool or
   # --prefix grove-keg=DIR. For example:
   #   task owner:switch:dry-run OUT="$SCRATCH/dry-run" ARGS="--prefix ravel=/opt/homebrew/opt/ravel@2"
+  # Before finish, owner:switch:dry-run-prefix builds the stand-in prefix,
+  # and ARGS names its bin folder with --path ("Owner switch rehearsal" of
+  # docs/owner-skill-delivery-evidence.md).
   owner:switch:dry-run:
     desc: Execute the prepared owner switch plan once in a disposable copy of HOME in OUT, with native-off, the switch and full restore, and write OUT/result.json with its input table
     requires:
       vars: [OUT]
     cmds:
       - python3 -I scripts/owner_switch_dry_run.py run --out "{{.OUT}}" {{.ARGS}}
+
+  # The stand-in Homebrew prefix of a dry run before finish. Real Homebrew
+  # answers for OUT through a link to the real bin/brew. OUT holds clones of
+  # the installed skill kegs, the candidate Grove keg GROVE_KEG and the
+  # accepted Ravel 2.0 installation RAVEL as ravel@2 and bin/ravel. OUT is a
+  # new or empty directory outside /private/tmp. For example:
+  #   task owner:switch:dry-run-prefix OUT=~/.local/state/owner-switch-dry-run/prefix \
+  #     GROVE_KEG=~/.local/state/owner-staging/candidate/brew/Cellar/grove/22.8.0 \
+  #     RAVEL=~/.local/state/owner-staging/ravel-2.0
+  owner:switch:dry-run-prefix:
+    desc: Build a disposable Homebrew prefix in OUT with clones of the skill kegs, the candidate Grove keg and the Ravel 2.0 build, and check Homebrew's answers for it
+    requires:
+      vars: [OUT, GROVE_KEG, RAVEL]
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/dry_run_prefix.py build --out "{{.OUT}}" --grove-keg "{{.GROVE_KEG}}" --ravel "{{.RAVEL}}"
 
   # The comparison of a dry-run result with the real prepared inputs. It
   # reads only, and the owner runs it before each real attempt. ARGS passes

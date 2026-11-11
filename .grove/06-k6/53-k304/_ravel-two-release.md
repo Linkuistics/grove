@@ -108,6 +108,43 @@ archives. A change to a skill source is out of scope here.
   the chapter reuses chapter 4's `evaluation-harness` figure, whose harness is
   `claude`. The text says that the figure is general. Decide whether the
   chapter needs its own view with the reader thread.
+- **art**, chapter 8, “Trace the example”: the `session-code-path` figure
+  still draws chapter 3's session and the worker of Ravel 1.x. Its rows
+  “Change to /”, “Register embedded modules”, “evaluate: script path and
+  request”, “Script description”, “judge: check description” and “select:
+  request command” name steps and frames that 2.0.0 does not have. “Print
+  prompt to caller stderr” is the action of chapter 3's fake. The chapter now
+  follows `ravel-parts`. The figure needs these steps, in this order:
+  1. `hello` and its identity check.
+  2. The reader thread's read of `config.rhai`.
+  3. The `evaluate` frame with the source.
+  4. The `host` frame `run_harness`.
+  5. The harness run `fake-advisor`, with its own result channel and
+     `RAVEL_CONFIG_RUN=1`.
+  6. The `reply` frame, then the `selection` frame and `reply_judge`.
+  7. The worker's own exit and its reap.
+
+  The text routing notice comes after the channel allocation and before
+  `try_block_and_check`. The key line “Example without selection context or a
+  terminal” stays true. The alt text is general and stays true.
+- **art**, chapter 8, “Follow the harness run through the host bridge”: an
+  8-row table follows the harness call across the worker, the runtime thread,
+  the reader thread and the runner. Chapter 7's `evaluation-harness` entry
+  above asks the same question for chapter 7. One sequence with the runtime
+  thread and the reader thread as separate lifelines could serve both chapters.
+- **art**, chapter 8, “Cancel during selection”: `selection-cancellation`
+  agrees with the new text and the code. Harness cleanup comes before worker
+  teardown, the worker receives TERM, and no managed process exists. The figure does
+  not show that the report carries `worker_failed` under “original failure:”,
+  and that `settle` then returns `session_cancelled`. The text states both.
+  Decide whether the figure needs them.
+- **art**, chapter 8, “Cancel during supervision”: `supervision-cancellation`
+  shows chapter 5's `candidate` and agrees with the code. The chapter's example
+  shows `session_result_invalid` before `session_cancelled`. A note could show
+  that `result_after` gives the first refusal.
+- **art**, chapter 8, “Choose the final outcome”: `outcome-precedence` omits
+  the exception that a cancelled skill resolution keeps
+  `skill_resolution_cancelled`. The table beside the figure states it.
 - **proof**, chapter 3, “Run the first session”: a Homebrew installation
   writes `share/ravel/installation.json`. With no `skills.sources`, an
   installed Ravel then reads the default skill directory, also under `env -i`

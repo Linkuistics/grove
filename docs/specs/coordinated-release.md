@@ -59,7 +59,7 @@ conversion target moves with them.
 | State | Published formulae | Fresh install and upgrade behaviour |
 | --- | --- | --- |
 | A: current | Grove 22.8, unversioned Ravel 1.1.0 | Existing native delivery and TypeScript assets. |
-| B: Ravel first | Same pair, plus keg-only `ravel@2` 2.0.0 | Grove still selects 1.1.0. Opt-in 2.0 uses its explicit prefix and separate Rhai settings. Installing `ravel@2` changes no default command. |
+| B: Ravel first | Same pair, plus keg-only `ravel@2` 2.0.0 | Grove still selects 1.1.0. Opt-in 2.0 uses its explicit prefix and separate Rhai settings. Installing `ravel@2` changes no default command. On a prefix without either Ravel formula, that installation uses `--skip-link`. |
 | C: compatible Grove | New Grove, unversioned Ravel 1.1.0 and `ravel@2` 2.0.0 | Keep Grove's unversioned dependency. Native setup works by default. Until promotion, directory setup explicitly selects `ravel@2`, which reads Grove's keg sources with no settings. Verify both before advancing. |
 | D: promotion | Same compatible Grove. Unversioned Ravel and `ravel@2` reference identical 2.0.0 archives, and `ravel@2` is deprecated | Fresh installs get a compatible pair and the `config.rhai` sample. An upgrade moves the default command to 2.0.0, which refuses a HOME that holds only `policy.ts`. The owner writes and verifies `config.rhai` and compatible Grove before switching Ravel or settings. After the upgrade, a 2.0 launch delivers Grove's keg sources with no settings change, beside any remaining native installation. The release notes say so, and `"sources": []` keeps the native route. `ravel@2` stays installable at the promoted version and receives no later release. Promotion neither rebuilds nor cuts a version. |
 

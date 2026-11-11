@@ -326,6 +326,13 @@ the root charter's extension.
     `skill-directory-delivery`, above `ff14cba826b0`. It changes
     documentation only. The section "Packaging record of a default source"
     of Ravel's design evidence records its checks.
+  - ravel-stop-eperm-k302: Ravel's correction of a `supervision_failed` stop.
+    It is commit `576811bcb4b0` on the unpushed `skill-directory-delivery`,
+    above `5e778ef86b8d`. It changes supervision only, so no source digest
+    or staging verdict changes. The release cut must include it. The
+    accepted build `58d479ed…` keeps the defect, and so does Ravel 1.1.0.
+    The section "Stop record of an exiting group" of Ravel's design
+    evidence records the cause, the tests and a reproduction.
 - The integration changes `plugins/grove/README.md`, which changes core's
   source digest. core-candidate-restaging-k300 records the new candidate
   and core staging acceptance. k254 and the dry run consume that evidence,
@@ -338,8 +345,8 @@ the root charter's extension.
     The earlier `8d92cd58…` is history.
   - The section "Core candidate restaging" of
     `docs/owner-skill-delivery-evidence.md` records the reruns.
-    ravel-stop-eperm-k302 owns a `supervision_failed` stop of Ravel 2.0
-    from one rerun. The stored plan check still names the earlier draft,
+    ravel-stop-eperm-k302 corrected the `supervision_failed` stop of Ravel
+    2.0 from one rerun. The stored plan check still names the earlier draft,
     and k254 writes the draft again.
 - Finish's acceptance includes Ravel-first installation evidence and actual
   promotion linking beside the installed sources. It resolves all ten

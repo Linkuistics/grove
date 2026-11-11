@@ -7093,6 +7093,25 @@ holds this error. The verdict reads the agent's events, so it passed.
 A real Grove session that ends this way stops the Grove loop.
 `ravel-stop-eperm-k302` owns the diagnosis before the release cut.
 
+`ravel-stop-eperm-k302` found the cause in Ravel and repaired it on
+2026-11-11. The escalation TERM met the exit of Codex. During an exit
+teardown, Darwin refuses a group signal with `EPERM` before `waitid`
+reports the exit. Ravel's `watch` then ended supervision at once. The
+repair keeps watching and judges the report by the existing rule after
+the exit. Ravel's
+[stop record of an exiting group](https://github.com/Linkuistics/Ravel/blob/skill-directory-delivery/docs/skill-discovery-design-evidence.md#stop-record-of-an-exiting-group)
+holds the probe, the tests and a reproduction through the command.
+
+- The repair is Ravel commit `576811bcb4b0` on the unpushed
+  `skill-directory-delivery`, above `5e778ef86b8d`. It changes supervision only. Skill resolution and each
+  `resourceDigest` stay the same, so no staging verdict changes.
+- The accepted build `58d479ed…` keeps the defect. The release cut must
+  include the repair. The published archives replace the local 2.0 lane
+  of `docs/ravel-target-inputs.md`, and Grove's checks run again on them.
+- Ravel 1.1.0 has the same defect. Until promotion, the current driver can
+  stop the loop after a session's result. The session commits before its
+  ending command, so a rerun of Grove continues from the next leaf.
+
 #### The bare native probe
 
 The `codex-native-bare` case expects both

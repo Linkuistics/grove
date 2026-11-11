@@ -37,3 +37,20 @@ Land the release line on Ravel `main` with every check green, ready for one
 If `main` moved since 2026-11-11, reinspect manifests, tags, releases, book and
 tap before the rebase. If any 2.0.0 cut or public tag exists, stop. Reconcile
 it under the recovery table, and do not cut again.
+
+`task release:lifecycle:test` fails at the mutant “install keeps cleanup”
+when the shell exports `HOMEBREW_NO_INSTALL_CLEANUP=1`. The fake `brew` of
+`scripts/release-channel.test.sh` logs that variable from the inherited
+environment, so the mutant of `scripts/release-install.sh` passes every
+control. The draft ravel-book-inside-k308 saw it fail with the variable and
+pass with `env -u` and no other change, on 2026-11-12. The operator notes of
+this node ask for the variable on Homebrew commands. Run the suite without
+it. A scrub of the variable inside the test's fixture would close the gap.
+Chapter 11 of the book now tells the reader to run the suite without it.
+
+The draft's review of chapter 11 also found two statements of the
+specification `docs/specs/release-channels.md`, "Release interface", that
+the scripts do not hold. "Every script that writes or reads a formula takes
+`--channel`" omits `release-promote.sh`, which takes none, and the optional
+channel of `release-formula.sh`. The chapter now states the exceptions.
+Make the specification agree when it moves to the released state.

@@ -190,3 +190,30 @@ archives. A change to a skill source is out of scope here.
   “detached configuration script children”. The contract is the owner's
   text, so the draft did not change it. Check that the two agree in meaning,
   or raise the wording with the owner.
+- **art**, chapter 11, “Cut and deliver a release”: `release-delivery`
+  draws the 1.x order. Its alt text and the paragraph above it say “eight”
+  recovery exits. The task now has a channel on the archive build, the
+  publication and the installation, and two new steps after the tap update:
+  the installation with cleanup suppressed, then
+  `scripts/release-evidence.sh`. The recovery table has eleven rows, with rows
+  for the release evidence and for a promotion that stopped before or after
+  its tap write. The figure, its alt
+  text, `figures.md` and the paragraph “The eight grey exits” change
+  together.
+- **art**, chapter 11, “Choose a formula channel” and “Promote a versioned
+  release”: the text uses two tables for the tap state before the cut, after
+  the cut and after promotion. A figure of the formula files, the kegs and
+  the shared `bin/ravel` in those three states could serve both sections.
+  The contract's figure needs ask chapter 11 for a C4 component and UML
+  deployment view. Chapter 11 embeds none, and `installed-files` omits
+  `share/ravel/installation.json`, which chapter 6's table lists.
+- **art**, chapter 11, “Package a skill source for the default directory”:
+  a deployment view of the payload `libexec/skill-sources/ID/`, the source
+  alias `share/ravel/skills/ID` and the link in the shared prefix could
+  serve. The editable design view in `docs/design/skill-discovery/`, anchor
+  `#diagram-homebrew-directory`, draws the same layout.
+- **proof**, contract section 1, “Omissions and unknowns”: “The site is
+  unchecked until the first release that carries the book.” Ravel 1.1.0
+  carried the book, and the site serves `v1.1.0/`. Chapters 1, 3 and 11 now
+  say so. The contract is the owner's text, so the draft did not change it.
+  Raise the wording with the owner. Lesson L81 records the case.

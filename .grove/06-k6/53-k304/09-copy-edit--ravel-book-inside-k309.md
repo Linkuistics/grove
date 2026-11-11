@@ -19,3 +19,9 @@ without a change of structure.
 ## Notes
 
 Work in `Ravel.skill-directory-delivery` on `skill-directory-delivery`.
+- The draft ravel-book-inside-k308 rewrote chapters 10 and 11 and corrected
+  one paragraph in each of chapters 1 and 3. Chapter 11 uses “deliver” and
+  “put in the tap” where the release domain says “publish”, because
+  `docs/book/ste.md` refuses every form of “publish”. Keep one verb for each
+  action across the new sections “Choose a formula channel”, “Promote a
+  versioned release” and the recovery table.

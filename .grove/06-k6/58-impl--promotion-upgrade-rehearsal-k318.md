@@ -47,5 +47,13 @@ shape, the receipt command and the example receipt
 `linkuistics/taps`, so a scratch Homebrew must tap the scratch clone under
 that name.
 
+ravel-release-promote-k328 replaced the retained-keg check. Since Ravel
+`5196906162d4`, `release-install.sh` records a manifest of each earlier
+`ravel` and `ravel@2` keg before the Homebrew mutation and refuses any later
+change. Homebrew's `INSTALL_RECEIPT.json` is compared by presence only. This
+rehearsal is the first real Homebrew upgrade under that check. Record whether
+an upgrade changes any other file of a retained keg. The deprecation date is
+now the tag commit's date at UTC−12.
+
 This leaf may prove bigger than one session. If so, decompose it and do only
 the first child.

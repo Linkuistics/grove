@@ -686,6 +686,28 @@ tasks:
     cmds:
       - python3 -I scripts/owner_switch_dry_run.py compare --result "{{.RESULT}}" {{.ARGS}}
 
+  # The owner's update freeze (docs/owner-cutover/owner-checklist.md). The
+  # three tasks only read HOME. The committed baseline of
+  # owner-marketplace-freeze-k253 is docs/owner-cutover/update-freeze-baseline.json.
+  # For example:
+  #   task owner:freeze:check BASELINE=docs/owner-cutover/update-freeze-baseline.json
+  owner:freeze:baseline:
+    desc: Print the frozen Claude Code state of HOME (freeze settings, version, plugin version directories, orphan markers, installations, marketplace refreshes) as JSON
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/update_freeze.py baseline
+
+  owner:freeze:check:
+    desc: Compare HOME's Claude Code state with a freeze BASELINE, and fail on a new version directory, orphan marker, installation change, marketplace refresh or changed freeze setting
+    requires:
+      vars: [BASELINE]
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/update_freeze.py check "{{.BASELINE}}"
+
+  owner:freeze:controls:
+    desc: Show in a fixture HOME that owner:freeze:check fails for each class of change and passes for an unchanged HOME
+    cmds:
+      - python3 -I docs/evaluations/owner-skill-delivery/update_freeze.py controls
+
   release:patch:
     desc: Publish and install the next patch release
     cmds:

@@ -7348,3 +7348,69 @@ and `config.rhai`, and no `settings.json`.
   with a Grove keg. The earlier runs covered Grove's projected template.
 - The four pre-revision kegs stay until a cleanup. A cleanup removes no
   running driver's binaries, because no driver runs from them.
+
+## Update freeze
+
+owner-marketplace-freeze-k253 froze automatic plugin updates and held Claude
+Code at 2.1.322 on 2026-11-11. The owner approved the setting before the
+write. [The owner's checklist](owner-cutover/owner-checklist.md) records the
+setting, its file, its owner, the release of each hold and the pause and
+resume steps for each writer.
+
+### Sources
+
+The official Claude Code documentation names both settings:
+
+- [When auto-update runs](https://code.claude.com/docs/en/plugins/loading.md#when-auto-update-runs)
+  gives the precedence of a marketplace's auto-update. An `autoUpdate` value
+  on an `extraKnownMarketplaces` entry comes first. Then comes the
+  `autoUpdate` value in `known_marketplaces.json`, and then the default. The
+  default is on for `claude-plugins-official`. `DISABLE_AUTOUPDATER=1` turns
+  the whole plugin pass off unless `FORCE_AUTOUPDATE_PLUGINS=1` is set.
+- [Disable auto-updates](https://code.claude.com/docs/en/setup.md#disable-auto-updates)
+  names `DISABLE_AUTOUPDATER` in the `env` block of `settings.json`. A manual
+  `claude update` still works. `DISABLE_UPDATES` blocks it too.
+- [When Claude Code refreshes a marketplace before an install](https://code.claude.com/docs/en/plugins/loading.md#when-claude-code-refreshes-a-marketplace-before-an-install)
+  states that a `name@marketplace` install refreshes that marketplace
+  whatever its auto-update setting is. The refresh skips a `directory`
+  source.
+
+### Measurements
+
+| Measurement | Result |
+| --- | --- |
+| `claude doctor` on 2.1.322 in a disposable HOME with the proposed settings | `Auto-updates: disabled (set by env: DISABLE_AUTOUPDATER)`, and no invalid setting |
+| The same run with a string `autoUpdate` on the `claude-plugins-official` entry | "Invalid marketplace entry was ignored: autoUpdate: Invalid input: expected boolean, received string" |
+| `claude doctor` in the real HOME after the write | `Auto-updates: disabled (set by env: DISABLE_AUTOUPDATER)` |
+| Metadata of `~/.claude/settings.json` after the write | Same inode, only `com.apple.provenance`, no ACL |
+| `mise dot status` after the write | Checkpoint 128 saved the edit of `~/.claude/settings.json` |
+| `mise dot history diff 127 128 --path ~/.claude/settings.json --patch` | Only the `DISABLE_AUTOUPDATER` line and the three `autoUpdate` values differ |
+| `task owner:freeze:controls` | 10 of 10 controls behaved as expected |
+| `task owner:freeze:check` against the new baseline | 0 breaks, 0 notes |
+
+The control run shows that `claude doctor` checks each
+`extraKnownMarketplaces` entry. Its silence about the real entries is
+therefore evidence that Claude Code 2.1.322 accepts them.
+
+Native discovery is unchanged. The owner inventory reads only
+`enabledPlugins`, `skillOverrides` and `hooks` from `~/.claude/settings.json`,
+and the history diff shows none of them changed. The write created no file
+under a skill root.
+
+### The baseline
+
+[`update-freeze-baseline.json`](owner-cutover/update-freeze-baseline.json)
+holds the state at 2026-11-11T03:33:44Z. It records 87 plugin version
+directories, and 60 of them hold `.orphaned_at`. Each marker is on a
+superseded version from an earlier update. No installed version of an
+enabled plugin holds a marker. `~/.local/share/claude/versions` holds 2.1.319,
+2.1.321 and 2.1.322.
+
+### Limits
+
+- The legacy `"autoUpdates": false` in `~/.claude.json` was set while
+  Claude Code moved from 2.1.319 to 2.1.322. The record cannot tell whether a
+  background update or a manual `claude update` made those moves.
+- The `env` block reaches only a session that reads the user settings.
+- The check after one day belongs to a separate leaf before
+  owner-switch-rehearsal-k255.

@@ -73,3 +73,19 @@ file after this leaf.
 
 The checklist is owner instruction, not a program exemption. Do not pause
 or stop any real tool in this leaf. Inspect read only.
+
+## Decisions (running log)
+
+- 2026-11-11: The owner approved the freeze setting in `~/.claude/settings.json`.
+  `env.DISABLE_AUTOUPDATER` is `"1"`. It holds Claude Code's own background
+  update and stops the whole plugin auto-update pass. `autoUpdate` is `false` on
+  the `extraKnownMarketplaces` entries `linkuistics`, `quint-llm-kit` and a new
+  `claude-plugins-official` entry with its existing source. The two holds have
+  different lifetimes. The owner releases the Claude Code hold after the switch.
+  The marketplace freeze lasts until purge. `DISABLE_UPDATES` was rejected,
+  because staging ran with `DISABLE_AUTOUPDATER` and its effect on plugin
+  commands is not measured. A disposable-HOME `claude doctor` on 2.1.322 accepted
+  the setting. A control with a string `autoUpdate` was reported as invalid.
+- 2026-11-11: The owner chose a separate check leaf for the one-day check. It
+  sits before owner-switch-rehearsal-k255 and uses the baseline that this leaf
+  records. It hands back to the owner if fewer than 24 hours have passed.

@@ -91,7 +91,8 @@ skill-loading-replan-k80 cut four implementation leaves here:
    `owner-marketplace-freeze-k253`, `owner-switch-plan-k254` and
    `owner-switch-rehearsal-k255` then finish order 6. They freeze automatic
    updates, write the owner's checklist, complete the real plan and dry-run
-   it.
+   it. k253 inserted `owner-freeze-day-check-k303` before k255, for the
+   check of the freeze after one day.
 6. skill-keg-link-layout-k290 cut nine leaves before k93, for the revised
    keg layout. `grove-keg-projection-k293` revises Grove's template and its
    packaging checks. `shared-directory-seam-k294` delivers the durable
@@ -360,7 +361,8 @@ the root charter's extension.
 - The handoff names `native-off` immediately after promotion. It needs no
   switch backup, and it precedes source acceptance and any default launch.
 - The handoff names the owner's checklist with the pause and resume
-  instructions of owner-marketplace-freeze-k253. These are owner actions.
+  instructions of owner-marketplace-freeze-k253. They are in
+  `docs/owner-cutover/owner-checklist.md`. These are owner actions.
   The narrow process inspection refuses only other Claude Code, Codex, Grove
   and Ravel processes.
 - The handoff names the switch program, its probes, the native probe, the

@@ -1142,7 +1142,7 @@ and 5 describe local sources, after Ravel withdrew Git sources.
    tree. That recipe does not satisfy this item, and k34 decides whether the
    smoke task adopts the narrower route.
 9. Read the default skill directory when the settings name no `sources`, and
-   deliver nothing with `"sources": []`. `ravel-default-skill-directory-k218`
+   deliver nothing with `{"skills": {"schemaVersion": 1, "sources": []}}`. `ravel-default-skill-directory-k218`
    settled this item in the section "Default skill directory" of Ravel's
    specification.
 

@@ -35,7 +35,7 @@ Grove invocation, for the installed contract. Grove admits stable Ravel 1.x from
 | Route | Ravel | Configuration | Settings |
 |---|---|---|---|
 | Native on 1.1 | 1.x from 1.1.0, Homebrew's `ravel` | `policy.ts`, schema 2, with Grove's TypeScript assets | Only `timeoutMs`, `contextBytes` and `policyEnv` |
-| Native on 2.0 | 2.x from 2.0.0, the keg-only `ravel@2` until promotion | `config.rhai`, `SCHEMA_VERSION` 4, with Grove's Rhai assets | The keys of 2.0.0, with `"sources": []` while keg sources are installed |
+| Native on 2.0 | 2.x from 2.0.0, the keg-only `ravel@2` until promotion | `config.rhai`, `SCHEMA_VERSION` 4, with Grove's Rhai assets | The keys of 2.0.0, with `{"skills": {"schemaVersion": 1, "sources": []}}` while keg sources are installed |
 | Directory on 2.0 | As native on 2.0 | As native on 2.0 | The keys of 2.0.0 without `sources`. Ravel then reads its default skill directory |
 
 Homebrew installs core and the five domain packs with Grove. It links each one
@@ -53,16 +53,22 @@ names both majors. Grove does not fall through to another copy. Never recommend
 an upgrade of a shared installation that another session or configuration still
 uses.
 
+Grove 22.8 and earlier refuse Ravel 2.x and name `brew upgrade ravel`, which
+cannot help once the default `ravel` is 2.x. Recommend `brew upgrade grove`
+instead, because a lone Ravel upgrade does not upgrade Grove.
+
 Ravel 1.1.0 refuses the settings keys of 2.0, and 2.0.0 refuses `policyEnv`.
 The directory route through the default skill directory needs no settings key,
 so a 1.1 launch and a 2.0 launch can share one HOME. While a 1.1 launch still
 reads the settings under a HOME, put a 2.0 route that needs a 2.0-only key
-under a separate HOME. Such keys include `sources` and `"sources": []`. Grove
+under a separate HOME. Such keys include the `skills` object and its `sources`. Grove
 converts no configuration from one major to the other.
 
 The default skill directory belongs to the Ravel installation, not to a HOME.
 A `skills` object with `sources` replaces the default sources with the named
-local directories, and `"sources": []` turns delivery off. Ravel runs no `git`
+local directories. An empty list there turns delivery off:
+`{"skills": {"schemaVersion": 1, "sources": []}}`. Ravel 2.0.0 refuses a
+top-level `sources` key as `settings_invalid`. Ravel runs no `git`
 command and makes no network request for a source. A missing source refuses as
 `skill_source_missing` before any configuration code runs, and the leaf stays
 live.

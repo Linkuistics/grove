@@ -153,7 +153,10 @@ refuses that formula from a tap that is not trusted.
 When the unversioned `ravel` formula moves to Ravel 2.0.0, `brew upgrade` brings
 the skills to each launch with no PATH prefix. `ravel@2` then receives no later
 release. Write `config.rhai` before that upgrade, as [Install Grove](#install-grove)
-states.
+states. Run `brew upgrade` with no formula name, or upgrade Grove first. A lone
+`brew upgrade ravel` leaves Grove 22.8 or earlier, which refuses Ravel 2.0.0 and
+names `brew upgrade ravel` as its remedy. Run `brew upgrade grove` in that state.
+[Promotion](docs/USAGE.md#usage-ravel-promotion) in the user guide gives the reason.
 
 Other formulae of the tap install more skill sources in the same way:
 

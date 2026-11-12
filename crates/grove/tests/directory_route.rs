@@ -1503,8 +1503,9 @@ fn a_launch_without_skills_settings_receives_each_source_of_the_default_director
     assert_default_sources(&lane, &homebrew, 0, "subject-k1");
 }
 
-// `"sources": []` beside the same populated default directory turns delivery
-// off. The agent receives the mandate unchanged and no descriptor.
+// An empty `sources` in the `skills` object, beside the same populated default
+// directory, turns delivery off. The agent receives the mandate unchanged and
+// no descriptor.
 #[test]
 #[ignore = "needs the Ravel 2.0 directory build: task ravel:directory"]
 fn empty_sources_beside_the_default_directory_deliver_nothing() {

@@ -75,6 +75,17 @@ What a user does depends on the `ravel` formula of the tap:
   while any Ravel 1.x launch remains. After the upgrade, each launch receives
   the skills of the keg with no settings change. `ravel@2` then receives no
   later release.
+- Upgrade Grove with Ravel: run `brew upgrade` with no formula name, or
+  upgrade Grove first. A lone `brew upgrade ravel` does not upgrade Grove.
+  Homebrew upgrades a dependent only when the dependent and each of its
+  dependencies have a bottle, and neither formula has one. Grove 22.8 and
+  earlier refuse Ravel 2.0.0 before any launch, and their message names
+  `brew upgrade ravel`. That remedy is wrong after the promotion. Run
+  `brew upgrade grove` instead.
+- To turn skill delivery off on Ravel 2, put an empty `sources` list in the
+  `skills` object of `~/.config/ravel/settings.json`:
+  `{"skills": {"schemaVersion": 1, "sources": []}}`. Ravel 2.0.0 refuses a
+  top-level `sources` key as `settings_invalid`.
 - A user of the `linkuistics` marketplace does the four steps of its entry
   below, before any refresh of the marketplace.
 - Register the hook adapters by the commands of the formula caveats.

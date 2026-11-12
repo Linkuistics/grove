@@ -64,6 +64,12 @@ caveats = formula.caveats.to_s
   # config.rhai. docs/specs/coordinated-release.md, "Compatible tap states".
   "the refusal of a lone policy.ts" => "config_format_retired and exit 3",
   "the config.rhai remedy" => "copy the\nconfig.rhai sample above, convert your routes",
+  # A Ravel-only upgrade leaves Grove 22.8.0, which refuses Ravel 2.0.0.
+  # docs/promotion-upgrade-rehearsal-record.md, "Grove 22.8.0 beside Ravel 2.0.0".
+  "the upgrade order" => "run brew upgrade with no formula name, or\nupgrade Grove first",
+  "the remedy for an earlier Grove" => "In that state, run\nbrew upgrade grove.",
+  # Ravel 2.0.0 refuses a top-level "sources" as settings_invalid.
+  "the place of the off value" => '{"skills": {"schemaVersion": 1, "sources": []}}',
   # The four commands of "Hook adapters" in docs/specs/codex-skill-provisioning.md.
   "the Claude Code hooks marketplace" => 'claude plugin marketplace add "$(brew --prefix)/opt/grove"',
   "the Claude Code hooks plugin" => "claude plugin install technical-communication-hooks@writing-hooks",
@@ -78,7 +84,8 @@ caveats = formula.caveats.to_s
   raise "the caveats do not show #{subject}: #{text}" unless caveats.include?(text)
 end
 # The retired routes: settings that name checkouts, and the manual installer.
-["`skills` object", "checkout", "install.sh", "@linkuistics"].each do |text|
+# Also the off value as a top-level settings key, which Ravel 2.0.0 refuses.
+["`skills` object", "checkout", "install.sh", "@linkuistics", '"sources": [] in settings.json'].each do |text|
   raise "the caveats still show a retired route: #{text}" if caveats.include?(text)
 end
 copied = caveats.scan(%r{^\s*cp (\S+) }).flatten

@@ -40,3 +40,26 @@ Grove's caveats and the promotion.
 The candidate formula of the rehearsal carries the current caveats. A
 change to the template changes only the formula, not the archives, so it
 needs no new rehearsal of the packaging.
+
+## Decisions (running log)
+
+- The remedy text names `brew upgrade` with no formula name first, because
+  upgrade-a-d measured it. "Upgrade Grove first" uses `brew upgrade grove`.
+  After a lone `brew upgrade ravel`, the remedy is also `brew upgrade grove`.
+  The pages do not claim that `brew upgrade grove` upgrades Ravel too, because
+  no rehearsal measured that.
+- The Ravel 2.0.0 release notes go to the new leaf
+  ravel-release-notes-upgrade-order-k339, before cross-repo-docs-reconciliation-k319.
+  The book of v2.0.0 is final, and promotion refuses a changed book. The
+  tagged changelog section cannot change the released notes. The GitHub
+  Release body is outward-facing, so its edit needs the human's approval.
+- The formula test `scripts/release-formula.test.rb` now requires the upgrade
+  order, the remedy for an earlier Grove and the off value in the `skills`
+  object. It refuses the earlier phrase `"sources": [] in settings.json`.
+- `configure-grove` also gets the remedy for the refusal of Grove 22.8,
+  because the skill remedies refused launches.
+- Records stay as history: the rows of `docs/grove-docs-reconciliation-record.md`,
+  the rehearsal record and `docs/owner-skill-delivery-evidence.md`. The fixture
+  table of `docs/grove-dual-ravel-stage-record.md` changed, because the
+  fixtures wrote the `skills` object. The code constants `OFF` are the value of
+  the `skills` object and are correct.

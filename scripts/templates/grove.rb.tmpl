@@ -132,10 +132,23 @@ class Grove < Formula
       config_format_retired and exit 3. Before that upgrade, copy the
       config.rhai sample above, convert your routes and check a launch
       through ravel@2. Keep policy.ts while any Ravel 1.x launch remains.
+
+      Upgrade Grove with Ravel: run brew upgrade with no formula name, or
+      upgrade Grove first. A lone brew upgrade ravel leaves an earlier
+      Grove, because Homebrew upgrades a dependent only when it and each
+      of its dependencies have a bottle. Grove has no bottle, and Ravel has
+      none either. Grove 22.8 and earlier refuse Ravel 2.x, and their
+      message names brew upgrade ravel. In that state, run
+      brew upgrade grove.
+
       After the upgrade, Grove needs no PATH prefix, and each launch
-      receives the skills of this keg. "sources": [] in settings.json turns
-      that delivery off. Earlier config.kdl or .grove.kdl files are no
-      longer read.
+      receives the skills of this keg. To turn that delivery off, put an
+      empty sources list in the skills object of settings.json:
+
+        {"skills": {"schemaVersion": 1, "sources": []}}
+
+      Ravel 2.x refuses a top-level sources key as settings_invalid.
+      Earlier config.kdl or .grove.kdl files are no longer read.
     EOS
   end
 

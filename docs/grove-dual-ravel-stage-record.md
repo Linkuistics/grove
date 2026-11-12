@@ -157,7 +157,7 @@ The fixtures write each file into a temporary HOME of their own. The
 | Route | `~/.config/ravel/` holds |
 | --- | --- |
 | Native on 1.1 | `policy.ts` with schema 2. Settings, if any, hold only `timeoutMs`, `contextBytes` and `policyEnv` |
-| Native on 2.0 | `config.rhai` with `SCHEMA_VERSION` 4. Settings hold no `skills`, and the prefix holds no installation record. Or the settings hold `"sources": []` |
+| Native on 2.0 | `config.rhai` with `SCHEMA_VERSION` 4. Settings hold no `skills`, and the prefix holds no installation record. Or the settings hold `{"skills": {"schemaVersion": 1, "sources": []}}` |
 | Directory on 2.0 | As native on 2.0, with a `skills` object of local sources in `settings.json` |
 | Default directory on 2.0 | `config.rhai`, and settings without `skills`. The copied prefix holds an installation record that names a fixture directory of links |
 

@@ -50,7 +50,7 @@ no native installation.
 | Route | Ravel | Configuration | Settings | Grove caller assets |
 | --- | --- | --- | --- | --- |
 | Native on 1.1 | 1.x from 1.1.0, Homebrew's `ravel` | `~/.config/ravel/policy.ts`, schema 2 | `~/.config/ravel/settings.json` with only `timeoutMs`, `contextBytes` and `policyEnv` | The TypeScript set |
-| Native on 2.0 | 2.x from 2.0.0, Homebrew's keg-only `ravel@2` until promotion | `~/.config/ravel/config.rhai`, `SCHEMA_VERSION` 4 | `~/.config/ravel/settings.json` with the keys of 2.0.0, and `"sources": []` while keg sources are installed | The Rhai set |
+| Native on 2.0 | 2.x from 2.0.0, Homebrew's keg-only `ravel@2` until promotion | `~/.config/ravel/config.rhai`, `SCHEMA_VERSION` 4 | `~/.config/ravel/settings.json` with the keys of 2.0.0, and `{"skills": {"schemaVersion": 1, "sources": []}}` while keg sources are installed | The Rhai set |
 | Directory on 2.0 | As native on 2.0 | As native on 2.0 | No settings file, or one with the keys of 2.0.0 and no `sources` | The Rhai set |
 
 Grove's formula installs Homebrew's `ravel` as a dependency. Otherwise, install Ravel with
@@ -89,10 +89,25 @@ Prepare before that upgrade:
 3. Check a launch through `ravel@2`.
 4. Keep `policy.ts` while any Ravel 1.x launch remains.
 
+Upgrade Grove with Ravel. Run `brew upgrade` with no formula name, or upgrade Grove first
+with `brew upgrade grove`. A lone `brew upgrade ravel` does not upgrade Grove. Homebrew
+upgrades a dependent only when the dependent and each of its dependencies have a bottle,
+and neither Grove nor Ravel has one. Grove 22.8 and earlier refuse Ravel 2.x before any
+launch, with this message:
+
+```text
+Error: …/Cellar/ravel/2.0.0/bin/ravel must report a stable Ravel 1.x CLI version from 1.1.0. Run `brew upgrade ravel` and select that installation on PATH. …
+```
+
+That remedy is wrong after promotion, because `brew upgrade ravel` installed the 2.0.0.
+Run `brew upgrade grove` instead. The leaf stays live, and the next `grove` continues it.
+
 After the upgrade, each launch receives the keg sources with no settings change. A native
-installation that remains still loads beside them. `"sources": []` in the settings keeps
-the native route. Grove 22.8 and earlier refuse Ravel 2.x. If Homebrew cannot upgrade
-Grove, keep a complete Ravel 1.1.0 prefix, and put its `bin` first on the PATH.
+installation that remains still loads beside them. To keep the native route, put an empty
+`sources` list in the `skills` object of the settings:
+`{"skills": {"schemaVersion": 1, "sources": []}}`. Ravel 2.0.0 refuses a top-level
+`sources` key as `settings_invalid`. If Homebrew cannot upgrade Grove, keep a complete
+Ravel 1.1.0 prefix, and put its `bin` first on the PATH.
 
 An unsupported or malformed version names both admitted majors with their configuration
 files, and the `ravel@2` directory. Grove refuses Ravel 1.0.x, prereleases and unknown majors
@@ -235,8 +250,10 @@ default:
   must be mandatory, because the mandate names the kind skill.
 - A `sources` array replaces the default sources. Ravel then reads only the local
   directories that it names, and no default skill directory.
-- `"sources": []` turns delivery off. A native route on 2.0 uses it while keg sources are
-  installed.
+- An empty `sources` array in this object turns delivery off:
+  `{"skills": {"schemaVersion": 1, "sources": []}}`. A native route on 2.0 uses it while
+  keg sources are installed. Ravel 2.0.0 refuses a top-level `sources` key as
+  `settings_invalid`.
 
 ```json
 {

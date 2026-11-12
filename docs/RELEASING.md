@@ -905,7 +905,9 @@ directory, the commands of the hook adapters and the explicit `ravel@2` prefix. 
 and the `config.rhai` sample for Ravel 2.x from the installed caller assets.
 They also state what promotion changes: `ravel@2` is deprecated, and a lone
 `policy.ts` refuses with `config_format_retired`, whose remedy is `config.rhai`.
-Preserve an existing configuration, read/edit a new one before running, and keep
+They tell the user to upgrade Grove with Ravel or first, because a lone
+`brew upgrade ravel` leaves an earlier Grove that refuses Ravel 2.x. They place
+the off value in the `skills` object of the settings. Preserve an existing configuration, read/edit a new one before running, and keep
 relative helpers together. Installation and upgrade never write an owner
 configuration. Earlier config.kdl/.grove.kdl files are
 ignored. Keep the live original-v22 installation and ending channel until its

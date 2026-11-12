@@ -118,7 +118,9 @@ Homebrew links each installed skill source into that directory,
 `$(brew --prefix)/share/ravel/skills/`. The optional `skills` object adds an ordered
 `mandatory` list of files. Its `sources` array replaces the default sources with
 local directories, each with `type` `local`, an absolute `path` and its search
-`roots`. `"sources": []` turns delivery off.
+`roots`. An empty `sources` array in the `skills` object turns delivery off:
+`{"skills": {"schemaVersion": 1, "sources": []}}`. Ravel 2.0.0 refuses a top-level
+`sources` key as `settings_invalid`.
 
 Ravel captures each source at launch,
 without `.git` and `.jj`. It runs no `git` command and makes no network request. A

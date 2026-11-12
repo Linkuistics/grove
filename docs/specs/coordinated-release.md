@@ -61,7 +61,7 @@ conversion target moves with them.
 | A: current | Grove 22.8, unversioned Ravel 1.1.0 | Existing native delivery and TypeScript assets. |
 | B: Ravel first | Same pair, plus keg-only `ravel@2` 2.0.0 | Grove still selects 1.1.0. Opt-in 2.0 uses its explicit prefix and separate Rhai settings. Installing `ravel@2` changes no default command. On a prefix without either Ravel formula, that installation uses `--skip-link`. |
 | C: compatible Grove | New Grove, unversioned Ravel 1.1.0 and `ravel@2` 2.0.0 | Keep Grove's unversioned dependency. Native setup works by default. Until promotion, directory setup explicitly selects `ravel@2`, which reads Grove's keg sources with no settings. Verify both before advancing. |
-| D: promotion | Same compatible Grove. Unversioned Ravel and `ravel@2` reference identical 2.0.0 archives, and `ravel@2` is deprecated | Fresh installs get a compatible pair and the `config.rhai` sample. An upgrade moves the default command to 2.0.0, which refuses a HOME that holds only `policy.ts`. The owner writes and verifies `config.rhai` and compatible Grove before switching Ravel or settings. After the upgrade, a 2.0 launch delivers Grove's keg sources with no settings change, beside any remaining native installation. The release notes say so, and `"sources": []` keeps the native route. `ravel@2` stays installable at the promoted version and receives no later release. Promotion neither rebuilds nor cuts a version. |
+| D: promotion | Same compatible Grove. Unversioned Ravel and `ravel@2` reference identical 2.0.0 archives, and `ravel@2` is deprecated | Fresh installs get a compatible pair and the `config.rhai` sample. An upgrade moves the default command to 2.0.0, which refuses a HOME that holds only `policy.ts`. The owner writes and verifies `config.rhai` and compatible Grove before switching Ravel or settings. After the upgrade, a 2.0 launch delivers Grove's keg sources with no settings change, beside any remaining native installation. The release notes say so. `{"skills": {"schemaVersion": 1, "sources": []}}` in `settings.json` keeps the native route, and Ravel 2.0.0 refuses a top-level `sources` key as `settings_invalid`. A Ravel-only upgrade leaves the earlier Grove, so the remedy says to run `brew upgrade` or to upgrade Grove first. `ravel@2` stays installable at the promoted version and receives no later release. Promotion neither rebuilds nor cuts a version. |
 
 Formula tests use the selected dependency's prefix. Keg-only installation does
 not select Ravel for Grove. The caller design supplies explicit launch examples.
@@ -77,15 +77,30 @@ Grove's caveats and samples for both formats. The two files coexist under one
 HOME: a 1.1 launch reads `policy.ts`, and 2.0 reads `config.rhai`.
 
 Promotion needs an upgrade rehearsal from A and C, including a Ravel-only
-upgrade with outdated Grove installed. Homebrew normally updates outdated
-dependents. Observe that behaviour for these formulae rather than assume it.
-Each upgrade rehearsal includes a HOME that holds only `policy.ts`. It must show
-the documented refusal and remedy, then a working launch after conversion.
+upgrade with outdated Grove installed. Each upgrade rehearsal includes a HOME
+that holds only `policy.ts`. It must show the documented refusal and remedy,
+then a working launch after conversion.
+
+A Ravel-only upgrade does not upgrade Grove. The
+[rehearsal record](../promotion-upgrade-rehearsal-record.md#homebrew-output-of-the-ravel-only-upgrade)
+holds the measurement. `Library/Homebrew/upgrade.rb` at the owner's HEAD
+upgrades an outdated dependent only when the dependent and each of its
+dependencies are bottled. Grove has no bottle, and Ravel has none either. At D,
+`brew upgrade ravel` therefore leaves Grove 22.8.0 beside Ravel 2.0.0.
+Grove 22.8.0 refuses Ravel 2.0.0 before any launch, and the leaf stays live.
+Its message tells the user to run `brew upgrade ravel`, which is the wrong
+remedy in that state. The released 22.8.0 binary cannot change.
+
+Publish the remedy before promotion. Run `brew upgrade` with no formula name,
+which upgrades Grove and Ravel together, or upgrade Grove first. After a lone
+`brew upgrade ravel`, run `brew upgrade grove`. Grove's caveats, its usage
+guide, its changelog and the Ravel 2.0.0 release notes carry this remedy. No
+page relies on Homebrew to upgrade Grove after `brew upgrade ravel`.
 
 Pinned Grove, `HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK`, failed upgrades and
-deliberately kept old archives require an explicit legacy route. Publish the remedy before
-promotion: upgrade Grove first, or retain and explicitly select the complete
-1.1.0 prefix and its settings. A warning alone is not acceptance.
+deliberately kept old archives require an explicit legacy route. For them,
+retain and explicitly select the complete 1.1.0 prefix and its settings. A
+warning alone is not acceptance.
 
 If the rehearsed upgrade cannot preserve the pair, stay in C and repair
 packaging. Rollout makes that decision before `finish-commit`. Inside finish,

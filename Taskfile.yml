@@ -804,12 +804,13 @@ tasks:
   # The promotion upgrade rehearsal with real Homebrew in a scratch
   # environment. WORK must be an empty directory outside every working copy.
   # TAP is the real tap working copy, which the rehearsal only reads. The run
+  # builds candidate archives of the working result for every release target,
   # downloads the published archives and spends several minutes, so
   # scripts/check.sh does not run it.
   # docs/promotion-upgrade-rehearsal-record.md records its readings. For example:
   #   task promotion:rehearsal WORK="$(mktemp -d)" TAP=~/Development/Delivery/homebrew-taps
   promotion:rehearsal:
-    desc: Rehearse fresh installs and upgrades through the coordinated tap states with a private Homebrew, a scratch tap and a scratch HOME (needs Homebrew and the network; not in check)
+    desc: Rehearse fresh installs and upgrades through the coordinated tap states with a private Homebrew, a scratch tap and a scratch HOME (needs Homebrew, the network and the release toolchain; not in check)
     requires:
       vars: [WORK]
     cmds:

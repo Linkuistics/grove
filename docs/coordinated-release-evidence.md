@@ -240,3 +240,70 @@ the separate formula test are beside it. That directory is untracked.
 of the JSON file, with SHA-256
 `02a120ea4ac083db0ff6f3026749c88d68114052a671dc24cd1771a9def5ad5e`. If the
 original is lost, give the copy to `task release:promote` as `EVIDENCE`.
+
+## Homebrew cleanup protection
+
+homebrew-cleanup-protection-k316 set the machine-wide protection for `ravel`
+on 2026-11-12, before finish. The section "Activation and running readers"
+of the [release design](specs/coordinated-release.md) requires it. The
+owner's manual records why the protection exists and when the owner may
+remove it. That record is the section "Homebrew cleanup protection" of the
+Obsidian note "Maintenance and Recovery".
+
+### The setting
+
+`~/.homebrew/brew.env` holds comment lines and one setting,
+`HOMEBREW_NO_CLEANUP_FORMULAE=ravel`. Before the change, no `brew.env`
+existed in `/etc/homebrew`, `/opt/homebrew/etc/homebrew` or `~/.homebrew`.
+No shell profile, mise configuration or environment set the variable, so
+there were no existing entries to keep.
+After a `mise bootstrap packages upgrade` released mise's history lock,
+`mise dot track ~/.homebrew/brew.env` added a `[dotfiles]` entry with
+`mode = "track"` to `~/.config/mise/config.toml`. mise saved checkpoint 137
+for the file.
+
+The `bin/brew` of Homebrew 7.0.13 reads three files at the start of each
+command. The order is `/etc/homebrew/brew.env`, then
+`$HOMEBREW_PREFIX/etc/homebrew/brew.env`, then the user file. The user file
+is `$XDG_CONFIG_HOME/homebrew/brew.env` when that variable is set, else
+`~/.homebrew/brew.env`. No shell profile sets `XDG_CONFIG_HOME`. The
+launcher exports each line literally, so a value in the file replaces a
+value from the shell. A `brew` command under another HOME does not read the
+user file.
+
+In `Library/Homebrew/cleanup.rb`, `clean!` rejects each formula that
+`skip_clean_formula?` names before it cleans a keg. The periodic cleanup,
+`periodic_clean!`, calls `clean!`. The install cleanup and `brew cleanup
+ravel` use the same test. The test compares exact formula names and
+aliases, so `ravel` does not protect `ravel@2`.
+
+### The read-only query
+
+After the change, `brew config` printed
+`HOMEBREW_NO_CLEANUP_FORMULAE: ravel`.
+
+### The control
+
+`task owner:cleanup-protection:controls` runs
+`scripts/homebrew-cleanup-control.sh`. The script reads the real prefix
+only. It makes APFS clones of `Library/Homebrew`, the `linkuistics` tap and
+the `ravel` 1.1.0 keg in a scratch prefix. A second clone of the keg
+becomes an old version, 0.1.0. Each run uses `env -i` with a scratch HOME,
+cache, logs and temp. Each run then makes the periodic cleanup due and
+calls `Homebrew::Cleanup.periodic_clean!`.
+
+Two guards come before each cleanup. The scratch `brew --cellar` must be
+the scratch Cellar. Homebrew must also find the 0.1.0 keg eligible for
+cleanup. The scratch HOME trusts the `ravel` formula for that second guard.
+Without the trust, Homebrew 7 loads no formula of the tap and omits `ravel`
+from the installed formulae without an error. The first run of the control
+had no trust, and its run without the file kept the old keg too.
+
+On 2026-11-12, the run with a copy of the owner's file saw the setting, and
+the periodic cleanup kept `ravel` 0.1.0. The run without a file saw no
+setting, and the same cleanup removed the 0.1.0 keg, 14 files of 64 MB. A
+mutant file that named `ravel@2,zstd` made the control fail, because the
+cleanup removed the old keg. After each run, the metadata of every entry
+in `/opt/homebrew/Cellar/ravel` was unchanged. The real
+`~/.homebrew/trust.json` and `/opt/homebrew/.git/config` also kept their
+modification times from before the session.

@@ -407,6 +407,16 @@ tasks:
     cmds:
       - python3 -I docs/evaluations/owner-skill-delivery/controls.py
 
+  # The owner's protection of the original Ravel 1.1.0 keg from Homebrew's
+  # periodic cleanup ("Homebrew cleanup protection" of
+  # docs/coordinated-release-evidence.md). BREW_ENV replaces the default file,
+  # ~/.homebrew/brew.env. The task only reads the real prefix. For example:
+  #   task owner:cleanup-protection:controls BREW_ENV="$SCRATCH/brew.env"
+  owner:cleanup-protection:controls:
+    desc: Show in a scratch Homebrew prefix that the owner's brew.env keeps an old ravel keg through the periodic cleanup, which removes it without the file
+    cmds:
+      - bash scripts/homebrew-cleanup-control.sh {{if .BREW_ENV}}"{{.BREW_ENV}}"{{end}}
+
   # The owner's Rhai configuration against the policy.ts that it converts
   # ("Policy conversion" of docs/owner-skill-delivery-evidence.md). OUT is a
   # new directory. TS and RHAI replace the default inputs, the owner's

@@ -73,11 +73,12 @@ class Grove < Formula
       skill directory, $(brew --prefix)/share/ravel/skills. Ravel 2.0.0 and
       later read that directory when ~/.config/ravel/settings.json names no
       "sources", also when that file is absent. Ravel then delivers the
-      skills to each session. brew install and brew upgrade are the whole
-      skill setup, and no setting is necessary.
+      skills to each session, and no setting is necessary.
 
-      Ravel 1.x delivers no skill. Run `ravel skills resolve` to see the
-      sources that a launch receives. Each originPath names the private copy.
+      Ravel 1.x delivers no skill. While the unversioned ravel formula is
+      Ravel 1.x, select the keg-only ravel@2 for skill delivery, as shown
+      below. Run `ravel skills resolve` with Ravel 2 to see the sources that
+      a launch receives. Each originPath names the private copy.
 
       Grove leaves any native skill installation unchanged, including one that
       an earlier Grove wrote.
@@ -119,15 +120,22 @@ class Grove < Formula
       Keep the whole caller asset tree together when you import them.
 
       While the unversioned ravel formula is Ravel 1.x, Ravel 2 is the
-      keg-only ravel@2. Select it for one Grove invocation by putting its bin
-      first on PATH:
+      keg-only ravel@2. It reads the skills of this keg with no settings.
+      Select it for one Grove invocation by putting its bin first on PATH:
 
         brew install linkuistics/taps/ravel@2
         PATH="$(brew --prefix ravel@2)/bin:$PATH" grove
 
-      When the unversioned ravel moves to 2.x, it reads only config.rhai and
-      refuses a HOME that holds only policy.ts. Write and check config.rhai
-      first. Earlier config.kdl or .grove.kdl files are no longer read.
+      When the unversioned ravel moves to Ravel 2.x, ravel@2 is deprecated
+      and receives no later release. The unversioned ravel then reads only
+      config.rhai. It refuses a HOME that holds only policy.ts with
+      config_format_retired and exit 3. Before that upgrade, copy the
+      config.rhai sample above, convert your routes and check a launch
+      through ravel@2. Keep policy.ts while any Ravel 1.x launch remains.
+      After the upgrade, Grove needs no PATH prefix, and each launch
+      receives the skills of this keg. "sources": [] in settings.json turns
+      that delivery off. Earlier config.kdl or .grove.kdl files are no
+      longer read.
     EOS
   end
 
@@ -144,7 +152,7 @@ class Grove < Formula
       versioned = Formula["linkuistics/taps/ravel@2"]
       builds << [versioned.opt_bin/"ravel", "2.0"] if versioned.any_version_installed?
     rescue FormulaUnavailableError
-      # The tap has no ravel@2 before Ravel 2.0.0 publishes.
+      # A tap in state A, such as a test tap, has no ravel@2.
     end
     builds
   end

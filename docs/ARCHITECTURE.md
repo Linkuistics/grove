@@ -3,8 +3,8 @@
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
 Grove is a small Rust launcher around a filesystem task tree, with the agent
-methodology authored as plugin files and delivered through each harness's
-installation path. Durable work stays in
+methodology authored as plugin files, installed by Homebrew and delivered by
+Ravel. Durable work stays in
 ordinary repository files and VCS;
 Grove adds only enough coordination to own one working tree, select one task,
 launch one agent session, and continue until the tree is complete.
@@ -339,8 +339,11 @@ owner's PATH executable. A version string authenticates no program, and
 canonicalisation pins no inode.
 
 The owner's configuration selects a command: `~/.config/ravel/policy.ts` for
-Ravel 1.x, or `~/.config/ravel/config.rhai` for Ravel 2.x. These are the native
-routes on 1.1 and on 2.0. Adjacent `settings.json` bounds selection/context and
+Ravel 1.x, or `~/.config/ravel/config.rhai` for Ravel 2.x. `policy.ts` serves
+the native route on 1.1. `config.rhai` serves the native and the directory
+route on 2.0.
+
+Adjacent `settings.json` bounds selection/context and
 grants environment names. Its keys differ by major, so each major refuses a key
 of the other. `.ravel-choice` selects among options that the configuration
 offers when it reads that file. None of these files belongs to Grove.
@@ -1540,8 +1543,9 @@ any native namespace. The prompt also tells a session that cannot find or read
 the skill to force-stop with its leaf live. Whoever authors an independent kind
 supplies its skill.
 
-Homebrew installs the skill sources, and Ravel delivers them to a session in
-every harness the policy can select. Grove ships no manual installer. Grove
+Homebrew installs the skill sources, and Ravel 2.0 delivers them to a session in
+every harness the policy can select. Ravel 1.x delivers no skill. Grove ships no
+manual installer. Grove
 installs no skill and alters no harness's skill directories or plugin
 configuration. The [delivery contract](specs/codex-skill-provisioning.md) owns
 the routes, the Ravel directory route on 2.0 and the missing-skill outcome.
@@ -1570,7 +1574,7 @@ The earlier `content/` implementation embedded methodology in both binaries,
 swept several harness directories, and added hashes, pairing probes and
 per-iteration repair. `delete-provisioning-k19` removed that system. A later
 Codex adapter embedded the plugin sources in `grove` alone. It was removed after
-Grove 22.8, when skill delivery became the user's choice.
+Grove 22.8, when Homebrew and Ravel took over skill delivery.
 
 **Behavioural coverage remains the plugin's own assertion.**
 `plugins/grove/conformance.sh` checks the loaded path of every kind, rule
@@ -1810,7 +1814,7 @@ still meet a mismatched `grove-llm` on `PATH` after an upgrade.
 repository publishes. It does not prove that installed skills, executables and
 already running sessions use one build. Diagnose binary versions with
 `grove --version` and `grove-llm --version`. Upgrade Grove with Homebrew to
-align the keg's skills, and update a native installation through its own route.
+align the keg's skills. An existing native installation keeps its own contents.
 
 <!-- tc: on -->
 

@@ -30,8 +30,9 @@ brew tap Linkuistics/taps
 brew install grove
 ```
 
-That command is the whole setup of Grove and its skills, and `brew upgrade` keeps
-both current. No project needs an installation step. Homebrew installs these parts:
+That command installs Grove and its skills, and `brew upgrade` keeps both current.
+Ravel 2 delivers the skills, as [the skills](#skills) state. No project needs an
+installation step. Homebrew installs these parts:
 
 - The executables `grove` and `grove-llm`. `grove --version` reports the installed
   version.
@@ -58,6 +59,11 @@ cp "$(brew --prefix grove)/libexec/ravel-policy/sample/policy.ts" ~/.config/rave
 # Ravel 2.x, with SCHEMA_VERSION 4:
 cp "$(brew --prefix grove)/libexec/ravel-policy/sample/config.rhai" ~/.config/ravel/config.rhai
 ```
+
+The two files coexist. Ravel 2.0.0 refuses a HOME that holds only `policy.ts`,
+with `config_format_retired`. Write and check `config.rhai` before the unversioned
+`ravel` formula moves to Ravel 2.x. Keep `policy.ts` while any Ravel 1.x launch
+remains.
 
 Preserve an existing policy. The sample launches codex with approvals off and
 full access. Creator-aware examples require the complete caller directory tree
@@ -132,6 +138,11 @@ invocation:
 brew install linkuistics/taps/ravel@2
 PATH="$(brew --prefix ravel@2)/bin:$PATH" grove
 ```
+
+When the unversioned `ravel` formula moves to Ravel 2.0.0, `brew upgrade` brings
+the skills to each launch with no PATH prefix. `ravel@2` then receives no later
+release. Write `config.rhai` before that upgrade, as [Install Grove](#install-grove)
+states.
 
 Other formulae of the tap install more skill sources in the same way:
 

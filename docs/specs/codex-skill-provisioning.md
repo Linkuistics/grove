@@ -23,7 +23,7 @@ delivers a skill to a session, and native skill installation retires.
 [The keg layout](#the-keg-layout), [Hook adapters](#hook-adapters),
 [The retired marketplace](#the-retired-marketplace) and
 [The pack record and the release](#the-pack-record-and-the-release) are new.
-Their implementation is ahead. The
+Grove implements and tests them. The
 [evidence](../homebrew-skill-delivery-evidence.md) holds the readings.
 
 `ravel-default-skill-directory-k218` then settled Ravel's default skill
@@ -63,8 +63,10 @@ A Homebrew installation of Grove supplies Grove's executables, its readable
 caller policy assets, core and the five domain packs. Grove's formula depends
 on Ravel, so every Grove user has Ravel. Ravel 2.0.0 reads the sources in its
 default skill directory, as [The keg layout](#the-keg-layout) states.
-`brew install` and `brew upgrade` are therefore the whole skill setup. A user
-who wants personal guidance installs the `personal` formula the same way.
+After promotion, `brew install` and `brew upgrade` are therefore the whole skill
+setup. Until promotion, directory delivery also needs `ravel@2`, selected as
+[Prefix selection](#prefix-selection) states. A user who wants personal
+guidance installs the `personal` formula the same way.
 
 Ravel's settings stay optional. Under Ravel's contract, they add a mandatory
 file or replace the default sources. Each hook adapter still needs one
@@ -138,7 +140,7 @@ Each formula exposes its private source through a directory symlink in
 `$(brew --prefix)/share/ravel/skills/<source-id>` without descending into the
 source. That directory is **Ravel's default skill directory**.
 `brew install`, `brew upgrade` and `brew uninstall` keep it current, so they
-are the whole skill setup. No harness discovers skills under the Homebrew
+are the whole setup of the skill sources. No harness discovers skills under the Homebrew
 prefix, so a keg adds no native entry.
 
 Ravel 2.0.0 reads the default skill directory when the settings name no
@@ -204,8 +206,8 @@ The linking rules above are in Homebrew 7.0.12 at
 [`3ccfa1d07143`, `Keg#resolve_any_conflicts` and `Keg#link_dir`](https://github.com/Homebrew/brew/blob/3ccfa1d07143/Library/Homebrew/keg.rb).
 The [two-keg experiment](../homebrew-skill-delivery-evidence.md#directory-link-layout-experiment)
 reproduces both the failure and the proposed remedy with Homebrew itself.
-This layout amendment is a design. Formula implementation and publication
-must precede reliance on the guarantee.
+Grove's formula template and each published tap formula implement this layout.
+Grove's formula publishes it with Grove's compatible release.
 
 **Ownership and migration.** The Grove formula template owns its projection.
 The tap owns the `personal`, `superpowers` and `quint-llm-kit` formulae.
@@ -217,9 +219,9 @@ archive into the private location and create the relative alias. Release
 archives can retain their existing payload layout. Neither Ravel nor a
 formula's post-install hook repairs another formula's links.
 
-Ravel's skill discovery specification and Homebrew directory view must explain
-this packaging rule before Ravel 2.0.0 publishes. Ravel's resolver remains
-unchanged. Its own formula must participate in the shared-directory acceptance.
+Ravel's skill discovery specification and Homebrew directory view explain
+this packaging rule. Ravel's resolver remains unchanged. Its own formula must
+participate in the shared-directory acceptance.
 
 Each affected published formula needs a new revision or release, even if its
 source commit is unchanged, so an ordinary upgrade installs the remedy.
@@ -382,9 +384,8 @@ separate proofs over the same 2.0.0 executable. The first proof runs with
 delivery disabled and complete native skills. The second runs with delivery
 enabled and native copies absent. Neither proof stands in for the other.
 
-The [coordinated release](coordinated-release.md) ships both in one 2.0.0. An
-earlier native-only 2.0.0 release would need its own explicit owner and
-authorisation.
+The [coordinated release](coordinated-release.md) shipped both in one 2.0.0,
+published through `ravel@2`.
 
 ### Settings and HOME
 
@@ -560,12 +561,11 @@ The required target remains the bare `grove-<kind>` skill. A native namespace
 comes from the plugin that actually supplies it. Moving the skill can change
 that namespace without changing the kind.
 
-Before the first pack moves, the mandate must stop asserting that every kind
-belongs to the `grove` plugin. The mandate names one target and tells the agent
-to use that skill's installed namespace where required, without inventing a
-qualified alias. This adds no kind-to-plugin map or lookup to Grove. Each moved
-pack proves its actual native spelling and the same bare-name request through
-directory delivery.
+The mandate does not assert that every kind belongs to the `grove` plugin.
+It names one target and tells the agent to use that skill's installed
+namespace where required, without inventing a qualified alias. This adds no
+kind-to-plugin map or lookup to Grove. Each moved pack proves its actual native
+spelling and the same bare-name request through directory delivery.
 
 Both lifecycle and standalone callers use that same session boundary. A
 standalone runtime-file argument retains its existing meaning. Grove does not
@@ -686,12 +686,12 @@ domain packs, in [the keg layout](#the-keg-layout). It holds no private worker
 and no skill resolver. Startup and upgrade write no native skill installation.
 No manual installer and no marketplace package remain.
 
-Prepare Ravel 2.0.0 and compatible Grove caller assets in separate prefixes
-and isolated homes. Check the three supported routes separately before claiming
-compatibility. The [coordinated release](coordinated-release.md) settles the
-order. Ravel 2.0.0 publishes first as the keg-only `ravel@2`. Compatible Grove
-publishes while unversioned `ravel` stays 1.1.0. Finish then promotes the same
-archives to unversioned `ravel`.
+Check each of the three supported routes alone, in separate prefixes and
+isolated homes, before claiming compatibility. The
+[coordinated release](coordinated-release.md) settles the order. Ravel 2.0.0
+published first, as the keg-only `ravel@2`. Compatible Grove publishes while
+unversioned `ravel` stays 1.1.0. Finish then promotes the same archives to
+unversioned `ravel`.
 
 Every published tap state must pair its Grove formula with a compatible Ravel
 dependency, including fresh installs and upgrades between releases. Grove's
@@ -709,16 +709,15 @@ their owners. The rollout must check their order before publishing.
 Release fixtures explicitly select their dependency builds, check matching
 independent package identities and test each admitted caller combination.
 Update pinned archive identities deliberately. Retain separate legacy-driver
-fixtures. The source split later updates native packages and injected directory
-sources with the same resource-preservation checks. This design changes no
-owner installation.
+fixtures. The split pack sources keep the same resource-preservation checks.
+This design changes no owner installation.
 
-Before the cut, a build of Ravel's feature line reports `ravel 1.1.0`, and Grove
-admits that output as 1.x. Acceptance therefore identifies each Ravel build by
-commit and build identity, not by its version output. Stub executables prove
-the admission of `ravel 2.0.0` output before the cut. After the cut, rollout
-repeats the admission and installed checks against the published archives,
-pinned by SHA-256.
+Before the cut, a build of Ravel's feature line reported `ravel 1.1.0`, and
+Grove admitted that output as 1.x. Acceptance therefore identified each Ravel
+build by commit and build identity, not by its version output. Stub
+executables proved the admission of `ravel 2.0.0` output before the cut. After
+the cut, `grove-ravel-two-pins-k314` repeated the admission and installed
+checks against the published archives, pinned by SHA-256.
 
 The [coordinated release contract](coordinated-release.md) supplies the concrete
 combined-release identities, tap sequence, owner handoff and finish extension.
@@ -940,8 +939,9 @@ identify inspected consumers. Research remains the first external-pack proof.
 The [external pack contract](external-pack-contract.md) records the reusable pack
 tooling for later moves.
 
-`homebrew-skill-delivery-k215` plans the implementation of the Homebrew
+`homebrew-skill-delivery-k215` planned the implementation of the Homebrew
 installation, the hook adapters, the pack record and the retired marketplace.
+Grove implements and tests all four.
 `manual-installer-removal-k236` removed the manual installer, with its
 `--pack` option and its tests.
 

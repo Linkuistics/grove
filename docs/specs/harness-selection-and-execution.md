@@ -12,9 +12,9 @@ route on 2.0 through the lifecycle caller and the standalone caller.
 
 The [delivery design](codex-skill-provisioning.md) owns the transition and its
 [supported routes](codex-skill-provisioning.md#supported-routes). Process and
-result contracts remain unchanged. Skill availability
-is the user's responsibility through native installation or Ravel directory
-injection, and is not part of Grove's version admission.
+result contracts remain unchanged. Homebrew installs the skill sources, and
+Ravel delivers them. Skill availability is not part of Grove's version
+admission.
 
 The [Ravel CLI](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md),
 [executable specification](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md),
@@ -63,8 +63,8 @@ names both admitted majors with their configuration files, `policy.ts` and
 the owner to put the matching `bin` directory first on the PATH of the
 invocation, and it recommends no shared upgrade.
 
-The probe decides admission only, and it selects no route. Native skill
-delivery does not require Ravel 2.0.0. The
+The probe decides admission only, and it selects no route. A launch on a
+native route does not require Ravel 2.0.0. The
 [supervision decision](../adr/dispatch-supervises-the-harness.md) records the
 dependency and the trust in PATH that the probe costs.
 
@@ -95,8 +95,9 @@ argument. Ravel's generic `--param NAME=VALUE` is available to other callers,
 without task-tree meaning.
 
 Grove calls no skill-resolution operation and parses no skill metadata or
-catalog. Both callers can receive configured directory injection automatically
-through `start-session`. Native-only launches need no such configuration. On
+catalog. On Ravel 2.0, both callers receive directory delivery through
+`start-session`. The sources come from Ravel's default skill directory or from
+the settings. A launch on a native route receives no directory. On
 both callers, the harness reads its native roots under its own sandbox, as the
 [delivery contract](codex-skill-provisioning.md#installation-and-bootstrap)
 states.
@@ -123,7 +124,8 @@ launches.
 The personal configuration selects the command. Ravel 1.x reads
 `~/.config/ravel/policy.ts`, and Ravel 2.x reads `~/.config/ravel/config.rhai`.
 Ravel's settings at `~/.config/ravel/settings.json` supply bounds and explicit
-environment grants. On 2.0.0 they also supply optional skill-directory delivery.
+environment grants. On 2.0.0 they can also name skill sources or turn off the
+default sources.
 
 Each release accepts only its own settings keys, as the
 [delivery design](codex-skill-provisioning.md#settings-and-home) states.

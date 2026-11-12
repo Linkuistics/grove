@@ -60,6 +60,10 @@ caveats = formula.caveats.to_s
   "the public aliases" => "A directory symlink in share/ravel/skills is its public alias.",
   "the settings without sources" => "names no\n\"sources\", also when that file is absent",
   "the ravel@2 prefix" => 'PATH="$(brew --prefix ravel@2)/bin:$PATH" grove',
+  # After promotion, Ravel 2.0.0 refuses a lone policy.ts, and the remedy is
+  # config.rhai. docs/specs/coordinated-release.md, "Compatible tap states".
+  "the refusal of a lone policy.ts" => "config_format_retired and exit 3",
+  "the config.rhai remedy" => "copy the\nconfig.rhai sample above, convert your routes",
   # The four commands of "Hook adapters" in docs/specs/codex-skill-provisioning.md.
   "the Claude Code hooks marketplace" => 'claude plugin marketplace add "$(brew --prefix)/opt/grove"',
   "the Claude Code hooks plugin" => "claude plugin install technical-communication-hooks@writing-hooks",

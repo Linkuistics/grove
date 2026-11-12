@@ -128,19 +128,28 @@ tells the harness to read the file and follow it. The file is outside
 `plugins/` on purpose. It is not a session kind and has no task-tree
 lifecycle. The writer must not depend on the discovery of an installed skill.
 
-Both paths need an independent installed Ravel and your owner policy at
-`~/.config/ravel/policy.ts`. The policy must route `release-notes` to a
+Both paths need an independent installed Ravel and your owner configuration.
+Ravel 1.x reads `~/.config/ravel/policy.ts`, and Ravel 2.x reads
+`~/.config/ravel/config.rhai`. The configuration must route `release-notes` to a
 noninteractive command that keeps its writable state in the scratch directory.
-The headless route of the Grove sample runs the staged Codex helper.
+The headless route of each Grove sample runs the staged Codex helper.
 
-Install Ravel. Copy the sample only if no owner policy exists:
+Install Ravel. Copy the sample for your Ravel only if no owner configuration
+exists:
 
 ```sh
 brew install linkuistics/taps/ravel
 mkdir -p ~/.config/ravel
-# Preserve an existing policy; read and edit this copy before launching.
+# Preserve an existing configuration; read and edit this copy before launching.
+# Ravel 1.x:
 cp assets/ravel-policy/sample/policy.ts ~/.config/ravel/policy.ts
+# Ravel 2.x:
+cp assets/ravel-policy/sample/config.rhai ~/.config/ravel/config.rhai
 ```
+
+Ravel 2.0.0 refuses a HOME that holds only `policy.ts`, with
+`config_format_retired`. After the unversioned `ravel` formula moves to 2.x, the
+release task therefore needs `config.rhai`.
 
 A release with existing Unreleased notes generates nothing. The generation
 builds only `grove` and `grove-llm`. It resolves Ravel on PATH and uses its
@@ -267,8 +276,9 @@ Before a release, check each set against its own explicit build:
   entry, link, mode, pointer and byte must stay the same, and an active 22.8
   session must complete.
 
-A prefix gives the runtime because a build of Ravel's 2.0 feature line reports
-`ravel 1.1.0` until the cut. The checks also need the layout of each build. The
+A prefix gives the runtime explicitly. Before the cut, a build of Ravel's 2.0
+feature line reported `ravel 1.1.0`, so its version output could not name its
+runtime. The checks also need the layout of each build. The
 1.1 prefix holds the private worker `libexec/ravel/ravel-policy`, and the 2.0
 prefix holds no `libexec/ravel`. Host Bun and Node are not runtime
 dependencies of either installed project.
@@ -651,8 +661,8 @@ running in memory does not acquire the new contract when PATH changes.
 5. Integrate and verify the intended change, then run `task release:major` from
    the default colocated workspace under the authorized finish sequence.
    Complete publication, installation and the release's verification before
-   signalling success. Grove installs no skills: update the owner's marketplace
-   plugins and native installations to the same release. Keep other
+   signalling success. Grove's keg carries the skills with the binaries, so the
+   installed release updates both. Keep other
    groves stopped until their binaries, skills and policy agree. After a partial
    release, resume the unfinished step rather than cutting another version.
 6. Return to the original finish workspace. A finish launched under v22 ends
@@ -878,14 +888,15 @@ of a 1.1 prefix.
 <!-- tc: pending because the conversion has not reached the rest of this document -->
 
 Both checks are required during recovery too. If a published formula's test
-fails at Ravel's nested sandbox probe, correct the formula's test to exercise
-lifecycle, commit/push the same-version tap correction through jj, refresh the
+fails because of the test itself, correct the formula's test, commit/push the same-version tap correction through jj, refresh the
 tap, then run `brew test grove` and the installed-smoke command above. Preserve
 the existing tag and tested archives; resume verification without another cut.
 
 The formula's caveats show both configuration formats, Ravel's default skill
 directory, the commands of the hook adapters and the explicit `ravel@2` prefix. They copy the `policy.ts` sample for Ravel 1.x
 and the `config.rhai` sample for Ravel 2.x from the installed caller assets.
+They also state what promotion changes: `ravel@2` is deprecated, and a lone
+`policy.ts` refuses with `config_format_retired`, whose remedy is `config.rhai`.
 Preserve an existing configuration, read/edit a new one before running, and keep
 relative helpers together. Installation and upgrade never write an owner
 configuration. Earlier config.kdl/.grove.kdl files are

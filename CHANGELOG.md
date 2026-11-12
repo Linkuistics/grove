@@ -55,58 +55,46 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
-- Owner switch tooling: step 5 of `scripts/owner_switch.py` compares each
-  skill formula's full package version, with its revision. It reads the
-  version from the keg that Homebrew links, so a version that mise reports
-  without a revision cannot pass for the accepted revision. Step 4 requires
-  each Grove source to come from its private payload. The plan draft names
-  the published full package versions. The rehearsal, dry-run, quiet-interval
-  and settings-draft fixtures use the projected keg layout. The inventory
-  classifies the hook adapters and the Pi writing alias as native residue
-  only at the registration paths that the hook seam measured.
+This minor release moves skill delivery to Homebrew and Ravel 2. Homebrew
+installs Grove's skills in Grove's keg, and Ravel 2.0.0 delivers them to each
+session. Grove no longer installs a skill itself, and the `linkuistics`
+marketplace is retired. Grove admits Ravel 2.0.0 beside Ravel 1.1.0.
 
-- Linkuistics tap: the tap publishes the projected revisions `personal`
-  2026-11-06_1, `superpowers` 7.0.0_1, `quint-llm-kit` 1.0.0_1 and
-  `testanyware` 2.8.0_1. Each keeps its source commit and source digest.
-  Each passed the shared directory seam beside Grove's projected output and
-  Ravel's keg. `scripts/skill-formulae.json` now declares each published
-  tap formula projected, so two direct fixture formulae carry the seam's
-  failure control.
+### Upgrading
 
-- `grove` release checks: the new shared directory seam,
-  `task seam:shared-directory`, links actual formula output with Homebrew's
-  own linker into private prefixes. Ravel then resolves each prefix's
-  default skill directory with no settings. The seam covers both
-  installation orders, Ravel first, Ravel promotion, upgrade, cleanup,
-  uninstall, mixed-layout migration and duplicate source IDs. A failure
-  control links the published direct formulae and must show the source
-  expansion. `scripts/skill-formulae.json` declares each skill formula's
-  layout. `task release:formula:test` now takes `TAP`, `RAVEL_FORMULA` and
-  `RAVEL_ARCHIVE` and runs the seam. `task tap:formula:test` takes the two
-  Ravel inputs and runs the seam for its formula. The test's renderer now
-  fills each checksum placeholder of Grove's template, including those
-  with digits in their target names.
+What a user does depends on the `ravel` formula of the tap:
 
-- `grove` release checks: `task tap:formula:test` reads the layout of its
-  formula from `scripts/skill-formulae.json`. For a projected formula, it
-  checks the relative alias, the private payload in
-  `libexec/skill-sources` and the regular payload files. Ravel's
-  `originPath` must name that payload. The test also compares each
-  native-only plugin and marketplace file with the keg of the published
-  formula. That comparison covers files, permission modes, links,
-  contents and hook declarations. The seam of the test now includes the
-  other skill formulae of the tap. The declarations of `personal`,
-  `superpowers` and `quint-llm-kit` are now projected. `testanyware` stays
-  direct until its own revision.
+- While the unversioned `ravel` formula is Ravel 1.1.0, a default launch
+  delivers no skill directory. Install the keg-only `ravel@2`, and run
+  `PATH="$(brew --prefix ravel@2)/bin:$PATH" grove`. Ravel 2 reads
+  `~/.config/ravel/config.rhai`, so copy the Rhai sample of the caveats first.
+- When the unversioned `ravel` formula moves to Ravel 2.0.0, `brew upgrade`
+  moves the default `ravel` to 2.0.0. That Ravel reads only `config.rhai`. It
+  refuses a HOME that holds only `policy.ts`, with `config_format_retired` and
+  exit 3. Write and check `config.rhai` before the upgrade. Keep `policy.ts`
+  while any Ravel 1.x launch remains. After the upgrade, each launch receives
+  the skills of the keg with no settings change. `ravel@2` then receives no
+  later release.
+- A user of the `linkuistics` marketplace does the four steps of its entry
+  below, before any refresh of the marketplace.
+- Register the hook adapters by the commands of the formula caveats.
 
-- `grove`: this release removes the manual installer `plugins/install.sh`,
-  with its `--pack` option and its tests. Homebrew installs the skill
-  sources, and Ravel delivers them to each session in every harness. Links
-  that the installer made in `~/.codex/skills`, `~/.gemini/skills`,
-  `~/.pi/agent/skills` and `~/.pi/agent/extensions` stay until you remove
-  them. Ravel's native routes still read a skill installation that already
-  exists. The `harnesses:` key of each skill stays as metadata, and no
-  installer reads it.
+### Changes
+
+- `grove`: the release archives and the Homebrew formula carry core and the
+  five domain packs: requirements, design, engineering, research and writing.
+  The archive holds each source as a directory in `share/ravel/skills`. The
+  formula moves each source into `libexec/skill-sources/<source-id>` of the
+  keg. A relative directory symlink at `share/ravel/skills/<source-id>` is its
+  public alias. Homebrew links each alias into
+  `$(brew --prefix)/share/ravel/skills`, Ravel's default skill directory, and
+  does not descend into a source. Ravel 2.0 reads the sources there with no
+  settings, and each `originPath` names the private source. A later Grove
+  release keeps this layout, because `task release:test` refuses a formula
+  that installs a real source directory under `share`. Each pack is at the
+  commit that `plugins/packs.json` records and `task check:packs` accepted.
+  The archive manifest lists each file with its Git mode, and the build
+  refuses an archive with another mode or a pack without its checkout.
 
 - `linkuistics` marketplace: the marketplace is retired. Grove's
   `.claude-plugin/marketplace.json` keeps the name `linkuistics` and lists no
@@ -139,21 +127,6 @@ stood at the graft — a closed record, not part of the versioned sequence above
   and `claude plugin update` fails. An interactive launch shows no notice.
   `docs/homebrew-skill-delivery-evidence.md` gives the measurement.
 
-- `grove`: the release archives and the Homebrew formula carry core and the
-  five domain packs: requirements, design, engineering, research and writing.
-  The archive holds each source as a directory in `share/ravel/skills`. The
-  formula moves each source into `libexec/skill-sources/<source-id>` of the
-  keg. A relative directory symlink at `share/ravel/skills/<source-id>` is its
-  public alias. Homebrew links each alias into
-  `$(brew --prefix)/share/ravel/skills`, Ravel's default skill directory, and
-  does not descend into a source. Ravel 2.0 reads the sources there with no
-  settings, and each `originPath` names the private source. A later Grove
-  release keeps this layout, because `task release:test` refuses a formula
-  that installs a real source directory under `share`. Each pack is at the
-  commit that `plugins/packs.json` records and `task check:packs` accepted.
-  The archive manifest lists each file with its Git mode, and the build
-  refuses an archive with another mode or a pack without its checkout.
-
 - `grove`: the keg root holds the marketplace file `writing-hooks` for Claude
   Code and for Codex. Each lists the always-on technical-communication hooks
   plugin of the keg's private writing source, at
@@ -174,14 +147,14 @@ stood at the graft — a closed record, not part of the versioned sequence above
   optional manual procedure that removes those entries only on evidence of
   ownership.
 
-- `grove`: the session mandate names only the bare `grove-<kind>` skill. It no
-  longer spells a fixed `grove:` namespace. A harness that requires one uses the
-  namespace of the plugin that actually supplies the skill. The mandate loads
-  that skill first after any mandatory guidance. It also states the outcome
-  when a session cannot find or read the skill. The session reports the problem
-  and leaves the leaf live. It records no teardown and runs the launch's exact
-  force-stop command. The loop then stops without relaunching the leaf. Fix the
-  skill delivery and run `grove` again.
+- `grove`: this release removes the manual installer `plugins/install.sh`,
+  with its `--pack` option and its tests. Homebrew installs the skill
+  sources, and Ravel delivers them to each session in every harness. Links
+  that the installer made in `~/.codex/skills`, `~/.gemini/skills`,
+  `~/.pi/agent/skills` and `~/.pi/agent/extensions` stay until you remove
+  them. Ravel's native routes still read a skill installation that already
+  exists. The `harnesses:` key of each skill stays as metadata, and no
+  installer reads it.
 
 - `grove`: admit stable Ravel 2.x from 2.0.0 beside stable 1.x from 1.1.0. The
   version decides admission only. The PATH of the invocation selects the Ravel,
@@ -190,21 +163,44 @@ stood at the graft — a closed record, not part of the versioned sequence above
   Grove's caller assets in `libexec/ravel-policy` now hold a Rhai set for 2.x
   beside the unchanged TypeScript set. The Rhai set has `sample/config.rhai`,
   the static and review examples, the review adapter and the provider-evidence
-  wrapper. Grove converts no configuration. To use 2.x, install the keg-only `ravel@2` and put
+  wrapper. Grove converts no configuration. While the unversioned `ravel`
+  formula is 1.x, use 2.x through the keg-only `ravel@2`. Put
   `$(brew --prefix ravel@2)/bin` first on the PATH of the Grove invocation. The
   remedy for an unsupported Ravel now names both majors with their
   configuration files, and it no longer recommends `brew upgrade ravel`. Grove
   still refuses 1.0.x, prereleases and other majors such as 3.x.
 
 - `grove`: support the directory route on Ravel 2.0.0 through the lifecycle
-  caller and `grove run`. Ravel adds the locations of local skill
-  sources from the `skills` settings to each launch prompt, so no harness needs
-  a native copy. Grove sends the same mandate and reads none of these settings.
-  Ravel reads local directories only and runs no `git` command, so a tool
-  outside Ravel makes each checkout. Use a HOME of its own while a 1.1 launch
-  remains, because Ravel 1.1.0 refuses `skills`. A missing source refuses
-  before launch, and the leaf stays live. `docs/USAGE.md` gives the settings.
-  `task ravel:directory` checks the route against a 2.0 build and a 1.1 build.
+  caller and `grove run`. Ravel adds the location of each skill source to each
+  launch prompt, so no harness needs a native copy. With no `sources` in its
+  settings, Ravel reads the keg sources from its default skill directory,
+  `$(brew --prefix)/share/ravel/skills`. A `skills` object in the settings can
+  name other local sources instead. Grove sends the same mandate and reads
+  none of these settings. Ravel 1.1.0 refuses `skills`, so a HOME whose
+  settings name sources needs to be separate while a 1.1 launch remains. A
+  missing source refuses before launch, and the leaf stays live.
+  `docs/USAGE.md` gives the details. `task ravel:directory` checks the route
+  against a 2.0 build and a 1.1 build.
+
+- `grove` formula: the caveats show both configuration samples, `policy.ts`
+  for Ravel 1.x and `config.rhai` for Ravel 2.x. They show Ravel's default
+  skill directory, the commands of the hook adapters and the explicit
+  `ravel@2` prefix. They also state what promotion changes. `ravel@2` is
+  deprecated, and a 2.x `ravel` refuses a HOME with only `policy.ts` as
+  `config_format_retired`, with `config.rhai` as the remedy. The formula
+  still depends on the unversioned `ravel`. `brew test grove` checks the
+  TypeScript set against a 1.x `ravel` and the Rhai set against a 2.x
+  `ravel`, and against an installed `ravel@2`. An upgrade changes no native
+  skill entry, and a running 22.8 session completes.
+
+- `grove`: the session mandate names only the bare `grove-<kind>` skill. It no
+  longer spells a fixed `grove:` namespace. A harness that requires one uses the
+  namespace of the plugin that actually supplies the skill. The mandate loads
+  that skill first after any mandatory guidance. It also states the outcome
+  when a session cannot find or read the skill. The session reports the problem
+  and leaves the leaf live. It records no teardown and runs the launch's exact
+  force-stop command. The loop then stops without relaunching the leaf. Fix the
+  skill delivery and run `grove` again.
 
 - `grove run`: Grove no longer confines a standalone run, and it sends no
   `--confine` to Ravel. The harness sandbox that your Ravel configuration
@@ -229,14 +225,11 @@ stood at the graft — a closed record, not part of the versioned sequence above
   `codex login` when Codex has no sign-in. The human decided this trade-off,
   and `docs/confinement-withdrawal-evidence.md` records it.
 
-- `grove` formula: the caveats show both setup routes, native installation and
-  Ravel directory delivery. They show both configuration samples, `policy.ts`
-  for Ravel 1.x and `config.rhai` for Ravel 2.x, and the explicit `ravel@2`
-  prefix. They also say that a 2.x `ravel` refuses a HOME with only `policy.ts`.
-  The formula still depends on the unversioned `ravel`. `brew test grove`
-  checks the TypeScript set against a 1.x `ravel` and the Rhai set against a
-  2.x `ravel`, and against an installed `ravel@2`. An upgrade changes no native
-  skill entry, and a running 22.8 session completes.
+- Known limits: on Codex, the development feature `token_budget` can lose
+  the whole conversation, launch prompt included. In the trial, the agent then
+  did not recover its guidance. After the loss of the whole launch prompt,
+  `RAVEL_SKILL_DIRECTORIES` alone did not lead to recovery in Claude Code or
+  in Codex. `docs/USAGE.md` describes both limits.
 
 - Release checks: the independent Ravel inputs have two lanes. The 1.1 lane is
   the published Ravel 1.1.0. The 2.0 lane is the published Ravel 2.0.0.
@@ -250,6 +243,50 @@ stood at the graft — a closed record, not part of the versioned sequence above
   bubblewrap. `task
   legacy:rehearsal ALSO=<prefix>` checks the Ravel 1.1.0 ending executable after
   each package step while a 2.0 prefix is installed.
+
+- `grove` release checks: the new shared directory seam,
+  `task seam:shared-directory`, links actual formula output with Homebrew's
+  own linker into private prefixes. Ravel then resolves each prefix's
+  default skill directory with no settings. The seam covers both
+  installation orders, Ravel first, Ravel promotion, upgrade, cleanup,
+  uninstall, mixed-layout migration and duplicate source IDs. A failure
+  control links the published direct formulae and must show the source
+  expansion. `scripts/skill-formulae.json` declares each skill formula's
+  layout. `task release:formula:test` now takes `TAP`, `RAVEL_FORMULA` and
+  `RAVEL_ARCHIVE` and runs the seam. `task tap:formula:test` takes the two
+  Ravel inputs and runs the seam for its formula. The test's renderer now
+  fills each checksum placeholder of Grove's template, including those
+  with digits in their target names.
+
+- `grove` release checks: `task tap:formula:test` reads the layout of its
+  formula from `scripts/skill-formulae.json`. For a projected formula, it
+  checks the relative alias, the private payload in
+  `libexec/skill-sources` and the regular payload files. Ravel's
+  `originPath` must name that payload. The test also compares each
+  native-only plugin and marketplace file with the keg of the published
+  formula. That comparison covers files, permission modes, links,
+  contents and hook declarations. The seam of the test now includes the
+  other skill formulae of the tap. The declarations of `personal`,
+  `superpowers` and `quint-llm-kit` are now projected. `testanyware` stays
+  direct until its own revision.
+
+- Linkuistics tap: the tap publishes the projected revisions `personal`
+  2026-11-06_1, `superpowers` 7.0.0_1, `quint-llm-kit` 1.0.0_1 and
+  `testanyware` 2.8.0_1. Each keeps its source commit and source digest.
+  Each passed the shared directory seam beside Grove's projected output and
+  Ravel's keg. `scripts/skill-formulae.json` now declares each published
+  tap formula projected, so two direct fixture formulae carry the seam's
+  failure control.
+
+- Owner switch tooling: step 5 of `scripts/owner_switch.py` compares each
+  skill formula's full package version, with its revision. It reads the
+  version from the keg that Homebrew links, so a version that mise reports
+  without a revision cannot pass for the accepted revision. Step 4 requires
+  each Grove source to come from its private payload. The plan draft names
+  the published full package versions. The rehearsal, dry-run, quiet-interval
+  and settings-draft fixtures use the projected keg layout. The inventory
+  classifies the hook adapters and the Pi writing alias as native residue
+  only at the registration paths that the hook seam measured.
 
 - `linkuistics` / `machine-environment`: describe `mise bootstrap` as the owner of
   Antony's machine setup. Packages are in `[bootstrap.packages]`, and dotfiles are

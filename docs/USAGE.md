@@ -21,7 +21,7 @@ about launch policy and leaves the policy contract to
 [Ravel](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md). It does **not** carry
 installation ([README](../README.md)), grove's vocabulary
 ([CONTEXT.md](../CONTEXT.md)), or the methodology a session executes (the
-`grove` plugin's own skills). Each is linked where it is reached. The set this
+skills of the `grove` plugin and the five domain packs). Each is linked where it is reached. The set this
 guide is obliged to cover is written down separately, in
 [the coverage inventory](specs/user-guide-coverage.md), and the
 [coverage map](#usage-coverage-map) at the end says which section answers each
@@ -53,11 +53,34 @@ no native installation.
 | Native on 2.0 | 2.x from 2.0.0, Homebrew's keg-only `ravel@2` until promotion | `~/.config/ravel/config.rhai`, `SCHEMA_VERSION` 4 | `~/.config/ravel/settings.json` with the keys of 2.0.0, and `"sources": []` while keg sources are installed | The Rhai set |
 | Directory on 2.0 | As native on 2.0 | As native on 2.0 | No settings file, or one with the keys of 2.0.0 and no `sources` | The Rhai set |
 
-Install Ravel independently with `brew install linkuistics/taps/ravel`. Grove and Ravel can
-have different prefixes and different versions. A missing `ravel` names that install remedy.
-Homebrew installs Ravel 2.x as the keg-only `ravel@2`, so its `ravel` is never the default
-command. To use it, put `$(brew --prefix ravel@2)/bin` first on the PATH of the Grove
-invocation. The ending commands in the prompt then name that installation.
+Grove's formula installs Homebrew's `ravel` as a dependency. Otherwise, install Ravel with
+`brew install linkuistics/taps/ravel`. Grove and Ravel can have different prefixes and
+different versions. A missing `ravel` names that install remedy.
+
+Until a tap promotion makes Homebrew's `ravel` 2.x, Homebrew installs Ravel 2.x only as the
+keg-only `ravel@2`. Its `ravel` is not the default command. To use it, put
+`$(brew --prefix ravel@2)/bin` first on the PATH of the Grove invocation. The ending
+commands in the prompt then name that installation.
+
+<a id="usage-ravel-promotion"></a>
+**Promotion.** A promotion publishes the same Ravel 2.0.0 archives as Homebrew's
+unversioned `ravel`. `ravel@2` is then deprecated and receives no later release. After
+`brew upgrade`, the default `ravel` is 2.0.0, and Grove needs no PATH prefix. That Ravel
+reads only `config.rhai`. It refuses a HOME that holds only `policy.ts` with
+`config_format_retired` and exit 3.
+
+Prepare before that upgrade:
+
+1. Copy `$(brew --prefix grove)/libexec/ravel-policy/sample/config.rhai` to
+   `~/.config/ravel/config.rhai`. Preserve an existing `config.rhai`.
+2. Convert your routes from `policy.ts` into it.
+3. Check a launch through `ravel@2`.
+4. Keep `policy.ts` while any Ravel 1.x launch remains.
+
+After the upgrade, each launch receives the keg sources with no settings change. A native
+installation that remains still loads beside them. `"sources": []` in the settings keeps
+the native route. Grove 22.8 and earlier refuse Ravel 2.x. If Homebrew cannot upgrade
+Grove, keep a complete Ravel 1.1.0 prefix, and put its `bin` first on the PATH.
 
 An unsupported or malformed version names both admitted majors with their configuration
 files, and the `ravel@2` directory. Grove refuses Ravel 1.0.x, prereleases and unknown majors
@@ -77,8 +100,9 @@ prompt, an optional task file and handle, and the working directory of the calle
 copy the configuration yourself. Upgrades do not edit it, and Grove converts no
 configuration from one major to the other.
 
-Ravel has exactly two commands, `start-session` and `end-session RESULT`, with the ordinary
-help and version flags. It has no init, inspect or record command. Ravel 1.x supplies the
+Ravel 1.x has exactly two commands, `start-session` and `end-session RESULT`, with the
+ordinary help and version flags. Ravel 2.x adds `skills resolve`. Neither has an init,
+inspect or record command. Ravel 1.x supplies the
 public SDK `ravel/sdk`. Ravel 2.x has no SDK, and a Rhai script imports another by its path.
 Owner settings live in `~/.config/ravel/settings.json`.
 
@@ -151,9 +175,10 @@ beside the executables, one Ravel source each:
 
 Homebrew links each source into Ravel's default skill directory,
 `$(brew --prefix)/share/ravel/skills/`. Ravel 2.0.0 reads that directory when your settings
-name no `sources`, also when no settings file exists. `brew install` and `brew upgrade` are
-therefore the whole skill setup. Grove's release takes each pack at the commit that Grove's
-pack check accepted.
+name no `sources`, also when no settings file exists. With a Ravel 2 on the PATH,
+`brew install` and `brew upgrade` are therefore the whole skill setup. Until
+[promotion](#usage-ravel-promotion), that Ravel is `ravel@2`. Grove's release takes each
+pack at the commit that Grove's pack check accepted.
 
 Other formulae of the `linkuistics/taps` tap install more sources in the same way. The
 `personal` formula installs the owner's personal craft skills. The `superpowers`,
@@ -243,6 +268,20 @@ Each launch captures the current contents of its sources. A running session keep
 snapshot it received, also when `brew upgrade` changes a source. The next launch receives
 the new contents. A launch during an upgrade can miss the sources of the formula that
 Homebrew is installing. Rerun it after the upgrade.
+
+<a id="usage-directory-limits"></a>
+**Known limits.** Two trials found limits of recovery after a harness loses context. The
+[gap register](common-loading-acceptance-record.md#gap-register) holds the evidence.
+
+- On Codex, the development feature `token_budget` lost the whole conversation, launch
+  prompt included. The agent did not recover its guidance. A Grove session under that
+  feature can therefore lose its skills.
+- After the loss of the whole launch prompt, `RAVEL_SKILL_DIRECTORIES` alone did not lead
+  to recovery in Claude Code or in Codex. The variable names the directories, but nothing
+  in the remaining context names the variable.
+
+Claude Code's system prompt and Codex's developer instructions survive that loss. A later
+design can name the variable in those instructions. This release does not.
 
 <a id="usage-standalone"></a>
 ## Running a standalone task
@@ -867,11 +906,12 @@ requires explicit human confirmation — Grove guides that decision and never ma
 it autonomously. Both are verbs, and
 [the verbs section](#usage-tree-verbs) works them.
 
-The runtime methodology is the **`grove` plugin**, whose spine is
-[`plugins/grove/skills/grove/SKILL.md`](../plugins/grove/skills/grove/SKILL.md)
-and which ships one `grove-<kind>` skill per session kind. A launch prompt names
-the one skill this session's kind needs, and the session loads it through its
-harness's own skill-loading affordance. **A kind exists iff a skill of that name
+The runtime methodology's spine is the **`grove` plugin**'s
+[`plugins/grove/skills/grove/SKILL.md`](../plugins/grove/skills/grove/SKILL.md).
+That plugin and the five domain packs ship one `grove-<kind>` skill per session
+kind. A launch prompt names the one skill this session's kind needs. On the
+directory route, the session reads it from a source that Ravel lists. On a
+native route, it loads it through its harness's own skill-loading affordance. **A kind exists iff a skill of that name
 exists** — adding one is authoring a skill and routing the kind in your policy,
 never editing or rebuilding a binary.
 
@@ -880,8 +920,8 @@ never editing or rebuilding a binary.
 `grove` binary installs none
 ([decision](adr/homebrew-installs-skills-and-ravel-delivers-them.md)). Grove's formula
 installs core and the five domain packs. Ravel 2.0 delivers them to every harness that your
-policy can select, as [the directory route](#usage-directory-route) states. `brew install`
-and `brew upgrade` are the whole skill setup.
+policy can select, as [the directory route](#usage-directory-route) states. With a Ravel 2
+on the PATH, `brew install` and `brew upgrade` are the whole skill setup.
 
 On a native route, each harness reads a native installation that already exists. Grove's
 guidance sets up none, and Grove ships no installer.
@@ -900,7 +940,7 @@ repair, repoint or remove those entries, and an upgrade leaves them too. The
 links keep working while their snapshots remain, but they no longer follow Grove
 upgrades.
 
-Keep them, or replace them with links that you choose. To remove the links,
+You can keep them. To remove the links,
 follow the [optional cleanup procedure](#usage-codex-cleanup). Its path or name
 alone does not show that Grove wrote an entry.
 
@@ -1196,13 +1236,12 @@ conditions are true:
   Some harnesses also search the directories inside a skill directory. Such a
   harness can load the skill of a staged `link`.
 
-Keep each link in a separate Codex skill directory, or replace it yourself.
+Keep each link in a separate Codex skill directory.
 You cannot show that the provisioner made such a link. In a Codex skill
 directory, the provisioner replaced only links that already existed. A directory
 that was the agents skill directory under an earlier `HOME` looks the same.
 
-If you need a skill, keep its link. Alternatively, replace the link yourself
-with a link to a copy that you choose.
+If you need a skill, keep its link.
 
 Grove's manual installer, removed in the release after 22.8, wrote only
 `~/.codex/skills`, `~/.gemini/skills`, `~/.pi/agent/skills` and

@@ -46,3 +46,9 @@ Never run `brew cleanup` or `brew autoremove`. Never uninstall or reinstall
 `ravel`.
 A step can fail where the book does not cover its recovery. Then stop. Ask the
 owner, and give the trade-off, a recommendation and the evidence.
+
+ravel-main-landing-k312 pushed Ravel `main` at `12df84bebf4a`. It left the
+default workspace on that commit with an empty working copy. A Grove session
+inherits `RAVEL_EXIT_FILE` and `GROVE_LAUNCH_DIR`. Remove both from the
+environment of each Ravel task, for example with `env -u`. Then no test
+inherits the session's ending channel.

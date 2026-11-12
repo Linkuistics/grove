@@ -91,28 +91,3 @@ A change to Ravel's Rust source changes the build identity. Staging accepted
 the build `58d479ed…`. That difference is expected. The leaf
 `published-source-acceptance` resolves the sources again with the published
 archives. A change to a skill source is out of scope here.
-
-## Handed forward
-
-- **proof**, chapter 3, “Run the first session”: a Homebrew installation
-  writes `share/ravel/installation.json`. With no `skills.sources`, an
-  installed Ravel then reads the default skill directory, also under `env -i`
-  with an empty `HOME`. If that directory holds a source, the fake prints the
-  prepared prompt, with its preamble, and the claimed standard error differs.
-  The checkout build has no record, so `task docs:examples` cannot see this.
-  Chapter 7 states the case for its own example. Lesson L75 records the check.
-- **proof**, chapter 9, “Know the guarantees and their limits”: the chapter
-  states the old limit “detached configuration script children” in 2.0.0
-  terms. The worker starts no process, so the limit is a process that leaves
-  a harness run's group. Contract section 1, “Emphasis”, still says
-  “detached configuration script children”. The contract is the owner's
-  text, so the draft did not change it. Check that the two agree in meaning,
-  or raise the wording with the owner.
-- **proof**, contract section 1, “Omissions and unknowns”: “The site is
-  unchecked until the first release that carries the book.” Ravel 1.1.0
-  carried the book, and the site serves `v1.1.0/`. Chapters 1, 3 and 11 now
-  say so. The contract is the owner's text, so the draft did not change it.
-  Raise the wording with the owner. Lesson L81 records the case.
-
-- **proof**, chapters 3 and 6: the 2.0.0 book is delivered while unversioned `ravel` still supplies 1.1.0. Chapter 3 installs `linkuistics/taps/ravel`, and chapter 6 uses `brew --prefix ravel`. Check the reader installation route against versioned-first delivery, so the Rhai examples use 2.0.0.
-- **proof**, chapter 5, Ctrl-C fragment: says “eight examples” while the chapter inventory has seven. Chapter 6 settings fragment says “four of the five” top-level keys while its table lists six. Reconcile these counts.

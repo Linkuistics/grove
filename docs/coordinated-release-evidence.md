@@ -146,3 +146,97 @@ of those diagrams.
 
 These results cover the design and its documents only. This leaf claims no release-tool
 implementation, product test, installed compatibility campaign or publication.
+
+## Ravel 2.0.0 publication receipt
+
+ravel-two-publication-k313 cut Ravel 2.0.0 once, on 2026-11-12, and
+published it through the keg-only `ravel@2` only. This is tap state B.
+Unversioned `ravel` stays at 1.1.0. Grove 22.8.0 still selects it.
+
+### The run
+
+Before the cut, a fresh read found no `v2.0.0` tag on either side, no 2.0.0
+GitHub release and no `ravel@2.rb` in the tap. Ravel `main` and its remote
+were `12df84bebf4a`. The tap was clean at `12b53f8c449d`.
+`task release:doctor` met every prerequisite.
+
+The run used Ravel's default colocated workspace. It removed
+`RAVEL_EXIT_FILE` and `GROVE_LAUNCH_DIR` from the environment:
+
+```sh
+env -u RAVEL_EXIT_FILE -u GROVE_LAUNCH_DIR PATH="/opt/homebrew/bin:$PATH" \
+  RAVEL_TAP_DIR=/Users/antony/Development/Delivery/homebrew-taps \
+  CHANNEL=versioned-2 HOMEBREW_NO_INSTALL_CLEANUP=1 task release:major
+```
+
+Every step through the installation passed. `task check` ran 713 tests, which
+passed, and skipped 48. The task stopped at the evidence step with
+"permission denied" and exit 127. Git records `scripts/release-evidence.sh`
+with mode `100644`, and the Taskfile runs it with no `bash` prefix.
+
+The recovery row "Release evidence failed" of book chapter 11 applied. The
+resume ran `bash scripts/release-evidence.sh --channel versioned-2` at the
+release commit, then `scripts/release-book.sh live v2.0.0`. Both passed. No second
+version cut happened. ravel-evidence-step-invocation-k332 repairs the
+Taskfile line on Ravel `main`.
+
+### Published identities
+
+| Subject | Identity |
+| --- | --- |
+| Channel | `versioned-2`, formula `ravel@2`, class `RavelAT2`, keg-only |
+| Tag | `v2.0.0`, annotated object `d2f74e6d634369538a191dd1a7347b2c0563d392` |
+| Tag commit | `ed6cedbf9a14cd088bea13fcfb8b86300cb6aaca`, also Ravel `main` on origin |
+| GitHub release | Non-draft, published `2026-11-12T10:00:02Z`, three assets |
+| Book commit | `eb704fbf0700d92b1b9a6a1d338782d6e1a061d0` on `gh-pages`, which serves `v2.0.0/` beside `v1.1.0/` |
+| Tap commit | `f7f9b9b0bc4d6353dcd8cd41fb47deabafc14c09`, "ravel@2 v2.0.0". It adds only `Formula/ravel@2.rb`. `Formula/ravel.rb` stays at 1.1.0 |
+
+Each asset has one SHA-256. Three measurements gave it: the archive in
+`target/dist` that the smoke test ran, an anonymous download of the public
+asset, and the `digest` that GitHub reports. The rendered `ravel@2.rb`
+carries the same values.
+
+| Asset | SHA-256 |
+| --- | --- |
+| `ravel-v2.0.0-aarch64-apple-darwin.tar.xz` | `5957840ab33f4331b794539dbd455d801f71c6c6485c781dc290cfb48490231d` |
+| `ravel-v2.0.0-aarch64-unknown-linux-gnu.tar.xz` | `a4750ea439450e88621be411183e7bf30d2616f9a545b64a30445df3a9f02bee` |
+| `ravel-v2.0.0-x86_64-unknown-linux-gnu.tar.xz` | `906e589f72161ed5dce5db683e6af10963c1952bdf177c6b343d1918928c3dd1` |
+
+### Installed result
+
+- `brew test ravel@2` passed inside the release task and again on its own.
+- The keg is `/opt/homebrew/Cellar/ravel@2/2.0.0`, and the prefix
+  `/opt/homebrew/opt/ravel@2` resolves to it. Its `bin/ravel --version`
+  reports `ravel 2.0.0`.
+- Homebrew records `ravel@2` as keg-only, with no linked keg.
+- The installation record `share/ravel/installation.json` names
+  `/opt/homebrew/share/ravel/skills`.
+- `ravel` on `PATH` is `/opt/homebrew/bin/ravel`, and it reports 1.1.0.
+- The served book at `https://linkuistics.github.io/Ravel/v2.0.0/` shows
+  `ravel 2.0.0` in chapter 3. Chapter 11 has the section "Package a skill
+  source for the default directory" and the section "Promote a versioned
+  release".
+
+The formula test prints `stop attempt … signal 9: Operation not permitted`
+for each fixture session. The test still passes. The lines are diagnostics
+of the stop path that ravel-stop-eperm-k302 repaired. They are not a
+failure.
+
+### The original driver's keg
+
+An inventory before the cut recorded the path and SHA-256 of each file and
+link in `/opt/homebrew/Cellar/ravel/1.1.0`. It also recorded the links
+`/opt/homebrew/opt/ravel` and `/opt/homebrew/bin/ravel`. The same inventory
+after the installation is identical. The keg holds 14 files. Its `bin/ravel`
+reports `ravel 1.1.0`. Outside a session, `end-session grove-continue`
+refuses with exit 1 and no result.
+
+### Where the records are
+
+Ravel's release evidence is `target/release-evidence/v2.0.0.json` in Ravel's
+default workspace. Promotion reads it. The logs of the run, the resume and
+the separate formula test are beside it. That directory is untracked.
+`docs/ravel-v2.0.0-release-evidence.json` in this repository is a byte copy
+of the JSON file, with SHA-256
+`02a120ea4ac083db0ff6f3026749c88d68114052a671dc24cd1771a9def5ad5e`. If the
+original is lost, give the copy to `task release:promote` as `EVIDENCE`.

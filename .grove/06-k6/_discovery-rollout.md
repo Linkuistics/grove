@@ -126,6 +126,19 @@ skill-loading-replan-k80 cut four implementation leaves here:
    - `root-charter-conversion-k323` converts the root brief as its own
      change. `finish-handoff-k324` then writes the finish handoff and the
      root charter's extension.
+8. ravel-two-release-k304 closed with ravel-two-publication-k313 on
+   2026-11-12. Ravel 2.0.0 is public through `ravel@2` only, which is tap
+   state B. The tag commit is `ed6cedbf9a14`, and Ravel `main` on origin is
+   that commit. Unversioned `ravel` stays 1.1.0, and the 1.1.0 keg is
+   unchanged. The section "Ravel 2.0.0 publication receipt" of
+   `docs/coordinated-release-evidence.md` holds the identities, the three
+   asset digests and the installed result. Promotion reads Ravel's
+   `target/release-evidence/v2.0.0.json`.
+   `docs/ravel-v2.0.0-release-evidence.json` is its byte copy, for
+   `EVIDENCE=` if the original is lost. The cut stopped once at the evidence
+   step and resumed under the recovery table.
+   `ravel-evidence-step-invocation-k332`, before k321, corrects that
+   Taskfile line on Ravel `main`.
 
 Grove's final main integration and minor release remain owned by its
 driver-created finish session under CLAUDE.md. Do not create a competing manual

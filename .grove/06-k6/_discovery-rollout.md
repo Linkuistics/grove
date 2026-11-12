@@ -389,6 +389,11 @@ the root charter's extension.
 - After the Ravel cut, repeat the control "With the off value and installed
   keg sources, `ravel skills resolve --json` must report `disabled`" with the
   published `ravel@2`. The staging trials ran it with the accepted build.
+- published-source-acceptance-k315 did both on 2026-11-12. Each of the ten
+  digests equals its accepted value, the final line keeps the tree ID
+  `961fddd04bb7`, and the off value reports `disabled`. The section
+  "Published source acceptance" of `docs/owner-skill-delivery-evidence.md`
+  holds the result. No source needs new trials.
 - The coordinated recovery table keeps its rows for a switch without a
   backup, a failed or interrupted switch, and passed probes. It also keeps
   the row for a failed core trial after the release. A Grove patch release

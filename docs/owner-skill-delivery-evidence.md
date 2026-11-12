@@ -7154,6 +7154,8 @@ change.
 - Each rerun ran once on each harness, except the Codex kind-skill case.
 - After the Ravel cut, the published archives must give these digests
   again, as the finish handoff states.
+  [Published source acceptance](#published-source-acceptance) records
+  that they do.
 - Do not change `plugins/grove` or `plugins/packs.json` without a new
   candidate and another rerun.
 
@@ -7951,3 +7953,161 @@ declared prefix alone needs no new run.
   runs its trials only when a source digest differs, and no run used it.
 - The sign-in stores were links to the real HOME. A token refresh writes
   through them, and the source-HOME check does not cover them.
+
+## Published source acceptance
+
+`published-source-acceptance-k315` delivered this section on 2026-11-12.
+Its times are UTC. It repeats the source acceptance with the published Ravel
+2.0.0, as step 5 of
+[the coordinated release design](specs/coordinated-release.md#publication-ownership-and-order)
+requires. It changed no real HOME, keg, link, tap or setting. It launched no
+harness and no default session.
+
+### Result
+
+- The candidate of the final line is still `2a24d5e61f29`. Its keg gives
+  the `grove-core` tree ID `961fddd04bb7b271e9896d07dc0225348fa8c378`.
+- With the published `ravel@2`, `ravel skills resolve --json` resolved each
+  of the ten sources from its keg path. Each `resourceDigest` equals the
+  accepted value of
+  [the moves record](repository-moves-record.md#the-ten-ravel-sources).
+- With the off value, the published `ravel@2` reported `disabled`. The four
+  installed kegs stay visible to it through its default directory.
+- No digest differs. So no source needs new staging trials, a revised
+  acceptance or another dry run.
+
+### The published Ravel
+
+| Subject | Value |
+| --- | --- |
+| Prefix | `/opt/homebrew/opt/ravel@2`, which resolves to `/opt/homebrew/Cellar/ravel@2/2.0.0` |
+| `bin/ravel --version` | `ravel 2.0.0` |
+| `bin/ravel` SHA-256 | `67c92bed7ae2693d71590368a74416c8d4997f4789b79f3984f4f2f3db791f4c` |
+| Build identity | `7f2ff6b3f5222c13b69b78b8cd2c33d1c7edaa6a8599cfb27ebfb59d209d8ec5`, the identity of [the 2.0 lane](ravel-target-inputs.md#the-20-lane) |
+| Tap commit of the receipt | `f7f9b9b0bc4d6353dcd8cd41fb47deabafc14c09` |
+| Installation record | `share/ravel/installation.json` names `/opt/homebrew/share/ravel/skills` |
+
+`grep -a -c` found the published build identity twice in `bin/ravel`. The
+same command found the identity `58d479ed…` of the earlier accepted build no
+time, so the search can fail.
+
+### The candidate of the final line
+
+The final line is `3fec15ecb950`, the commit of grove-ravel-two-pins-k314.
+`git rev-parse` gave these values at that commit:
+
+- `plugins/grove` has the tree `961fddd04bb7b271e9896d07dc0225348fa8c378`.
+- `plugins/packs.json` has the blob `2cebaf5f062d08b50b22d058bd8c4db3d412f8a6`.
+
+Both equal the values at the candidate `2a24d5e61f29`. No commit after the
+candidate changes `plugins/grove`, `plugins/packs.json`,
+`scripts/templates/grove.rb.tmpl` or `scripts/release-build.sh`. By the
+definition of
+[Skill formulae](specs/owner-skill-delivery.md#skill-formulae), the candidate
+is therefore still `2a24d5e61f29`.
+
+This command built the candidate keg again, with the published Ravel as its
+resolver. It ran from 10:33:44Z to 10:33:55Z:
+
+```sh
+task owner:candidate-keg COMMIT=2a24d5e61f29070bebe1fb005fcd74fc8f2b4ca3 \
+  OUT=~/.local/state/owner-staging/candidate-published-k315 \
+  RAVEL_2_0_PREFIX=/opt/homebrew/opt/ravel@2 \
+  ACCEPTED=~/.local/state/owner-staging/candidate/digests.tsv
+```
+
+The script reported that `origin/gh-issue-25` holds the commit. The plain
+checkout in the keg's `source` gave the same tree ID and blob ID. The
+published Ravel resolved the six keg sources from the keg's shared
+directory. Each `originPath` is the private source in the keg. Each digest
+and each list of roots equals that of the plain checkout. Each digest equals
+the retained candidate's `digests.tsv`.
+
+| Subject | Value |
+| --- | --- |
+| Log | `~/.local/state/owner-staging/candidate-build-k315.log`, SHA-256 `39099b6c8bd7…` |
+| `candidate.json` SHA-256 | `57a1aaed18677c1e1624914e8b5deea35d7ddaa760c151de1257ccd6f7271355` |
+| `digests.tsv` SHA-256 | `fbbe1a21917b5dbc989bceab0ac0648e395c6910734012eedc7fc659e1f4e193`, the same as in [Core candidate restaging](#the-candidate-keg) |
+| Archive SHA-256 | `b82e5956072c7a63788c81f5eeecb0dab28a5f009313c288e0585c345e7104ee` |
+
+The archive digest differs from the `9ab7d031…` of k300. The release build
+of an unreleased archive does not repeat its bytes. The source digests read
+the keg's files, so this difference changes no digest.
+
+This keg is evidence only. The staging settings still name the retained
+keg `~/.local/state/owner-staging/candidate`, which the probe below
+resolved. Remove the new keg with `chmod -R u+w` and `rm -rf` when the
+retained staging state goes.
+
+### The ten sources
+
+A new optional `RAVEL` variable of `task owner:probes:resolve` names the
+Ravel prefix. The switch runs the same probe program. This command ran from
+10:34:12Z to 10:34:13Z:
+
+```sh
+task owner:probes:resolve \
+  OUT=~/.local/state/owner-staging/trials/probe-resolve-published-k315 \
+  RAVEL=/opt/homebrew/opt/ravel@2
+```
+
+The tool's stub `brew` prints a prefix whose `bin/ravel` links to
+`/opt/homebrew/opt/ravel@2/bin/ravel`. Each case recorded `ravel 2.0.0` and
+the canonical path in the `ravel@2` keg. The plan of each case is
+`docs/owner-cutover/switch-plan-draft.json`, SHA-256 `60c34eb7…`. The
+prepared `~/.local/state/owner-switch/prepared/plan.json` has the same
+SHA-256. Its `accepted.sources` equals the ten digests of the moves record.
+The record is `resolve.json`, SHA-256 `6f0e8ddfad6c…`.
+
+| Case | HOME | Wanted | Result |
+| --- | --- | --- | --- |
+| `switched` | The staging HOME | Exit 0 | Exit 0. Status `resolved`, ten sources, each with its accepted digest. The mandatory file `skills/using-superpowers/SKILL.md` lies in the `superpowers` snapshot, and the probe read it. |
+| `switched-quint` | The staging settings without `quint` | Exit 1 | Exit 1. "the accepted source quint is missing" |
+| `switched-off` | The off value | Exit 1 | Exit 1. "the status is 'disabled', not 'resolved'" |
+| `disabled` | The off value | Exit 0 | Exit 0. Status `disabled` |
+| `disabled-staging` | The staging HOME | Exit 1 | Exit 1. "the status is 'resolved', not 'disabled'" |
+
+The `switched` case gave these sources. A Grove source resolves from the
+retained candidate keg. Another source resolves from its installed keg.
+
+| Source ID | Keg path of `originPath` | `resourceDigest` |
+| --- | --- | --- |
+| `grove-core` | `~/.local/state/owner-staging/candidate/brew/Cellar/grove/22.8.0/libexec/skill-sources/grove-core` | `d8eec38844f5e8ffd4e998ef34f3456a984846166b2e34cc2c8e65189b2f145e` |
+| `requirements` | The same keg, `libexec/skill-sources/requirements` | `07b2d25e8bd20259c71f7419092329368d8ae48bec6ca973343a601a8ec515c8` |
+| `design` | The same keg, `libexec/skill-sources/design` | `d8ad3a2af1b5029bc0de93747f4d7297038651180f6877fbd738d94fcbf6aa14` |
+| `engineering` | The same keg, `libexec/skill-sources/engineering` | `7e70b280e7a932489a048d108d4dae2bc63b387cf8fc6b37298663336e0fcc66` |
+| `research` | The same keg, `libexec/skill-sources/research` | `7fb3d473f66feafb49afd8846fd94cf3e1fb7b01c584d4ad5f0e54814a8b3fdb` |
+| `writing` | The same keg, `libexec/skill-sources/writing` | `56bcd07b87f46a7b9ff92eed5a5a128f10d3ce64be2f7d934be898e058782212` |
+| `personal` | `/opt/homebrew/Cellar/personal/2026-11-06_1/libexec/skill-sources/personal` | `dc1f26eafe9b7db6f750c95db38a7876beb29b067d829eaf63203323b89d61b6` |
+| `testanyware` | `/opt/homebrew/Cellar/testanyware/2.8.0_1/libexec/skill-sources/testanyware` | `3e9d7929eddd8988a6bebd9433b7f343a19e673993b3c81e8a1ce9ba913b72c6` |
+| `superpowers` | `/opt/homebrew/Cellar/superpowers/7.0.0_1/libexec/skill-sources/superpowers` | `be1ce6e3c25064b83ba2999b37972deb7f73ce88a5f5dbbba990d88037b17230` |
+| `quint` | `/opt/homebrew/Cellar/quint-llm-kit/1.0.0_1/libexec/skill-sources/quint` | `0a8b945fbc6732d5b7b3041a966d26cdf718ca884bd5f3fb8435297d7258edef` |
+
+### Controls
+
+- A copy of the plan draft held the earlier `grove-core` digest `8d92cd58…`.
+  The probe's `resolve --expect switched` ran with that copy in the staging
+  HOME and exited 1. Its problem was "the source grove-core gives
+  resourceDigest d8eec388…, not the accepted 8d92cd58…". So this control saw
+  the digest comparison fail. The copy was in a scratch folder, and the
+  repository's draft did not change.
+- `ravel skills resolve --json` of the published `ravel@2` ran under
+  `env -i` in a new HOME with no settings. It resolved the default directory
+  as `resolved`, with `personal`, `quint`, `superpowers` and `testanyware`
+  at their accepted digests. The same command in a new HOME with only
+  `docs/owner-cutover/settings-off.json` printed
+  `{"schemaVersion":1,"status":"disabled"}`. So the off value disables
+  installed keg sources that Ravel otherwise resolves.
+
+### Limits
+
+- Grove's six sources resolved from the candidate keg, not from a released
+  Grove keg. Grove's release inside finish publishes that keg. The switch
+  compares its installed digests before any change, as the finish handoff
+  states.
+- Homebrew's real conflict resolution of the source aliases is not measured
+  here. Finish resolves all ten default IDs after Grove's installation and
+  after promotion.
+- This leaf ran no model trial on the published build. The staging model
+  trials ran on the accepted build `58d479ed…`. The finish handoff requires
+  a source's trials again only when its digest differs, and no digest differs.

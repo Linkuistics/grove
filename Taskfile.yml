@@ -604,14 +604,15 @@ tasks:
   # The staging pass of the probe's `resolve`: each mode once where it must
   # pass and once against a wrong layout where it must fail, with the plan
   # draft and the accepted Ravel 2.0 build. It launches no harness. OUT is a
-  # new directory. For example:
+  # new directory. RAVEL replaces the accepted build with another Ravel 2.0
+  # prefix, such as the published keg /opt/homebrew/opt/ravel@2. For example:
   #   task owner:probes:resolve OUT="$SCRATCH/resolve"
   owner:probes:resolve:
     desc: Run the probe's resolve in the staging HOME and in disposable HOMEs with wrong layouts, writing OUT/resolve.json
     requires:
       vars: [OUT]
     cmds:
-      - python3 -I docs/evaluations/owner-skill-delivery/probe_lifecycle.py resolve --out "{{.OUT}}"
+      - python3 -I docs/evaluations/owner-skill-delivery/probe_lifecycle.py resolve --out "{{.OUT}}" {{if .RAVEL}}--ravel "{{.RAVEL}}"{{end}}
 
   # The staging pass of the probe's four session modes: each mode once where
   # it must pass and once against a wrong layout where it must fail. Each case

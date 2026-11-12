@@ -155,6 +155,7 @@ already trusts `linkuistics/taps`. Each scenario then ran
 `brew trust --tap linkuistics/taps`, as the message directs. Homebrew stored
 that trust under the tap's remote URL, in lower case.
 homebrew-tap-trust-docs-k337 owns the documentation correction.
+[Tap trust routes](#tap-trust-routes) records its measurement.
 
 ### Results
 
@@ -751,3 +752,84 @@ The decision has two conditions:
 - finish-handoff-k324 must state that finish writes the readiness receipt
   only after the installed verification of the released Grove. The receipt
   then names that Grove version and the routes that it verified.
+
+## Tap trust routes
+
+homebrew-tap-trust-docs-k337 corrected the installation pages and measured
+each documented route with this instrument on 2026-11-13. The owner's
+Homebrew was `7.0.13-83-ga6fea6b`, commit `a6fea6bd59bb`. Ravel `main` was
+`f34db9a944ce`. The measured run used `scripts/promotion-rehearsal.sh`
+with SHA-256 `78787ed4431d…` and `Taskfile.yml` with SHA-256
+`0010714dfe8c…`. The digests of both files were the same before and after
+the run.
+
+The protected subjects had the same digest before and after the
+run: `ce9a6b0565b7…`. The run log stayed in the session's scratch directory.
+
+### Homebrew's rules
+
+Homebrew's [Tap Trust](https://docs.brew.sh/Tap-Trust#installing-from-a-tap)
+page states that a tap needs explicit trust since Homebrew 6.0.0. The page
+is `docs/Tap-Trust.md` at the owner's commit. It gives
+`brew trust user/repository` as the command for a whole tap.
+`Homebrew::Trust.infer_target` in `trust.rb` reads a name with one slash as
+a tap, so that command needs no `--tap`. The instrument now uses the
+documented form.
+
+The page prefers trust in each item. The pages of this project give
+whole-tap trust, because the project administers the tap, and Grove's
+route loads several of its formulae. The page names that case as one where
+whole-tap trust is appropriate.
+
+### Results
+
+| Scenario | Commands | Result |
+| --- | --- | --- |
+| fresh-a | `brew install linkuistics/taps/grove` with no trust, then `brew trust linkuistics/taps`, then `brew install grove` | The first install trusted `grove`, refused `ravel` from the untrusted tap and left no keg. After the trust step, the short name installed Grove 22.8.0 and Ravel 1.1.0. |
+| fresh-untrusted | `brew install linkuistics/taps/ravel`, then `brew install linkuistics/taps/personal`, with no trust, at state B | Both installed. The trust store then held the two formulae and no tap. |
+| fresh-b | `brew install --skip-link linkuistics/taps/ravel@2` with no trust, then `brew trust linkuistics/taps`, then the same install and `brew install grove` | The first install trusted `ravel@2` and then refused `ravel` from the untrusted tap. After the trust step, `ravel@2` installed without links, and the short name installed Grove 22.8.0 with Ravel 1.1.0. |
+| fresh-d | `brew trust linkuistics/taps`, then `brew install grove`, at state D | Grove 22.9.0 with Ravel 2.0.0 as the default `ravel`. The sample launch delivered the keg's skills. |
+
+Before each trust step, the trust store held no tap. After it, the store
+held the scratch tap. Each run of the instrument therefore sees its trust
+reading both empty and set.
+
+### Why `ravel@2` needs the tap trust
+
+The refusal in fresh-b disproved an earlier claim of this leaf, that a
+fully qualified `ravel@2` loads no other formula. Ravel `main` held that
+claim in `ca3b39ee` for one change, and `f34db9a9` corrects it.
+`FormulaInstaller#auto_link_versioned_keg_only?` decides whether to link a
+keg-only versioned formula. It loads the formulae of
+`Formula#link_overwrite_related_formula_names`, which hold the unversioned
+formula. The load happens also with `--skip-link`.
+
+Only `grove.rb` declares
+a dependency in the tap, and only `ravel@2` is a versioned formula of the
+tap. `testanyware` was not measured, so no page says that it needs no trust.
+
+### The pair controls
+
+Two promotion controls, `versioned-2-at-c` and `unversioned-at-d`, required
+Ravel `main` to have no change since v2.0.0. Ravel `main` now has the two
+commits of this leaf, and ravel-evidence-step-invocation-k332 adds another.
+The third run of this leaf therefore failed at `versioned-2-at-c`. The
+preparation planned v2.0.1 and committed release notes in the Ravel clone.
+Nothing reached Ravel's origin, and the stub `brew` saw no command.
+
+The two controls now run the preparation in a copy-on-write copy of the
+Ravel clone. Each must print the planned cut of its channel. When `main`
+has no change since v2.0.0, it must stop at the change check. When `main`
+has later commits, the copy takes the notes commit. Either way, the clone's
+`main` must not move, no version is cut, and Homebrew runs no command. In
+the passing run, both controls prepared notes in their copies.
+
+### Conditions of the instrument
+
+The second run stopped before the controls with
+`the Ravel clone is not at main`. Ravel's default workspace was still
+above `ed6cedbf`, while `main` was at `f34db9a9`. A `jj git clone` of the
+workspace then made no local `main`. The instrument needs Ravel's default
+workspace on a change above `main`. Ravel's skill snapshots in `WORK` are
+read only, so each run needs a new empty `WORK`.
+

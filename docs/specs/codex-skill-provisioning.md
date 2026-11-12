@@ -68,6 +68,16 @@ setup. Until promotion, directory delivery also needs `ravel@2`, selected as
 [Prefix selection](#prefix-selection) states. A user who wants personal
 guidance installs the `personal` formula the same way.
 
+A new user trusts the tap with `brew trust linkuistics/taps` before the first
+install of Grove. Homebrew does not trust a tap that `brew tap` adds, and a
+fully qualified name trusts only the formula that it names. Without the tap
+trust, Homebrew refuses Grove's dependency `ravel`. The keg-only `ravel@2` needs
+the same tap trust, because Homebrew loads the unversioned `ravel` to install
+it. The fully qualified installs of `ravel` and `personal` load no other formula
+from the tap, so they need no trust step. Homebrew's
+[Tap Trust](https://docs.brew.sh/Tap-Trust#installing-from-a-tap) page states
+the rules.
+
 Ravel's settings stay optional. Under Ravel's contract, they add a mandatory
 file or replace the default sources. Each hook adapter still needs one
 registration command for each harness, as [Hook adapters](#hook-adapters)

@@ -169,7 +169,7 @@ main() {
 
   echo
   echo "release-publish: done. Verify with:"
-  echo "  brew update && brew install linkuistics/taps/grove"
+  echo "  brew update && brew trust linkuistics/taps && brew install linkuistics/taps/grove"
 }
 
 main "$@"

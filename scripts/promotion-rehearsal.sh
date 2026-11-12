@@ -94,7 +94,7 @@
 # the tap clone and the Ravel clone's main unchanged. A stub brew shows that
 # the early refusals run no Homebrew command.
 #
-# Scenarios: fresh-a, fresh-b, upgrade-a-b, fresh-c, upgrade-a-c, upgrade-b-c,
+# Scenarios: fresh-a, fresh-untrusted, fresh-b, upgrade-a-b, fresh-c, upgrade-a-c, upgrade-b-c,
 # upgrade-c-d (the promotion), fresh-d, upgrade-a-d.
 set -euo pipefail
 IFS=$'\n\t'
@@ -253,13 +253,31 @@ set_origin() { # COMMIT
 # Tapping does not trust a tap in Homebrew 7.0.13. A fully qualified name
 # trusts only the named formula, and a dependency from an untrusted tap
 # refuses to load. Library/Homebrew/trust.rb (trust_fully_qualified_items!,
-# raise_untrusted!) at the owner's HEAD. Each scenario trusts the tap after
-# tapping, as Homebrew's refusal directs. fresh-a first records the refusal.
+# raise_untrusted!) at the owner's HEAD, and
+# https://docs.brew.sh/Tap-Trust#installing-from-a-tap. Each scenario trusts
+# the tap after tapping with the documented command, which names the tap
+# without --tap. fresh-a first records the refusal, and the fresh installs
+# use the short name `grove`, as README.md's "Install Grove" does.
+# fresh-untrusted installs `ravel` and `personal` by their fully qualified
+# names with no tap trust, as Grove's missing-Ravel remedy and the hook
+# adapter table of docs/USAGE.md do. fresh-b first records that a fully
+# qualified `ravel@2` refuses without tap trust:
+# FormulaInstaller#auto_link_versioned_keg_only? loads the unversioned
+# `ravel`, also with --skip-link.
 tap_scratch() {
   run tap linkuistics/taps "file://$W/origin.git"
 }
+trusted_taps() { # the taps in the scenario's trust store, as one JSON line
+  brew_s trust --tap --json=v1 | tr -d ' \n'
+}
 trust_scratch() {
-  run trust --tap linkuistics/taps
+  local taps
+  taps="$(trusted_taps)"
+  [[ "$taps" == '[]' ]] || fail "a scenario's trust store held taps before the trust step: $taps"
+  run trust linkuistics/taps
+  taps="$(trusted_taps)"
+  note "trusted taps: $taps"
+  [[ "$taps" == *origin.git* ]] || fail "brew trust linkuistics/taps left the trust store without the scratch tap: $taps"
 }
 # The tap step of `brew update`: fetch the tap's origin and fast-forward.
 update_tap() {
@@ -790,19 +808,43 @@ grep -q 'Refusing to load formula linkuistics/taps/ravel from untrusted tap link
   fail 'fresh-a: the untrusted install failed for another reason'
 [[ ! -e "$P/Cellar/grove" && ! -e "$P/Cellar/ravel" ]] || fail 'fresh-a: the refused install left a keg'
 trust_scratch
-run install linkuistics/taps/grove
+run install grove
 fronts fresh-a:install
 pair_ok fresh-a 22.8.0
+
+show "fresh-untrusted: fully qualified installs with no tap trust at tap state B"
+set_origin "$STATE_B"
+make_brew fresh-untrusted
+tap_scratch
+run install linkuistics/taps/ravel
+[[ "$(trusted_taps)" == '[]' ]] || fail 'fresh-untrusted: the fully qualified install trusted the tap'
+run install linkuistics/taps/personal
+[[ -d "$P/opt/personal" ]] || fail 'fresh-untrusted: personal did not install'
+[[ "$(trusted_taps)" == '[]' ]] || fail 'fresh-untrusted: the fully qualified personal install trusted the tap'
+note "trusted formulae: $(brew_s trust --formula --json=v1 | tr -d ' \n')"
+[[ "$(env -i PATH=/usr/bin:/bin HOME="$W/front-home" "$P/bin/ravel" --version)" == 'ravel 1.1.0' ]] ||
+  fail 'fresh-untrusted: bin/ravel does not report ravel 1.1.0'
+fronts fresh-untrusted:install
 
 show "fresh-b: a fresh install at tap state B"
 set_origin "$STATE_B"
 make_brew fresh-b
 tap_scratch
-trust_scratch
 note 'The first ravel@2 on a prefix without either Ravel formula uses --skip-link.'
+note 'Without tap trust, the fully qualified ravel@2 refuses the unversioned ravel:'
+if run install --skip-link linkuistics/taps/ravel@2 >"$W/untrusted-ravel@2.out" 2>&1; then
+  cat "$W/untrusted-ravel@2.out"
+  fail 'fresh-b: ravel@2 installed from an untrusted tap'
+fi
+cat "$W/untrusted-ravel@2.out"
+grep -q 'Refusing to load formula linkuistics/taps/ravel from untrusted tap linkuistics/taps' "$W/untrusted-ravel@2.out" ||
+  fail 'fresh-b: the untrusted ravel@2 install failed for another reason'
+[[ ! -e "$P/Cellar/ravel@2" ]] || fail 'fresh-b: the refused install left a keg'
+note "Ravel's book trusts the tap first:"
+trust_scratch
 run install --skip-link linkuistics/taps/ravel@2
 [[ ! -e "$P/bin/ravel" ]] || fail 'fresh-b: --skip-link linked bin/ravel'
-run install linkuistics/taps/grove
+run install grove
 fronts fresh-b:install
 pair_ok fresh-b 22.8.0
 
@@ -905,7 +947,7 @@ set_origin "$STATE_D"
 make_brew fresh-d
 tap_scratch
 trust_scratch
-run install linkuistics/taps/grove
+run install grove
 fronts fresh-d:install real
 pair_ok fresh-d "$LABEL" "$RAVEL_VERSION"
 sample_launch fresh-d
@@ -960,12 +1002,13 @@ use_brew() { # SCENARIO
   P="$W/$1/brew"
   H="$W/$1/home"
 }
-# A command in the Ravel clone, with BREW_DIR first on PATH and RAVEL_TAP_DIR=TAP.
+# A command in the Ravel clone, or in RAVEL_DIR when it is set, with BREW_DIR
+# first on PATH and RAVEL_TAP_DIR=TAP.
 in_ravel() { # BREW_DIR TAP COMMAND...
-  local brew_dir="$1" tap="$2"
+  local brew_dir="$1" tap="$2" dir="${RAVEL_DIR:-$W/ravel}"
   shift 2
-  (cd "$W/ravel" && env -i PATH="$brew_dir:$PATH" HOME="$HOME" USER="$USER" LOGNAME="$USER" TERM=dumb \
-    TMPDIR="$W/tmp-promote" MISE_TRUSTED_CONFIG_PATHS="$W/ravel" RAVEL_TAP_DIR="$tap" "$@")
+  (cd "$dir" && env -i PATH="$brew_dir:$PATH" HOME="$HOME" USER="$USER" LOGNAME="$USER" TERM=dumb \
+    TMPDIR="$W/tmp-promote" MISE_TRUSTED_CONFIG_PATHS="$dir" RAVEL_TAP_DIR="$tap" "$@")
 }
 # COMMAND must exit non-zero and print TEXT. REFUSED_STATUS keeps its status.
 REFUSED_STATUS=0
@@ -984,6 +1027,30 @@ refuses() { # NAME TEXT COMMAND...
 tap_clone() { # NAME COMMIT
   set_origin "$2"
   jj git clone --colocate --quiet "file://$W/origin.git" "$C/$1" 2>&1
+}
+# The channel rules accept a pair. The preparation runs in a copy-on-write
+# copy of the Ravel clone, because its outcome depends on Ravel main. When
+# main has no change since v2.0.0, it refuses at its change check. When main
+# has later commits, as after a documentation fix, it commits release notes
+# in the copy. The copy keeps the Ravel clone's main unchanged either way.
+pair_accepted() { # NAME TEXT COMMAND...
+  local name="$1" text="$2" status=0 copy="$C/$1-ravel"
+  shift 2
+  cp -cR "$W/ravel" "$copy"
+  note "\$ $(printf '%s ' "$@")(in a copy of the Ravel clone)"
+  RAVEL_DIR="$copy" "$@" >"$C/$name.out" 2>&1 || status=$?
+  sed 's/^/  /' "$C/$name.out"
+  note "[exit $status]"
+  grep -qF -- "$text" "$C/$name.out" || fail "control $name: the preparation did not plan the cut: $text"
+  if [[ "$status" != 0 ]]; then
+    grep -qF 'No changes since v2.0.0' "$C/$name.out" || fail "control $name: the pair stopped before its change check"
+    note "control $name: the pair passes the channel rules and stops only because main has no change since v2.0.0"
+  else
+    note "control $name: the pair passes the channel rules; main has commits after v2.0.0, so the copy prepared notes"
+  fi
+  [[ -z "$(git -C "$copy" tag -l 'v2.0.[1-9]*' 'v2.[1-9]*' 'v[3-9]*')" ]] || fail "control $name: a version was cut"
+  [[ ! -s "$C/brew-calls.log" ]] || fail "control $name: Homebrew ran: $(cat "$C/brew-calls.log")"
+  [[ "$(git -C "$W/ravel" rev-parse refs/heads/main)" == "$RAVEL_MAIN" ]] || fail "control $name: the Ravel clone's main moved"
 }
 untouched() { # NAME TAP COMMIT
   [[ "$(git -C "$W/origin.git" rev-parse refs/heads/main)" == "$3" ]] || fail "control $1: the scratch origin moved"
@@ -1007,20 +1074,16 @@ tap_clone tap-wrong "$STATE_C"
 refuses unversioned-at-c 'tap Formula/ravel.rb is not at v2.0.0' \
   in_ravel "$STUB" "$C/tap-wrong" bash scripts/release-prepare.sh --channel unversioned --level patch
 untouched unversioned-at-c tap-wrong "$STATE_C"
-refuses versioned-2-at-c 'planned v2.0.1 publishes Formula/ravel@2.rb (CHANNEL=versioned-2)' \
+pair_accepted versioned-2-at-c 'planned v2.0.1 publishes Formula/ravel@2.rb (CHANNEL=versioned-2)' \
   in_ravel "$STUB" "$C/tap-wrong" bash scripts/release-prepare.sh --channel versioned-2 --level patch
-grep -qF 'No changes since v2.0.0' "$C/versioned-2-at-c.out" || fail 'control versioned-2-at-c: the pair stopped before its change check'
-note 'at state C, versioned-2 passes the channel rules and stops only because main has no change since v2.0.0'
 
 note '2. A versioned-2 cut after promotion.'
 tap_clone tap-after "$STATE_D"
 refuses versioned-2-at-d 'so promotion is complete and ravel@2 receives no later release; select CHANNEL=unversioned' \
   in_ravel "$STUB" "$C/tap-after" bash scripts/release-prepare.sh --channel versioned-2 --level patch
 untouched versioned-2-at-d tap-after "$STATE_D"
-refuses unversioned-at-d 'planned v2.0.1 publishes Formula/ravel.rb (CHANNEL=unversioned)' \
+pair_accepted unversioned-at-d 'planned v2.0.1 publishes Formula/ravel.rb (CHANNEL=unversioned)' \
   in_ravel "$STUB" "$C/tap-after" bash scripts/release-prepare.sh --channel unversioned --level patch
-grep -qF 'No changes since v2.0.0' "$C/unversioned-at-d.out" || fail 'control unversioned-at-d: the pair stopped before its change check'
-note 'at state D, unversioned passes the channel rules and stops only because main has no change since v2.0.0'
 
 note '3. Mismatched archives: in the receipt, in the cut evidence against the public assets, and in the tap.'
 jq '.assets[0].sha256 = ("0" * 64)' "$EV" >"$C/evidence-mismatched.json"

@@ -57,6 +57,18 @@ Grove's formula installs Homebrew's `ravel` as a dependency. Otherwise, install 
 `brew install linkuistics/taps/ravel`. Grove and Ravel can have different prefixes and
 different versions. A missing `ravel` names that install remedy.
 
+<a id="usage-tap-trust"></a>
+**Tap trust.** Homebrew does not trust a tap when `brew tap` adds it. A fully qualified
+name trusts only the formula that it names, and a dependency from a tap that is not
+trusted refuses to load. Grove's formula depends on `linkuistics/taps/ravel`, so run
+`brew trust linkuistics/taps` before the first install of Grove, as
+[Install Grove](../README.md#install-grove) shows. Homebrew's
+[Tap Trust](https://docs.brew.sh/Tap-Trust#installing-from-a-tap) page gives the rules.
+
+The fully qualified installs of `ravel` and `personal` on this page need no trust step.
+Neither formula loads another formula from the tap. The keg-only `ravel@2` does need the
+tap trust. To install it, Homebrew also loads the unversioned `ravel` from the tap.
+
 Until a tap promotion makes Homebrew's `ravel` 2.x, Homebrew installs Ravel 2.x only as the
 keg-only `ravel@2`. Its `ravel` is not the default command. To use it, put
 `$(brew --prefix ravel@2)/bin` first on the PATH of the Grove invocation. The ending

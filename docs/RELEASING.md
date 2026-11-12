@@ -147,6 +147,9 @@ cp assets/ravel-policy/sample/policy.ts ~/.config/ravel/policy.ts
 cp assets/ravel-policy/sample/config.rhai ~/.config/ravel/config.rhai
 ```
 
+That Ravel install needs no `brew trust` step. A fully qualified name trusts the
+formula that it names, and `ravel` loads no other formula from the tap.
+
 Ravel 2.0.0 refuses a HOME that holds only `policy.ts`, with
 `config_format_retired`. After the unversioned `ravel` formula moves to 2.x, the
 release task therefore needs `config.rhai`.
@@ -853,7 +856,12 @@ grove --version
 ```
 
 If Grove is not installed yet, use `brew install linkuistics/taps/grove` in
-place of `brew upgrade grove`.
+place of `brew upgrade grove`. Run `brew trust linkuistics/taps` before that
+first install. A fully qualified name trusts only Grove, and Homebrew refuses
+Grove's dependency `ravel` from a tap that is not trusted. The release task
+runs that trust step before its own first install.
+[Homebrew's Tap Trust page](https://docs.brew.sh/Tap-Trust#installing-from-a-tap)
+gives the rules.
 
 Make sure that the reported version matches the tag. Make sure that the GitHub
 Release holds all three archives. `grove-llm --version` must match the tag of

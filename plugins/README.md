@@ -259,8 +259,16 @@ checks.
 <!-- tc: on -->
 
 ```sh
+brew tap linkuistics/taps
+brew trust linkuistics/taps
 brew install linkuistics/taps/grove
 ```
+
+Trust the tap before the first install. A fully qualified name trusts only the
+formula that it names, and Homebrew refuses Grove's dependency `ravel` from a tap
+that is not trusted.
+[Homebrew's Tap Trust page](https://docs.brew.sh/Tap-Trust#installing-from-a-tap)
+gives the rules.
 
 Grove's formula installs `grove-core` and the five domain packs. Homebrew links
 each one into Ravel's default skill directory, and Ravel 2.0.0 reads that

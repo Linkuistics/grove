@@ -26,11 +26,18 @@ installs Grove's skills with Grove, and Ravel delivers them to each session. The
 ## Install Grove
 
 ```sh
-brew tap Linkuistics/taps
+brew tap linkuistics/taps
+brew trust linkuistics/taps
 brew install grove
 ```
 
-That command installs Grove and its skills, and `brew upgrade` keeps both current.
+Homebrew does not trust a tap when `brew tap` adds it, and it refuses to load a
+formula from a tap that is not trusted. Grove's formula loads its dependency
+`ravel` from the same tap, so trust the tap before the first install. Homebrew's
+[Tap Trust](https://docs.brew.sh/Tap-Trust#installing-from-a-tap) page gives the
+rules.
+
+`brew install grove` installs Grove and its skills, and `brew upgrade` keeps both current.
 Ravel 2 delivers the skills, as [the skills](#skills) state. No project needs an
 installation step. Homebrew installs these parts:
 
@@ -138,6 +145,10 @@ invocation:
 brew install linkuistics/taps/ravel@2
 PATH="$(brew --prefix ravel@2)/bin:$PATH" grove
 ```
+
+That install needs the tap trust of [Install Grove](#install-grove). To install
+the keg-only `ravel@2`, Homebrew also loads the unversioned `ravel`, and it
+refuses that formula from a tap that is not trusted.
 
 When the unversioned `ravel` formula moves to Ravel 2.0.0, `brew upgrade` brings
 the skills to each launch with no PATH prefix. `ravel@2` then receives no later

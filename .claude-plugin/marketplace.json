@@ -1,6 +1,6 @@
 {
   "name": "linkuistics",
-  "description": "Retired. This marketplace lists no plugin. Homebrew installs Grove's skills (brew install linkuistics/taps/grove), and Ravel 2.0 delivers them to each session from its default skill directory. Grove's CHANGELOG gives the four steps that move an installation of this marketplace to Homebrew and Ravel.",
+  "description": "Retired. This marketplace lists no plugin. Homebrew installs Grove's skills (brew trust linkuistics/taps, then brew install linkuistics/taps/grove), and Ravel 2.0 delivers them to each session from its default skill directory. Grove's CHANGELOG gives the four steps that move an installation of this marketplace to Homebrew and Ravel.",
   "owner": {
     "name": "Antony Blakey",
     "email": "antony.blakey@gmail.com"

@@ -12,7 +12,9 @@ canonicalises the path and verifies the version once. Then it uses that exact pa
 launch and for the ending instructions of the prompt. Ravel need not share the
 prefix or the version of Grove.
 
-A missing Ravel names `brew install linkuistics/taps/ravel`. Grove admits stable Ravel
+A missing Ravel names `brew install linkuistics/taps/ravel`. That remedy needs no
+`brew trust` step, because a fully qualified name trusts the formula that it names, and
+`ravel` loads no other formula from the tap. Grove admits stable Ravel
 1.x from 1.1.0 and stable 2.x from 2.0.0. An unsupported version refuses with a remedy
 that names both majors, their configuration files and the `ravel@2` directory. Homebrew
 installs 2.x as the keg-only `ravel@2`. It runs only when `$(brew --prefix ravel@2)/bin`

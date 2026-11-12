@@ -78,6 +78,11 @@ What a user does depends on the `ravel` formula of the tap:
 - A user of the `linkuistics` marketplace does the four steps of its entry
   below, before any refresh of the marketplace.
 - Register the hook adapters by the commands of the formula caveats.
+- Before a first install of Grove or `ravel@2`, run
+  `brew trust linkuistics/taps`. Homebrew 6.0.0 and later do not trust a tap
+  when `brew tap` adds it. They refuse Grove's dependency `ravel` from a tap
+  that is not trusted, and they also load `ravel` to install `ravel@2`. The
+  install commands of the README and the user guide now include that step.
 
 ### Changes
 
@@ -106,8 +111,11 @@ What a user does depends on the `ravel` formula of the tap:
   `grove` and `personal` kegs. A user of the marketplace moves in four steps:
 
   1. Install or upgrade Grove with Homebrew: `brew install
-     linkuistics/taps/grove`. Install `linkuistics/taps/personal` and
-     `linkuistics/taps/testanyware` if you used those plugins.
+     linkuistics/taps/grove`. Before a first install, run
+     `brew trust linkuistics/taps`, because Homebrew loads Grove's
+     dependency `ravel` only from a trusted tap. Install
+     `linkuistics/taps/personal` and `linkuistics/taps/testanyware` if you
+     used those plugins.
   2. Use Ravel 2.0. It reads the sources of the kegs from its default skill
      directory, `$(brew --prefix)/share/ravel/skills`, with no settings.
   3. Register the hook adapters by the commands that the formula caveats

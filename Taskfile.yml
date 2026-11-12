@@ -975,6 +975,9 @@ tasks:
         if brew list --versions grove >/dev/null 2>&1; then
           brew upgrade grove
         else
+          # Grove's dependency ravel loads only from a trusted tap. "Already
+          # trusted" also exits 0. https://docs.brew.sh/Tap-Trust#installing-from-a-tap
+          brew trust linkuistics/taps
           brew install linkuistics/taps/grove
         fi
       - brew test grove

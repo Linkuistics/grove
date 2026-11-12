@@ -40,3 +40,24 @@ pins to pass.
 
 A change under `plugins/grove` or to `plugins/packs.json` changes core's
 source digest and needs a new candidate keg. This leaf needs neither.
+
+## Decisions (running log)
+
+- The published archives were measured on 2026-11-12 from a new empty
+  directory, `target/ravel-archives-2.0.0-download`. Each `shasum -a 256`
+  value equals the GitHub `digest` and the k313 receipt.
+- Both Linux executables need at most `GLIBC_2.17` (ELF version records), so
+  the floor holds and no stop applies.
+- The build identity is
+  `7f2ff6b3f5222c13b69b78b8cd2c33d1c7edaa6a8599cfb27ebfb59d209d8ec5`. A
+  re-implementation of `crates/ravel/build.rs` over the git objects of
+  `ed6cedbf9a14` produced it. All three executables and the installed
+  `ravel@2` keg hold it. None holds the old local identity.
+- The `release is None` refusal stays in the script for a future local
+  record. Its unit test moves to a synthetic local lane, because the real
+  2.0 lane now downloads.
+- The 2.0.0 template has `@CLASS@` and `@KEG_ONLY@`, which the seam did
+  not render. The seam now renders them as Ravel's unversioned channel
+  (`Ravel`, no `keg_only` line), because its cases model unversioned
+  `ravel`. The seam's input is Ravel's template at `ed6cedbf9a14`, saved
+  outside the working copy.

@@ -277,36 +277,23 @@ def test_the_2_0_record_covers_every_target(tmp_path: Path) -> None:
     assert set(lane.pins) == set(inputs.TARGETS), lane.pins
 
 
-def test_lane_2_never_downloads_its_default_archives(tmp_path: Path) -> None:
-    consumer = tmp_path / "consumer/scripts"
-    consumer.mkdir(parents=True)
-    (consumer / "ravel_target_inputs.py").write_bytes(
-        Path(inputs.__file__).read_bytes()
-    )
-    tools = tmp_path / "tools"
-    tools.mkdir()
-    (tools / "curl").write_text("#!/bin/sh\necho unexpected-download >&2\nexit 91\n")
-    (tools / "curl").chmod(0o755)
+def test_a_local_lane_never_downloads_a_missing_archive(tmp_path: Path) -> None:
+    # No real lane is local now; the refusal stays for the next local record.
+    local = dataclasses.replace(LANE_2, release=None)
+    archive_dir = tmp_path / "archives"
     output = tmp_path / "output"
-    result = subprocess.run(
-        [
-            sys.executable,
-            str(consumer / "ravel_target_inputs.py"),
-            "--lane",
-            "2.0",
-            "--output",
-            str(output),
-            MAC,
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-        env={"PATH": f"{tools}:/usr/bin:/bin"},
-    )
-    assert result.returncode != 0
-    assert "never downloaded" in result.stderr, result.stderr
-    assert "unexpected-download" not in result.stderr
+    with refused("is a local build and is never downloaded"):
+        inputs.prepare([MAC], archive_dir, output, True, local)
+    assert not archive_dir.exists()
     assert not output.exists()
+
+
+def test_the_2_0_record_is_the_published_release(tmp_path: Path) -> None:
+    del tmp_path
+    assert LANE_2.stem == "2.0.0", LANE_2.stem
+    assert LANE_2.release == (
+        "https://github.com/Linkuistics/Ravel/releases/download/v2.0.0"
+    ), LANE_2.release
 
 
 def test_status_names_each_target_the_lane_does_not_run(tmp_path: Path) -> None:
@@ -350,7 +337,8 @@ def main() -> None:
         (test_lane_2_refuses_the_1_1_layout, ()),
         (test_lane_2_refuses_a_target_it_does_not_record, ()),
         (test_the_2_0_record_covers_every_target, ()),
-        (test_lane_2_never_downloads_its_default_archives, ()),
+        (test_a_local_lane_never_downloads_a_missing_archive, ()),
+        (test_the_2_0_record_is_the_published_release, ()),
         (test_status_names_each_target_the_lane_does_not_run, ()),
     ]
     cases += [

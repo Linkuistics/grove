@@ -1,8 +1,8 @@
 # Independent Ravel inputs for Grove delivery tests
 
 Grove's target tests consume two **lanes** of independent Ravel archives. The
-1.1 lane is the released **Ravel 1.1.0**, with `policy.ts`. The 2.0 lane is a
-recorded build of **Ravel 2.0**, with `config.rhai`. Each lane has a record in
+1.1 lane is the released **Ravel 1.1.0**, with `policy.ts`. The 2.0 lane is the
+released **Ravel 2.0.0**, with `config.rhai`. Each lane has a record in
 `scripts/ravel_target_inputs.py`, and admission accepts only the archives of
 that record. No lane tests a Ravel that the PATH finds.
 
@@ -30,25 +30,31 @@ and Ravel's `docs/publication-evidence.md` record the publication provenance.
 
 ## The 2.0 lane
 
-The 2.0 lane records the unpublished directory build of Ravel 2.0. Its archives
-come from `task release:archives` in the workspace `Ravel.skill-directory-delivery`.
-That task builds exact target archives with no version cut.
+The 2.0 lane records the published Ravel 2.0.0. Ravel's release tooling built
+its archives at the tag `v2.0.0` and published them through the keg-only
+formula `ravel@2`. Each URL is under
+`https://github.com/Linkuistics/Ravel/releases/download/v2.0.0/`. The public
+[release](https://github.com/Linkuistics/Ravel/releases/tag/v2.0.0) and the
+section "Ravel 2.0.0 publication receipt" of
+[the coordinated release evidence](coordinated-release-evidence.md) record the
+publication provenance.
 
 | Subject | Record |
 |---|---|
-| Source commit | `ff14cba826b02ac492fcde0996d662c5378ef923`, the output commit of `ravel-installation-record-k226`, at the tip of the bookmark `skill-directory-delivery`. The build reads the default skill directory of `ravel-default-directory-k225`. It keeps the direct `renameat2` call of `grove-linux-two-lane-k103`, so it links at glibc 2.17 |
-| Build identity | `58d479ed058f1094b8754c72eecf9f0cec5a60b3d22b76baecdb827364abd217` |
-| Archive name | `ravel-v1.1.0-TARGET.tar.xz`. The workspace version stays 1.1.0 until Ravel's cut, so the name does not tell the lanes apart |
-| Default directory | `target/ravel-archives-2.0`. Admission never downloads this lane |
+| Source commit | `ed6cedbf9a14cd088bea13fcfb8b86300cb6aaca`, the peeled commit of the tag `v2.0.0` |
+| Build identity | `7f2ff6b3f5222c13b69b78b8cd2c33d1c7edaa6a8599cfb27ebfb59d209d8ec5` |
+| Archive name | `ravel-v2.0.0-TARGET.tar.xz` |
+| Default directory | `target/ravel-archives-2.0`. Admission downloads each missing archive into it, as for the 1.1 lane |
 
 | Target | SHA-256 of the archive |
 |---|---|
-| aarch64-apple-darwin | `289b4ac57ffd148255960507f02809034e8fb35fe97132813230116add804921` |
-| aarch64-unknown-linux-gnu | `2160a92e280f2d6881fd4d72c8196a787abc1b8e0fe20607e5028fa6041e75f3` |
-| x86_64-unknown-linux-gnu | `ab49d80db83bf4815342d562d8c265ac21bd97d13f4b9df0a7e18afc79dbdb6c` |
+| aarch64-apple-darwin | `5957840ab33f4331b794539dbd455d801f71c6c6485c781dc290cfb48490231d` |
+| aarch64-unknown-linux-gnu | `a4750ea439450e88621be411183e7bf30d2616f9a545b64a30445df3a9f02bee` |
+| x86_64-unknown-linux-gnu | `906e589f72161ed5dce5db683e6af10963c1952bdf177c6b343d1918928c3dd1` |
 
-The lane records every target, so `unrecorded` is empty. The build of
-`ravel-local-sources-k90` did not link at glibc 2.17, because
+The lane records every target, so `unrecorded` is empty. Both Linux
+executables need at most the symbol version `GLIBC_2.17`. An earlier local
+build, of `ravel-local-sources-k90`, did not link at glibc 2.17. Its
 `ravel::skills::dir::Dir::rename_noreplace` called the glibc `renameat2`
 wrapper, which glibc added in 2.28.
 
@@ -89,35 +95,53 @@ The 2.0 lane runs these checks:
   on the 2.0 lane. It publishes skill snapshots from the release archive at
   the glibc 2.17 floor, and the file modes of each snapshot refuse a write.
 
-## Rollout handoff: replace the local 2.0 record
+## Replacement of the local 2.0 record — 2026-11-12
 
-The 2.0 record holds local identities. Before Grove's release, rollout replaces
-the record with the published Ravel 2.0.0 archives. Do these steps after Ravel
-publishes 2.0.0, and before `task release:minor` in Grove:
+Before Ravel's cut, the 2.0 lane recorded a local build of the workspace
+`Ravel.skill-directory-delivery`. That build had the archive name
+`ravel-v1.1.0-TARGET.tar.xz`, and admission never downloaded it.
+`grove-ravel-two-pins-k314` replaced that record with the published 2.0.0
+archives, by these steps:
 
-1. Download the three published archives of the release into a new empty
-   directory.
+1. Download the three published archives into a new empty directory.
 2. Measure the SHA-256 of each archive with `shasum -a 256`.
 3. Compare each value with the `digest` field that GitHub reports for the asset.
-4. In the `"2.0"` lane of `scripts/ravel_target_inputs.py`, set `stem` to
-   `2.0.0`.
-5. Put the three measured digests in `pins`. `unrecorded` stays empty.
-6. Set `release` to the download directory of the 2.0.0 release. Admission then
-   fetches missing archives into `target/ravel-archives-2.0`, as the 1.1 lane does.
-7. Set `source_commit` to the peeled commit of the `v2.0.0` tag.
-8. Set `build_identity` to the identity of the published build. Read it from the
-   routing notice of a launch, or from the `RAVEL_BUILD_ID` that `build.rs`
-   prints for that commit.
-9. Replace the two tables above with the published values.
-10. Run `task ravel:targets:controls` and `task ravel:targets:smoke`.
-11. Run `task release:smoke`, so that each lane runs on each target that it
-    records.
+4. Set `stem`, `pins`, `release` and `source_commit` in the `"2.0"` lane of
+   `scripts/ravel_target_inputs.py`. Keep `unrecorded` empty.
+5. Set `build_identity` to the `RAVEL_BUILD_ID` that Ravel's `build.rs` gives
+   for the tag commit.
+6. Replace the two tables of the 2.0 lane.
+7. Run the target controls and smoke, the release smoke and the installed checks.
+
+Each measured digest equalled the GitHub `digest` and the publication receipt.
+The manifest equalled the recorded 2.0 manifest. A re-implementation of
+`crates/ravel/build.rs` over the git objects of the tag commit gave the build
+identity. All three executables and the installed `ravel@2` keg hold it. None
+holds the identity of the local build, `58d479ed…`.
+
+Both Linux executables need at most `GLIBC_2.17`, as their ELF version
+records show. These checks then passed on the published archives. The
+installed checks used the `ravel@2` keg `/opt/homebrew/opt/ravel@2`:
+
+| Check | Result |
+|---|---|
+| `task ravel:targets:controls ARCHIVES=target/ravel-archives` | 35 unit cases, and the shell controls of both lanes |
+| `task ravel:targets:smoke` | Each lane on each of the three targets |
+| `task release:smoke` | The three targets. On Linux, the 2.0 lane passed the directory case at the floor |
+| `task release:installed` | The TypeScript set on 1.1.0, and the Rhai set and the six keg sources on `ravel@2` |
+| `task release:formula:test` | The install and test methods, tap states A to D, and the shared directory seam, with `OLD` the published Grove 22.8.0 keg |
+| `task ravel:directory` | 11 cases, with the `ravel@2` front and the 1.1.0 front as `OLD` |
+| `task seam:shared-directory` | 10 cases, with the tap's skill formulae as subjects |
+
+Two instruments changed. The shell controls take each 2.0 archive name from
+`--status`, and they swap bytes under each lane's own name. The seam renders
+the `@CLASS@` and `@KEG_ONLY@` placeholders of Ravel's 2.0.0 template as the
+unversioned channel. The seam's Ravel formula was that template at the tag
+commit.
 
 Grove's release task runs `scripts/release-smoke.sh --archives target/dist`.
-That smoke admits the 2.0 lane from its default directory. With the local
-record, a release on a host without `target/ravel-archives-2.0` refuses before
-any publication. That refusal is the intended gate. The published archives must include both
-Linux targets, built at glibc 2.17, as the recorded build does.
+That smoke admits the 2.0 lane from its default directory, and it downloads
+the published archives when they are missing.
 
 ## Consumer interface
 
@@ -194,9 +218,10 @@ and glibc-floor assertions.
 
 QEMU checks every archived ELF header against its registration, so no
 executable escapes the CPU model. A 1.1 prefix must hold both the front and the
-worker. A 2.0 prefix must hold its front and no worker. The two lanes' archives
-have the same names before Ravel's cut. So the runner labels each path of a 2.0
-archive with `ravel-2.0/`, and the check reads that label.
+worker. A 2.0 prefix must hold its front and no worker. The runner labels each
+path of a 2.0 archive with `ravel-2.0/`, and the check reads that label. Before
+Ravel's cut the two lanes had the same archive names, and the label still
+keeps them apart.
 
 Grove took the Ravel installed cases from the MIT-licensed released source at the
 v1.0.0 tag. They cover these subjects:

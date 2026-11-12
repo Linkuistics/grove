@@ -89,9 +89,9 @@ CASES="$REPO_ROOT/scripts/grove-installed-smoke.sh"
 RAVEL_INPUTS=""
 RAVEL_2_INPUTS=""
 # The runtime lane of the archive under test when it is itself a Ravel archive:
-# 1.1, or 2.0 for the recorded 2.0 build. The two lanes' archives have the same
-# file names before the cut, so the QEMU registration check reads the lane from
-# this label, never from a name.
+# 1.1, or 2.0 for the published 2.0.0. The QEMU registration check reads the
+# lane from this label, never from a name. Before Ravel's cut the two lanes'
+# archives had the same file names.
 SUBJECT_LANE=1.1
 
 # TARGETS, the release target list, and assert_archive, the manifest check.

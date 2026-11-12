@@ -79,7 +79,7 @@ main() {
     top_2="$(basename "$dependency_2" .tar.xz)"
     [[ "$(ls -A "$scratch/ravel-2.0")" == "$top_2" ]] || fail 'wrong Ravel 2.0 target prefix'
     lane_2=("$scratch/ravel-2.0/$top_2")
-    note "extracted Grove $version, independent Ravel 1.1.0 and the recorded Ravel 2.0 build into separate prefixes"
+    note "extracted Grove $version, independent Ravel 1.1.0 and the recorded Ravel 2.0.0 into separate prefixes"
   else
     note "extracted Grove $version and independent Ravel 1.1.0 into separate prefixes"
   fi

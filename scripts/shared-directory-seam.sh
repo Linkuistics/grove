@@ -141,7 +141,10 @@ if [[ "$ravel_formula" == *.tmpl ]]; then
   ravel_sha="$(shasum -a 256 "$ravel_archive" | cut -d' ' -f1)"
   # Only this host's archive exists, so every sha256 placeholder takes its
   # digest, as scripts/release-formula.test.sh renders Grove's template.
+  # The cases model the unversioned formula, so the class and keg_only line
+  # take the values of Ravel's unversioned channel (scripts/release-channel.sh).
   sed -e "s/@VERSION@/${BASH_REMATCH[1]}/g" -e "s/@SHA_[A-Z0-9_]*@/$ravel_sha/g" \
+    -e "s/@CLASS@/Ravel/g" -e "/^@KEG_ONLY@\$/d" \
     "$ravel_formula" >"$scratch/formulae/ravel/ravel.rb"
   ! grep -n '@[A-Z_0-9]*@' "$scratch/formulae/ravel/ravel.rb" || fail "$ravel_formula has unresolved placeholders"
 else

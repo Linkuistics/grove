@@ -8000,7 +8000,7 @@ belong to `discovery-rollout-k6`, which publishes them.
   Grove's unconfined caller against that older executable. It does not measure
   `a4f55d04…`. Grove keeps the pins until rollout replaces them with the
   published archives, as the
-  [rollout handoff](ravel-target-inputs.md#rollout-handoff-replace-the-local-20-record)
+  [rollout handoff](ravel-target-inputs.md#replacement-of-the-local-20-record--2026-11-12)
   states.
 - **Formula.** The formula test takes a Ravel prefix, not an archive. So it can
   measure `a4f55d04…` from the scratch prefix, and k126 does so.
@@ -8325,7 +8325,7 @@ owner.
 | --- | --- | --- |
 | No real harness ran on the build `a4f55d04…` | A trial measures an LLM. The preamble did not change after `e9cc79993b46`, and the fixtures of k126 measure the delivery of the new build | `discovery-rollout-k6`, whose Done when asks for real discovery evidence on the staged installed split |
 | No real harness ran a standalone session on the native route of 2.0 after the removal | A standalone prompt names no guidance. The row "Standalone" asks for access only, and a fixture holds that access | None. The row holds |
-| Each Grove check of a 2.0 archive uses the pinned archives of `23e50ce90037` | No archive of `a4f55d04…` is published | `discovery-rollout-k6`, which replaces the pins |
+| Each Grove check of a 2.0 archive in this record used the pinned archives of `23e50ce90037` | No archive of `a4f55d04…` existed before publication | None. On 2026-11-12 `grove-ravel-two-pins-k314` replaced the pins with the published 2.0.0 archives, and Grove's admission and installed checks passed on them |
 | The tap states B to D have no evidence | Only state A exists before publication | `discovery-rollout-k6` |
 | The plain Git checkout is not measured at the Linux floor | The floor userland has no Git. Ravel runs no VCS command, so a checkout is a plain directory to Ravel | None. The plain directory case covers it |
 | Ravel's `task test:native-linux PLATFORM=amd64` cannot run its namespace and signal rows | QEMU user mode cannot reproduce them. Ravel's own campaign lists those rows as not reproducible | Ravel's test campaign. The x86_64 release smoke proves the link floor and the CPU floor |

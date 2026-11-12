@@ -239,13 +239,13 @@ stood at the graft — a closed record, not part of the versioned sequence above
   skill entry, and a running 22.8 session completes.
 
 - Release checks: the independent Ravel inputs have two lanes. The 1.1 lane is
-  the published Ravel 1.1.0. The 2.0 lane admits only the recorded archives of
-  the Ravel 2.0 build. Admission checks their digests and the build identity in
-  `bin/ravel`, and it never downloads them. `task ravel:targets:smoke` runs each
-  lane with the configuration format of its runtime. The macOS release smoke
-  checks the Rhai caller set against the 2.0 build. Each runner names each
-  target that a lane did not run. The 2.0 lane records all three targets: its
-  build links at glibc 2.17. On Linux, the floor container and QEMU run both
+  the published Ravel 1.1.0. The 2.0 lane is the published Ravel 2.0.0.
+  Admission checks the digests of each lane and the build identity in the 2.0
+  `bin/ravel`. It downloads each missing archive of either lane.
+  `task ravel:targets:smoke` runs each lane with the configuration format of
+  its runtime. The macOS release smoke checks the Rhai caller set against
+  Ravel 2.0.0. Each runner names each target that a lane did not run. The 2.0
+  lane records all three targets, and its Linux executables link at glibc 2.17. On Linux, the floor container and QEMU run both
   lanes, and the 2.0 lane adds the directory case. The floor needs no
   bubblewrap. `task
   legacy:rehearsal ALSO=<prefix>` checks the Ravel 1.1.0 ending executable after

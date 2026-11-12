@@ -64,11 +64,11 @@ tasks:
       - python3 scripts/legacy_driver_rehearsal.py --keg "{{.KEG}}" --ravel "{{.RAVEL}}" --output "{{.OUT}}" {{if .ALSO}}--also-installed "{{.ALSO}}"{{end}}
 
   # LANE selects the recorded Ravel archives: 1.1 (default), the published
-  # 1.1.0 release, or 2.0, the recorded 2.0 build. ARCHIVES_2 is the 2.0 lane's
-  # directory, by default target/ravel-archives-2.0, which is never downloaded.
-  # See docs/ravel-target-inputs.md.
+  # 1.1.0 release, or 2.0, the published 2.0.0 release. ARCHIVES_2 is the 2.0
+  # lane's directory, by default target/ravel-archives-2.0. Without ARCHIVES,
+  # each lane downloads its missing pins. See docs/ravel-target-inputs.md.
   ravel:targets:prepare:
-    desc: Validate one lane's recorded Ravel archives (1.1 fetches its pins) and expose separate fresh target prefixes
+    desc: Validate one lane's recorded Ravel archives (fetching missing pins) and expose separate fresh target prefixes
     requires:
       vars: [OUT]
     cmds:
@@ -779,10 +779,10 @@ tasks:
   # RAVEL_FORMULA is Ravel's formula or its template, and RAVEL_ARCHIVE the
   # recorded Ravel archive that it installs. For example:
   #   task release:formula:test ARCHIVE=target/archives/grove-v<ver>-aarch64-apple-darwin.tar.xz \
-  #     RAVEL_1_1_PREFIX=/opt/homebrew/Cellar/ravel/1.1.0 RAVEL_2_0_PREFIX=/opt/ravel-2 \
+  #     RAVEL_1_1_PREFIX=/opt/homebrew/Cellar/ravel/1.1.0 RAVEL_2_0_PREFIX=/opt/homebrew/opt/ravel@2 \
   #     OLD=/opt/homebrew/Cellar/grove/22.8.0 TAP=~/Development/Delivery/homebrew-taps \
-  #     RAVEL_FORMULA=../Ravel.skill-directory-delivery/scripts/templates/ravel.rb.tmpl \
-  #     RAVEL_ARCHIVE=target/ravel-archives-2.0/ravel-v1.1.0-aarch64-apple-darwin.tar.xz
+  #     RAVEL_FORMULA=../Ravel/scripts/templates/ravel.rb.tmpl \
+  #     RAVEL_ARCHIVE=target/ravel-archives-2.0/ravel-v2.0.0-aarch64-apple-darwin.tar.xz
   release:formula:test:
     desc: Exercise the real Homebrew install/test methods, the keg's skill digests, tap states A to D with both Ravel builds and the shared directory seam
     requires:
@@ -795,8 +795,8 @@ tasks:
   # run it, because it needs Homebrew and a recorded Ravel 2.0 archive. For
   # example, with the fixture formulae and the tap's formulae:
   #   task seam:shared-directory -- \
-  #     --ravel-formula ../Ravel.skill-directory-delivery/scripts/templates/ravel.rb.tmpl \
-  #     --ravel-archive target/ravel-archives-2.0/ravel-v1.1.0-aarch64-apple-darwin.tar.xz \
+  #     --ravel-formula ../Ravel/scripts/templates/ravel.rb.tmpl \
+  #     --ravel-archive target/ravel-archives-2.0/ravel-v2.0.0-aarch64-apple-darwin.tar.xz \
   #     --tap ~/Development/Delivery/homebrew-taps --tap-subjects
   seam:shared-directory:
     desc: Link actual formula output with Homebrew's linker into private prefixes and resolve the shared default directory with Ravel (needs Homebrew and a Ravel 2.0 archive; not in check)
@@ -832,10 +832,10 @@ tasks:
   # and marketplace file with the keg of the formula on the tap's origin/main.
   # For example:
   #   task tap:formula:test FORMULA=~/Development/Delivery/homebrew-taps/Formula/personal.rb \
-  #     RAVEL_2_0_PREFIX=/opt/ravel-2 REPO=https://github.com/Linkuistics/PersonalSkills.git \
+  #     RAVEL_2_0_PREFIX=/opt/homebrew/opt/ravel@2 REPO=https://github.com/Linkuistics/PersonalSkills.git \
   #     SHA=cddcfde901cdaf8069e2aac6f3b6bc5aba9fe925 SOURCES=personal=plugins/personal \
-  #     RAVEL_FORMULA=../Ravel.skill-directory-delivery/scripts/templates/ravel.rb.tmpl \
-  #     RAVEL_ARCHIVE=target/ravel-archives-2.0/ravel-v1.1.0-aarch64-apple-darwin.tar.xz
+  #     RAVEL_FORMULA=../Ravel/scripts/templates/ravel.rb.tmpl \
+  #     RAVEL_ARCHIVE=target/ravel-archives-2.0/ravel-v2.0.0-aarch64-apple-darwin.tar.xz
   tap:formula:test:
     desc: Install and test one tap skill formula in a private prefix, check its declared keg layout, compare its sources with their commit and its native-only payload with the published keg, register its marketplace and run the shared directory seam
     requires:
@@ -852,7 +852,7 @@ tasks:
   # builds, each in its own HOME: the TypeScript set against RAVEL_1_1_PREFIX
   # and the Rhai set against RAVEL_2_0_PREFIX. For example:
   #   task release:installed ARCHIVE=target/archives/grove-v<ver>-aarch64-apple-darwin.tar.xz \
-  #     RAVEL_1_1_PREFIX=/opt/homebrew/Cellar/ravel/1.1.0 RAVEL_2_0_PREFIX=/opt/ravel-2
+  #     RAVEL_1_1_PREFIX=/opt/homebrew/Cellar/ravel/1.1.0 RAVEL_2_0_PREFIX=/opt/homebrew/opt/ravel@2
   release:installed:
     desc: Run the installed caller smoke of one native archive against explicit Ravel 1.1 and 2.0 prefixes
     requires:

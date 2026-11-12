@@ -29,8 +29,8 @@ class Lane:
     """The recorded archives of one Ravel runtime. Nothing outside the record is tested."""
 
     runtime: str
-    # The version in the archive name. A build of the 2.0 feature line keeps
-    # 1.1.0 until the cut, so the name does not tell the two lanes apart.
+    # The version in the archive name. A local build before a version cut keeps
+    # the previous version, so the name alone does not identify a lane.
     stem: str
     pins: dict[str, str]
     # Each supported target without a recorded archive, and the reason.
@@ -75,17 +75,15 @@ LANES = {
         release="https://github.com/Linkuistics/Ravel/releases/download/v1.1.0",
         default_archives="target/ravel-archives",
     ),
-    # The unpublished directory build of Ravel 2.0, from `task release:archives`
-    # in the workspace Ravel.skill-directory-delivery at the build commit below.
-    # docs/ravel-target-inputs.md states how rollout replaces this record with
-    # the published 2.0.0 archives before Grove's release.
+    # The published 2.0.0 contract, with config.rhai and directory delivery.
+    # https://github.com/Linkuistics/Ravel/releases/tag/v2.0.0
     "2.0": Lane(
         runtime="2.0",
-        stem="1.1.0",
+        stem="2.0.0",
         pins={
-            "aarch64-apple-darwin": "289b4ac57ffd148255960507f02809034e8fb35fe97132813230116add804921",
-            "aarch64-unknown-linux-gnu": "2160a92e280f2d6881fd4d72c8196a787abc1b8e0fe20607e5028fa6041e75f3",
-            "x86_64-unknown-linux-gnu": "ab49d80db83bf4815342d562d8c265ac21bd97d13f4b9df0a7e18afc79dbdb6c",
+            "aarch64-apple-darwin": "5957840ab33f4331b794539dbd455d801f71c6c6485c781dc290cfb48490231d",
+            "aarch64-unknown-linux-gnu": "a4750ea439450e88621be411183e7bf30d2616f9a545b64a30445df3a9f02bee",
+            "x86_64-unknown-linux-gnu": "906e589f72161ed5dce5db683e6af10963c1952bdf177c6b343d1918928c3dd1",
         },
         unrecorded={},
         manifest=(
@@ -98,10 +96,10 @@ LANES = {
             "share/ravel/notices/THIRD-PARTY-NOTICES.md",
         ),
         executables=frozenset({"bin/ravel"}),
-        release=None,
+        release="https://github.com/Linkuistics/Ravel/releases/download/v2.0.0",
         default_archives="target/ravel-archives-2.0",
-        source_commit="ff14cba826b02ac492fcde0996d662c5378ef923",
-        build_identity="58d479ed058f1094b8754c72eecf9f0cec5a60b3d22b76baecdb827364abd217",
+        source_commit="ed6cedbf9a14cd088bea13fcfb8b86300cb6aaca",
+        build_identity="7f2ff6b3f5222c13b69b78b8cd2c33d1c7edaa6a8599cfb27ebfb59d209d8ec5",
     ),
 }
 # The 1.1 lane's names, kept for callers that predate the lanes.

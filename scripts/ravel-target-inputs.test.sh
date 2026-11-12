@@ -83,13 +83,19 @@ refused 'SHA-256' env PATH="$scratch/tools:$PATH" python3 \
 )
 printf 'ravel-inputs-test: cache and QEMU-registration controls passed\n'
 
-# The 2.0 lane admits only its recorded archives. The two lanes share archive
-# names until Ravel's cut, so each must refuse the other's bytes by digest.
+# The 2.0 lane admits only its recorded archives. Each lane must refuse the
+# other's bytes by digest, even under its own archive name.
 inputs() { python3 "$repo_root/scripts/ravel_target_inputs.py" "$@"; }
 recorded=()
+recorded_names=()
 unrecorded=()
-while IFS=$'\t' read -r target state _; do
-  if [[ "$state" == recorded ]]; then recorded+=("$target"); else unrecorded+=("$target"); fi
+while IFS=$'\t' read -r target state detail; do
+  if [[ "$state" == recorded ]]; then
+    recorded+=("$target")
+    recorded_names+=("$detail")
+  else
+    unrecorded+=("$target")
+  fi
 done < <(inputs --lane 2.0 --status)
 ((${#recorded[@]} > 0)) || fail 'the 2.0 lane records no archive'
 inputs --lane 2.0 --archives "$archives_2" --output "$scratch/lane-2" "${recorded[@]}"
@@ -100,8 +106,9 @@ for target in "${recorded[@]}"; do
 done
 mkdir "$scratch/swapped-2" "$scratch/swapped-1"
 # One changed byte, in the middle of each recorded archive, Linux included.
-for target in "${recorded[@]}"; do
-  name="ravel-v1.1.0-$target.tar.xz"
+for index in "${!recorded[@]}"; do
+  target="${recorded[$index]}"
+  name="${recorded_names[$index]}"
   mkdir "$scratch/changed-2-$target"
   python3 - "$archives_2/$name" "$scratch/changed-2-$target/$name" <<'PY'
 import sys
@@ -114,10 +121,11 @@ PY
     --output "$scratch/changed-2-$target-layout" "$target"
   [[ ! -e "$scratch/changed-2-$target-layout" ]] || fail "exposed a changed $target archive"
 done
-name="ravel-v1.1.0-${recorded[0]}.tar.xz"
-cp "$archives/$name" "$scratch/swapped-2/$name"
+name_1="ravel-v1.1.0-${recorded[0]}.tar.xz"
+name_2="${recorded_names[0]}"
+cp "$archives/$name_1" "$scratch/swapped-2/$name_2"
 refused 'SHA-256' inputs --lane 2.0 --archives "$scratch/swapped-2" --output "$scratch/swapped-2-layout" "${recorded[0]}"
-cp "$archives_2/$name" "$scratch/swapped-1/$name"
+cp "$archives_2/$name_2" "$scratch/swapped-1/$name_1"
 refused 'SHA-256' inputs --archives "$scratch/swapped-1" --output "$scratch/swapped-1-layout" "${recorded[0]}"
 for output in swapped-2-layout swapped-1-layout; do
   [[ ! -e "$scratch/$output" ]] || fail "exposed refused $output"

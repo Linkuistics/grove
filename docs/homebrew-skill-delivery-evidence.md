@@ -1035,6 +1035,30 @@ The release test reads no checksum, so the defect was hidden. The seam
 compares each formula's checksum with its archive, so the renderer now
 matches `@SHA_[A-Z0-9_]*@`.
 
+### The repeat of 2026-11-12
+
+`grove-ravel-two-pins-k314` repeated the seam with the published Ravel
+2.0.0. Ravel's formula was its template at `ed6cedbf9a14`, the commit of the
+tag `v2.0.0`. The seam rendered it as the unversioned channel, so the class is
+`Ravel` and no `keg_only` line remains.
+
+- `task release:formula:test` passed on the native archive of the working
+  copy, with the published 22.8.0 keg as `OLD`. Tap states A to D passed,
+  and then the seam. Its record is
+  `target/shared-directory-seam/20261112T102024Z.json`.
+- `task seam:shared-directory` passed alone with `--tap-subjects`. Its record
+  is `target/shared-directory-seam/20261112T102123Z.json`.
+
+Each run passed all ten cases, and no measured subject changed.
+
+| Subject | SHA-256 or revision |
+| --- | --- |
+| Homebrew | 7.0.13-83-ga6fea6b, revision `a6fea6bd59bbddf1cbc758d81b5ad9aadf943a30` |
+| `keg.rb` | `0faa3f4cbb42c6ae7aa344ca04b129573ed9dc783d72b549bed02497c881552d`, unchanged |
+| Ravel archive | `5957840ab33f4331b794539dbd455d801f71c6c6485c781dc290cfb48490231d`, lane 2.0, build identity `7f2ff6b3f522…` |
+| Rendered Ravel formula | `e2650d89da247d43239aa7737a5ddd109816100e358fe89cd1dfd129b8f0c6e7`, package version 2.0.0 |
+| Tap | `homebrew-taps` at `f7f9b9b0bc4d`, "ravel@2 v2.0.0" |
+
 ### The design experiment
 
 `task design:keg-link-layout:test` stays as a cheap failure control. It needs

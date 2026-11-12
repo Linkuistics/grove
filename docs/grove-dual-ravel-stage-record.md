@@ -317,7 +317,7 @@ tap had no `ravel@2` formula, which is state A.
    cuts 2.0.0 once and publishes only the keg-only `ravel@2`. This is state B.
    The unversioned `ravel` stays 1.1.0.
 3. **Rollout replaces the local 2.0 record.** It follows the
-   [rollout handoff](ravel-target-inputs.md#rollout-handoff-replace-the-local-20-record)
+   [rollout handoff](ravel-target-inputs.md#replacement-of-the-local-20-record--2026-11-12)
    with the published archives. It then repeats Grove's admission and
    installed checks against the published archives and the `ravel@2` prefix.
    These are the target controls and smoke, the release smoke, the formula
@@ -332,8 +332,10 @@ tap had no `ravel@2` formula, which is state A.
 
 - The fixtures prove delivery and Grove's interpretation of it, not the
   behaviour of an LLM. Actual harness behaviour belongs to k29.
-- Before the cut, `ravel 2.0.0` output exists only from stub executables.
-  The admission of a real `ravel 2.0.0` waits for the published archives.
+- Before the cut, `ravel 2.0.0` output existed only from stub executables.
+  On 2026-11-12 `grove-ravel-two-pins-k314` pinned the published 2.0.0
+  archives. Admission and the installed checks then ran on a real
+  `ravel 2.0.0`, as step 3 of the publication order states.
 - k103 ran `task test:native-linux PLATFORM=amd64` under QEMU user mode. 94
   confinement, namespace and signal tests failed on the build commit and on
   its parent alike. Ravel's own campaign lists those rows as not reproducible

@@ -801,6 +801,20 @@ tasks:
     cmds:
       - bash scripts/release-formula.test.sh "{{.ARCHIVE}}" "{{.RAVEL_1_1_PREFIX}}" "{{.RAVEL_2_0_PREFIX}}" "{{.OLD}}" "{{.RAVEL_FORMULA}}" "{{.RAVEL_ARCHIVE}}" "{{.TAP}}"
 
+  # The promotion upgrade rehearsal with real Homebrew in a scratch
+  # environment. WORK must be an empty directory outside every working copy.
+  # TAP is the real tap working copy, which the rehearsal only reads. The run
+  # downloads the published archives and spends several minutes, so
+  # scripts/check.sh does not run it.
+  # docs/promotion-upgrade-rehearsal-record.md records its readings. For example:
+  #   task promotion:rehearsal WORK="$(mktemp -d)" TAP=~/Development/Delivery/homebrew-taps
+  promotion:rehearsal:
+    desc: Rehearse fresh installs and upgrades through the coordinated tap states with a private Homebrew, a scratch tap and a scratch HOME (needs Homebrew and the network; not in check)
+    requires:
+      vars: [WORK]
+    cmds:
+      - bash scripts/promotion-rehearsal.sh "{{.WORK}}" {{if .TAP}}"{{.TAP}}"{{end}}
+
   # The shared default directory seam alone. Pass its arguments after --, as
   # `scripts/shared-directory-seam.sh --help` states. scripts/check.sh does not
   # run it, because it needs Homebrew and a recorded Ravel 2.0 archive. For

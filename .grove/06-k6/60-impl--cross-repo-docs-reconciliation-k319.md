@@ -32,3 +32,9 @@ Do not change a file inside an accepted source root, which is a pack's
 Do not advance a pin in Grove's pack record or in a formula. A change outside
 the roots needs no new pin. Carry a necessary change inside a root as live
 work with its restaging consequence.
+
+promotion-upgrade-rehearsal-k318 observed Homebrew's caveat for `ravel@2`
+beside a linked `ravel` 1.1.0: `Run brew link ravel@2 to switch the active
+version to this keg.` Check that no Grove or Ravel page repeats that
+suggestion for states B and C. "Observations for later states" in
+`docs/promotion-upgrade-rehearsal-record.md` gives the reason.

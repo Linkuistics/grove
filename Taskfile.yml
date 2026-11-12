@@ -803,18 +803,19 @@ tasks:
 
   # The promotion upgrade rehearsal with real Homebrew in a scratch
   # environment. WORK must be an empty directory outside every working copy.
-  # TAP is the real tap working copy, which the rehearsal only reads. The run
-  # builds candidate archives of the working result for every release target,
-  # downloads the published archives and spends several minutes, so
-  # scripts/check.sh does not run it.
+  # TAP is the real tap working copy and RAVEL is Ravel's default workspace,
+  # which the rehearsal only reads. State D runs Ravel's release:promote in a
+  # clone of RAVEL against the scratch tap. The run builds candidate archives
+  # of the working result for every release target, downloads the published
+  # archives and spends several minutes, so scripts/check.sh does not run it.
   # docs/promotion-upgrade-rehearsal-record.md records its readings. For example:
-  #   task promotion:rehearsal WORK="$(mktemp -d)" TAP=~/Development/Delivery/homebrew-taps
+  #   task promotion:rehearsal WORK="$(mktemp -d)" TAP=~/Development/Delivery/homebrew-taps RAVEL=~/Development/AgenticOrchestration/Ravel
   promotion:rehearsal:
     desc: Rehearse fresh installs and upgrades through the coordinated tap states with a private Homebrew, a scratch tap and a scratch HOME (needs Homebrew, the network and the release toolchain; not in check)
     requires:
       vars: [WORK]
     cmds:
-      - bash scripts/promotion-rehearsal.sh "{{.WORK}}" {{if .TAP}}"{{.TAP}}"{{end}}
+      - bash scripts/promotion-rehearsal.sh "{{.WORK}}" "{{.TAP}}" "{{.RAVEL}}"
 
   # The shared default directory seam alone. Pass its arguments after --, as
   # `scripts/shared-directory-seam.sh --help` states. scripts/check.sh does not

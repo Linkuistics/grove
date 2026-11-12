@@ -139,6 +139,18 @@ skill-loading-replan-k80 cut four implementation leaves here:
    step and resumed under the recovery table.
    `ravel-evidence-step-invocation-k332`, before k321, corrects that
    Taskfile line on Ravel `main`.
+9. promotion-upgrade-rehearsal-k318 closed with
+   promotion-controls-decision-k336 on 2026-11-12. The decision is to
+   proceed to promotion in finish. The packaging needs no change.
+   `docs/promotion-upgrade-rehearsal-record.md`, section "Decision", gives
+   the evidence and two conditions:
+   - `promotion-upgrade-remedy-docs-k338` publishes the remedy "upgrade Grove
+     first" before promotion.
+   - Finish writes the readiness receipt only after the installed
+     verification of the released Grove. Ravel compares the receipt with the
+     tap's `grove.rb` version only.
+
+   `task promotion:rehearsal` reruns the scenarios and the six controls.
 
 Grove's final main integration and minor release remain owned by its
 driver-created finish session under CLAUDE.md. Do not create a competing manual

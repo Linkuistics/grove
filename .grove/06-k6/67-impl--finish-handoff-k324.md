@@ -66,3 +66,11 @@ the concrete whole sequence and obtains its one confirmation.
 
 This document governs irreversible steps. If an adversarial read is earned,
 cut `review-impl` before you retire. Its integration then runs before finish.
+
+promotion-controls-decision-k336 decided that finish promotes. Ravel's
+`release-promote.sh` checks only that the tap's consumer formula carries the
+receipt's `consumer.version`. A receipt that names an incompatible Grove
+therefore passes. The document must state that finish writes the receipt
+only after the installed verification of the released Grove's three routes.
+`docs/promotion-upgrade-rehearsal-record.md`, section "Decision", gives the
+evidence and the second condition, promotion-upgrade-remedy-docs-k338.

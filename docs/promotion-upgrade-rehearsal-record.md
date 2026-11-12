@@ -602,3 +602,152 @@ pair. The released 22.8.0 binary cannot change.
   promotion-upgrade-remedy-docs-k338 also owns that correction.
 - promotion-controls-decision-k336 runs the six promotion controls and
   makes the decision.
+
+## Promotion controls
+
+promotion-controls-decision-k336 ran the instrument on 2026-11-12. The
+owner's Homebrew was `7.0.13-83-ga6fea6b`, commit `a6fea6bd59bb`. Ravel's
+`main` was `ed6cedbf9a14`, the tag commit of v2.0.0, also on GitHub. The
+measured run used `scripts/promotion-rehearsal.sh` with SHA-256
+`de41b99e33d3…` and `Taskfile.yml` with SHA-256 `4a7cfd4abaad…`. The digests
+of both files were the same before and after the run. The run passed.
+
+After the run, one message of the script changed. The summary line of
+`untouched` said that no Homebrew command followed a refusal, but the
+function checks only the stub `brew`. The line now names the stub. No check
+changed.
+
+The same run repeated states A to D with the results of the sections above.
+State C was tap commit `737072ec05b1`, and state D was `b6ab41c154b0`. The
+promotion evidence named both retained kegs, and each real upgrade left them
+unchanged, `INSTALL_RECEIPT.json` included. A new check of `promote` found
+that `ravel.rb` and `ravel@2.rb` at D name the same three URLs and SHA-256
+digests. The candidate archives of this run are:
+
+| Archive | SHA-256 |
+| --- | --- |
+| `grove-v22.9.0-aarch64-apple-darwin.tar.xz` | `d1f6ccef5815…` |
+| `grove-v22.9.0-aarch64-unknown-linux-gnu.tar.xz` | `ab9c4ee794a6…` |
+| `grove-v22.9.0-x86_64-unknown-linux-gnu.tar.xz` | `d46e0cf78e47…` |
+
+### Method
+
+The six controls of
+[Acceptance and limits](specs/coordinated-release.md#acceptance-and-limits)
+run after upgrade-a-d and before the digest of the protected subjects, so
+that digest also covers them. Each control runs the Ravel entry point that
+owns its guard, in the run's Ravel clone `WORK/ravel`. Each uses a fresh
+colocated jj clone of the scratch origin as `RAVEL_TAP_DIR`.
+
+A refusal counts only when four facts hold afterwards:
+
+- The scratch origin's `main` and the tap clone's `main` are at the commit
+  of the control.
+- The Ravel clone's `main` is the tag commit, and the clone has no later
+  version tag.
+- The promotion evidence of upgrade-c-d is unchanged.
+- A stub `brew` first on `PATH` received no command. The stub records each
+  call and exits 97.
+
+The tap-formula control of group 3 needs Homebrew's formula test, so it uses
+the private Homebrew of upgrade-a-d instead of the stub. Homebrew's commit
+stayed the same.
+
+A refusal can also come from a broken environment. Each channel refusal
+therefore has a pair: the same command in the state where the channel is
+correct. Each pair passed the channel rules and stopped only at the next
+check, because `main` has no change since v2.0.0.
+
+### Results
+
+All the controls failed as required:
+
+| Control | Command, in `WORK/ravel` | State | Result |
+| --- | --- | --- | --- |
+| 1. Wrong channel | `task --dry release:patch` | any | Exit 206: `missing required variables: CHANNEL`. |
+| | `task --dry release:patch CHANNEL=stable` | any | Exit 207: `CHANNEL has an invalid value : 'stable'`. |
+| | `release-prepare.sh --channel '' --level patch` | any | Exit 1: `the release channel is required`. |
+| | `release-prepare.sh --channel unversioned --level patch` | C | Exit 1: `tap Formula/ravel.rb is not at v2.0.0, which is unfinished; resume formula publication before another bump`. |
+| 2. `versioned-2` after promotion | `release-prepare.sh --channel versioned-2 --level patch` | D | Exit 1: `unversioned ravel already has major 2 (2.0.0), so promotion is complete and ravel@2 receives no later release; select CHANNEL=unversioned`. |
+| 3. Mismatched archives | `task release:promote` with a receipt whose digests are not the cut's | C | Exit 201: `ravel.assets are not the cut asset digests`, before any network read. |
+| | `task release:promote` with evidence and receipt whose macOS digest is zeros | C | Exit 201: `the public ravel-v2.0.0-aarch64-apple-darwin.tar.xz has SHA-256 5957840ab33f…, but the cut recorded 0000…`. |
+| | `task release:promote` with a tap whose `ravel@2.rb` names another macOS digest | C plus one commit | Exit 201 after the formula test: `the tap's Formula/ravel@2.rb is neither the published formula of these assets nor its promotion; it is left unchanged`. |
+| 4. Silent schema-3 reuse | `ravel start-session` at D with the working `config.rhai` at `SCHEMA_VERSION = 3` | D | Exit 3: `refused (unsupported_version, stage validation): SCHEMA_VERSION is 3, and this release reads 4`. |
+| | The same, with `{"skills": {"schemaVersion": 1, "sources": []}}` | D | The same refusal and exit 3. |
+| | A Grove launch with that HOME | D | Grove shows the refusal and the remedy, reports `status exit status: 3`, exits 0 and keeps the leaf. The agent does not run. |
+| 5. Removed retained resource | `release-install.sh --channel unversioned --version 2.0.0` in fresh-c, with a `brew` wrapper that removes the 1.1.0 keg's `libexec/ravel/ravel-policy` after the real `brew upgrade` | C, then D | Exit 1 after the upgrade: `the earlier keg …/Cellar/ravel/1.1.0 changed: < ./libexec/ravel/ravel-policy file x 565be30b55d5…`. The instrument's keg check fails on the same line. |
+| 6. Promotion before compatible Grove | `task release:promote` with no receipt | C | Exit 201: `no consumer readiness receipt`, before any network read. |
+| | `task release:promote` with the candidate receipt | B | Exit 201 after the public checks: `the tap's Formula/grove.rb is at 22.8.0, not the receipt's 22.9.0`. |
+
+The pairs and the other references gave these readings:
+
+- At C, `--channel versioned-2` printed `planned v2.0.1 publishes
+  Formula/ravel@2.rb (CHANNEL=versioned-2)`. At D, `--channel unversioned`
+  printed `planned v2.0.1 publishes Formula/ravel.rb (CHANNEL=unversioned)`.
+  Each then stopped with `No changes since v2.0.0`.
+- `task --dry release:patch CHANNEL=versioned-2` listed its 20 commands.
+- The schema-3 script differs from the script that delivered in upgrade-c-d
+  only in its schema number.
+- The candidate receipt of group 6 is the receipt that promoted state C in
+  upgrade-c-d.
+- The instrument's archive check failed on a copy of `ravel.rb` at D with
+  one other digest.
+
+### What the controls show
+
+- The removed worker of group 5 broke the 1.1.0 keg in a way that the
+  instrument's front check cannot see. The 1.1.0 front still reported
+  `ravel 1.1.0` and refused `end-session`. A launch through it refused with
+  `worker_missing`, stage worker, and exit 5. Native setup through the same
+  keg had worked earlier in fresh-c. Ravel's install check and the
+  instrument's keg manifest are the checks that see a removed resource.
+- The wrong channel at C refuses through the baseline check, not through the
+  channel rule. Its remedy, "resume formula publication", names the wrong
+  next step. The refusal still fails closed, and Ravel's fixture
+  `release-channel.test.sh` expects that text. The same fixture shows that
+  `release-publish.sh --channel unversioned` refuses 2.0.0 before promotion
+  with the channel message `until release:promote`. `channel_admits` applies
+  that rule to every major-2 version while `ravel.rb` has major 1.
+  Promotion in finish ends this state, so no leaf owns the defect.
+- Ravel's guard against promotion before compatible Grove compares the
+  receipt with the tap. It refuses a missing receipt and a receipt ahead of
+  the tap's `grove.rb`. A receipt that names Grove 22.8.0 at state B would
+  pass, because `release-promote.sh` checks only that the tap's consumer
+  formula carries the receipt's `consumer.version`. This run did not
+  execute that case. Compatibility is therefore the receipt writer's
+  assertion. The receipt must follow the installed verification of the
+  released Grove's three routes. If it did not, "Grove 22.8.0 beside Ravel
+  2.0.0" above shows that the pair fails closed with the wrong remedy.
+
+## Decision
+
+<!-- tc: depart synonym-rotation because "repair" is the spec's term for a packaging change in state C, and "correction" names only the documentation changes of k337 and k338 -->
+Proceed to promotion in finish. The grove does not stay in state C, and no
+packaging repair is cut. The evidence is:
+
+- Every rehearsed route to D ends with a usable pair: the promotion from C,
+  a fresh install at D, and the upgrade from A after `brew upgrade`. Each
+  upgrade to D shows the documented refusal and remedy for a lone
+  `policy.ts`, and then a working launch after the conversion. This run
+  repeated those results.
+- No real upgrade changed a file of a retained keg, `INSTALL_RECEIPT.json`
+  included. After each package mutation, the 1.1.0 fronts reported 1.1.0
+  and refused `end-session` outside a session.
+- Each of the six controls fails through the real Ravel entry point, and
+  changes neither the tap nor a release.
+- The formulae, the archives and the promotion operation behaved as
+  designed. Each defect found is in documentation:
+  - homebrew-tap-trust-docs-k337 owns the tap trust that every new user
+    needs.
+  - promotion-upgrade-remedy-docs-k338 owns three corrections: the Ravel-only
+    upgrade that leaves Grove 22.8.0, the remedy "upgrade Grove first", and
+    the place of `"sources": []`.
+
+The decision has two conditions:
+
+- The coordinated-release spec requires a published remedy before
+  promotion. promotion-upgrade-remedy-docs-k338 must therefore land before
+  finish, and Grove's release in finish publishes its caveats.
+- finish-handoff-k324 must state that finish writes the readiness receipt
+  only after the installed verification of the released Grove. The receipt
+  then names that Grove version and the routes that it verified.

@@ -85,6 +85,15 @@
 # install at D copies Grove's config.rhai sample, as the caveats direct, and
 # launches it with a fake claude first on PATH.
 #
+# After the scenarios, the six promotion controls of the coordinated-release
+# specification's "Acceptance and limits" run against the same scratch origin,
+# Ravel clone and prefixes. Each runs the Ravel entry point that owns its
+# guard and must refuse: a wrong channel, a versioned-2 cut after promotion,
+# mismatched archives, silent schema-3 reuse, a removed retained resource, and
+# promotion before compatible Grove. A refusal must leave the scratch origin,
+# the tap clone and the Ravel clone's main unchanged. A stub brew shows that
+# the early refusals run no Homebrew command.
+#
 # Scenarios: fresh-a, fresh-b, upgrade-a-b, fresh-c, upgrade-a-c, upgrade-b-c,
 # upgrade-c-d (the promotion), fresh-d, upgrade-a-d.
 set -euo pipefail
@@ -342,10 +351,20 @@ same_keg() { # STEP BEFORE AFTER KEG
   fi
 }
 
+# State D publishes one release twice: the two formulae must name the same
+# three archives, each by its URL and its SHA-256.
+same_archives() { # FORMULA FORMULA
+  local a b
+  a="$(grep -E '^ +(url|sha256) "' "$1" | sed 's/^ *//')"
+  b="$(grep -E '^ +(url|sha256) "' "$2" | sed 's/^ *//')"
+  [[ "$(grep -c . <<<"$a")" == 6 && "$a" == "$b" ]]
+}
+
 # One Grove launch in a fresh fixture tree, with only PATH_PREFIX, /usr/bin
 # and /bin on PATH.
-launch() { # SCENARIO NAME PATH_PREFIX HOME [refused]
-  local t="$W/$1/launch-$2" status=0
+launch() { # SCENARIO NAME PATH_PREFIX HOME [refused [CODE REMEDY]]
+  local t="$W/$1/launch-$2" status=0 code="${6:-config_format_retired}"
+  local remedy="${7:-remedy: write config.rhai using chapter 4 of the book}"
   mkdir -p "$t/.jj/repo" "$t/.grove"
   printf '# fixture\n' >"$t/.grove/_BRIEF.md"
   printf '# work\n' >"$t/.grove/01-impl--work-k1.md"
@@ -356,8 +375,8 @@ launch() { # SCENARIO NAME PATH_PREFIX HOME [refused]
   note "[exit $status]"
   if [[ "${5:-}" == refused ]]; then
     # Grove reports Ravel's refusal and its status, keeps the leaf and exits 0.
-    if [[ "$status" != 0 ]] || ! grep -q 'refused (config_format_retired' "$t/grove.out" ||
-      ! grep -qF 'remedy: write config.rhai using chapter 4 of the book' "$t/grove.out" ||
+    if [[ "$status" != 0 ]] || ! grep -qF "refused ($code" "$t/grove.out" ||
+      ! grep -qF -- "$remedy" "$t/grove.out" ||
       ! grep -qF 'status exit status: 3' "$t/grove.out"; then
       fail "$1: the $2 launch did not show the refusal"
     fi
@@ -632,18 +651,23 @@ SH
   resolves "$1" sample "$P/opt/ravel/bin/ravel" "$home"
 }
 
+# The readiness receipt of Ravel's docs/specs/release-channels.md, "Consumer
+# readiness receipt", from the cut's evidence, for the consumer Grove VERSION.
+write_receipt() { # EVIDENCE VERSION
+  jq --arg version "$2" --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg ravel "$RAVEL_VERSION" \
+    '{schemaVersion: 1, kind: "ravel-promotion-readiness",
+      ravel: {version: $ravel, tagCommit, assets},
+      consumer: {name: "grove", version: $version, formula: "grove.rb", verifiedAt: $at,
+        verifiedRoutes: ["native-1.1", "native-2.0-delivery-disabled", "directory-2.0"]}}' "$1"
+}
+
 # State D: Ravel's own promotion task against the scratch tap, with the
 # private Homebrew of SCENARIO first on PATH. The scenario's prefix is at C.
 promote() { # SCENARIO
   local s="$W/$1" r="$W/ravel" tap="$W/tap-promote" ev="$W/promotion" status=0 head_before head_after
   mkdir -p "$ev" "$W/tmp-promote"
   cp "$RAVEL_EVIDENCE" "$ev/v$RAVEL_VERSION.json"
-  jq --arg version "$LABEL" --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg ravel "$RAVEL_VERSION" \
-    '{schemaVersion: 1, kind: "ravel-promotion-readiness",
-      ravel: {version: $ravel, tagCommit, assets},
-      consumer: {name: "grove", version: $version, formula: "grove.rb", verifiedAt: $at,
-        verifiedRoutes: ["native-1.1", "native-2.0-delivery-disabled", "directory-2.0"]}}' \
-    "$ev/v$RAVEL_VERSION.json" >"$ev/v$RAVEL_VERSION.readiness.json"
+  write_receipt "$ev/v$RAVEL_VERSION.json" "$LABEL" >"$ev/v$RAVEL_VERSION.readiness.json"
   note "readiness receipt: $(jq -c .consumer "$ev/v$RAVEL_VERSION.readiness.json")"
 
   # Ravel at main, in a colocated clone whose origin is the public repository
@@ -686,6 +710,11 @@ promote() { # SCENARIO
     cat "$W/snapshots/ravel@2.diff"
     fail 'the promotion changed ravel@2.rb beyond one deprecate! line'
   fi
+  git -C "$W/origin.git" show "$STATE_D:Formula/ravel.rb" >"$W/snapshots/ravel-d.rb"
+  git -C "$W/origin.git" show "$STATE_D:Formula/ravel@2.rb" >"$W/snapshots/ravel@2-d.rb"
+  same_archives "$W/snapshots/ravel-d.rb" "$W/snapshots/ravel@2-d.rb" ||
+    fail 'ravel.rb and ravel@2.rb at state D do not name the same three archives'
+  note "state D: ravel.rb and ravel@2.rb name the same three archives and digests"
   note "state D: $STATE_D on state C ($(git -C "$W/origin.git" log -1 --format=%s "$STATE_D"))"
   note "ravel@2.rb gained: $(grep '^+  deprecate!' "$W/snapshots/ravel@2.diff" | cut -c2-)"
   note "ravel.rb at D: $(git -C "$W/origin.git" show "$STATE_D:Formula/ravel.rb" | grep -E '^  (version|keg_only)' | tr -s ' ' | tr '\n' ' ')"
@@ -909,6 +938,192 @@ pair_ok upgrade-a-d:d "$LABEL" "$RAVEL_VERSION"
 retained upgrade-a-d-d
 same_keg upgrade-a-d upgrade-a-d-a upgrade-a-d-d 'ravel 1.1.0'
 retired_then_converted upgrade-a-d
+
+# The six controls of docs/specs/coordinated-release.md, "Acceptance and
+# limits". Each runs the real Ravel entry point that owns the guard, against
+# this run's scratch origin, Ravel clone and prefixes, and must refuse. A
+# refusal must leave the scratch origin, the control's tap clone, the clone's
+# main and its promotion evidence unchanged, and cut no version. A stub brew
+# records any Homebrew command, and the early refusals must run none.
+show "promotion controls"
+C="$W/controls"
+STUB="$C/stub"
+mkdir -p "$STUB" "$C/probe"
+printf '#!/bin/sh\necho "brew $*" >>%q\nexit 97\n' "$C/brew-calls.log" >"$STUB/brew"
+chmod +x "$STUB/brew"
+RAVEL_MAIN="$(git -C "$W/ravel" rev-parse refs/heads/main)"
+PROMOTION_EVIDENCE="$(sha "$W/ravel/target/release-evidence/v$RAVEL_VERSION.promotion.json")"
+EV="$W/promotion/v$RAVEL_VERSION.json"
+RECEIPT="$W/promotion/v$RAVEL_VERSION.readiness.json"
+
+use_brew() { # SCENARIO
+  P="$W/$1/brew"
+  H="$W/$1/home"
+}
+# A command in the Ravel clone, with BREW_DIR first on PATH and RAVEL_TAP_DIR=TAP.
+in_ravel() { # BREW_DIR TAP COMMAND...
+  local brew_dir="$1" tap="$2"
+  shift 2
+  (cd "$W/ravel" && env -i PATH="$brew_dir:$PATH" HOME="$HOME" USER="$USER" LOGNAME="$USER" TERM=dumb \
+    TMPDIR="$W/tmp-promote" MISE_TRUSTED_CONFIG_PATHS="$W/ravel" RAVEL_TAP_DIR="$tap" "$@")
+}
+# COMMAND must exit non-zero and print TEXT. REFUSED_STATUS keeps its status.
+REFUSED_STATUS=0
+refuses() { # NAME TEXT COMMAND...
+  local name="$1" text="$2"
+  shift 2
+  REFUSED_STATUS=0
+  note "\$ $(printf '%s ' "$@")"
+  "$@" >"$C/$name.out" 2>&1 || REFUSED_STATUS=$?
+  sed 's/^/  /' "$C/$name.out"
+  note "[exit $REFUSED_STATUS]"
+  [[ "$REFUSED_STATUS" != 0 ]] || fail "control $name: the command did not refuse"
+  grep -qF -- "$text" "$C/$name.out" || fail "control $name: the refusal does not say: $text"
+}
+# The scratch origin at COMMIT, and a fresh colocated jj clone of it as a tap.
+tap_clone() { # NAME COMMIT
+  set_origin "$2"
+  jj git clone --colocate --quiet "file://$W/origin.git" "$C/$1" 2>&1
+}
+untouched() { # NAME TAP COMMIT
+  [[ "$(git -C "$W/origin.git" rev-parse refs/heads/main)" == "$3" ]] || fail "control $1: the scratch origin moved"
+  [[ "$(jj -R "$C/$2" log --no-graph -r main -T commit_id)" == "$3" ]] || fail "control $1: the tap clone's main moved"
+  [[ "$(git -C "$W/ravel" rev-parse refs/heads/main)" == "$RAVEL_MAIN" ]] || fail "control $1: the Ravel clone's main moved"
+  [[ -z "$(git -C "$W/ravel" tag -l 'v2.0.[1-9]*' 'v2.[1-9]*' 'v[3-9]*')" ]] || fail "control $1: a version was cut"
+  [[ "$(sha "$W/ravel/target/release-evidence/v$RAVEL_VERSION.promotion.json")" == "$PROMOTION_EVIDENCE" ]] ||
+    fail "control $1: the promotion evidence changed"
+  [[ ! -s "$C/brew-calls.log" ]] || fail "control $1: Homebrew ran: $(cat "$C/brew-calls.log")"
+  note "control $1: refused; the scratch origin and the tap stay at $3, no version or evidence followed, and the stub brew saw no command"
+}
+
+note '1. Wrong channel: no channel, an unknown channel, and unversioned for a 2.x cut before promotion.'
+refuses omitted-channel 'missing required variables: CHANNEL' in_ravel "$STUB" /nonexistent task --dry release:patch
+refuses unknown-channel 'CHANNEL has an invalid value' in_ravel "$STUB" /nonexistent task --dry release:patch CHANNEL=stable
+refuses empty-channel 'the release channel is required' in_ravel "$STUB" /nonexistent bash scripts/release-prepare.sh --channel '' --level patch
+in_ravel "$STUB" /nonexistent task --dry release:patch CHANNEL=versioned-2 >"$C/valid-channel.out" 2>&1 ||
+  fail 'the dry release with CHANNEL=versioned-2 failed, so the channel refusals prove nothing'
+note "the same dry release with CHANNEL=versioned-2 lists $(grep -c '^task: \[' "$C/valid-channel.out") commands"
+tap_clone tap-wrong "$STATE_C"
+refuses unversioned-at-c 'tap Formula/ravel.rb is not at v2.0.0' \
+  in_ravel "$STUB" "$C/tap-wrong" bash scripts/release-prepare.sh --channel unversioned --level patch
+untouched unversioned-at-c tap-wrong "$STATE_C"
+refuses versioned-2-at-c 'planned v2.0.1 publishes Formula/ravel@2.rb (CHANNEL=versioned-2)' \
+  in_ravel "$STUB" "$C/tap-wrong" bash scripts/release-prepare.sh --channel versioned-2 --level patch
+grep -qF 'No changes since v2.0.0' "$C/versioned-2-at-c.out" || fail 'control versioned-2-at-c: the pair stopped before its change check'
+note 'at state C, versioned-2 passes the channel rules and stops only because main has no change since v2.0.0'
+
+note '2. A versioned-2 cut after promotion.'
+tap_clone tap-after "$STATE_D"
+refuses versioned-2-at-d 'so promotion is complete and ravel@2 receives no later release; select CHANNEL=unversioned' \
+  in_ravel "$STUB" "$C/tap-after" bash scripts/release-prepare.sh --channel versioned-2 --level patch
+untouched versioned-2-at-d tap-after "$STATE_D"
+refuses unversioned-at-d 'planned v2.0.1 publishes Formula/ravel.rb (CHANNEL=unversioned)' \
+  in_ravel "$STUB" "$C/tap-after" bash scripts/release-prepare.sh --channel unversioned --level patch
+grep -qF 'No changes since v2.0.0' "$C/unversioned-at-d.out" || fail 'control unversioned-at-d: the pair stopped before its change check'
+note 'at state D, unversioned passes the channel rules and stops only because main has no change since v2.0.0'
+
+note '3. Mismatched archives: in the receipt, in the cut evidence against the public assets, and in the tap.'
+jq '.assets[0].sha256 = ("0" * 64)' "$EV" >"$C/evidence-mismatched.json"
+write_receipt "$C/evidence-mismatched.json" "$LABEL" >"$C/receipt-mismatched.json"
+tap_clone tap-archives "$STATE_C"
+refuses receipt-digests 'ravel.assets are not the cut asset digests' in_ravel "$STUB" "$C/tap-archives" \
+  task release:promote VERSION="$RAVEL_VERSION" READINESS="$C/receipt-mismatched.json" EVIDENCE="$EV"
+untouched receipt-digests tap-archives "$STATE_C"
+refuses evidence-digests 'but the cut recorded 0000000000000000' in_ravel "$STUB" "$C/tap-archives" \
+  task release:promote VERSION="$RAVEL_VERSION" READINESS="$C/receipt-mismatched.json" EVIDENCE="$C/evidence-mismatched.json"
+untouched evidence-digests tap-archives "$STATE_C"
+# A tap whose ravel@2.rb names another macOS digest: one commit on state C.
+git_s clone -q "$W/origin.git" "$C/tap-edit"
+sed -i '' "s/$(jq -r '.assets[] | select(.name | endswith("aarch64-apple-darwin.tar.xz")) | .sha256' "$EV")/$(printf '1%.0s' {1..64})/" \
+  "$C/tap-edit/Formula/ravel@2.rb"
+[[ "$(git_s -C "$C/tap-edit" diff --numstat | tr '\t' ' ')" == '1 1 Formula/ravel@2.rb' ]] || fail 'the tap control did not change one digest line'
+git_s -C "$C/tap-edit" commit -qam 'control: ravel@2.rb names another archive'
+git_s -C "$C/tap-edit" push -q origin HEAD:main
+STATE_C_MISMATCHED="$(git -C "$W/origin.git" rev-parse refs/heads/main)"
+tap_clone tap-mismatched "$STATE_C_MISMATCHED"
+head_before="$(git -C "$W/upgrade-a-d/brew" rev-parse HEAD)"
+refuses tap-archives 'is neither the published formula of these assets nor its promotion; it is left unchanged' \
+  in_ravel "$W/upgrade-a-d/wrap" "$C/tap-mismatched" \
+  task release:promote VERSION="$RAVEL_VERSION" READINESS="$RECEIPT" EVIDENCE="$EV"
+[[ "$(git -C "$W/upgrade-a-d/brew" rev-parse HEAD)" == "$head_before" ]] || fail 'control tap-archives: the private Homebrew moved'
+untouched tap-archives tap-mismatched "$STATE_C_MISMATCHED"
+sed "s/$(jq -r '.assets[1].sha256' "$EV")/$(printf '2%.0s' {1..64})/" "$W/snapshots/ravel-d.rb" >"$C/ravel-mismatched.rb"
+if same_archives "$C/ravel-mismatched.rb" "$W/snapshots/ravel@2-d.rb"; then
+  fail "the instrument's archive check accepted a ravel.rb with another digest"
+fi
+note "the instrument's archive check fails on a ravel.rb at D with one other digest"
+
+note '4. Silent schema-3 reuse: the working config.rhai with SCHEMA_VERSION = 3, at D.'
+use_brew upgrade-c-d
+mkdir -p "$C/setup-tmp"
+write_agent controls
+write_config_rhai controls "$C/schema3-home" "$P/opt/ravel/bin/ravel"
+sed -i '' 's/^export const SCHEMA_VERSION = 4;$/export const SCHEMA_VERSION = 3;/' "$C/schema3-home/.config/ravel/config.rhai"
+grep -qx 'export const SCHEMA_VERSION = 3;' "$C/schema3-home/.config/ravel/config.rhai" || fail 'the schema-3 control has no schema 3'
+schema3() (
+  cd "$C/probe" && env -i PATH="$P/bin:/usr/bin:/bin" HOME="$C/schema3-home" TMPDIR="$C/setup-tmp" \
+    ravel start-session --kind impl --prompt probe
+)
+refuses schema-3 'refused (unsupported_version, stage validation): SCHEMA_VERSION is 3, and this release reads 4' schema3
+[[ "$REFUSED_STATUS" == 3 ]] || fail "control schema-3: exit $REFUSED_STATUS, not 3"
+printf '{"skills": {"schemaVersion": 1, "sources": []}}\n' >"$C/schema3-home/.config/ravel/settings.json"
+refuses schema-3-delivery-off 'refused (unsupported_version, stage validation): SCHEMA_VERSION is 3, and this release reads 4' schema3
+[[ "$REFUSED_STATUS" == 3 ]] || fail "control schema-3-delivery-off: exit $REFUSED_STATUS, not 3"
+# shellcheck disable=SC2016 # the backticks are Ravel's literal remedy text
+launch controls schema3 "$P/bin" "$C/schema3-home" refused unsupported_version 'remedy: set `export const SCHEMA_VERSION = 4;`'
+[[ ! -e "$C/launch-schema3/ravel.txt" ]] || fail 'control schema-3: the refused launch ran the agent'
+note 'control schema-3: Ravel 2.0.0 refuses the schema-3 script with exit 3, also with delivery off; Grove shows the refusal and keeps the leaf. The same script at schema 4 delivered in upgrade-c-d.'
+
+note '5. A removed retained resource: the 1.1.0 keg loses its policy worker during the promotion install.'
+use_brew fresh-c
+set_origin "$STATE_D"
+KEG="$P/Cellar/ravel/1.1.0"
+retained controls-before
+mkdir -p "$W/fresh-c/wrap-remove"
+cat >"$W/fresh-c/wrap-remove/brew" <<SH
+#!/bin/sh
+status=0
+$(printf '%q' "$W/fresh-c/wrap/brew") "\$@" || status=\$?
+if [ "\$1" = upgrade ]; then
+  rm -f $(printf '%q' "$KEG/libexec/ravel/ravel-policy")
+  echo 'control: removed libexec/ravel/ravel-policy from the 1.1.0 keg after brew upgrade' >&2
+fi
+exit \$status
+SH
+chmod +x "$W/fresh-c/wrap-remove/brew"
+head_before="$(git -C "$P" rev-parse HEAD)"
+run developer on
+refuses removed-resource "the earlier keg $KEG changed" \
+  in_ravel "$W/fresh-c/wrap-remove" /nonexistent bash scripts/release-install.sh --channel unversioned --version "$RAVEL_VERSION"
+grep -qF 'libexec/ravel/ravel-policy' "$C/removed-resource.out" || fail 'control removed-resource: the refusal does not name the worker'
+run developer off
+[[ "$(git -C "$P" rev-parse HEAD)" == "$head_before" ]] || fail 'control removed-resource: the private Homebrew moved'
+[[ ! -e "$KEG/libexec/ravel/ravel-policy" && "$(readlink "$P/bin/ravel")" == "../Cellar/ravel/$RAVEL_VERSION/bin/ravel" ]] ||
+  fail 'control removed-resource: the upgrade or the removal did not happen'
+retained controls-after
+if (same_keg removed-resource controls-before controls-after 'ravel 1.1.0') >"$C/same-keg.out" 2>&1; then
+  fail "the instrument's keg check missed the removed worker"
+fi
+note "the instrument's keg check fails: $(grep -F 'ravel-policy' "$C/same-keg.out" | head -1)"
+front_ok control-removed-resource "$KEG/bin/ravel"
+note "the instrument's front check still passes, so it alone cannot see a removed resource"
+legacy() (
+  cd "$C/probe" && env -i PATH=/usr/bin:/bin HOME="$W/fresh-c/setup-home" TMPDIR="$C/setup-tmp" \
+    "$KEG/bin/ravel" start-session --kind impl --prompt probe
+)
+refuses legacy-launch 'refused (worker_missing, stage worker)' legacy
+note "control removed-resource: release-install.sh refused; a 1.1.0 launch now fails with exit $REFUSED_STATUS, where native setup in fresh-c worked"
+
+note '6. Promotion before compatible Grove: no receipt, and the tap at state B under the candidate receipt.'
+tap_clone tap-early "$STATE_C"
+refuses no-receipt 'no consumer readiness receipt' in_ravel "$STUB" "$C/tap-early" \
+  task release:promote VERSION="$RAVEL_VERSION" READINESS="$C/no-receipt.json" EVIDENCE="$EV"
+untouched no-receipt tap-early "$STATE_C"
+tap_clone tap-b "$STATE_B"
+refuses grove-not-published "the tap's Formula/grove.rb is at 22.8.0, not the receipt's $LABEL" in_ravel "$STUB" "$C/tap-b" \
+  task release:promote VERSION="$RAVEL_VERSION" READINESS="$RECEIPT" EVIDENCE="$EV"
+untouched grove-not-published tap-b "$STATE_B"
+note 'the same receipt promoted state C in upgrade-c-d'
 
 show "protected subjects"
 snapshot after

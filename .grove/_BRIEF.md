@@ -96,6 +96,40 @@ activation is incomplete, the finish is incomplete, so never signal success.
 Preserve the original full 1.1.0 keg and the original ending command through
 the final signal.
 
+## The finish extension
+
+`docs/finish-handoff.md` is the handoff to the driver-created finish
+session. It names each step, its command, its pass condition and its
+recovery. The coordinated release design and the owner skill delivery design
+assign these steps to finish, in this order:
+
+1. Commit the remaining work, then run `grove-llm finish-commit` with the
+   finish handle.
+2. Integrate current `main`, and run `bash scripts/check.sh` in the 1.1 and
+   2.0 lanes.
+3. Run `HOMEBREW_NO_INSTALL_CLEANUP=1 task release:minor`. The variable
+   keeps the running driver's Grove 22.8.0 keg.
+4. Verify the installed Grove on both admitted Ravel majors.
+5. Write the readiness receipt only after that verification.
+6. Run `task release:promote VERSION=2.0.0` in Ravel's default workspace.
+7. Run `native-off` immediately after promotion.
+8. Verify Grove's revised formula. Resolve all ten default IDs after
+   promotion and any link-conflict recovery.
+9. Ask the owner to establish the quiet interval of the owner's checklist.
+10. Run the freeze check, `claude --version` and `claude doctor`.
+11. Dry-run the real plan against the real prefix.
+12. Run the comparison, the plan report and the attempt note.
+13. Run the switch. It backs up, installs the hooks, switches, runs the
+    probes and writes the receipt.
+14. Append one dated correction to the maintained manual.
+15. Fill "Promotion and switch receipts" of `docs/paused-grove-handoffs.md`.
+16. Run `grove-llm record-teardown`, then the exact original ending command.
+
+Finish keeps its one confirmation, its teardown helper and the exact original
+ending command. Its proposal names the whole sequence. If a step fails after
+the teardown and its recovery row cannot complete it, finish ends with its
+force-stop command. It never signals success then.
+
 ## Ownership boundaries
 
 ### Ravel

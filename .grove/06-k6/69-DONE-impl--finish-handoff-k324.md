@@ -103,3 +103,49 @@ paused-grove-handoffs-k320 wrote `docs/paused-grove-handoffs.md`. Its section
 receipts for the paused workstreams. Each row states "Not yet recorded" until
 finish writes it. The handoff names that section and tells finish to fill
 each row. The paused workstreams resume only after finish ends.
+
+## Decisions (running log)
+
+- The handoff is `docs/finish-handoff.md`. It orders the steps and links
+  each rule to its owning section. It restates no rule as a second owner.
+- The receipt's three routes map to checks that exist. The integrated
+  check runs in both lanes, 1.1 and the published `ravel@2`. The release
+  task's installed checks run `brew test grove` and the installed smoke in
+  both lanes. No installed check runs the native 2.0 route with delivery
+  disabled. The 2.0 lane of the integrated check covers that route on the
+  tagged source, and `native-off` with the promoted Ravel covers its
+  resolution later. The document states that limit.
+- The resolution of all ten default IDs uses the promoted Ravel in a new
+  empty HOME under `env -i`. The settings of the real HOME hold the off
+  value after `native-off`, so a resolution there reports `disabled`. This
+  session ran the same command with `ravel@2` and saw the four installed
+  sources resolve.
+- Finish's own dry run uses the command of the evidence section "The
+  command", with the real prefix. It has no `--path` to a stand-in. Its
+  `--prefix` values name the canonical released Grove keg and promoted
+  Ravel keg.
+- After the switch receipt, finish fills "Promotion and switch receipts" of
+  `docs/paused-grove-handoffs.md` and commits it to `main` through jj. That
+  change touches no packaged file, so no release follows it.
+- Finish runs `HOMEBREW_NO_INSTALL_CLEANUP=1 task release:minor`. The
+  task's `brew upgrade grove` sets no suppression. Homebrew's
+  `install_formula_clean!` would then remove the Grove 22.8.0 keg, and the
+  running driver executes `/opt/homebrew/Cellar/grove/22.8.0/bin/grove`.
+  `cleanup.rb` at the owner's Homebrew returns early from both the install
+  cleanup and `periodic_clean!` when the variable is set. "Activation and
+  running readers" of the coordinated release design requires suppression
+  for every mutation, Grove's task included. `HOMEBREW_NO_CLEANUP_FORMULAE`
+  names only `ravel`. Gate 4 of the switch accepts a retained earlier keg.
+- `native-off` is step 8, directly after the promotion of step 7. The
+  read-only verification of the pair follows it, because the native settings
+  section requires `native-off` immediately after promotion.
+- The enumeration covered every distinct word of the handoff and of the
+  prepared instructions. No instruction names an inverse, a merge, a pending
+  record or a resumed run. The handoff's section "Verification of this
+  document" records each class of occurrence.
+- An adversarial read is earned. The document governs the release, the
+  promotion and the owner switch, all after `finish-commit`, where no leaf
+  can carry a repair. Several of its commands ran in no earlier leaf, and
+  this leaf found one defect that the earlier records missed. This leaf cuts
+  `review-impl` with the stem `finish-handoff` and spends no in-session
+  reviewer.

@@ -8111,3 +8111,200 @@ retained candidate keg. Another source resolves from its installed keg.
 - This leaf ran no model trial on the published build. The staging model
   trials ran on the accepted build `58d479ed…`. The finish handoff requires
   a source's trials again only when its digest differs, and no digest differs.
+
+## Final inventory before finish
+
+`owner-final-inventory-k322` took the final inventory of the owner's
+installed skill set on 2026-11-13. It ran after the other Homebrew changes
+of the rollout. Its times are UTC. It read the real HOME and wrote nothing
+there.
+
+### Result
+
+- The inventory has 446 rows. It is
+  [the final inventory](owner-skill-inventory-final.tsv), SHA-256
+  `4b8e8e64c78977ccddec09b35691dba5abc3223280eed189b2b4fcfe8a3cf00c`.
+- Each row has a class and a disposition. No row says `UNCLASSIFIED`,
+  `UNASSIGNED`, `UNCOVERED` or `NEEDS-REVIEW`.
+- `task owner:inventory:compare` against
+  [the reference inventory](owner-skill-inventory-reference.tsv) of
+  2026-11-07 found 23 differences. Each has a recorded reason below. No
+  owner-pack, third-party-pack, stale-copy or dangling row changed.
+- The four installed sources give their accepted IDs, digests, payloads and
+  versions through the default directory, with the published Ravel 2.0.0.
+- One difference changes a switch-plan input. `~/.claude/settings.json`
+  changed after the dry run, and the switch stops on that original.
+  `owner-switch-plan-redraft-k340` redrafts the plan and repeats the dry run
+  before finish.
+
+### The runs
+
+Four runs of `task owner:inventory` gave byte-identical output between
+06:22:31 and 06:22:42. The SHA-256 of these subjects did not change across
+the runs:
+
+| Subject | SHA-256 |
+| --- | --- |
+| `docs/evaluations/owner-skill-delivery/inventory.py` | `93a6c14e76304ffa2cd5ca79d728a743597ce75c3c1b96462b1dd4047bde16c5`, equal to the prepared copy |
+| `docs/evaluations/owner-skill-delivery/controls.py` | `69a7329b0f098db6ebcb9fd98c6f1d9b65f08c8216d50b65cb24df8bcad6398a` |
+| `~/.claude/settings.json` | `b6bfe84e5b2b7180084db648f5b09b73187465f6081900d2396f285b9f8b6d7a` |
+| `~/.claude/plugins/installed_plugins.json` | `91d9b4f273e99ab6360803427656f0ea7fc199d6ca46d6d679f5b90228b2c1b3` |
+| `~/.claude/plugins/known_marketplaces.json` | `584f28ad01235deca315155d11ea62be70ad3f8407784f35c1c1055a2558b6ff` |
+| `~/.codex/config.toml` | `5364f5b9eb958255cdf140741c62648a0653b813f6ae786e69cd11c10b792c06` |
+| `~/.codex/hooks.json` | `4d3adbc496c148ddb27a3578332b6c4d8cc01e0a0308e07b5d29a87847a1ac99` |
+| `~/.config/ravel/config.rhai` | `21ca2e515718ef638b6a5fecea4e4b099e93c7f4c4a50b6e4b7a0434a4336a6d` |
+| `~/.config/ravel/policy.ts` | `30a0e5fca7c1446999bd19289566fc078053a503c75f03ca7056e641f836f131` |
+
+Claude Code was 2.1.322, the held version. Codex was 0.167.2.
+
+### Controls
+
+- `task owner:inventory:controls` passed 51 of 51 controls.
+- With `CONTROL_ROOT` set to a scratch root, the output held one
+  `UNCLASSIFIED` row for an unknown skill and one dangling row for a broken
+  link. So the instrument can report an anomaly in the real HOME.
+- `compare` itself reported 23 differences, so its clean result for a class
+  can fail.
+
+### Differences and their reasons
+
+| Rows | Class | Difference | Reason |
+| --- | --- | --- | --- |
+| `context7`, `playwright`, `github`, `serena` and `skill-creator` of `claude-plugins-official`, and the `skill-creator` skill | Capability-only and disabled third-party | Version `0412be76f50a` became `dceb15d50832`. Each digest stayed the same | An automatic update before the freeze. The freeze baseline of 2026-11-11 already holds `dceb15d50832`, and the freeze check found 0 breaks |
+| `guardrail@personal` and its skill `guardrail:guardrail` | Disabled third-party | Added | [The `guardrail` registration](#the-guardrail-registration) of owner-pack-checkouts-k93 |
+| The `quint-kb` entry of `~/.codex/config.toml` | Capability-only | The digest | owner-quint-kb-approval-k289 added `default_tools_approval_mode = "approve"` (mise checkpoint 117) |
+| `sites@openai-curated-remote` and its two skills | Platform-managed | 1.1.4 became 1.1.6 | A Codex remote update. No Ravel source holds these names |
+| The coverage rows of inactive cached versions of `frontend-design`, `plugin-dev`, `skill-creator` and the three `linkuistics` plugins | Not a discovery root | Fewer versions, or the row is absent | Claude Code's 14-day cleanup of orphaned versions. The freeze check names the same removals as notes |
+| The `testanyware` command | Tool-managed | The form names `2.8.0_1` | [The advance](#the-advance) of owner-pack-checkouts-k93. The digest is the same |
+
+### Dispositions
+
+The 446 rows divide in this way. A disposition that names a `ravel:` source
+is delivery by an accepted Ravel source. `native-keep`, `outside` and the
+retained snapshots stay for their named owner or reader. The remaining rows
+are the recorded exceptions of
+[Classes and dispositions](specs/owner-skill-delivery.md#classes-and-dispositions).
+
+| Class | Rows | Disposition |
+| --- | --- | --- |
+| Owner pack | 137 | 44 rows name a Ravel source: `grove-core` 6, `requirements` 3, `research` 3, `design` 7, `engineering` 15, `writing` 6, `personal` 3 and `testanyware` 1. 88 Codex snapshot links deactivate after their writer stops and name the same sources. The three `linkuistics` plugins are disabled. `linkuistics:guardrail` stays native only. The Codex snapshots stay until their readers and writer stop |
+| Third-party pack | 24 | 18 rows name `superpowers` or `quint`. Three Codex links deactivate. Two plugins are disabled. The quint-llm-kit clone stays for the `quint-kb` MCP server |
+| Stale copy | 15 | Deactivate |
+| Dangling | 48 | Deactivate. No reader can read through them |
+| Tool-managed | 53 | Unchanged. Their installers own them |
+| Capability-only | 14 | Unchanged |
+| Platform-managed | 116 | Unchanged |
+| Disabled third-party | 30 | Outside the active collection |
+| Not a discovery root | 9 | Outside. Lazy-read targets until Claude Code removes them |
+
+The inventory gives `guardrail@personal` the class "disabled third-party",
+because the plugin is disabled now. The switch enables it as the native
+route of `guardrail`. Its row stays an exception of that route.
+
+### TestAnyware and the other dependencies
+
+TestAnyware's guidance is the `using-testanyware` skill. The `testanyware`
+source of the formula delivers it. The switch disables its native plugin.
+Its two Codex links deactivate, and its Pi link is dangling.
+
+Its rows name these dependencies: the `testanyware` command, `TestAnyware.app`,
+`~/.config/testanyware/config.rhai` and the VM tools. The command and the
+application stay tool-managed. [TestAnyware in staging](#testanyware-in-staging)
+recorded that the application does not start at login.
+
+The other rows name these dependencies:
+
+- The quint skills need the `quint` command and the `quint-kb` MCP server,
+  which runs from `~/.quint-llm-kit/repo`.
+- Each `codebase-memory` copy, agent definition and hook belongs to
+  `~/.local/bin/codebase-memory-mcp`, its installer.
+- The Claude Code and Codex hooks of herdr and Orca stay with those tools.
+- The `superpowers` plugin's SessionStart text becomes Ravel's mandatory
+  file. The `linkuistics` plugin's hooks move to the writing hooks plugin,
+  which the switch installs disabled.
+- The capability-only plugins and the MCP entries keep their commands,
+  agents, hooks, MCP servers and language server unchanged.
+
+### Accepted Ravel delivery
+
+`task owner:sources:verify` ran with `RAVEL_2_0_PREFIX=/opt/homebrew/opt/ravel@2`,
+`bin/ravel` SHA-256
+`67c92bed7ae2693d71590368a74416c8d4997f4789b79f3984f4f2f3db791f4c`. It named
+the four installed formulae and exited 0:
+
+| Source | `resourceDigest` | `originPath` |
+| --- | --- | --- |
+| `personal` | `dc1f26eafe9b7db6…` | `/opt/homebrew/Cellar/personal/2026-11-06_1/libexec/skill-sources/personal` |
+| `quint` | `0a8b945fbc6732d5…` | `/opt/homebrew/Cellar/quint-llm-kit/1.0.0_1/libexec/skill-sources/quint` |
+| `superpowers` | `be1ce6e3c25064b8…` | `/opt/homebrew/Cellar/superpowers/7.0.0_1/libexec/skill-sources/superpowers` |
+| `testanyware` | `3e9d7929eddd8988…` | `/opt/homebrew/Cellar/testanyware/2.8.0_1/libexec/skill-sources/testanyware` |
+
+Grove's six sources are not in the real prefix until Grove's release inside
+finish. [Published source acceptance](#published-source-acceptance) holds
+their accepted digests from the candidate keg.
+
+### The switch plan
+
+The read-only plan report of the prepared plan `60c34eb7…` exited 0. The
+expected inventory before the switch matches, and the native assertions
+hold. `status` reports the health "native" and no restore.
+`mac-check --only "Owner skill switch"` reports native delivery verified.
+`task owner:freeze:check` reports 0 breaks and the 13 notes of
+[The check before the dry run](#the-check-before-the-dry-run), and
+`claude doctor` reports that auto-updates are disabled.
+
+Two planned originals differ:
+
+- `.config/ravel/settings.json` is absent. This is the documented exception
+  of [The write set](#the-write-set), because finish's `native-off` writes
+  that file.
+- `.claude/settings.json` has the identity `61201db3…`, not the planned
+  `46e949c9…`.
+
+Mise checkpoint 130, at 2026-11-11T19:54, is the only edit of that file after
+the dry run. It sets `"model": "fable"` in place of `"opus[1m]"`. A copy of
+the file with that line reversed has the identity `46e949c9…` under the
+prepared program's `restore_identity`. The switch's preflight runs
+`original_changes` and stops with "planned originals differ from the plan".
+
+The comparison of the dry run through the stand-in prefix exited 1. Of 163
+rows, only `tool:mise` differs: 2026.11.4 became 2026.11.7. The comparison
+has no row for a whole-file original or for Codex, so it did not report
+either difference. Since the dry run, Codex moved from 0.167.0 to 0.167.2,
+and Homebrew from 7.0.13-45 to 7.0.13-83.
+[The repeat of 2026-11-12](homebrew-skill-delivery-evidence.md#the-repeat-of-2026-11-12)
+passed the shared-directory seam on Homebrew 7.0.13-83.
+
+By [When another dry run is necessary](#when-another-dry-run-is-necessary),
+the changed original and each tool move need another dry run.
+`owner-switch-plan-redraft-k340` redrafts the plan and repeats the dry run
+before finish-handoff-k324. Finish still runs its own dry run after the
+release and the promotion.
+
+### The owner's `config.rhai`
+
+The owner's `~/.config/ravel/config.rhai` has the SHA-256
+`21ca2e515718ef638b6a5fecea4e4b099e93c7f4c4a50b6e4b7a0434a4336a6d`. Mise
+checkpoint 129 at 2026-11-11T03:44 is its only edit after the staging HOME
+copied `0ccd5cdaa954…` of 2026-11-08. The edit changes one line:
+`fn fable(effort)` selects `claude-fable-5-2` in place of
+`claude-fable-5-1`.
+
+This edit changes no staging verdict and no dry run:
+
+- No route of `config.rhai` or `policy.ts` calls `fable`. Each policy only
+  defines it, so no kind selects another model.
+- The dry run copied no `.config/ravel`.
+- The probes write their own `probe.rhai` and pin `claude-opus-5-5` and
+  `gpt-6.1-sol`. The owner's `config.rhai` stays unread.
+
+### Limits
+
+- The inventory reads native discovery and its dependencies. It does not
+  read the skills that a running session has already loaded.
+- The default models of Claude Code and Codex changed after the dry run.
+  Mise checkpoint 134 sets Codex's `model` to `gpt-6-astra`. The probes pin
+  their own models, so these defaults reach only sessions that name no
+  model.
+- Grove's six sources are not measured in the real prefix. Finish measures
+  them after Grove's release.

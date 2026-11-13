@@ -38,3 +38,26 @@ modified 2026-11-11 14:44. No record names that digest. The staging HOME
 copied `0ccd5cdaa954…` of 2026-11-08, and the switch plan names no
 `config.rhai`. Record the current digest, and decide whether the change
 affects a staging verdict or the dry run.
+
+## Decisions (running log)
+
+- 2026-11-13: compare with `docs/owner-skill-inventory-reference.tsv`, the
+  repaired inventory of 2026-11-07. "How a comparison reads the baseline"
+  makes it the subject for Claude Code plugin rows, and the other rows equal
+  the baseline.
+- 2026-11-13: the final inventory is committed as
+  `docs/owner-skill-inventory-final.tsv`, so that finish can compare with it.
+- 2026-11-13: `~/.claude/settings.json` changed after the dry run. Mise
+  checkpoint 130, 2026-11-11T19:54Z, sets `"model": "fable"` in place of
+  `"opus[1m]"`. Reverting that line alone reproduces the plan's original
+  identity `46e949c9…`. The switch's preflight stops on a differing planned
+  original, so this changes a switch-plan input. A new leaf before
+  finish-handoff-k324 redrafts the plan and repeats the dry run.
+- 2026-11-13: the change to `config.rhai` (checkpoint 129,
+  2026-11-11T03:44Z, `claude-fable-5-1` to `claude-fable-5-2`) affects no
+  staging verdict and no dry run. No route of either policy calls `fable`.
+  The dry run copied no `.config/ravel`, and the probes write their own
+  `probe.rhai` with pinned models.
+- 2026-11-13: the moves of mise 2026.11.4 to 2026.11.7 and Codex 0.167.0 to
+  0.167.2 also need another dry run, by "When another dry run is necessary".
+  The new leaf covers them.

@@ -15,7 +15,11 @@ root charter with the finish steps that the designs assign to that session.
   finish" and "Resuming the switch".
 - `docs/owner-cutover/owner-checklist.md` and
   `docs/owner-cutover/prepared-instructions.md`.
-- `docs/owner-skill-delivery-evidence.md`, "Owner switch rehearsal".
+- `docs/owner-skill-delivery-evidence.md`, "Owner switch rehearsal" and
+  "Owner switch plan redraft". owner-switch-plan-redraft-k340 replaced the
+  plan, the comparison instrument, the instructions and the dry-run result.
+  Name the digests of the redraft section, not the earlier ones. Name step
+  15 of the owner's checklist, the plan report before each attempt.
 - The receipts and records of every earlier leaf of this node.
 - `CLAUDE.md`, "Finish, integrate, and release", and `docs/RELEASING.md`.
 

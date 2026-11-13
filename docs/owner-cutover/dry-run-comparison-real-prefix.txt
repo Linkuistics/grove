@@ -1,5 +1,5 @@
 differs                  plan  /Users/antony/.local/state/owner-switch/prepared/plan.json
-                           content differs: 57b78f7e449ea39b51f56b42e023d0c03c95a1c41f3f11d843eb74569f3e3754 -> de33fd6ab6a29da49ede71d4e1a745a8a17aab16a01a37b6e79e0650bec93742
+                           content differs: 681293997d37cec680acce56ed2b51d14594375f6d8a92162824546d5eb5b2bf -> fbedbdeee1fe964db61031c5f9263f2d3366ba1499f387011404137fd4b82c51
 substituted home         program  /Users/antony/.local/state/owner-switch/prepared/owner_switch.py
 equal                    interpreter:program  /Users/antony/.local/share/mise/installs/python/3.15.1/bin/python3.15
 equal                    interpreter:$python  /opt/homebrew/Cellar/python@3.14/3.14.10/Frameworks/Python.framework/Versions/3.14/bin/python3.14
@@ -148,9 +148,10 @@ equal                    interpreter:command:mac_check/mac-check:0  /opt/homebre
 equal                    helper:command:mac_check/mac-check:0 /opt/homebrew/opt/python@3.14/bin/python3.14  /opt/homebrew/Cellar/python@3.14/3.14.10/Frameworks/Python.framework/Versions/3.14/bin/python3.14
 substituted home         helper:command:mac_check/mac-check:0 $HOME/.local/lib/machine-config/check.py  /Users/antony/.local/lib/machine-config/check.py
 equal                    tool:claude  /Users/antony/.local/share/claude/versions/2.1.322
+equal                    tool:codex  /opt/homebrew/Caskroom/codex/0.167.2/bin/codex
 differs                  tool:brew  /opt/homebrew/bin/brew
-                           version differs: 'Homebrew >=4.3.0 (shallow or no git repository)' -> 'Homebrew 7.0.13-45-g95d4938'
-equal                    tool:mise  /opt/homebrew/Cellar/mise/2026.11.4/bin/mise
+                           version differs: 'Homebrew >=4.3.0 (shallow or no git repository)' -> 'Homebrew 7.0.13-83-ga6fea6b'
+equal                    tool:mise  /opt/homebrew/Cellar/mise/2026.11.7/bin/mise
 differs                  tool:ravel  /opt/homebrew/Cellar/ravel/1.1.0/bin/ravel
                            content differs: 3a9a9129573e4d827a317f6b793ba990044080a31a7b667b64cc153a2f974a0b -> c52f990b2059c8bbe8efba10a741d3a0311000ac1712d71e882638f54c3ac1ed
 differs                  tool:grove  /opt/homebrew/Cellar/grove/22.8.0/bin/grove
@@ -182,4 +183,4 @@ differs                  source:writing  /Users/antony/.local/state/owner-switch
                            no file in the real inputs
                            content differs: c496c5e87f8f359e968d473f6a80b17574eaf80c0410c0cc049d459b3c27b21b -> None
 plan value differs at /retained/0/path
-comparison: DIFFERS: 163 rows, 14 differ, 1 plan values differ
+comparison: DIFFERS: 164 rows, 14 differ, 1 plan values differ

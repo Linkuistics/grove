@@ -147,8 +147,9 @@ equal                    interpreter:command:mac_check/mac-check:0  /opt/homebre
 equal                    helper:command:mac_check/mac-check:0 /opt/homebrew/opt/python@3.14/bin/python3.14  /opt/homebrew/Cellar/python@3.14/3.14.10/Frameworks/Python.framework/Versions/3.14/bin/python3.14
 substituted home         helper:command:mac_check/mac-check:0 $HOME/.local/lib/machine-config/check.py  /Users/antony/.local/lib/machine-config/check.py
 equal                    tool:claude  /Users/antony/.local/share/claude/versions/2.1.322
+equal                    tool:codex  /opt/homebrew/Caskroom/codex/0.167.2/bin/codex
 equal                    tool:brew  /opt/homebrew/bin/brew
-equal                    tool:mise  /opt/homebrew/Cellar/mise/2026.11.4/bin/mise
+equal                    tool:mise  /opt/homebrew/Cellar/mise/2026.11.7/bin/mise
 equal                    tool:ravel  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/ravel@2/2.0.0/bin/ravel
 equal                    tool:grove  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/bin/grove
 equal                    source:design  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/design
@@ -161,4 +162,4 @@ equal                    source:research  /Users/antony/.local/state/owner-switc
 equal                    source:superpowers  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/superpowers/7.0.0_1/libexec/skill-sources/superpowers
 equal                    source:testanyware  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/testanyware/2.8.0_1/libexec/skill-sources/testanyware
 equal                    source:writing  /Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0/libexec/skill-sources/writing
-comparison: equal: 163 rows, 0 differ, 0 plan values differ
+comparison: equal: 164 rows, 0 differ, 0 plan values differ

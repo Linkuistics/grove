@@ -75,7 +75,7 @@ when its path moves:
                             or an absolute or $HOME path token of a shell
                             script that names an executable or a script.
                             Helpers are found again inside helpers.
-    tool:<name>             claude, brew and mise on PATH; ravel and grove at
+    tool:<name>             claude, codex, brew and mise on PATH; ravel and grove at
                             $(brew --prefix)/bin/ravel and
                             $(brew --prefix)/opt/grove/bin/grove, as the
                             program finds them; and each --tool on PATH
@@ -134,7 +134,8 @@ RESULT_SCHEMA = "owner-switch-dry-run/1"
 COMPARISON_SCHEMA = "owner-switch-dry-run-comparison/1"
 DEFAULT_STATE = ".local/state/owner-switch"
 SUBSTITUTIONS = ("home", "grove-keg", "ravel")
-DEFAULT_TOOLS = ("claude", "brew", "mise", "ravel", "grove")
+# Codex runs the Codex probes, so its version is an input of the run like Claude Code's.
+DEFAULT_TOOLS = ("claude", "codex", "brew", "mise", "ravel", "grove")
 SELF = os.path.realpath(__file__)
 
 # The environment rule of the program's commands (scripts/owner_switch.py, command_env).

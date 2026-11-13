@@ -1,19 +1,19 @@
 {
   "schema": "owner-switch-dry-run-comparison/1",
   "equal": true,
-  "at": "2026-11-11T20:01:13+1100",
-  "result": "/Users/antony/.local/state/owner-switch/dry-run/result.json",
-  "result_digest": "d05a510a87427df25488ed44d43de15f3385328b27c875fa3317ad1e9e34b2aa",
+  "at": "2026-11-13T19:13:43+1100",
+  "result": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/result.json",
+  "result_digest": "e278339106d23516f037ada76c6f45acfd0fb8bd4402849efcbd7e95be8476ba",
   "instrument": {
     "path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_dry_run.py",
-    "digest": "bc74fba7e713be269d71ce1a527c9ff3b610868f28715308b3e8ab896ff89d86"
+    "digest": "324ccbd3dc6cdc9910e840fe8d28fe6a15ec25b79e70fd5e7c37ce56df4cd352"
   },
   "home": "/Users/antony",
   "prefixes": {
     "dry": {
       "grove-keg": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/grove/22.8.0",
       "ravel": "/Users/antony/.local/state/owner-switch-dry-run/prefix/Cellar/ravel@2/2.0.0",
-      "home": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home"
+      "home": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home"
     },
     "real": {
       "home": "/Users/antony",
@@ -25,7 +25,7 @@
     {
       "logical": "plan",
       "role": "plan",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/plan.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/plan.json",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/plan.json",
       "verdict": "substituted home",
       "reasons": []
@@ -33,7 +33,7 @@
     {
       "logical": "program",
       "role": "program",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/owner_switch.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
       "verdict": "substituted home",
       "reasons": []
@@ -57,7 +57,7 @@
     {
       "logical": "input:baseline instrument",
       "role": "baseline instrument",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/inventory.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/inventory.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/inventory.py",
       "verdict": "substituted home",
       "reasons": []
@@ -65,7 +65,7 @@
     {
       "logical": "input:probe program",
       "role": "probe program",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
       "verdict": "substituted home",
       "reasons": []
@@ -73,7 +73,7 @@
     {
       "logical": "input:probe helper harness_trial.py",
       "role": "probe helper harness_trial.py",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/harness_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/harness_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -81,7 +81,7 @@
     {
       "logical": "input:staging runner file scripts/harness_trial.py",
       "role": "staging runner file scripts/harness_trial.py",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/scripts/harness_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/scripts/harness_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -89,7 +89,7 @@
     {
       "logical": "input:staging runner file scripts/harness-trials/builds.json",
       "role": "staging runner file scripts/harness-trials/builds.json",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/scripts/harness-trials/builds.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/scripts/harness-trials/builds.json",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness-trials/builds.json",
       "verdict": "substituted home",
       "reasons": []
@@ -97,7 +97,7 @@
     {
       "logical": "input:staging runner file scripts/harness-trials/trial-launch.sh",
       "role": "staging runner file scripts/harness-trials/trial-launch.sh",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/scripts/harness-trials/trial-launch.sh",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/scripts/harness-trials/trial-launch.sh",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness-trials/trial-launch.sh",
       "verdict": "substituted home",
       "reasons": []
@@ -105,7 +105,7 @@
     {
       "logical": "input:staging runner",
       "role": "staging runner",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -113,7 +113,7 @@
     {
       "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging_home.py",
       "role": "staging runner file docs/evaluations/owner-skill-delivery/staging_home.py",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -121,7 +121,7 @@
     {
       "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/inventory.py",
       "role": "staging runner file docs/evaluations/owner-skill-delivery/inventory.py",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/inventory.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/inventory.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/inventory.py",
       "verdict": "substituted home",
       "reasons": []
@@ -129,7 +129,7 @@
     {
       "logical": "input:staging runner file docs/owner-cutover/settings-off.json",
       "role": "staging runner file docs/owner-cutover/settings-off.json",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/owner-cutover/settings-off.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/owner-cutover/settings-off.json",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/owner-cutover/settings-off.json",
       "verdict": "substituted home",
       "reasons": []
@@ -137,7 +137,7 @@
     {
       "logical": "input:staging runner file docs/owner-cutover/settings-staging.json",
       "role": "staging runner file docs/owner-cutover/settings-staging.json",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/owner-cutover/settings-staging.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/owner-cutover/settings-staging.json",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/owner-cutover/settings-staging.json",
       "verdict": "substituted home",
       "reasons": []
@@ -145,7 +145,7 @@
     {
       "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json",
       "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/codebase-memory-mcp.json",
       "verdict": "substituted home",
       "reasons": []
@@ -153,7 +153,7 @@
     {
       "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/compaction.json",
       "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/compaction.json",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/compaction.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/compaction.json",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/compaction.json",
       "verdict": "substituted home",
       "reasons": []
@@ -161,7 +161,7 @@
     {
       "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/delegate.json",
       "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/delegate.json",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/delegate.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/delegate.json",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/delegate.json",
       "verdict": "substituted home",
       "reasons": []
@@ -169,7 +169,7 @@
     {
       "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/discovery.json",
       "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/discovery.json",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/discovery.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/discovery.json",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/discovery.json",
       "verdict": "substituted home",
       "reasons": []
@@ -177,7 +177,7 @@
     {
       "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/guidance-probe.json",
       "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/guidance-probe.json",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/guidance-probe.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/guidance-probe.json",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/guidance-probe.json",
       "verdict": "substituted home",
       "reasons": []
@@ -185,7 +185,7 @@
     {
       "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/kind-skill.json",
       "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/kind-skill.json",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/kind-skill.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/kind-skill.json",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/kind-skill.json",
       "verdict": "substituted home",
       "reasons": []
@@ -193,7 +193,7 @@
     {
       "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/native-residue.json",
       "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/native-residue.json",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/native-residue.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/native-residue.json",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/native-residue.json",
       "verdict": "substituted home",
       "reasons": []
@@ -201,7 +201,7 @@
     {
       "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/quint-mcp.json",
       "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/quint-mcp.json",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/quint-mcp.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/quint-mcp.json",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/quint-mcp.json",
       "verdict": "substituted home",
       "reasons": []
@@ -209,7 +209,7 @@
     {
       "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/stale-copy.json",
       "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/stale-copy.json",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/stale-copy.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/stale-copy.json",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/stale-copy.json",
       "verdict": "substituted home",
       "reasons": []
@@ -217,7 +217,7 @@
     {
       "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json",
       "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/testanyware-vm.json",
       "verdict": "substituted home",
       "reasons": []
@@ -225,7 +225,7 @@
     {
       "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json",
       "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/user-invoked-named.json",
       "verdict": "substituted home",
       "reasons": []
@@ -233,7 +233,7 @@
     {
       "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/user-invoked.json",
       "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/user-invoked.json",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/user-invoked.json",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/user-invoked.json",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/user-invoked.json",
       "verdict": "substituted home",
       "reasons": []
@@ -241,7 +241,7 @@
     {
       "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/01-planning--word-tools-k1.md",
       "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/01-planning--word-tools-k1.md",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/01-planning--word-tools-k1.md",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/01-planning--word-tools-k1.md",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/01-planning--word-tools-k1.md",
       "verdict": "substituted home",
       "reasons": []
@@ -249,7 +249,7 @@
     {
       "logical": "input:staging runner file docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/_BRIEF.md",
       "role": "staging runner file docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/_BRIEF.md",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/_BRIEF.md",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/_BRIEF.md",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging-cases/trees/kind-skill/_BRIEF.md",
       "verdict": "substituted home",
       "reasons": []
@@ -257,7 +257,7 @@
     {
       "logical": "input:mac-check command",
       "role": "mac-check command",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/bin/mac-check",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/bin/mac-check",
       "real_path": "/Users/antony/.local/bin/mac-check",
       "verdict": "substituted home",
       "reasons": []
@@ -265,7 +265,7 @@
     {
       "logical": "input:mac-check helper",
       "role": "mac-check helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/lib/machine-config/check.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/lib/machine-config/check.py",
       "real_path": "/Users/antony/.local/lib/machine-config/check.py",
       "verdict": "substituted home",
       "reasons": []
@@ -273,7 +273,7 @@
     {
       "logical": "command:baseline/inventory:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/inventory.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/inventory.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/inventory.py",
       "verdict": "substituted home",
       "reasons": []
@@ -281,7 +281,7 @@
     {
       "logical": "command:accepted.trials.design/sources:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -297,7 +297,7 @@
     {
       "logical": "helper:command:accepted.trials.design/sources:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -313,7 +313,7 @@
     {
       "logical": "command:accepted.trials.design/discovery-claude:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -329,7 +329,7 @@
     {
       "logical": "helper:command:accepted.trials.design/discovery-claude:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -345,7 +345,7 @@
     {
       "logical": "command:accepted.trials.design/discovery-codex:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -361,7 +361,7 @@
     {
       "logical": "helper:command:accepted.trials.design/discovery-codex:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -377,7 +377,7 @@
     {
       "logical": "command:accepted.trials.engineering/sources:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -393,7 +393,7 @@
     {
       "logical": "helper:command:accepted.trials.engineering/sources:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -409,7 +409,7 @@
     {
       "logical": "command:accepted.trials.engineering/delegate-claude:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -425,7 +425,7 @@
     {
       "logical": "helper:command:accepted.trials.engineering/delegate-claude:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -441,7 +441,7 @@
     {
       "logical": "command:accepted.trials.engineering/delegate-codex:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -457,7 +457,7 @@
     {
       "logical": "helper:command:accepted.trials.engineering/delegate-codex:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -473,7 +473,7 @@
     {
       "logical": "command:accepted.trials.engineering/compaction-claude:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -489,7 +489,7 @@
     {
       "logical": "helper:command:accepted.trials.engineering/compaction-claude:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -505,7 +505,7 @@
     {
       "logical": "command:accepted.trials.engineering/compaction-codex:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -521,7 +521,7 @@
     {
       "logical": "helper:command:accepted.trials.engineering/compaction-codex:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -537,7 +537,7 @@
     {
       "logical": "command:accepted.trials.engineering/codebase-memory-mcp-claude:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -553,7 +553,7 @@
     {
       "logical": "helper:command:accepted.trials.engineering/codebase-memory-mcp-claude:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -569,7 +569,7 @@
     {
       "logical": "command:accepted.trials.engineering/codebase-memory-mcp-codex:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -585,7 +585,7 @@
     {
       "logical": "helper:command:accepted.trials.engineering/codebase-memory-mcp-codex:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -601,7 +601,7 @@
     {
       "logical": "command:accepted.trials.grove-core/sources:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -617,7 +617,7 @@
     {
       "logical": "helper:command:accepted.trials.grove-core/sources:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -633,7 +633,7 @@
     {
       "logical": "command:accepted.trials.grove-core/kind-skill-claude:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -649,7 +649,7 @@
     {
       "logical": "helper:command:accepted.trials.grove-core/kind-skill-claude:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -665,7 +665,7 @@
     {
       "logical": "command:accepted.trials.grove-core/kind-skill-codex:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -681,7 +681,7 @@
     {
       "logical": "helper:command:accepted.trials.grove-core/kind-skill-codex:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -697,7 +697,7 @@
     {
       "logical": "command:accepted.trials.grove-core/stale-copy-claude:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -713,7 +713,7 @@
     {
       "logical": "helper:command:accepted.trials.grove-core/stale-copy-claude:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -729,7 +729,7 @@
     {
       "logical": "command:accepted.trials.grove-core/stale-copy-codex:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -745,7 +745,7 @@
     {
       "logical": "helper:command:accepted.trials.grove-core/stale-copy-codex:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -761,7 +761,7 @@
     {
       "logical": "command:accepted.trials.requirements/sources:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -777,7 +777,7 @@
     {
       "logical": "helper:command:accepted.trials.requirements/sources:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -793,7 +793,7 @@
     {
       "logical": "command:accepted.trials.research/sources:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -809,7 +809,7 @@
     {
       "logical": "helper:command:accepted.trials.research/sources:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -825,7 +825,7 @@
     {
       "logical": "command:accepted.trials.writing/sources:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -841,7 +841,7 @@
     {
       "logical": "helper:command:accepted.trials.writing/sources:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -857,7 +857,7 @@
     {
       "logical": "command:accepted.trials.writing/native-residue-claude:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -873,7 +873,7 @@
     {
       "logical": "helper:command:accepted.trials.writing/native-residue-claude:2 staging_home",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/staging/docs/evaluations/owner-skill-delivery/staging_home.py",
       "verdict": "substituted home",
       "reasons": []
@@ -889,7 +889,7 @@
     {
       "logical": "command:probes/resolve-switched:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
       "verdict": "substituted home",
       "reasons": []
@@ -905,7 +905,7 @@
     {
       "logical": "helper:command:probes/resolve-switched:2 harness_trial",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/harness_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/harness_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -921,7 +921,7 @@
     {
       "logical": "helper:command:probes/resolve-switched:2 owner_switch",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/owner_switch.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
       "verdict": "substituted home",
       "reasons": []
@@ -937,7 +937,7 @@
     {
       "logical": "command:probes/claude-switched:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
       "verdict": "substituted home",
       "reasons": []
@@ -953,7 +953,7 @@
     {
       "logical": "helper:command:probes/claude-switched:2 harness_trial",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/harness_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/harness_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -969,7 +969,7 @@
     {
       "logical": "helper:command:probes/claude-switched:2 owner_switch",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/owner_switch.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
       "verdict": "substituted home",
       "reasons": []
@@ -985,7 +985,7 @@
     {
       "logical": "command:probes/codex-switched:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
       "verdict": "substituted home",
       "reasons": []
@@ -1001,7 +1001,7 @@
     {
       "logical": "helper:command:probes/codex-switched:2 harness_trial",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/harness_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/harness_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -1017,7 +1017,7 @@
     {
       "logical": "helper:command:probes/codex-switched:2 owner_switch",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/owner_switch.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
       "verdict": "substituted home",
       "reasons": []
@@ -1033,7 +1033,7 @@
     {
       "logical": "command:native_probe/resolve-disabled:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
       "verdict": "substituted home",
       "reasons": []
@@ -1049,7 +1049,7 @@
     {
       "logical": "helper:command:native_probe/resolve-disabled:2 harness_trial",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/harness_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/harness_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -1065,7 +1065,7 @@
     {
       "logical": "helper:command:native_probe/resolve-disabled:2 owner_switch",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/owner_switch.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
       "verdict": "substituted home",
       "reasons": []
@@ -1081,7 +1081,7 @@
     {
       "logical": "command:native_probe/claude-native:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
       "verdict": "substituted home",
       "reasons": []
@@ -1097,7 +1097,7 @@
     {
       "logical": "helper:command:native_probe/claude-native:2 harness_trial",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/harness_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/harness_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -1113,7 +1113,7 @@
     {
       "logical": "helper:command:native_probe/claude-native:2 owner_switch",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/owner_switch.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
       "verdict": "substituted home",
       "reasons": []
@@ -1129,7 +1129,7 @@
     {
       "logical": "command:native_probe/codex-native:2",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/owner_switch_probes.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch_probes.py",
       "verdict": "substituted home",
       "reasons": []
@@ -1145,7 +1145,7 @@
     {
       "logical": "helper:command:native_probe/codex-native:2 harness_trial",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/harness_trial.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/harness_trial.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
       "verdict": "substituted home",
       "reasons": []
@@ -1161,7 +1161,7 @@
     {
       "logical": "helper:command:native_probe/codex-native:2 owner_switch",
       "role": "imported local helper",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/state/owner-switch/prepared/owner_switch.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/state/owner-switch/prepared/owner_switch.py",
       "real_path": "/Users/antony/.local/state/owner-switch/prepared/owner_switch.py",
       "verdict": "substituted home",
       "reasons": []
@@ -1177,7 +1177,7 @@
     {
       "logical": "command:mac_check/mac-check:0",
       "role": "invoked script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/bin/mac-check",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/bin/mac-check",
       "real_path": "/Users/antony/.local/bin/mac-check",
       "verdict": "substituted home",
       "reasons": []
@@ -1201,7 +1201,7 @@
     {
       "logical": "helper:command:mac_check/mac-check:0 $HOME/.local/lib/machine-config/check.py",
       "role": "referenced script",
-      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261111T085127Z/home/.local/lib/machine-config/check.py",
+      "dry_path": "/private/tmp/owner-switch-dry-run/run-20261113T080616Z/home/.local/lib/machine-config/check.py",
       "real_path": "/Users/antony/.local/lib/machine-config/check.py",
       "verdict": "substituted home",
       "reasons": []
@@ -1211,6 +1211,14 @@
       "role": "external tool",
       "dry_path": "/Users/antony/.local/share/claude/versions/2.1.322",
       "real_path": "/Users/antony/.local/share/claude/versions/2.1.322",
+      "verdict": "equal",
+      "reasons": []
+    },
+    {
+      "logical": "tool:codex",
+      "role": "external tool",
+      "dry_path": "/opt/homebrew/Caskroom/codex/0.167.2/bin/codex",
+      "real_path": "/opt/homebrew/Caskroom/codex/0.167.2/bin/codex",
       "verdict": "equal",
       "reasons": []
     },
@@ -1225,8 +1233,8 @@
     {
       "logical": "tool:mise",
       "role": "external tool",
-      "dry_path": "/opt/homebrew/Cellar/mise/2026.11.4/bin/mise",
-      "real_path": "/opt/homebrew/Cellar/mise/2026.11.4/bin/mise",
+      "dry_path": "/opt/homebrew/Cellar/mise/2026.11.7/bin/mise",
+      "real_path": "/opt/homebrew/Cellar/mise/2026.11.7/bin/mise",
       "verdict": "equal",
       "reasons": []
     },
@@ -1334,8 +1342,8 @@
       "logical": "plan",
       "role": "plan",
       "path": "/Users/antony/.local/state/owner-switch/prepared/plan.json",
-      "digest": "60c34eb7b3edf9f0452b5f1461575a1890008c9dbeccb2e4dc364082cc268ae7",
-      "normalised": "57b78f7e449ea39b51f56b42e023d0c03c95a1c41f3f11d843eb74569f3e3754"
+      "digest": "8679483c4127f59d94e30d20934292c6142492b3cf93ca9593cbafacfe2f475e",
+      "normalised": "681293997d37cec680acce56ed2b51d14594375f6d8a92162824546d5eb5b2bf"
     },
     {
       "logical": "program",
@@ -2255,6 +2263,13 @@
       "version": "2.1.322 (Claude Code)"
     },
     {
+      "logical": "tool:codex",
+      "role": "external tool",
+      "path": "/opt/homebrew/Caskroom/codex/0.167.2/bin/codex",
+      "digest": "97bc82fd46f117cf10efb95e6ff0c81dc4784f5797bcdc2cb75093ba09e4def0",
+      "version": "codex-cli 0.167.2"
+    },
+    {
       "logical": "tool:brew",
       "role": "external tool",
       "path": "/opt/homebrew/bin/brew",
@@ -2264,9 +2279,9 @@
     {
       "logical": "tool:mise",
       "role": "external tool",
-      "path": "/opt/homebrew/Cellar/mise/2026.11.4/bin/mise",
-      "digest": "6edfdcebe39cbff88df13ffbd3ea57264e222aa28b7e9fe31b490aed02cc5e67",
-      "version": "2026.11.4 macos-arm64 (2026-11-07)"
+      "path": "/opt/homebrew/Cellar/mise/2026.11.7/bin/mise",
+      "digest": "a0da2e3964385bd7b760b2e5343a4a6bb0879cef0994a5a807ba9f885abad8ba",
+      "version": "2026.11.7 macos-arm64 (2026-11-11)"
     },
     {
       "logical": "tool:ravel",

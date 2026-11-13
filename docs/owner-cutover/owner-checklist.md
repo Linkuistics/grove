@@ -120,8 +120,13 @@ quiet interval until the probes, the receipt or the restore end.
 2. Stop the owner's Codex app-server daemon.
    - It ran from `~/.codex/packages/app-server-daemon/releases/0.167.0-aarch64-apple-darwin`
      as `codex app-server daemon pid-update-loop`, with a managed
-     `codex app-server` child and `codex-code-mode-host`.
+     `codex app-server` child and `codex-code-mode-host`. On 2026-11-13 it
+     ran from the `0.168.0-aarch64-apple-darwin` release. Codex updates that
+     package separately from the `codex` command.
    - Pause: run `codex app-server daemon stop` with the owner's HOME.
+   - On 2026-11-13, that command stopped the managed `codex app-server`
+     child only. The `pid-update-loop` process stayed for 30 seconds. If it
+     stays, end that process.
    - Resume: run `codex app-server daemon start`, or let Codex start it.
 3. End the left-over Codex daemons of earlier trials.
    - About 20 `app-server-daemon` processes ran from disposable HOMEs under
@@ -192,6 +197,49 @@ quiet interval until the probes, the receipt or the restore end.
 14. Review the plan, the staging evidence and the input comparison of the dry
     run. Check the planned native layout, and check that the writers above
     stay paused.
+15. Run the plan report, and find each planned original in place:
+
+    ```sh
+    /opt/homebrew/opt/python@3.14/bin/python3.14 -I ~/.local/state/owner-switch/prepared/owner_switch.py report \
+      --plan ~/.local/state/owner-switch/prepared/plan.json --home "$HOME"
+    ```
+
+    The report writes nothing and exits 0 for each layout. Read its write
+    lines. Each `file` and `entry` line must end with "now its original".
+    Before `native-off`, only `.config/ravel/settings.json` may say
+    "now differs: absent". After `native-off`, no line may differ.
+
+    Another differing line means that the plan needs another draft, as
+    "Edits after the plan draft" below states. The switch's preflight
+    refuses that attempt before its first write.
+
+## Edits after the plan draft
+
+The plan names the whole-file original of each file that the switch writes.
+[`switch-plan-writes.tsv`](switch-plan-writes.tsv) lists these files. An
+edit of one of them after `task owner:switch-plan:draft` changes its
+original. The switch then refuses with "planned originals differ from the
+plan".
+
+After such an edit, do these steps before the next attempt:
+
+1. Run `task owner:switch-plan:draft`.
+2. Run `task owner:switch-plan:check OUT=<new folder>`.
+3. Move the earlier `plan.json` out of the prepared folder, then run
+   `task owner:switch-plan:prepare`.
+4. Run the dry run again, as "Owner switch rehearsal" of the
+   [evidence](../owner-skill-delivery-evidence.md) states.
+
+This rule includes an edit by a tool or by mise, and an edit that keeps
+each switched key. For example, mise checkpoint 130 at 2026-11-11T19:54Z
+(2026-11-12 in local time) changed `"model"` in `~/.claude/settings.json`
+from `"opus[1m]"` to `"fable"`. The switch writes only `enabledPlugins` in
+that file, but the original changed from `46e949c9…` to `61201db3…`.
+owner-switch-plan-redraft-k340 drafted the plan again and repeated the dry
+run for that edit.
+
+Each new draft starts the rule again. Make settings edits before the draft,
+or keep them until after the receipt.
 
 ## TestAnyware after a login
 

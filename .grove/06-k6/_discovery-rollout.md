@@ -423,6 +423,12 @@ the root charter's extension.
 - The handoff names the switch program, its probes, the native probe, the
   hooks installation inside the switch, the comparison command and the dry
   run result.
+- owner-switch-plan-redraft-k340 drafted the plan again on 2026-11-13 as
+  `8679483c…`, after an edit of `~/.claude/settings.json`. Its dry run
+  replaced the result of k255. The comparison now has a Codex row. The
+  owner's checklist runs the plan report before each attempt. An edit of a
+  write-set file after the draft needs another draft and dry run. The
+  section "Owner switch plan redraft" of the evidence holds the digests.
 - Before mutation, finish records its loaded cache paths, registrations and
   current guidance reads. It compares each unverified built-in inventory row
   with its own skill listing.

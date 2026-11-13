@@ -94,11 +94,26 @@ The comparison allows only three logical prefix substitutions:
 The comparison resolves each given prefix to its canonical path. A
 substitution passes only when the content and the versions are equal.
 
+The comparison has a row for each tool version, including Codex. It has no
+row for the planned originals of the write set. Before each attempt, also
+run the read-only plan report:
+
+```sh
+/opt/homebrew/opt/python@3.14/bin/python3.14 -I /Users/antony/.local/state/owner-switch/prepared/owner_switch.py report --plan /Users/antony/.local/state/owner-switch/prepared/plan.json --home /Users/antony
+```
+
+Each `file` and `entry` line must end with "now its original". Before
+`native-off`, only `.config/ravel/settings.json` may say
+"now differs: absent". Another differing line needs another plan draft and
+dry run. The owner's checklist states the steps.
+
 ### The result before finish
 
-owner-switch-rehearsal-k255 retained the first result at
+owner-switch-plan-redraft-k340 retained the current result at
 `/Users/antony/.local/state/owner-switch/dry-run/result.json` on
-2026-11-11. That run used a stand-in Homebrew prefix,
+2026-11-13. It replaced the first result of owner-switch-rehearsal-k255,
+after an edit of `~/.claude/settings.json` changed a planned original. That
+run used a stand-in Homebrew prefix,
 `/Users/antony/.local/state/owner-switch-dry-run/prefix`. The prefix holds
 clones of the installed skill kegs, the candidate Grove keg 22.8.0 and the
 accepted Ravel 2.0 build. Its comparison passes only with

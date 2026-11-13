@@ -7473,6 +7473,9 @@ folder `/Users/antony/.local/state/owner-switch/prepared`. The sections
 [The rehearsed plan](specs/owner-skill-delivery.md#the-rehearsed-plan) own
 the rules.
 
+[Owner switch plan redraft](#owner-switch-plan-redraft) replaced this plan
+on 2026-11-13. Its digests are the current ones, and this section is history.
+
 ### Result
 
 The plan is [`switch-plan-draft.json`](owner-cutover/switch-plan-draft.json).
@@ -7688,6 +7691,9 @@ copy of HOME on 2026-11-11, with full restore. The sections
 [Settings isolation and the staging HOME](specs/owner-skill-delivery.md#settings-isolation-and-the-staging-home)
 own the rules. The section [Owner switch dry run](#owner-switch-dry-run)
 describes the instrument.
+
+[Owner switch plan redraft](#owner-switch-plan-redraft) replaced this result
+on 2026-11-13. Its digests are the current ones, and this section is history.
 
 ### Result
 
@@ -8308,3 +8314,209 @@ This edit changes no staging verdict and no dry run:
   model.
 - Grove's six sources are not measured in the real prefix. Finish measures
   them after Grove's release.
+
+## Owner switch plan redraft
+
+`owner-switch-plan-redraft-k340` drafted the switch plan again on
+2026-11-13 and repeated the dry run. Its times are UTC. The cause is in
+[The switch plan](#the-switch-plan) of the final inventory: mise checkpoint
+130 changed a planned original in `~/.claude/settings.json`.
+
+### Result
+
+- The plan is [`switch-plan-draft.json`](owner-cutover/switch-plan-draft.json),
+  SHA-256 `8679483c4127f59d94e30d20934292c6142492b3cf93ca9593cbafacfe2f475e`.
+  A second draft gave the same bytes.
+- The plan differs from `60c34eb7…` in one value. The original of
+  `.claude/settings.json` is `61201db3…`, not `46e949c9…`. The seven rows of
+  that file in [`switch-plan-writes.tsv`](owner-cutover/switch-plan-writes.tsv)
+  name the new original.
+- The dry run `run-20261113T080616Z` passed with the stand-in prefix. Its
+  result replaces the committed result and the result in the owner's state
+  folder.
+- The comparison through the stand-in exited 0. The comparison has a
+  `tool:codex` row now.
+- The owner's checklist states the rule for an edit of a write-set file
+  after the draft. Its step 15 runs the plan report before each attempt.
+
+### Plan, check and prepare
+
+| Check | Result |
+| --- | --- |
+| `task owner:switch-plan:draft` | 154 entry writes, 4 file writes, 8 inventory items and 28 command inputs. Only `.config/ravel/settings.json` differs from its planned original in the real HOME. |
+| `task owner:switch-plan:check` | Passed. The report exited 0, each original was in place after `native-off`, the inventory matched and the native assertions held. All ten controls passed. No field is outside the schema. |
+| `task owner:switch-plan:prepare` | Passed after the earlier `plan.json` left the prepared folder. It wrote the plan and left 28 files unchanged. |
+| `owner_switch.py report` against the real HOME | Exit 0, "nothing written". 157 of 158 writes say "now its original". `.config/ravel/settings.json` says "now differs: absent", the documented exception of [The write set](#the-write-set). The inventory before the switch matches. |
+| `owner_switch.py status` | The health "native" and no restore |
+| `mac-check --only "Owner skill switch"` | OK, native delivery verified against the prepared plan |
+
+The committed check records
+[`switch-plan-check.json`](owner-cutover/switch-plan-check.json),
+[`switch-plan-report.txt`](owner-cutover/switch-plan-report.txt) and
+[`switch-plan-processes.txt`](owner-cutover/switch-plan-processes.txt) were
+older than the plan `60c34eb7…`. They named the plan `09581cd7…` and the
+program `029f81af…`. This leaf replaced them with the output of its check.
+
+### The prepared folder
+
+Prepare replaced three files. The others keep the digests of
+[The prepared folder](#the-prepared-folder) of the earlier plan.
+
+| File | SHA-256 |
+| --- | --- |
+| `plan.json` | `8679483c4127f59d94e30d20934292c6142492b3cf93ca9593cbafacfe2f475e` |
+| `owner_switch.py` | `76ed17260bb1e0305c3011ec2c6d5eab171b1454a498a2a5e6ceef9cba090f7d`, unchanged |
+| `owner_switch_dry_run.py` | `324ccbd3dc6cdc9910e840fe8d28fe6a15ec25b79e70fd5e7c37ce56df4cd352` |
+| `INSTRUCTIONS.md` | `c7966156d4d7906b092ab689e59f7b404791e09d6eeb2219e7c5b56233d1f745` |
+
+The comparison instrument and the instructions are no plan inputs. A draft
+after their change gave the same plan bytes.
+
+### Processes before the dry run
+
+The process check refused at first. Three processes remained:
+
+- the owner's Codex app-server daemon `pid-update-loop` from the release
+  `0.168.0-aarch64-apple-darwin`, PID 63957
+- its managed `codex app-server`, PID 6175
+- an orphaned Claude Code `ugrep` of an ended session, PID 16840
+
+No Codex session used the daemon. The owner allowed this session to stop
+the three processes. `codex app-server daemon stop` stopped the managed
+app-server only. The `pid-update-loop` process stayed for 30 seconds, and
+a termination signal ended it. The check then reported "clear". Step 2 of
+the checklist records that behaviour.
+
+In the operator's Claude Code session, the shell's `grep` ran Claude Code's
+embedded `ugrep`. The process check refuses that process too. So run no
+such search command while the check or a dry run runs.
+
+`task owner:freeze:check` reported 0 breaks and the 13 notes of
+[The check before the dry run](#the-check-before-the-dry-run). `claude doctor`
+reported that auto-updates are disabled.
+
+### The dry run
+
+The command is the command of [The command](#the-command). It reused the
+stand-in prefix of owner-switch-rehearsal-k255. Its record
+[`dry-run-prefix.json`](owner-cutover/dry-run-prefix.json) stays the same.
+The comparison through it found each skill keg and tool equal, so the
+prefix still stands for the installed kegs.
+
+The first run, `run-20261113T074609Z`, passed with the earlier instrument.
+Its input table had no Codex row. After the instrument change below, the
+second run used the new instrument:
+
+| Step | Exit | Seconds |
+| --- | --- | --- |
+| `native-off`, with no backup before it | 0 | 0.22 |
+| `attempt` | 0 | 0.08 |
+| `switch`: gates 4 to 7, ordinary writes, hooks commands, probes, probe cleanup and final comparison | 0 | 169.05 |
+| The attempt note's literal `restore` command, with its native probes | 0 | 26.21 |
+
+Each of the 328 restore comparison items was equal. None of the 164 input
+rows changed during the run. The run changed no copied path of the source
+HOME and no entry of the account's `~/Library/LaunchAgents`.
+
+| Phase | Probe | Exit | Evidence |
+| --- | --- | --- | --- |
+| switch | `resolve-switched` | 0 | The ten accepted sources and the mandatory file |
+| switch | `claude-switched` | 0 | Claude Code 2.1.322, `claude-opus-5-5`, medium. Each of `mandatoryFirst`, `craftSkill`, `kindSkill`, `testanyware`, `hooks`, `listing` and `digests` passed. Cleanup found no survivor of 28 owned processes. |
+| switch | `codex-switched` | 0 | Codex 0.167.2, `gpt-6.1-sol`, medium. Each of `mandatoryFirst`, `craftSkill`, `kindSkill`, `testanyware`, `listing` and `digests` passed. Cleanup found no survivor of 13 owned processes. |
+| restore | `resolve-disabled` | 0 | The status "disabled" |
+| restore | `claude-native` | 0 | The program keeps only the exit status |
+| restore | `codex-native` | 0 | The program keeps only the exit status |
+
+The result is in the repository and in the owner's state folder
+`/Users/antony/.local/state/owner-switch/dry-run`:
+
+| File | SHA-256 |
+| --- | --- |
+| [`dry-run-result.json`](owner-cutover/dry-run-result.json) | `e278339106d23516f037ada76c6f45acfd0fb8bd4402849efcbd7e95be8476ba` |
+| [`dry-run-summary.txt`](owner-cutover/dry-run-summary.txt) | `f9405b825f62ba627c08b3d013eac6a030a6914d421c8b78f015d9b8ec669d56` |
+| [`dry-run-run.log`](owner-cutover/dry-run-run.log) | `83a0c2861bed8e687cc778aeab354440a438d31cf4cfb8a4fc3f32de5c866eb0` |
+| [`dry-run-comparison-stand-in.txt`](owner-cutover/dry-run-comparison-stand-in.txt) | `dad2d8cd07e2a356defd4d8685618e97af23e2af79b96284a2f48aa0eab6cb20` |
+| [`dry-run-comparison-real-prefix.txt`](owner-cutover/dry-run-comparison-real-prefix.txt) | `2c53d226168a2fcdcbfcf71c1f3ba88d72861170159efdca3b16d2e25b8f1c22` |
+
+Each comparison also has its JSON record beside its text. The earlier
+result `d05a510a…` of owner-switch-rehearsal-k255 is history.
+
+### The comparisons
+
+The comparison through the stand-in used the prepared instrument, the
+stand-in's `bin` folder and the run's prefixes. It exited 0: 164 rows, each
+equal or substituted, and no plan value differed. `tool:codex` names
+`/opt/homebrew/Caskroom/codex/0.167.2/bin/codex`, version `codex-cli 0.167.2`.
+`tool:mise` names 2026.11.7.
+
+The comparison with the prepared instructions' real prefixes exited 1, as
+expected before finish. The same 14 rows and the same plan value differ as
+in [The comparison](#the-comparison) of the earlier result. The Codex row is
+equal.
+
+### The decision on Codex and the planned originals
+
+The comparison of the earlier result had no Codex row, and no command before
+the switch failed on a changed planned original. This leaf decided both
+before finish:
+
+- **Codex.** The comparison instrument names `codex` as a default tool. A
+  Codex update after the dry run now fails the comparison, as a Claude Code
+  update does. Codex runs the Codex probes, and
+  [The rehearsed plan](specs/owner-skill-delivery.md#the-rehearsed-plan)
+  requires each external tool version in the input table. A default row also
+  reaches finish's own dry run without another option.
+- **Planned originals.** The comparison and `status` stay as they are. The
+  read-only plan report already lists each planned original with its
+  identity now. The owner's checklist runs that report before each attempt
+  as its step 15, and the prepared instructions name it beside the
+  comparison. The switch's preflight still refuses a changed original before
+  its first write, so a missed report costs a refused attempt, not a write.
+
+`status` reports health from named delivery assertions, and its whole-file
+drift check governs restore eligibility after a switch. A whole-file check
+of planned originals in `status` would report every harmless settings edit
+as unhealthy native delivery. The comparison reads the inputs of the dry
+run, and the planned originals are values of the plan.
+
+### Instrument changes
+
+- `scripts/owner_switch_dry_run.py` adds `codex` to `DEFAULT_TOOLS`.
+- `scripts/owner_switch_rehearsal.py` adds a `codex` stub that answers
+  `--version`. `dry-run-full` expects the `tool:codex` row and its version.
+  The new control `dry-run-codex-version` changes the stub's version after
+  a passed run and expects the comparison to fail.
+- A mutant instrument without the Codex default failed both controls.
+- `native-off-accepted-build` selected the one Darwin archive in
+  `target/ravel-archives-2.0`. Since 2026-11-12 that folder also holds the
+  published 2.0.0 archives, so the control failed on any change. It now
+  selects the archive whose `bin/ravel` has the accepted digest
+  `3a9a9129…`.
+
+### Verification
+
+| Check | Result |
+| --- | --- |
+| `task owner:switch:rehearse ONLY=dry-run` | All 15 dry-run controls passed |
+| `task owner:switch:rehearse` | All 171 controls passed, with `dry-run-codex-version`. Before the archive repair, 170 of 171 passed and `native-off-accepted-build` failed. |
+| `bash scripts/check.sh` | All 18 principal checks passed |
+
+After the run, the real HOME held these states:
+
+- `owner_switch.py status` reported the health "native" and no restore.
+- `mac-check --only "Owner skill switch"` reported native delivery.
+- `~/.config/ravel/settings.json` did not exist.
+- The state folder held only `prepared` and the replaced `dry-run`.
+- `codex app-server daemon start` started the owner's Codex daemon again, release 0.168.0, as step 2 of the checklist states.
+
+### Limits
+
+- The limits of [Owner switch rehearsal](#owner-switch-rehearsal) stay. The
+  stand-in prefix stands for the released Grove and the promoted Ravel.
+- Finish still runs its own dry run after the Grove release and the Ravel
+  promotion, with the real prefix. This result does not replace that run.
+- The report of planned originals is an operator step, not a gate. The
+  switch's preflight is the gate.
+- Each new edit of a write-set file needs another draft and dry run, as
+  [Edits after the plan draft](owner-cutover/owner-checklist.md#edits-after-the-plan-draft)
+  states.

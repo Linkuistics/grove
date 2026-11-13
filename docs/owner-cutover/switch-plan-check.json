@@ -1,7 +1,7 @@
 {
   "plan": "docs/owner-cutover/switch-plan-draft.json",
-  "plan_digest": "09581cd77b87d1afb7f57902fb0ae78734e7ed425ea3044b4fbfbadebf3f8a7f",
-  "program_digest": "029f81af4c26d9d159ed450dc37eb5a434ea10ec9e2092cc7f24e46cf8e21379",
+  "plan_digest": "8679483c4127f59d94e30d20934292c6142492b3cf93ca9593cbafacfe2f475e",
+  "program_digest": "76ed17260bb1e0305c3011ec2c6d5eab171b1454a498a2a5e6ceef9cba090f7d",
   "python": "3.15.1",
   "writes_copied": 158,
   "inventory_entries_copied": 170,
@@ -82,7 +82,7 @@
     },
     "codex": {
       "path": "/opt/homebrew/bin/codex",
-      "canonical": "/opt/homebrew/Caskroom/codex/0.167.0/bin/codex"
+      "canonical": "/opt/homebrew/Caskroom/codex/0.167.2/bin/codex"
     },
     "grove": {
       "path": "/opt/homebrew/bin/grove",
@@ -100,23 +100,22 @@
   "processes": {
     "admitted": [
       {
-        "pid": 19958,
+        "pid": 39127,
+        "tool": "Grove"
+      },
+      {
+        "pid": 77883,
         "tool": "Ravel"
       },
       {
-        "pid": 19964,
+        "pid": 77885,
         "tool": "Claude Code"
-      },
-      {
-        "pid": 77320,
-        "tool": "Grove"
       }
     ],
-    "other": 25,
-    "review": 11,
+    "other": 3,
+    "review": 0,
     "forms": [
       "Claude Code: versioned executable",
-      "Codex: helper executable",
       "Codex: native executable",
       "Grove: native executable",
       "Ravel: native executable"

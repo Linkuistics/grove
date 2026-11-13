@@ -172,6 +172,8 @@ FIXTURE_SCRIPTS = ("lib/node_modules/@openai/codex/bin/codex.js",
                    "lib/other-server.js", "lib/grove.js", "wrappers/codex")
 # The version that the stub claude prints, and that a fixture record measured.
 FIXTURE_CLAUDE = "2.1.319 (Claude Code)"
+# The version that the stub codex prints. The dry run measures it as tool:codex.
+FIXTURE_CODEX = "codex-cli 0.167.0"
 # The owner's `mac-check`. The machine contract owns it, and the rehearsal runs
 # it against each disposable HOME, never against the account's HOME.
 MAC_CHECK = os.path.join(os.path.realpath(pwd.getpwuid(os.getuid()).pw_dir), ".local/bin/mac-check")
@@ -783,6 +785,15 @@ def stub_rewrite(home: str, root: str, label: str, mutate) -> int:
     return 0
 
 
+def cmd_stub_codex(argv: list) -> int:
+    """Stand in for `codex --version`, the only Codex command that the dry run's input table runs."""
+    if argv != ["--version"]:
+        print(f"stub codex: unexpected arguments {argv}", file=sys.stderr)
+        return 2
+    print(load(os.path.join(case_root(), "control.json"), {}).get("codex_version", FIXTURE_CODEX))
+    return 0
+
+
 def cmd_stub_claude(argv: list) -> int:
     """Stand in for the `claude plugin` commands that the hooks installation runs."""
     home = os.environ["HOME"]
@@ -1129,7 +1140,7 @@ class Rehearsal:
         os.chmod(self.hook, 0o755)
         self.stubs = os.path.join(self.out, "stubs")
         os.makedirs(self.stubs, exist_ok=True)
-        for name in ("claude", "brew", "mise"):
+        for name in ("claude", "codex", "brew", "mise"):
             stub = os.path.join(self.stubs, name)
             with open(stub, "w") as f:
                 f.write(f"#!/bin/sh\nexec '{PY}' -I '{SELF}' stub-{name} \"$@\"\n")
@@ -2879,15 +2890,20 @@ def c_native_off_accepted_build(case):
     folder = os.path.realpath(ARCHIVES)
     archives = sorted(n for n in os.listdir(folder) if n.endswith("-aarch64-apple-darwin.tar.xz")) \
         if os.path.isdir(folder) else []
-    expect(len(archives) == 1, f"expected one darwin archive of the accepted build in {folder}, found {archives}")
+    # The folder can also hold the published 2.0.0 archives beside the accepted
+    # build, which reports 1.1.0. Select by the binary's digest, not by name.
     work = os.path.join(case.root, "accepted")
-    os.makedirs(os.path.join(work, "archive"))
-    subprocess.run(["/usr/bin/tar", "-xJf", os.path.join(folder, archives[0]), "-C",
-                    os.path.join(work, "archive")], check=True)
-    (top,) = os.listdir(os.path.join(work, "archive"))
-    binary = os.path.join(work, "archive", top, "bin", "ravel")
-    got = digest_file(binary)
-    expect(got == want, f"{binary} is not the accepted 2.0 build: {got} != {want}")
+    found = {}
+    for i, name in enumerate(archives):
+        into = os.path.join(work, f"archive-{i}")
+        os.makedirs(into)
+        subprocess.run(["/usr/bin/tar", "-xJf", os.path.join(folder, name), "-C", into], check=True)
+        (top,) = os.listdir(into)
+        found[name] = os.path.join(into, top, "bin", "ravel")
+    matching = [n for n, b in found.items() if digest_file(b) == want]
+    expect(len(matching) == 1, f"expected one darwin archive of the accepted build {want[:12]} in {folder}, "
+                               f"found {[(n, (digest_file(b) or '')[:12]) for n, b in found.items()]}")
+    binary = found[matching[0]]
     # A fixture keg whose default skill directory holds one source, so an
     # absent `skills` key resolves a source and the off value does not.
     keg = os.path.join(work, "brew", "Cellar", "ravel@2", "2.0.0")
@@ -3631,11 +3647,12 @@ def c_dry_run_full(case):
               "helper:command:probes/probe-switched:2 fixture_probe_helper",
               f"helper:command:mac_check/mac-check:0 $HOME/{FIXTURE_CHECKER}",
               f"helper:command:mac_check/mac-check:0 {PY}", "interpreter:command:mac_check/mac-check:0",
-              "tool:claude", "tool:brew", "tool:mise", "tool:ravel", "tool:grove", "source:grove-core",
-              "source:personal"]
+              "tool:claude", "tool:codex", "tool:brew", "tool:mise", "tool:ravel", "tool:grove",
+              "source:grove-core", "source:personal"]
     missing = [w for w in wanted if w not in rows]
     expect(not missing, f"the input table lacks {missing}; it holds {sorted(rows)}")
-    expect(rows["tool:claude"].get("version") == FIXTURE_CLAUDE and rows["tool:ravel"].get("version")
+    expect(rows["tool:claude"].get("version") == FIXTURE_CLAUDE and rows["tool:codex"].get("version")
+           == FIXTURE_CODEX and rows["tool:ravel"].get("version")
            == "ravel 2.0.0 (fixture)" and rows["tool:grove"].get("version") == "grove 1",
            f"the tool versions are {[(k, v.get('version')) for k, v in rows.items() if k.startswith('tool:')]}")
     expect(all(r["digest"] for r in result["inputs"]), "a row has no content digest")
@@ -3768,6 +3785,17 @@ def c_dry_run_tool_version(case):
            f"a changed tool version passed (exit {code}): {row}")
 
 
+def c_dry_run_codex_version(case):
+    """A Codex update after the dry run must fail the comparison, as a Claude Code update does."""
+    dry_run_prepare(case)
+    expect_dry_passed(*dry_run(case))
+    case.set_control({"codex_version": "codex-cli 0.167.2"})
+    code, text, record = dry_compare(case)
+    row = verdicts(record)["tool:codex"]
+    expect(code == 1 and any(r.startswith("version differs") for r in row["reasons"]),
+           f"a changed Codex version passed (exit {code}): {row}")
+
+
 def c_dry_run_failed_probe(case):
     def failing(plan):
         plan["probes"][0]["argv"][-1] = "probe-native"
@@ -3865,6 +3893,7 @@ def dry_run_controls() -> list:
         ("dry-run-changed-plan", c_dry_run_changed_plan, DRY_ARGS),
         ("dry-run-changed-source", c_dry_run_changed_source, DRY_ARGS),
         ("dry-run-tool-version", c_dry_run_tool_version, DRY_ARGS),
+        ("dry-run-codex-version", c_dry_run_codex_version, DRY_ARGS),
         ("dry-run-failed-probe", c_dry_run_failed_probe, DRY_ARGS),
         ("dry-run-source-written", c_dry_run_source_written, DRY_ARGS),
         ("dry-run-sign-in", c_dry_run_sign_in, DRY_ARGS),
@@ -3908,6 +3937,8 @@ def main() -> int:
         return cmd_hook(sys.argv[2])
     if len(sys.argv) > 1 and sys.argv[1] == "stub-claude":
         return cmd_stub_claude(sys.argv[2:])
+    if len(sys.argv) > 1 and sys.argv[1] == "stub-codex":
+        return cmd_stub_codex(sys.argv[2:])
     if len(sys.argv) > 1 and sys.argv[1] == "stub-brew":
         return cmd_stub_brew(sys.argv[2:])
     if len(sys.argv) > 1 and sys.argv[1] == "stub-mise":

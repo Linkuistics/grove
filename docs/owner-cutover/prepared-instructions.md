@@ -49,6 +49,12 @@ backup:
 /opt/homebrew/opt/python@3.14/bin/python3.14 -I /Users/antony/.local/state/owner-switch/prepared/owner_switch.py native-off --home /Users/antony
 ```
 
+Before the command, pause the writers of that settings file. mise tracks
+`~/.config/ravel` through `[dotfiles]`. So run no `mise bootstrap`,
+`mise dot apply` or `mise dot sync`. Edit the file through no other program.
+The command refuses other Ravel drivers, but it cannot exclude a writer after
+its last comparison. Keep the pause until a resolution reports `disabled`.
+
 It writes only `/Users/antony/.config/ravel/settings.json`. Exit 0 means
 that the off value is in place. After exit 3 or 4, native delivery is
 incomplete, and no new default session may start. Repeat the same command

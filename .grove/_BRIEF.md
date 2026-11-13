@@ -108,10 +108,13 @@ assign these steps to finish, in this order:
 2. Integrate current `main`, and run `bash scripts/check.sh` in the 1.1 and
    2.0 lanes.
 3. Run `HOMEBREW_NO_INSTALL_CLEANUP=1 task release:minor`. The variable
-   keeps the running driver's Grove 22.8.0 keg.
+   keeps the running driver's Grove 22.8.0 keg. Put the same variable
+   before each Homebrew mutation of its recovery.
 4. Verify the installed Grove on both admitted Ravel majors.
 5. Write the readiness receipt only after that verification.
-6. Run `task release:promote VERSION=2.0.0` in Ravel's default workspace.
+6. Ask the owner to pause the writers of `~/.config/ravel/settings.json`.
+   Then run `task release:promote VERSION=2.0.0` in Ravel's default
+   workspace.
 7. Run `native-off` immediately after promotion.
 8. Verify Grove's revised formula. Resolve all ten default IDs after
    promotion and any link-conflict recovery.

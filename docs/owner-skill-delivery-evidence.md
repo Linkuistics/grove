@@ -8372,6 +8372,13 @@ Prepare replaced three files. The others keep the digests of
 The comparison instrument and the instructions are no plan inputs. A draft
 after their change gave the same plan bytes.
 
+finish-handoff-k342 later added the writer pause before `native-off` to the
+instructions. `task owner:switch-plan:prepare` then wrote only
+`INSTRUCTIONS.md`, with SHA-256
+`433f2e2dedd5d51589686bbb95b6bf595ef8602303c98cadbca61177ab5dbb71`. The plan
+digest stayed `8679483c…`. The earlier copy is in
+`~/.local/state/owner-switch/superseded/k342`.
+
 ### Processes before the dry run
 
 The process check refused at first. Three processes remained:

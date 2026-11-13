@@ -65,7 +65,7 @@ incomplete. Then finish never signals success.
 | The switch plan | [`switch-plan-draft.json`](owner-cutover/switch-plan-draft.json), SHA-256 `8679483c4127f59d94e30d20934292c6142492b3cf93ca9593cbafacfe2f475e`, also at `~/.local/state/owner-switch/prepared/plan.json` |
 | The switch program | `~/.local/state/owner-switch/prepared/owner_switch.py`, SHA-256 `76ed17260bb1e0305c3011ec2c6d5eab171b1454a498a2a5e6ceef9cba090f7d` |
 | The comparison instrument | `~/.local/state/owner-switch/prepared/owner_switch_dry_run.py`, SHA-256 `324ccbd3dc6cdc9910e840fe8d28fe6a15ec25b79e70fd5e7c37ce56df4cd352` |
-| The prepared instructions | `~/.local/state/owner-switch/prepared/INSTRUCTIONS.md`, SHA-256 `c7966156d4d7906b092ab689e59f7b404791e09d6eeb2219e7c5b56233d1f745` |
+| The prepared instructions | `~/.local/state/owner-switch/prepared/INSTRUCTIONS.md`, SHA-256 `433f2e2dedd5d51589686bbb95b6bf595ef8602303c98cadbca61177ab5dbb71` |
 | The dry-run result before finish | [`dry-run-result.json`](owner-cutover/dry-run-result.json), SHA-256 `e278339106d23516f037ada76c6f45acfd0fb8bd4402849efcbd7e95be8476ba`, run `run-20261113T080616Z` through the stand-in prefix |
 | Accepted sources | The ten `accepted.sources` of the plan. [Published source acceptance](owner-skill-delivery-evidence.md#the-ten-sources) lists each ID and `resourceDigest`. |
 | The `grove-core` candidate | `2a24d5e61f29`. Its `plugins/grove` tree ID is `961fddd04bb7b271e9896d07dc0225348fa8c378`. |
@@ -113,6 +113,12 @@ fails, stop and go to [Recovery](#recovery).
    cleanup when the caller sets the variable. "Activation and running readers" of
    the coordinated release design requires this suppression.
 
+   The variable reaches only this task and its child processes. The entry
+   in `~/.homebrew/brew.env` exempts only `ravel`. Until the final signal,
+   put the same variable before each Homebrew install, upgrade or reinstall
+   that finish runs outside this task. The resumed installation of a
+   partial release is such a command.
+
    Keep `ravel@2` installed, so that the task's installed smoke runs its
    2.0 lane. Record the released version as V. The release is the next
    minor version after the version on integrated `main`. Do not assume
@@ -150,12 +156,36 @@ fails, stop and go to [Recovery](#recovery).
      target/release-evidence/v2.0.0.json >target/release-evidence/v2.0.0.readiness.json
    ```
 
-   The three routes come from these runs. The 1.1 lane of step 5 covers
-   `native-1.1`. The 2.0 lane and the keg-source line of step 5 cover
-   `directory-2.0`. The 2.0 lane of step 3 covers
-   `native-2.0-delivery-disabled` on the tagged source.
-   [Limits](#limits) states what no installed test covers.
-7. **Promote.** Make sure that `brew config` reports
+   The three routes come from these runs:
+   - The 1.1 lane of step 5 covers `native-1.1`.
+   - The 2.0 lane and the keg-source line of step 5 cover `directory-2.0`.
+     That lane uses the real `ravel@2` keg. Its installation record names
+     the default directory, and its HOME holds no settings.
+   - The release task's archive smoke covers `native-2.0-delivery-disabled`.
+     After the cut and before publication, `scripts/release-smoke.sh
+     --archives target/dist` runs the released archive against the admitted
+     Ravel 2.0.0 archive. That archive holds no installation record, so
+     Ravel reads no default directory. For `aarch64-apple-darwin`, the
+     output must hold the lines "Ravel 2.0 direct lifecycle" and "Ravel 2.0
+     symlink lifecycle". It must not name the 2.0 lane of that target as
+     not run.
+
+   The archive layout is not a Homebrew installation with the off value.
+   Step 3 ran the 2.0 lane before the cut, on the integrated source, and is
+   supporting evidence only. [Limits](#limits) states what no installed test
+   covers.
+7. **Promote.** First ask the owner to pause the writers of
+   `~/.config/ravel/settings.json`. Step 8 replaces that file, and "The
+   native settings inside finish" requires this pause before `native-off`.
+   mise tracks `~/.config/ravel` through `[dotfiles]`. So the owner runs no
+   `mise bootstrap`, `mise dot apply` or `mise dot sync`. The owner edits
+   the file through no other program, and launches no other Ravel or Grove
+   session. `native-off` refuses other Ravel drivers, but it cannot exclude
+   a writer after its last comparison. The pause lasts through step 8 and
+   continues into the quiet interval of step 12. The full checklist can wait
+   for step 12.
+
+   Make sure that `brew config` reports
    `HOMEBREW_NO_CLEANUP_FORMULAE: ravel`. Then run the promotion from
    Ravel's default colocated workspace:
 
@@ -403,10 +433,10 @@ force-stop command of its launch prompt. Never signal success then.
 | Failure | Row and action |
 | --- | --- |
 | Step 3 fails | Repair on the session's line and repeat the suite. No cut exists. |
-| Step 4 stops after the cut | "Grove release partial". Resume the unfinished step of [the release procedure](RELEASING.md). Never rerun `task release:minor`, because a rerun bumps the version again. Unversioned Ravel stays 1.1.0. |
+| Step 4 stops after the cut | "Grove release partial". Resume the unfinished step of [the release procedure](RELEASING.md). Never rerun `task release:minor`, because a rerun bumps the version again. The procedure's installation commands omit the cleanup variable. So run `HOMEBREW_NO_INSTALL_CLEANUP=1 brew upgrade grove`, or `HOMEBREW_NO_INSTALL_CLEANUP=1 brew install linkuistics/taps/grove` if Grove is not installed. Unversioned Ravel stays 1.1.0. |
 | Step 5 fails on the formula's test | Repair the test in a same-version tap change, then repeat `brew test grove` and the installed smoke, as section 4 of [the release procedure](RELEASING.md#4-check-the-installation) states. Write no receipt before step 5 passes. |
 | Step 7 stops | "Promotion partial". Run `task release:promote VERSION=2.0.0` again. It keeps published formulae and pushes a local promotion commit. Cut neither Ravel nor Grove again. |
-| Step 8 fails, or the switch stops before its backup | "Promotion complete, switch has no complete backup". Run `native-off` before any default launch or release task. Verify disabled directory delivery and intact native discovery. Repair preparation while native delivery stays active. |
+| Step 8 fails, or the switch stops before its backup | "Promotion complete, switch has no complete backup". Keep the settings writers of step 7 paused. Run `native-off` before any default launch or release task. Verify disabled directory delivery and intact native discovery. Repair preparation while native delivery stays active. |
 | The switch fails or stops after its backup | "Promotion complete, owner switch failed or was interrupted after backup". Keep the backup, the attempt note and the restore entry. A caught failure restores by itself. After a crash, re-establish the quiet interval and run the note's `restore` command. Verify native delivery before a fresh attempt. |
 | The probes passed before the signal | "Promotion complete, switch probes passed before finish's signal". Do step 19, then complete steps 20 to 24. |
 | A core trial or a probe of a Grove kind skill fails on the released Grove | "Promotion complete, a core trial or a probe of a Grove kind skill failed on the released Grove". Establish native delivery first: `native-off` without a backup, or the attempt's restore after mutation. Then end finish without success. The owner repairs `main` and publishes a Grove patch through `task release:patch`. Reaccept changed sources, repeat the affected staging trials and dry-run the revised inputs before a fresh switch. Cut and promote no Ravel again. |
@@ -464,8 +494,9 @@ owns the owner's operation. The prepared instructions give each command.
 
 ## Limits
 
-- No installed test runs Grove's native 2.0 route with delivery disabled.
-  The 2.0 lane of step 3 covers it on the tagged source. Step 8 covers the
+- No installed test runs Grove's native 2.0 route under the off value in a
+  Homebrew installation. The release task's archive smoke runs the released
+  binaries on Ravel 2.0.0 with no default directory. Step 8 covers the
   disabled resolution with the promoted Ravel, and restore's native probe
   covers the harness reads.
 - No test ran the next release's `record-teardown` under a live 22.8.0

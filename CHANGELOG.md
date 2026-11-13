@@ -55,6 +55,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v22.9.0
+
 This minor release moves skill delivery to Homebrew and Ravel 2. Homebrew
 installs Grove's skills in Grove's keg, and Ravel 2.0.0 delivers them to each
 session. Grove no longer installs a skill itself, and the `linkuistics`

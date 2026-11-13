@@ -74,3 +74,17 @@ therefore passes. The document must state that finish writes the receipt
 only after the installed verification of the released Grove's three routes.
 `docs/promotion-upgrade-rehearsal-record.md`, section "Decision", gives the
 evidence and the second condition, promotion-upgrade-remedy-docs-k338.
+
+cross-repo-docs-reconciliation-k319 found that the switch's manual entry
+covers activation only. After a successful switch, these statements of the
+manual `AI Dev Tooling` no longer hold: the rows "Claude-specific",
+"Codex-specific" and "Shared Agent Skills" of "System map", the first four
+items of "Shared skills", the sentence about `skills/` in "Configuration
+ownership", and steps 4 and 5 of "Bootstrap and recovery". Step 5 names
+Grove's Codex provisioning and `plugins/install.sh`, which the integrated
+`main` no longer holds. The manual is append-only. The document must tell
+finish to append one dated correction for these statements after the
+receipt, by the manual's own "Synchronise the record" workflow. The workflow
+also covers the maintenance checker's skill rows, which still classify
+native links. `docs/cross-repo-docs-reconciliation-record.md`, section
+"The maintained manual", lists each statement.

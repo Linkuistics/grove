@@ -6366,7 +6366,7 @@ trials of this section read that earlier candidate, except where
 
 | Source | Formula | Accepted version | Commit | Tree ID of the source directory | `resourceDigest` |
 | --- | --- | --- | --- | --- | --- |
-| `grove-core` | `linkuistics/taps/grove` | The Grove release that step 4 admits | `2a24d5e61f29070bebe1fb005fcd74fc8f2b4ca3`, the candidate | `961fddd04bb7b271e9896d07dc0225348fa8c378` | `d8eec38844f5e8ffd4e998ef34f3456a984846166b2e34cc2c8e65189b2f145e` |
+| `grove-core` | `linkuistics/taps/grove` | The Grove release that step 4 admits | `31fbab3ea93575ab603d2f77992593ab20586e4f`, the candidate | `b9a00084f5f92a76a2376042cd243c91dae28eb1` | `45e466d4a594f729d78e30f67b2f81fad42ee096dd12505d175aa8a6813e27f5` |
 | `requirements` | `linkuistics/taps/grove` | The same | `c51ec8bebd811c0087ad19a1d66d0aa87bd01386` | `f3cf8128fd206c48d73b061cc5ef6b536d4f9d61` | `07b2d25e8bd20259c71f7419092329368d8ae48bec6ca973343a601a8ec515c8` |
 | `design` | `linkuistics/taps/grove` | The same | `aa088156d1a55e28dd9b59f0330f4ab9f1f3d330` | `dd04e268aeb5eba82c527755b1f52bee3565a216` | `d8ad3a2af1b5029bc0de93747f4d7297038651180f6877fbd738d94fcbf6aa14` |
 | `engineering` | `linkuistics/taps/grove` | The same | `8d1a2bc3e07bec4ce57e0391a6aa778dff63a017` | `d8a891cd5c13e9866f7937537afc7979fb3ef0f7` | `7e70b280e7a932489a048d108d4dae2bc63b387cf8fc6b37298663336e0fcc66` |
@@ -8527,3 +8527,119 @@ After the run, the real HOME held these states:
 - Each new edit of a write-set file needs another draft and dry run, as
   [Edits after the plan draft](owner-cutover/owner-checklist.md#edits-after-the-plan-draft)
   states.
+
+## Finish
+
+`finish-k343` ran the finish sequence of the [finish handoff](finish-handoff.md)
+on 2026-11-13. Its times are UTC. It released Grove 22.9.0, promoted Ravel
+2.0.0, ran `native-off` and switched the owner's skill delivery. This section
+records what differed from the handoff.
+
+### Result
+
+- The switch attempt `20261113T114254090051Z-21a4bc` switched at 11:46:30Z.
+  `status` reports the health "switched", and `mac-check` verifies the
+  switched layout. The real HOME resolves the ten accepted sources.
+- The released `grove-core` digest differed from the accepted digest. The
+  owner chose to reaccept the source inside finish. The design's procedure
+  for a changed released source ran before any attempt.
+- Two attempts failed on one probe check and restored native delivery. The
+  cause was a defect of the trial parser, which this section states.
+
+### The changed `grove-core` digest
+
+Step 10 of the handoff resolved `grove-core` from Grove 22.9.0 as
+`45e466d4a594f729d78e30f67b2f81fad42ee096dd12505d175aa8a6813e27f5`. The plan
+accepted `d8eec388…`. Two commits after the candidate `2a24d5e61f29` changed
+`plugins/grove/skills/configure-grove`: homebrew-tap-trust-docs-k337 and
+promotion-upgrade-remedy-docs-k338. No candidate keg followed them. The
+other nine digests were equal.
+
+The reacceptance took these steps, as
+[Core candidate restaging](#core-candidate-restaging) did:
+
+- The earlier candidate keg moved to
+  `~/.local/state/owner-staging/candidate-d8eec388`.
+  `task owner:candidate-keg` built the new keg from the release commit
+  `31fbab3ea93575ab603d2f77992593ab20586e4f`, with the accepted 2.0 build as
+  its resolver. Its `plugins/grove` tree is
+  `b9a00084f5f92a76a2376042cd243c91dae28eb1`. Its `grove-core` digest is
+  `45e466d4…`, and each other digest is unchanged. The log is
+  `~/.local/state/owner-staging/candidate-build-finish-k343.log`.
+- The moves record and [The accepted sources](#the-accepted-sources) name
+  the new commit, tree and digest.
+- Each `grove-core` trial of `accepted.trials` ran through `staging_trial.py
+  rerun`, with the source and the installed digest that gate 4 sets. The
+  probe resolve and the session probes ran too, because they read the
+  plan's accepted digests. The log is
+  `~/.local/state/owner-staging/trials/finish-k343-reruns.log`. The digests
+  of the subjects were equal before and after the runs.
+
+| Trial | Record | Result |
+| --- | --- | --- |
+| Source trials | `rerun-grove-core-sources-20261113T105413Z` | Passed |
+| Kind skill, Claude Code | `rerun-grove-core-kind-skill-claude-20261113T105417Z` | Passed |
+| Kind skill, Codex | `rerun-grove-core-kind-skill-codex-20261113T105458Z` | Passed |
+| Stale copy, Claude Code | `rerun-grove-core-stale-copy-claude-20261113T105611Z` | Passed |
+| Stale copy, Codex | `rerun-grove-core-stale-copy-codex-20261113T105645Z` | Passed |
+| Probe resolve, five cases | `probe-resolve-finish-k343` | Each case gave its wanted result |
+| Session probes, eight cases | `probe-sessions-finish-k343` | Seven cases gave their wanted result. `codex-native-bare` failed on `listing` only, as [The bare native probe](#the-bare-native-probe) states. The records name `45e466d4…` and never `d8eec388…`. |
+
+### The retained Ravel keg of the plan
+
+After promotion, `ravel` on `PATH` is the 2.0.0 keg. `original_ravel()` of
+`switch_plan_draft.py` read that keg, so a draft named
+`/opt/homebrew/Cellar/ravel/2.0.0` as "the original driver's Ravel keg". The
+function now reads the keg of the nearest ancestor process that runs a
+Homebrew keg's Ravel. It falls back to `PATH` when no such process exists. The
+draft then named `/opt/homebrew/Cellar/ravel/1.1.0`, and the receipt lists
+that keg as retained.
+
+### The denied Codex command
+
+The first two attempts failed on the `testanyware` check of
+`codex-switched`. The agent ran `testanyware llm-instructions` and
+`testanyware doctor`. Doctor exited 1, because Codex's sandbox refused the
+connection to the TestAnyware app's socket. The probe accepts a failed
+doctor. But Codex 0.168.0 wrote no completed `CommandExecution` item for the
+refused command, and `CodexAdapter.entries()` read only completed items. The
+dry run passed the same check, because its socket path was too long, so
+doctor failed before any connection.
+
+`CodexAdapter.entries()` now reads each `tools.exec_command` command of an
+`exec` call. A command that no completed item matched before the call's
+output becomes an error entry. The test
+`test_a_denied_codex_cell_command_is_still_an_event` and two broken variants
+cover the change. The two failed transcripts each gave `testanyware doctor`
+once after the change, and the dry run's transcript gave no second entry.
+
+The plan changed only in the two digests of `harness_trial.py`. The check,
+the preparation, a new dry run, the comparison and the plan report passed
+before the third attempt.
+
+### Attempts
+
+| Attempt | Plan | Result |
+| --- | --- | --- |
+| `20261113T111539862191Z-f76383` | `b5c68a0f…` | `codex-switched` failed. The caught failure restored native delivery at 11:19:37Z. |
+| `20261113T112015154453Z-1f3764` | `b5c68a0f…` | The same failure. Restored at 11:24:28Z. |
+| `20261113T114254090051Z-21a4bc` | `a88e647b…` | Switched at 11:46:30Z. All probes passed. |
+
+Each dry run before an attempt used the real prefixes of Grove 22.9.0 and
+the promoted Ravel, and passed. Its result is in
+`~/.local/state/owner-switch/dry-run`. Earlier results are in
+`~/.local/state/owner-switch/superseded`.
+
+### A defect of the finish handoff
+
+Step 5 of the handoff expects the release task's installed smoke to run its
+2.0 lane while `ravel@2` stays installed. The task passes only the 1.1
+prefix to `scripts/grove-installed-smoke.sh`, which runs the 2.0 lane only
+with a fourth argument. Finish ran the script with both prefixes. Each of
+the five required lines passed.
+
+### Limits
+
+- Each `grove-core` rerun ran once on each harness.
+- The parser change reaches only Codex session files. A Codex stream holds
+  no `exec` call.

@@ -379,9 +379,29 @@ def held_claude():
     return f"{parts[-1]} (Claude Code)"
 
 
+def ancestor_ravel():
+    """The executable of the nearest ancestor process that runs a Homebrew keg's Ravel, or None.
+
+    After promotion, `ravel` on PATH is the promoted keg, but the running
+    driver keeps the keg that launched it. That keg is the retained one.
+    """
+    pid = os.getppid()
+    while pid > 1:
+        out = subprocess.run(["ps", "-o", "ppid=,comm=", "-p", str(pid)],
+                             capture_output=True, text=True).stdout.strip()
+        if not out:
+            return None
+        ppid, _, comm = out.partition(" ")
+        comm = comm.strip()
+        if re.search(r"/Cellar/ravel/[^/]+/bin/ravel$", comm):
+            return comm
+        pid = int(ppid)
+    return None
+
+
 def original_ravel():
-    """The keg of the installed Ravel, which the running driver uses until it ends."""
-    path = shutil.which("ravel")
+    """The keg of the Ravel that the running driver uses until it ends: an ancestor's keg, else the installed one."""
+    path = ancestor_ravel() or shutil.which("ravel")
     real = os.path.realpath(path) if path else ""
     keg = os.path.dirname(os.path.dirname(real))
     if not re.search(r"/Cellar/ravel/[^/]+$", keg):

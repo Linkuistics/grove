@@ -4003,10 +4003,10 @@ of an earlier section. The earlier sections describe the state after each move.
 
 | Subject | Value |
 | --- | --- |
-| Candidate commit | `2a24d5e61f29070bebe1fb005fcd74fc8f2b4ca3`, the commit of `owner-switch-package-identity-k299` |
-| Tree ID of `plugins/grove` | `961fddd04bb7b271e9896d07dc0225348fa8c378` |
+| Candidate commit | `31fbab3ea93575ab603d2f77992593ab20586e4f`, the release commit of Grove v22.9.0 |
+| Tree ID of `plugins/grove` | `b9a00084f5f92a76a2376042cd243c91dae28eb1` |
 | Blob ID of `plugins/packs.json` | `2cebaf5f062d08b50b22d058bd8c4db3d412f8a6` |
-| Published line | The bookmark `gh-issue-25` of `https://github.com/Linkuistics/grove.git` |
+| Published line | The tag `v22.9.0` and `main` of `https://github.com/Linkuistics/grove.git` |
 
 `tc-hook-bytecode-k284` revised the candidate and the `writing` row on
 2026-11-10. WritingSkills `578f84d1f5a9` stops the hooks from writing Python
@@ -4040,7 +4040,7 @@ finish.
 
 | Source ID | Formula | Repository | Published commit | Source directory | Roots | Tree ID of the source directory | `resourceDigest` |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `grove-core` | `grove` | `https://github.com/Linkuistics/grove.git` | `2a24d5e61f29070bebe1fb005fcd74fc8f2b4ca3` | `plugins/grove` | `skills` | `961fddd04bb7b271e9896d07dc0225348fa8c378` | `d8eec38844f5e8ffd4e998ef34f3456a984846166b2e34cc2c8e65189b2f145e` |
+| `grove-core` | `grove` | `https://github.com/Linkuistics/grove.git` | `31fbab3ea93575ab603d2f77992593ab20586e4f` | `plugins/grove` | `skills` | `b9a00084f5f92a76a2376042cd243c91dae28eb1` | `45e466d4a594f729d78e30f67b2f81fad42ee096dd12505d175aa8a6813e27f5` |
 | `requirements` | `grove` | `https://github.com/Linkuistics/RequirementsSkills.git` | `c51ec8bebd811c0087ad19a1d66d0aa87bd01386` | `plugins/requirements` | `skills` | `f3cf8128fd206c48d73b061cc5ef6b536d4f9d61` | `07b2d25e8bd20259c71f7419092329368d8ae48bec6ca973343a601a8ec515c8` |
 | `design` | `grove` | `https://github.com/Linkuistics/DesignSkills.git` | `aa088156d1a55e28dd9b59f0330f4ab9f1f3d330` | `plugins/design` | `craft`, `skills` | `dd04e268aeb5eba82c527755b1f52bee3565a216` | `d8ad3a2af1b5029bc0de93747f4d7297038651180f6877fbd738d94fcbf6aa14` |
 | `engineering` | `grove` | `https://github.com/Linkuistics/EngineeringSkills.git` | `8d1a2bc3e07bec4ce57e0391a6aa778dff63a017` | `plugins/engineering` | `craft`, `skills` | `d8a891cd5c13e9866f7937537afc7979fb3ef0f7` | `7e70b280e7a932489a048d108d4dae2bc63b387cf8fc6b37298663336e0fcc66` |

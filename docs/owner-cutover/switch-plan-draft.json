@@ -1624,12 +1624,12 @@
     {
       "role": "probe helper harness_trial.py",
       "path": "/Users/antony/.local/state/owner-switch/prepared/harness_trial.py",
-      "digest": "2a6a3790438aa86b9468839e1f5f133d4ef1005b3d5556886adf9107a6a4c5a5"
+      "digest": "e3423de4c31ffe50818e1b12cfd3eab8cc6895146e82a7cee47831cb8cf63568"
     },
     {
       "role": "staging runner file scripts/harness_trial.py",
       "path": "/Users/antony/.local/state/owner-switch/prepared/staging/scripts/harness_trial.py",
-      "digest": "2a6a3790438aa86b9468839e1f5f133d4ef1005b3d5556886adf9107a6a4c5a5"
+      "digest": "e3423de4c31ffe50818e1b12cfd3eab8cc6895146e82a7cee47831cb8cf63568"
     },
     {
       "role": "staging runner file scripts/harness-trials/builds.json",
@@ -2593,7 +2593,7 @@
     "sources": {
       "grove-core": {
         "formula": "linkuistics/taps/grove",
-        "resourceDigest": "d8eec38844f5e8ffd4e998ef34f3456a984846166b2e34cc2c8e65189b2f145e"
+        "resourceDigest": "45e466d4a594f729d78e30f67b2f81fad42ee096dd12505d175aa8a6813e27f5"
       },
       "requirements": {
         "formula": "linkuistics/taps/grove",

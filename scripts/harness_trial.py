@@ -2108,11 +2108,37 @@ class CodexAdapter(HarnessAdapter):
     def entries(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """The completed items of a Codex session file or stream, in order,
         as transcript entries. Each nested command of the `exec` tool is an
-        item of its own, with its argument vector and its working directory."""
+        item of its own, with its argument vector and its working directory.
+
+        Codex 0.168.0 writes no completed item for a nested command that its
+        sandbox denied, such as a connection to a socket outside the
+        writable roots. The `exec` call's own JavaScript still names the
+        command. So a `tools.exec_command` command of an `exec` call that no
+        completed item matched before the call's output becomes an entry
+        too, marked as an error."""
         entries: list[dict[str, Any]] = []
+        # The call ID of each open `exec` call: [its commands, the scripts of
+        # the completed commands since the call].
+        cells: dict[str, list[list[str]]] = {}
         for record in records:
             item = None
             payload = record.get("payload") if isinstance(record.get("payload"), dict) else {}
+            if record.get("type") == "response_item" and payload.get("type") == "custom_tool_call" \
+                    and payload.get("name") == "exec":
+                cells[str(payload.get("call_id"))] = [self.cell_commands(str(payload.get("input") or "")), []]
+                continue
+            if record.get("type") == "response_item" and payload.get("type") == "custom_tool_call_output":
+                commands, done = cells.pop(str(payload.get("call_id")), [[], []])
+                for command in commands:
+                    if command in done:
+                        done.remove(command)
+                        continue
+                    tid = f"codex_cell_{len(entries)}"
+                    entries += [{"type": "assistant", "message": {"content": [
+                        {"type": "tool_use", "id": tid, "name": "exec_command", "input": {"command": command}}]}},
+                        {"type": "user", "message": {"content": [
+                            {"type": "tool_result", "tool_use_id": tid, "is_error": True, "content": ""}]}}]
+                continue
             if record.get("type") == "event_msg" and payload.get("type") == "item_completed":
                 item = payload.get("item")
             elif record.get("type") == "item.completed":
@@ -2120,8 +2146,25 @@ class CodexAdapter(HarnessAdapter):
             elif record.get("method") == "item/completed":
                 item = (record.get("params") or {}).get("item")
             if isinstance(item, dict):
+                if re.sub(r"[_\s]", "", str(item.get("type", ""))).lower() == "commandexecution":
+                    script = self.script(item.get("command"))
+                    for cell in cells.values():
+                        cell[1].append(script)
                 entries += self.item(item, len(entries))
         return entries
+
+    @staticmethod
+    def cell_commands(source: str) -> list[str]:
+        """The `cmd` string of each `tools.exec_command` call in the JavaScript
+        of one `exec` call, in order. A string that is not a JSON string
+        literal is skipped."""
+        found = []
+        for match in re.finditer(r"tools\.exec_command\(\s*\{\s*[\"']?cmd[\"']?\s*:\s*(\"(?:[^\"\\]|\\.)*\")", source):
+            try:
+                found.append(json.loads(match.group(1)))
+            except json.JSONDecodeError:
+                continue
+        return found
 
     @staticmethod
     def skills(text: str) -> dict[str, Any]:

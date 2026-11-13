@@ -1353,6 +1353,34 @@ class HarnessTrialTest(unittest.TestCase):
         # A runner that drops the result text loses what the native loader said.
         self.broken(self.check_events, "result_text", lambda content: "")
 
+    def check_denied_cell_command(self, fixture: Fixture):
+        """Codex 0.168.0 writes no completed item for a sandbox-denied nested
+        command. The `exec` call's JavaScript still names it, so it becomes
+        one error entry. A command with a completed item gives no second entry."""
+        def cell(call_id, cmd):
+            return {"type": "response_item", "payload": {"type": "custom_tool_call", "name": "exec", "call_id": call_id,
+                    "input": f"text(await tools.exec_command({{cmd:{json.dumps(cmd)},max_output_tokens:4000}}));\n"}}
+
+        def output(call_id):
+            return {"type": "response_item", "payload": {"type": "custom_tool_call_output", "call_id": call_id,
+                                                         "output": []}}
+
+        done = {"type": "event_msg", "payload": {"type": "item_completed", "item": {
+            "type": "CommandExecution", "id": "c1", "command": ["/bin/zsh", "-lc", "testanyware llm-instructions"],
+            "cwd": str(fixture.root), "exit_code": 0, "status": "completed", "aggregated_output": "ok"}}}
+        records = [cell("a", "testanyware llm-instructions"), done, output("a"),
+                   cell("b", "testanyware doctor"), output("b")]
+        entries = trial.CodexAdapter().entries(records)
+        uses = [(b["input"]["command"], r["message"]["content"][0]["is_error"])
+                for u, r in zip(entries[::2], entries[1::2]) for b in u["message"]["content"]]
+        self.assertEqual(uses, [("testanyware llm-instructions", False), ("testanyware doctor", True)])
+
+    def test_a_denied_codex_cell_command_is_still_an_event(self):
+        self.check_denied_cell_command(self.fixture)
+        self.broken(self.check_denied_cell_command, "CodexAdapter.cell_commands", staticmethod(lambda source: []))
+        self.broken(self.check_denied_cell_command, "CodexAdapter.cell_commands",
+                    staticmethod(lambda source: ["testanyware doctor", "testanyware llm-instructions"]))
+
     def check_reextract(self, fixture: Fixture):
         status, output = fixture.run()
         self.assertEqual(status, 0, output)

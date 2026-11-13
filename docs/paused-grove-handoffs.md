@@ -400,17 +400,17 @@ now have receipts. This workstream decides whether they are complete.
 ## Promotion and switch receipts
 
 Finish fills this section. Until finish writes a value, each row states
-"Not yet recorded". An empty row means that the step did not happen. A paused
+"Not yet recorded". finish-k343 wrote each value on 2026-11-13. An empty row means that the step did not happen. A paused
 workstream treats an empty row as a reason to stop and ask the human.
 
 | Receipt | Value |
 | --- | --- |
-| Grove release that the promotion follows | Not yet recorded |
-| Promotion: `task release:promote` run, tap commit and `Formula/ravel.rb` version | Not yet recorded |
-| Promotion: `ravel --version` on `PATH`, and the state of the 1.1.0 keg | Not yet recorded |
-| `native-off` after the promotion | Not yet recorded |
-| Owner skill switch: result, receipt path and time | Not yet recorded |
-| Remaining owner actions after finish | Not yet recorded |
+| Grove release that the promotion follows | Grove 22.9.0, tag `v22.9.0`, release commit `31fbab3ea935`. `task release:minor` published it on 2026-11-13. |
+| Promotion: `task release:promote` run, tap commit and `Formula/ravel.rb` version | `task release:promote VERSION=2.0.0` exited 0 on 2026-11-13. Tap commit `06c719813671`. `Formula/ravel.rb` names version 2.0.0. The receipt is Ravel's `target/release-evidence/v2.0.0.promotion.json`. |
+| Promotion: `ravel --version` on `PATH`, and the state of the 1.1.0 keg | `ravel 2.0.0`. The 1.1.0 keg `/opt/homebrew/Cellar/ravel/1.1.0` stays, and it reports `ravel 1.1.0`. The `ravel@2` keg stays too. |
+| `native-off` after the promotion | It wrote the off value, and the real HOME resolved as `disabled`. `status` reported the health "native". |
+| Owner skill switch: result, receipt path and time | Switched at 2026-11-13T11:46:30Z by attempt `20261113T114254090051Z-21a4bc`. The receipt is `~/.local/state/owner-switch/receipts/20261113T114254090051Z-21a4bc.json`. Two earlier attempts failed and restored native delivery, as [Finish](owner-skill-delivery-evidence.md#finish) states. |
+| Remaining owner actions after finish | Release the Claude Code hold. Run the purge report before purge. After the last Ravel 1.1.0 driver ends, remove `~/.config/ravel/policy.ts`, the 1.1.0 keg and the Grove 22.8.0 keg. Run the manual's Synchronise the record workflow for the checker's skill rows. [After finish](finish-handoff.md#after-finish) gives each action. |
 
 ## Checks of this document
 

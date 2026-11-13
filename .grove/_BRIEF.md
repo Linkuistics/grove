@@ -10,9 +10,10 @@ Ravel. Consolidate the four named writing projects into
 The human's scope corrections in `plan-k1` and delivery-boundary corrections in
 `grove-skill-delivery-k8` govern this brief. The stop
 command is separate [issue #26](https://github.com/Linkuistics/grove/issues/26).
-Review/integration simplification is separate
-[issue #27](https://github.com/Linkuistics/grove/issues/27), which investigates a
-skills-only approach first. Neither is a prerequisite for this work.
+The simplification of review and integration is separate
+[issue #27](https://github.com/Linkuistics/grove/issues/27). That issue first
+investigates an approach that uses only skills. Neither issue is a prerequisite
+for this work.
 
 ## Done when
 
@@ -26,9 +27,9 @@ skills-only approach first. Neither is a prerequisite for this work.
 - The domain packs, craft skills, personal plugin, and TestAnyware skill are in
   the destinations below. Homebrew formulae install them, as "Skill
   installation" states. Research first proves the external-pack contract.
-- The four named writing projects have moved with contents, working-copy changes,
-  history, workspace registrations, and affected references preserved or
-  reconciled.
+- The four named writing projects are at their new location. The move
+  preserved or reconciled their contents, working-copy changes, history,
+  workspace registrations and affected references.
 - Grove's existing open-kind, tree, and launch behaviour remains compatible.
   Obsolete automatic provisioning is reconciled with the common Ravel delivery
   path. Packaging, conformance, resource references, and documentation are
@@ -38,54 +39,62 @@ skills-only approach first. Neither is a prerequisite for this work.
   integrated result.
 - Durable decisions and contracts are recorded in their owning repositories.
   Complete the independent Ravel/Grove integration and releases through the
-  repository procedures, preserving every running session's original ending
-  command.
+  repository procedures. During that work, preserve the original ending command
+  of every running session.
 <!-- tc: depart synonym-rotation because "check" occurs only as a noun that names a check suite or a check step, and "verify" is the only verb for that action -->
 - The owner's full installed skill collection, including TestAnyware, is
   supplied through Ravel's common insertion route. Inventory current sources,
   resources, hooks and plugin/tool dependencies. Preserve them through the
-  repository moves. Verify replacement discovery and reads before removing
-  superseded native installations. Record the actual owner cutover and any
-  retained resources needed by active readers. A disposable trial alone does
-  not satisfy this outcome.
+  repository moves. Before you remove superseded native installations, verify
+  the replacement discovery and reads. Record the actual owner cutover. Record
+  also any retained resources that active readers need. A disposable trial
+  alone does not satisfy this outcome.
 
 These are whole-workstream outcomes. This requirements session records the
 contract. Design and implementation remain ahead.
 
 During common-skill-loading-k32 the human additionally directed this grove to
 do Ravel's release work and coordinate both releases. The human also directed
-this grove to remove current skill installations after setting up all the
+this grove to remove the current skill installations after it sets up all the
 owner's skills through Ravel, explicitly including TestAnyware. The new owner
-setup uses common delivery. skill-marketplace-decision-k201 later made Ravel
-the only route that delivers skills, for every user. The existing isolated
-test cases remain required before the actual owner cutover. Ravel publication, owner activation and removal are
-now deliverables, not handoffs left for the human to perform outside this grove.
+setup uses common delivery.
+
+skill-marketplace-decision-k201 later made Ravel the only route that delivers
+skills, for every user. The existing isolated test cases remain required before
+the actual owner cutover. Ravel publication, owner activation and removal are
+now deliverables. They are not handoffs that the human performs outside this
+grove.
 
 <!-- tc: depart synonym-rotation because "confirmed" reports the human's agreement, not a check or a verification -->
 During coordinated-ravel-release-k36 the human confirmed that this is the only
 live workstream and that all others remain paused until completion. This grove
-is the sole release and owner-cutover executor. It completes any unfinished
-Rhai documentation or acceptance prerequisite needed for Ravel publication in
-its own Ravel workspace. It neither waits for the other grove to resume nor
-edits that grove's task tree. The paused workstream later consumes actual
-release and activation receipts rather than repeating its old release tasks.
+is the sole release and owner-cutover executor. In its own Ravel workspace, it
+completes any unfinished Rhai documentation or acceptance prerequisite that
+Ravel publication needs.
 
-The coordinated release design is `docs/specs/coordinated-release.md`, subject
-to its focused review before dependent work. Ravel 2.0.0 combines Rhai and
-complete directory delivery, with a distinct script/request schema 4, and
-publishes first through keg-only `ravel@2`. Rollout prepares and rehearses the
-release-channel and promotion tooling, and releases/verifies the versioned
-dependency.
+This grove does not wait for the other grove to resume. It does not edit the
+task tree of that grove. The paused workstream does not repeat its old release
+tasks. Later, it consumes the actual release and activation receipts instead.
 
-Grove's driver-created finish retains its normal one confirmation, teardown
-helper, main integration, full check and minor release. Its concrete
-whole-sequence proposal must additionally include promotion of the same Ravel
-archives to unversioned `ravel` after compatible Grove publication and installed
-verification. The proposal must also include any final owner activation
-explicitly assigned by the owner-delivery design. These steps occur before the
-finish signal. Incomplete promotion or assigned activation is incomplete finish,
-so never signal success. Preserve the original full 1.1.0 keg and ending command
-through the final signal.
+The coordinated release design is `docs/specs/coordinated-release.md`. That
+design is subject to its focused review before dependent work. Ravel 2.0.0
+combines Rhai and complete directory delivery. It has a distinct script/request
+schema 4. It publishes first through keg-only `ravel@2`.
+
+Rollout prepares and rehearses the tooling for the release channel and for
+promotion. Rollout also releases/verifies the versioned dependency.
+
+Grove's driver-created finish retains its normal single confirmation, teardown
+helper, main integration, full check and minor release. Its concrete proposal
+for the whole sequence must also include the promotion of the same Ravel
+archives to unversioned `ravel`. That promotion must come after compatible
+Grove publication and installed verification. The proposal must also include
+any final owner activation that the owner-delivery design explicitly assigns.
+These steps occur before the finish signal. If the promotion or the assigned
+activation is incomplete, the finish is incomplete, so never signal success.
+
+Preserve the original full 1.1.0 keg and the original ending command through
+the final signal.
 
 ## Ownership boundaries
 
@@ -98,12 +107,13 @@ reads applicable skills. Ravel does not resolve a skill named by Grove.
 
 The human clarified this boundary during grove-skill-delivery-k8. This boundary
 replaces the earlier generated skill-catalog design. Reconcile the owning Ravel
-design before implementation. Every policy must not have to remember a separate
+design before implementation. Policies must not have to remember a separate
 helper.
 
 Preserve the caller's original task and exact ending commands intact in a
-separate block. This changes Ravel's current no-injection contract. Mandatory
-guidance loads first. Other skills and supporting resources load when needed.
+separate block. This arrangement changes Ravel's current no-injection
+contract. Mandatory guidance loads first. Other skills and supporting
+resources load when needed.
 Resolve relative resources against their own skill directory.
 
 During ravel-git-acquire-k77 the human removed pinned Git sources from the
@@ -121,7 +131,7 @@ missing-source behaviour and the behaviour without a network.
 Account for compaction, delegates, source/resource lifetime, duplicate native
 copies, and actual launch permissions. The automatic contract covers launched
 sessions and their delegated agents. Independently launched harness sessions can
-use the same supplied directories. Automatically configuring them is outside
+use the same supplied directories. To configure them automatically is outside
 scope.
 
 ### Grove
@@ -141,8 +151,8 @@ is Ravel's responsibility and is invisible to Grove's task loop.
 
 Grove's current broad Codex snapshot provisioning, packaging, embedded resources,
 and tests must be reconciled with the new delivery path and moved files. Keep
-any core-only fallback on the common path and replace obsolete automatic
-provisioning rather than maintaining a second competing mechanism. The native
+any core-only fallback on the common path. Replace obsolete automatic
+provisioning instead of maintaining a second competing mechanism. The native
 skill routes retire: no remote marketplace lists a pack, and the manual
 installer links no skill.
 
@@ -182,14 +192,15 @@ from scope.
 
 Move `Stylepack`, `TestSubject`, `TheGreatExplainer`, and `Writegood` from
 `~/Development/AgenticWriting/` into `~/Development/AgenticOrchestration/`.
-Inspect each repository's actual VCS/workspace arrangement, preserve its edits
-and history, reconcile paths, and verify the resulting registrations. This
-authorises relocation, not changes to those tools' product behaviour.
+Inspect the actual VCS/workspace arrangement of each repository. Preserve the
+edits and history of each repository. Reconcile paths. Verify the resulting
+registrations. This instruction authorises relocation, not changes to the
+product behaviour of those tools.
 
 The personal repository owns its source. Machine settings that point to it
-remain under the current mise setup. The maintained manual records retirement
-of chezmoi. Do not recreate that source or put personal skill sources in
-`.config`.
+remain under the current mise setup. The maintained manual records the
+retirement of chezmoi. Do not recreate that source or put personal skill
+sources in `.config`.
 
 ## Skill installation
 
@@ -227,10 +238,11 @@ deferred issues as prerequisites or recreate the removed kind machinery.
 
 1. `common-skill-loading-k3`: settle Ravel's generic discovery contract and
    Grove's delivery transition. Then plan and implement the common launch path
-   while sources remain here. Public local-source and lifetime fixtures and
-   real Claude Code/Codex implicit-discovery trials prove this handoff.
-2. `external-research-pack-k4`: move research and prove external resource
-   reachability, own/aggregate conformance and common local-source
+   while sources remain here. Two kinds of evidence prove this handoff. One is
+   public fixtures for local sources and lifetime. The other is real trials of
+   implicit discovery in Claude Code/Codex.
+2. `external-research-pack-k4`: move research. Prove that external resources
+   are reachable. Prove own/aggregate conformance and common local-source
    loading. Its durable external-pack contract informs all remaining moves.
 3. `repository-moves-k5`: plan separate working increments for the remaining
    domains, personal source/hooks, TestAnyware skill, Homebrew installation and
@@ -243,8 +255,9 @@ deferred issues as prerequisites or recreate the removed kind machinery.
    This grove also executes the coordinated Ravel release and owner skill
    cutover, including removal of superseded installations. Consume the early
    coordinated-release and owner-delivery designs. Preserve a working published
-   Grove/Ravel pair at every step. Account for the current driver's fixed Ravel
-   1.1.0 executable before changing native discovery or shared settings.
+   Grove/Ravel pair at every step. Before you change native discovery or
+   shared settings, account for the current driver's fixed Ravel 1.1.0
+   executable.
 
 `repository-moves-k5` closed with `moves-handoff-k187`. The section "The
 handoff to the owner cutover" of `docs/repository-moves-record.md` holds its
@@ -268,10 +281,12 @@ results for rollout. Five of them matter to later work.
 
 These are subtrees within this one coordinated workstream. Later planners grow
 their current implementation detail from delivered evidence. A node's design
-and planning leaves do not satisfy its behavioural Done when. The node's
-sessions add the missing implementation/acceptance work before allowing the
-node to close. Any earned producer review is cut lazily, placed before work
-that needs the settled artifact. An actionable review's integration runs next.
+and planning leaves do not satisfy its behavioural Done when.
+
+The node's sessions add the missing implementation/acceptance work before they
+let the node close. Any earned producer review is cut lazily. It goes before
+the work that needs the settled artifact. The integration of an actionable
+review runs next.
 
 Design must settle Ravel's source/configuration interface, directory and source
 lifetime, duplicate handling, bootstrap with missing sources, compatibility
@@ -288,8 +303,8 @@ requirements, not a reason to repeat the interview.
 - Grove's existing tree/launch checks and conformance over core and every
   external pack. Preserve current kind labels and policy routing.
 - Actual Claude Code and Codex sessions: a task activates a relevant craft skill
-  without naming it, and reads it before the relevant action. Isolate absence
-  of native copies. Do not remove the owner's real installations.
+  without naming it, and reads it before the relevant action. Isolate the
+  absence of native copies. Do not remove the owner's real installations.
 <!-- tc: depart synonym-rotation because "fixed" in the decomposition means unchanging, not repaired, so "corrected" is the only verb for a repair -->
 - Migration checks: skill/resource preservation, VCS/workspace state, corrected
   references and formula sources, and affected repositories' existing checks.
@@ -338,8 +353,8 @@ Do not redesign kind guidance beyond changes required for reference resolution
 and delivery. The Ravel-Strategies tool-integration mechanism remains outside
 scope.
 
-No implementation, repository relocation, or owner-configuration change has
-occurred in this requirements session. Issues #26 and #27 were created and #25
-was narrowed at the human's request. The human confirmed this revised scope,
-destinations, and test seams with "agreed". Requirements are settled. The fresh
-planning session should use this contract without repeating the interview.
+No implementation, repository relocation or owner-configuration change
+occurred in this requirements session. Issues #26 and #27 were created and
+#25 was narrowed at the human's request. The human confirmed this revised scope,
+destinations and test seams with "agreed". Requirements are settled. The fresh
+planning session should use this contract. It should not repeat the interview.

@@ -137,8 +137,11 @@ skill-loading-replan-k80 cut four implementation leaves here:
    `docs/ravel-v2.0.0-release-evidence.json` is its byte copy, for
    `EVIDENCE=` if the original is lost. The cut stopped once at the evidence
    step and resumed under the recovery table.
-   `ravel-evidence-step-invocation-k332`, before k321, corrects that
-   Taskfile line on Ravel `main`.
+   `ravel-evidence-step-invocation-k332` corrected that Taskfile line on
+   Ravel `main`, which is now `d6d817654daf`. The tag `v2.0.0` did not move.
+   The cut had also broken two book fixtures of the lifecycle suite, and
+   the same leaf corrected them. `task check` and
+   `task release:lifecycle:test` pass on that `main`.
 9. promotion-upgrade-rehearsal-k318 closed with
    promotion-controls-decision-k336 on 2026-11-12. The decision is to
    proceed to promotion in finish. The packaging needs no change.

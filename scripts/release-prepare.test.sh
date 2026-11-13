@@ -4,7 +4,10 @@ IFS=$'\n\t'
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 scratch="$(mktemp -d)"
-trap 'rm -rf "$scratch"' EXIT
+# Ravel 2.0 stores skill snapshots read-only under the test HOME, so make the
+# tree writable before removal. Otherwise the failed `rm` gives its status to
+# the script after every assertion has passed.
+trap 'chmod -R u+w "$scratch" 2>/dev/null; rm -rf "$scratch"' EXIT
 export JJ_CONFIG="$scratch/jj.toml"
 printf '[user]\nname="Release Test"\nemail="release@example.invalid"\n' >"$JJ_CONFIG"
 export GIT_AUTHOR_NAME='Release Test' GIT_COMMITTER_NAME='Release Test'

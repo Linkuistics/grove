@@ -8323,14 +8323,14 @@ owner.
 
 | Limit | Cause | Owner |
 | --- | --- | --- |
-| No real harness ran on the build `a4f55d04…` | A trial measures an LLM. The preamble did not change after `e9cc79993b46`, and the fixtures of k126 measure the delivery of the new build | `discovery-rollout-k6`, whose Done when asks for real discovery evidence on the staged installed split |
+| No real harness ran on the build `a4f55d04…` | A trial measures an LLM. The preamble did not change after `e9cc79993b46`, and the fixtures of k126 measure the delivery of the new build | None. The staging trials ran real harnesses on the later build `58d479ed…`. [The release readiness record](release-readiness-record.md#discovery-evidence-of-the-staged-installed-split) summarises them with their limits |
 | No real harness ran a standalone session on the native route of 2.0 after the removal | A standalone prompt names no guidance. The row "Standalone" asks for access only, and a fixture holds that access | None. The row holds |
 | Each Grove check of a 2.0 archive in this record used the pinned archives of `23e50ce90037` | No archive of `a4f55d04…` existed before publication | None. On 2026-11-12 `grove-ravel-two-pins-k314` replaced the pins with the published 2.0.0 archives, and Grove's admission and installed checks passed on them |
-| The tap states B to D have no evidence | Only state A exists before publication | `discovery-rollout-k6` |
+| The tap states B to D have no evidence | Only state A exists before publication | None. State B is public since 2026-11-12. [The promotion upgrade rehearsal record](promotion-upgrade-rehearsal-record.md) rehearsed states B to D in a scratch Homebrew. Finish makes states C and D real |
 | The plain Git checkout is not measured at the Linux floor | The floor userland has no Git. Ravel runs no VCS command, so a checkout is a plain directory to Ravel | None. The plain directory case covers it |
 | Ravel's `task test:native-linux PLATFORM=amd64` cannot run its namespace and signal rows | QEMU user mode cannot reproduce them. Ravel's own campaign lists those rows as not reproducible | Ravel's test campaign. The x86_64 release smoke proves the link floor and the CPU floor |
 | The trial runner takes each source from its Grove checkout | `settings_for` of `scripts/harness_trial.py` builds each path from that checkout or a clone of it | `external-research-pack-k4`. `trial-external-sources-k159` removed the limit with the `external` field of [the runner](#the-runner) |
-| The Ravel line is unpushed | Rollout publishes Ravel 2.0.0 | `discovery-rollout-k6` |
+| The Ravel line is unpushed | Rollout publishes Ravel 2.0.0 | None. This workstream published Ravel 2.0.0, and Ravel `main` holds the line. [The publication receipt](coordinated-release-evidence.md#ravel-200-publication-receipt) records it |
 
 ## Research recipes
 

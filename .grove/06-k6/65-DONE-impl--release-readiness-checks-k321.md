@@ -38,3 +38,28 @@ Run the checks of every affected repository against the published Ravel
 
 The repeat of `bash scripts/check.sh` after final main integration belongs to
 finish.
+
+## Decisions (running log)
+
+- The "published commit" of each affected repository is its remote `main`
+  on 2026-11-13. k319 published documentation commits there. Each pack's
+  source directory has the same tree ID at its pin and at that `main`. So
+  the pack check at the pins and the repository checks at `main` read the
+  same source bytes.
+- The tap has no check suite of its own. This leaf runs `brew test` on each
+  installed tap formula as the gate. It records `brew style`, `brew audit
+  --strict` and `brew readall` as advisory, because no repository procedure
+  gates on them and earlier records accepted the same offence classes.
+- Grove's check runs once per Ravel lane, by the recipe of
+  `docs/grove-dual-ravel-stage-record.md`: the 1.1.0 keg, then the published
+  `ravel@2` keg with the guard `ravel` first on PATH.
+- The 2.0 lane at `fe475b42725a` failed "release preparation" after its
+  assertions passed. The published `ravel@2` keg names the shared default
+  directory, so a HOME without settings caches the four installed skill
+  kegs as read-only snapshots. The test's plain `rm -rf` trap then failed
+  and gave its status to the script. The fix uses the repository's
+  existing `chmod -R u+w` cleanup. It is in this leaf, because it is a
+  one-line test fix with a seen-failing control. Both lanes run again on
+  the fix commit.
+- A source comparison with `v22.8.0` shows the launch-directory and
+  admission contract. The finish needs no helper preservation.

@@ -42,3 +42,32 @@ there does not change the released notes. The GitHub Release body is
 outward-facing. Ask the human to approve the edit before you make it.
 Promotion makes no cut, so no later Ravel release carries the notes before
 finish.
+
+## Decisions (running log)
+
+- Place of the notes: the body of the GitHub Release `v2.0.0`, regenerated
+  from the `v2.0.0` section of `CHANGELOG.md` on Ravel `main`. Reason: the
+  Release page is the only 2.0.0 note that a user reads before finish. The
+  book is final, promotion makes no cut, and the formulae carry no notes.
+  `release-publish.sh` makes the body from that section with one `awk`
+  program. Editing both keeps the body a copy of the section. The tag still
+  holds the original section, as the history of the cut.
+- Promotion is unaffected. `release-promote.sh` reads neither Ravel `main`
+  nor `CHANGELOG.md` nor the Release body. It reads the archives, the tap and
+  the `gh-pages` book only.
+- The notes state the off value in a bullet ("`"sources": []` turns the
+  default off"). That bullet now gives the whole value
+  `{"skills": {"schemaVersion": 1, "sources": []}}`.
+- Verified with the installed `ravel@2` 2.0.0 in scratch HOMEs: the off
+  value gives `{"schemaVersion":1,"status":"disabled"}`, exit 0. A top-level
+  `{"sources": []}` refuses as `settings_invalid`, exit 2, location
+  `sources`. `brew info` reports no bottle for `grove`, `ravel` or `ravel@2`.
+- The human approved the three steps: the changelog commit, the push of
+  Ravel `main` and the edit of the Release body.
+- Published. Ravel's `task check` passed (713 tests passed, 48 skipped).
+  Ravel `main` and `origin/main` are at `1435acc79024`. `gh release edit`
+  replaced the body of `v2.0.0` with the section, extracted by the `awk`
+  program of `release-publish.sh`. The body equals the section, apart from
+  trailing blank lines. The tag `v2.0.0` still names `ed6cedbf9a14`. The three
+  archives, the draft and prerelease flags, the book and the tap are
+  unchanged.

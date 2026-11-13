@@ -31,3 +31,10 @@ and reconcile each entry with accepted Ravel delivery.
 
 Run this leaf after every other Homebrew change of the rollout. Finish's
 own dry run against the real prefix still runs after promotion.
+
+paused-grove-handoffs-k320 read the owner's `~/.config/ravel/config.rhai` on
+2026-11-13. Its SHA-256 was `21ca2e515718ef638b6a5fecea4e4b099e93c7f4c4a50b6e4b7a0434a4336a6d`,
+modified 2026-11-11 14:44. No record names that digest. The staging HOME
+copied `0ccd5cdaa954…` of 2026-11-08, and the switch plan names no
+`config.rhai`. Record the current digest, and decide whether the change
+affects a staging verdict or the dry run.

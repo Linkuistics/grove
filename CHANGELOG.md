@@ -55,6 +55,19 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+### Fixed
+
+- Grove now restores keyboard reporting in the terminal after a harness exits.
+  A harness can enable Kitty keyboard enhancement flags. If it exits without
+  cleanup, the shell kept those flags. Then Enter, Backspace, Ctrl-C and
+  ordinary text arrived in a non-legacy encoding.
+- The terminal reset now clears the keyboard flags and their nested stacks on
+  both the main screen and the alternate screen. It does this even if the
+  harness already left the alternate screen. The reset ends on the main screen
+  with a visible cursor.
+- The reset runs after the Ravel job returns and before Grove interprets its
+  result. It covers a force-stop and an unexpected harness termination.
+
 ## v22.10.0
 
 - Current setup and operating guidance describes Ravel 2 only; reusable checks

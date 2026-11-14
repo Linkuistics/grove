@@ -38,5 +38,11 @@ methodology and documentation often form dependency-ordered groves when every
 handoff remains green. A new schema and the only reader that makes it usable do
 not: neither half is a working increment on its own.
 
-Only then cut the current increment into child leaves, writing the ordered leaf
-files and each node file's brief (`BRIEF-FORMAT.md`).
+Only then cut the current increment into session-sized leaves. Before creating
+them, apply the placement test in `grove/references/decompose.md`: work that fits
+one leaf stays inline; separate sessions sharing the existing scope become
+ordered siblings; a new node needs a distinct subgoal, joint completion
+condition and shared context. Record why each proposed node earns another level
+and check the resulting root-to-leaf reading burden. Dependency order alone
+belongs in sibling positions. Write the ordered task files and only the node
+briefs that this test justifies (`BRIEF-FORMAT.md`).

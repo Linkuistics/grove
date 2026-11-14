@@ -6,11 +6,12 @@ installations unchanged. Grove 22.8 and earlier still provision them. Grove
 also implements the route-independent mandate: a bare skill name, "first" after
 any mandatory guidance, and the missing-skill force-stop rule.
 
-Grove admits stable Ravel 1.x from 1.1.0 and stable 2.x from 2.0.0. Grove
-ships TypeScript caller assets for 1.x and Rhai caller assets for 2.x. Grove
-supports the native routes on 1.1 and on 2.0. Grove supports the directory
-route on 2.0 through the lifecycle caller and the standalone caller.
-Each passed its acceptance on macOS.
+Grove uses stable Ravel 2.x from 2.0.0 and ships Rhai caller assets at
+schema 4. The public unversioned `ravel` formula supplies the runtime. Both
+the lifecycle caller and the standalone caller support directory delivery
+and explicit delivery-disabled launches. Current setup is in
+[Usage](../USAGE.md#launch-policy); the cited acceptance records below retain
+their historical subjects and do not extend current runtime support.
 
 The reviewed upstream contract is Ravel commit `822c0ed2`, as the
 [contract mapping](../grove-skill-delivery-design-evidence.md#rhai-mapping)
@@ -63,17 +64,14 @@ A Homebrew installation of Grove supplies Grove's executables, its readable
 caller policy assets, core and the five domain packs. Grove's formula depends
 on Ravel, so every Grove user has Ravel. Ravel 2.0.0 reads the sources in its
 default skill directory, as [The keg layout](#the-keg-layout) states.
-After promotion, `brew install` and `brew upgrade` are therefore the whole skill
-setup. Until promotion, directory delivery also needs `ravel@2`, selected as
-[Prefix selection](#prefix-selection) states. A user who wants personal
-guidance installs the `personal` formula the same way.
+`brew install` and `brew upgrade` are therefore the whole skill setup. A user
+who wants personal guidance installs the `personal` formula the same way.
 
 A new user trusts the tap with `brew trust linkuistics/taps` before the first
 install of Grove. Homebrew does not trust a tap that `brew tap` adds, and a
 fully qualified name trusts only the formula that it names. Without the tap
-trust, Homebrew refuses Grove's dependency `ravel`. The keg-only `ravel@2` needs
-the same tap trust, because Homebrew loads the unversioned `ravel` to install
-it. The fully qualified installs of `ravel` and `personal` load no other formula
+trust, Homebrew refuses Grove's dependency `ravel`. The fully qualified
+installs of `ravel` and `personal` load no other formula
 from the tap, so they need no trust step. Homebrew's
 [Tap Trust](https://docs.brew.sh/Tap-Trust#installing-from-a-tap) page states
 the rules.
@@ -83,10 +81,9 @@ file or replace the default sources. Each hook adapter still needs one
 registration command for each harness, as [Hook adapters](#hook-adapters)
 states, because Homebrew cannot write a harness's configuration.
 
-Directory delivery needs Ravel 2.0.0 or later. A Ravel 1.x launch delivers no
-directory, so its session finds only the native installations that already
-exist. Grove's guidance sets up no native installation. A launch with no
-source stays valid, and a session that then lacks its skill reports it.
+Directory delivery uses Ravel 2.0.0 or later. Grove's guidance sets up no
+native installation. A launch with no source stays valid, and a session
+that then lacks its skill reports it.
 
 The configuration grants no filesystem access. Neither caller requests
 confinement, and Ravel 2.0.0 applies none. On both callers, the harness reads
@@ -172,9 +169,8 @@ capture, so `originPath` names the versioned keg.
 The unversioned `ravel` formula also links into the shared ancestors
 `share/ravel` and `share`. It supplies `examples`, `notices` and
 `installation.json`, not a skill source. A fresh Grove installation links its
-Ravel dependency first. Promotion links Ravel 2.0 beside the installed skill
-formulae. Both events must preserve each source alias. The keg-only
-`ravel@2` does not link those entries before promotion.
+Ravel dependency first. Installing or upgrading Ravel beside installed skill
+formulae must preserve each source alias.
 
 The directory name is the source ID of the
 [owner delivery design](owner-skill-delivery.md#ravel-sources). One token
@@ -368,90 +364,47 @@ installs a plugin disabled.
 
 ## Supported routes
 
-Grove supports three Ravel routes. The owner selects one for each Grove
-invocation through the PATH, the configuration file and the settings. Grove
-reads none of these. Its version probe decides admission only, and it selects
-no route. The [route view](../design/harness-selection-and-execution/README.md)
-shows the same decision.
+The owner selects delivery through Ravel's configuration and optional settings.
+Grove reads neither file. Its version probe decides runtime admission, and its
+PATH selection identifies the installed executable.
 
-| Route | Ravel | Configuration | Settings | Caller assets | Skills |
-| --- | --- | --- | --- | --- | --- |
-| Native on 1.1 | Stable 1.x from 1.1.0. Homebrew's unversioned `ravel` until promotion | `~/.config/ravel/policy.ts` with request and policy schema 2 and `ravel/sdk` | Only `timeoutMs`, `contextBytes` and `policyEnv` | Grove's TypeScript assets | Native installations that already exist |
-| Native on 2.0 | Stable 2.x from 2.0.0. The keg-only `ravel@2` until promotion | `~/.config/ravel/config.rhai` with `SCHEMA_VERSION` 4 | The keys of 2.0.0 with `{"skills": {"schemaVersion": 1, "sources": []}}` and no mandatory file. Settings without `sources` give this route only while no keg source is installed | Grove's Rhai assets | Native installations that already exist |
-| Directory on 2.0 | As native on 2.0 | As native on 2.0 | The keys of 2.0.0 without `sources`, with installed keg sources. Or a `skills` object that names sources | Grove's Rhai assets, which grant harness reads from `request.skills` | Keg sources from the default skill directory, or configured sources. Native copies are unnecessary |
+| Route | Configuration | Settings | Skills |
+| --- | --- | --- | --- |
+| Directory delivery | `~/.config/ravel/config.rhai`, `SCHEMA_VERSION` 4 | No settings needed for the default skill directory; an optional `skills` object can select sources | Keg sources from the default directory or configured sources |
+| Delivery disabled | The same Rhai configuration | `{"skills": {"schemaVersion": 1, "sources": []}}`, with no mandatory file | Existing native guidance, if any; Grove installs none |
 
-Only the directory route delivers skills that Grove's guidance sets up. With
-Ravel's default skill directory, that route needs no `skills` key. The two
-native rows stay caller routes. Grove admits them and launches through them,
-and the session finds whatever native installation exists. Ravel's contract
-decides which settings disable delivery on 2.0.
-
-### Actual minimum and separate proofs
-
-Directory delivery needs Ravel 2.0.0, the first release that holds it. No 1.x
-release supports it. Rhai native compatibility and directory delivery are two
-separate proofs over the same 2.0.0 executable. The first proof runs with
-delivery disabled and complete native skills. The second runs with delivery
-enabled and native copies absent. Neither proof stands in for the other.
-
-The [coordinated release](coordinated-release.md) shipped both in one 2.0.0,
-published through `ravel@2`.
+Only directory delivery supplies the skills installed by Grove's formula.
+Verify both enabled and disabled delivery against the installed Ravel 2
+executable. With delivery enabled, remove native copies from the fixture;
+with delivery disabled, verify the unchanged mandate independently.
 
 ### Settings and HOME
 
-The two configuration files coexist under one HOME. A 1.1 launch reads
-`policy.ts`, and a 2.0 launch reads `config.rhai`. The settings file does not
-coexist. Ravel 1.1.0 refuses `skills`, `configEnv`, `harnesses` and `budgets`
-as `settings_invalid`, stage `cli`, exit 2. Ravel 2.0.0 refuses `policyEnv` in
-the same way. A settings file that both releases accept holds only `timeoutMs`
-and `contextBytes`.
+Ravel reads `~/.config/ravel/config.rhai` and optional
+`~/.config/ravel/settings.json`. The settings can set `timeoutMs`,
+`contextBytes`, `configEnv`, `harnesses`, `budgets` and `skills` under Ravel's
+public contract. A top-level `sources` key refuses as `settings_invalid`.
+Use `skills.sources` to replace default discovery.
 
-Neither separate prefixes nor `--config` isolate that file, because both
-releases read it from HOME. While a 1.1 `start-session` reader remains under a
-HOME, a 2.0 route that needs a 2.0-only key runs under a separate HOME.
-`end-session` of either release reads no settings, so a settings change cannot
-break a live ending command.
-
-The default skill directory belongs to the Ravel installation, not to a HOME,
-as Ravel's specification states. A separate HOME therefore isolates the
-settings but not the keg sources. A HOME on the native route on 2.0 holds
-`{"skills": {"schemaVersion": 1, "sources": []}}`, which Ravel 1.1 refuses.
-Ravel 2.0.0 refuses a top-level `sources` key as `settings_invalid`.
-
-Grove sets no HOME, and it passes its own to Ravel. A separate HOME therefore
-also moves Grove's standalone run logs and the HOME-based configuration of the
-harnesses and the VCS. The [owner-delivery design](owner-skill-delivery.md)
-owns what the HOME of the owner links.
+The default skill directory belongs to the Ravel installation. A separate
+HOME isolates settings and harness configuration, but it does not change that
+directory. Grove passes its own HOME to Ravel. A separate HOME also moves
+Grove's standalone logs and HOME-based VCS configuration. `end-session` reads
+no settings, so a settings change does not invalidate a live ending command.
 
 ### Prefix selection
 
-Until promotion, Homebrew installs 2.0.0 as the keg-only `ravel@2`. Its
-`bin/ravel` is never the default PATH command. The owner selects it by putting
-that `bin` directory before every other `ravel` on the PATH of the Grove
-invocation. Grove then canonicalises that executable and quotes the same path
-in the ending commands of the prompt.
-
-Grove's formula keeps its unversioned dependency. Until promotion, a default
-installation therefore stays on the native route on 1.1. The
-[coordinated release](coordinated-release.md#compatible-tap-states) owns the
-tap states.
+Homebrew installs the public unversioned `ravel` dependency. Grove resolves it
+once from absolute PATH entries, canonicalises the selected executable and
+quotes that same path in the prompt's ending commands. Verification must use
+the installed executable that the invocation selects.
 
 ### Caller assets
 
-Grove ships readable caller assets for each admitted major. The TypeScript
-assets keep their installed paths and their `ravel/sdk` imports for 1.x,
-because existing owner policies import them by path. Ravel 2.0.0 has no SDK, so
-the routes on 2.0 need Rhai equivalents. Grove adds Rhai equivalents of the
-sample configuration, the static and review examples, the review adapter and
-the provider-evidence wrapper. Grove issue 24 asks for this port, and the
-dual-Ravel stage delivers it.
-
-Each asset names its runtime and schema. A Rhai asset imports another by path,
-because Ravel 2.0.0 embeds no module. Grove therefore ships its own copy of
-Ravel's static example as `examples/static.rhai`. Each Rhai asset keeps the
-refusals and the receipt format of its TypeScript counterpart, except for the
-differences that [runtime parity](#runtime-parity) accepts. The copy keeps the
-remedy words of the 1.x static example for that reason.
+Grove ships readable Rhai assets: the sample configuration, static and review
+examples, review adapter and provider-evidence wrapper. Each asset targets
+Ravel 2 and schema 4. Rhai imports modules by path; Ravel embeds no SDK module.
+Grove therefore ships `examples/static.rhai` with its caller assets.
 
 A route of `grove-static.rhai` is a closure. Rhai finds the function of a
 closure only while a function of the module that made it runs. A script that
@@ -467,53 +420,24 @@ another module to `select_with` of `review.rhai` calls it from a function of
 that module. Otherwise the evaluation ends with an error, and nothing
 launches.
 
-#### Runtime parity
+<a id="runtime-parity"></a>
 
-Ravel's frozen comparison at `822c0ed2` keeps three intentional differences
-between the runtimes. Grove's sample meets them through its choice file and its
-jj store path. Grove accepts them for that local input of the owner. It also
-accepts the same read-bound rule for the jj store path:
+#### Rhai input and receipt rules
 
-- The Rhai sample reads the choice file with the 4,096-byte bound of the 1.1
-  helper. A larger file ends the evaluation as Ravel's `source_too_large`, exit
-  3, instead of `choice_unreadable`. A catch cannot recover a breach of a read bound.
-- The Rhai sample also reads the jj store path through a measured read. A file
-  beyond its read bound ends the evaluation in the same way. The 1.1 sample read
-  that file without a bound.
-- The names in the choice file and the jj store path use the splitting and
-  trimming of Rhai. Rhai and JavaScript classify U+FEFF and U+0085 differently.
-- A jj store path that is not UTF-8 refuses as `jj_store_unreadable`. The 1.1
-  sample decoded it with replacement characters.
+The sample reads the choice file with a 4,096-byte bound. A larger file ends
+evaluation as Ravel's `source_too_large`, exit 3. A catch cannot recover a
+breach of a read bound. The jj store path is also a measured read; invalid
+UTF-8 refuses as `jj_store_unreadable`. Choice names and the store path use
+Rhai's splitting and trimming.
 
-The provider receipt crosses runtimes, so Grove keeps its rules deliberately. A
-review adapter on one route can check a receipt that a wrapper on the other
-route recorded. These obligations are separate:
-
-- **Receipt bytes.** The Rhai wrapper writes the bytes of the TypeScript wrapper
-  for each receipt. It keeps the constant member order, and it joins members
-  that `json_encode` writes.
-- **Provider safety.** The receipt, label and command checks of the wrapper, the
-  review loader and the review example give the same outcome in both runtimes.
-  A label is blank when ECMAScript's `String.prototype.trim` empties it. The
-  Rhai helpers test that whitespace set explicitly, because the trimming of Rhai
-  disagrees for U+FEFF and U+0085.
-
-One difference remains in the receipt. A JavaScript string can hold an unpaired
-surrogate, and a Rhai string cannot. The TypeScript review loader accepts a
-receipt that escapes one, and the Rhai review loader refuses it as
-`creator_line_malformed`. Ravel 1.x then refuses the context that carries the
-accepted receipt as `context_invalid`, because JSON cannot carry the string. So
-neither runtime launches a reviewer.
-
-The TypeScript wrapper records such a receipt only from an owner label that
-holds an unpaired surrogate. The remedy is the declaration of the provider by
-the owner.
-
-Ravel's own checks of a selection follow the wrapper. Ravel of both majors
-counts U+0085 as whitespace when it checks an owner version and a provider. No
-wrapper therefore records a version or a provider of U+0085 alone. Rhai keeps
-the keys of a map in code point order. The review examples of both runtimes
-therefore list the origins of a refusal in that order.
+The provider wrapper preserves the documented receipt bytes, constant member
+order and receipt validation. Provider-label checks use the explicit
+ECMAScript whitespace set, including the intentional treatment of U+FEFF and
+U+0085. A receipt containing an unpaired surrogate refuses as
+`creator_line_malformed`; the owner must correct the provider declaration.
+Ravel validates the selected owner version and provider after the wrapper.
+A value containing only U+0085 records no receipt. Refusal origins are listed
+in code point order.
 
 The Rhai sample passes `request.prompt` to each harness. Where the sandbox of a
 harness needs explicit directories, the sample adds one read grant for each
@@ -527,21 +451,13 @@ owner script that analyses the task reads `request.originalPrompt`, which holds
 the mandate byte for byte. The provider receipt reaches the managed process
 through `GROVE_PROVIDER_EVIDENCE`, never through a prompt.
 
-One case table drives the checks of both asset sets, so the two sets cannot
-drift apart. Each case states the expected outcome for each runtime. A case
-that proves an accepted difference states both outcomes and keeps its reason
-beside it. The table compares routing choices, fake-harness argument vectors,
-delivered context values, receipt bytes and refusal codes, stages, exit statuses
-and remedies. Messages from a decoder or the system can differ. The table
-excludes fields that only Rhai reports, such as measured reads.
+The Rhai checks launch the installed assets through public `start-session`
+with fake agents. They compare routing choices, harness argument vectors,
+delivered context, receipt bytes and refusal codes, stages, statuses and
+remedies. Ravel provides no typechecker or inspection-only launch verb.
 
-The TypeScript checks keep their strict typecheck against an
-explicitly selected installed 1.1. Ravel 2.0.0 has no typechecker and no
-inspection verb. The Rhai checks therefore launch the assets through public
-`start-session` of an explicitly selected 2.0 build, with fake agents.
-
-Neither Grove nor Ravel installs or converts the configuration of an owner.
-Setup guidance and formula caveats show both formats.
+Neither Grove nor Ravel installs or converts the owner's configuration.
+Setup guidance and formula caveats show `config.rhai` at schema 4.
 
 ## Launch and compatibility
 
@@ -550,7 +466,7 @@ session CLI. Ravel may add directory-discovery instructions. Ravel preserves the
 caller task and endings intact. The agent discovers and loads the named skill.
 
 The configuration of the owner must pass the intended launch prompt to the
-harness. On 2.x that prompt is `request.prompt`. Grove neither rewrites the
+harness. That prompt is `request.prompt`. Grove neither rewrites the
 selected command nor repairs a configuration that drops the prompt.
 
 With delivery enabled, Ravel 2.0.0 writes its preamble, a label and one
@@ -582,24 +498,16 @@ Both lifecycle and standalone callers use that same session boundary. A
 standalone runtime-file argument retains its existing meaning. Grove does not
 translate skill directories into that argument or expand access itself.
 
-Compatibility is about the public session interface and the caller assets,
-not skill delivery. Retain stable Ravel 1.x support from 1.1.0. Admit stable
-2.x from 2.0.0 once the native route on 2.0 passes the same caller acceptance
-with the Rhai assets. Advertise directory delivery only after the directory
-route passes its own acceptance. Refuse 1.0, prereleases, unknown majors such
-as 3.x, malformed version output and failed probes.
+Compatibility covers the public session interface and Rhai caller assets.
+Admit stable Ravel 2.x from 2.0.0. Refuse unsupported versions, prereleases,
+malformed version output and failed probes. Advertise directory delivery only
+with its own acceptance evidence.
 
 Preserve absolute-PATH selection, canonicalisation and refusal without falling
-through. The remedy names both admitted majors with their configuration files,
-and the `ravel@2` prefix until promotion. It recommends no undirected shared
-upgrade.
-
-A launch on a native route needs no Ravel 2.0.0, and it delivers no directory. Policy examples and installed
-checks identify the runtime and schema that they target. Provide explicit
-compatible examples for each admitted major rather than silently rewriting the
-configuration of an owner. Grove parses no configuration script, request or
-settings schema, routing notice, failure document or private worker protocol.
-Context and provider receipts retain their independent contracts.
+through. The remedy identifies the installed public Ravel 2 executable and
+`config.rhai` at schema 4. Grove parses no configuration script, settings
+schema, routing notice, failure document or private worker protocol. Context
+and provider receipts retain their independent contracts.
 
 Grove needs neither `RAVEL_SKILL_DIRECTORIES` nor `ravel skills resolve`. That
 variable grants no authority, and Ravel replaces or removes it in each
@@ -607,8 +515,8 @@ environment that it builds. Grove's environment scrub therefore gains no name.
 
 | Failure | Remedy |
 | --- | --- |
-| Missing or incompatible Ravel | Select an admitted installation on the PATH of the invocation: 1.x from 1.1.0 with `policy.ts`, or 2.x from 2.0.0 with `config.rhai`. Avoid an undirected shared upgrade. |
-| Configuration does not match the selected Ravel | Preserve Ravel's refusal: `config_format_retired` for a lone `policy.ts` on 2.0.0, `unsupported_version` for schema 3, or `settings_invalid` for a key of the other major. Select the matching installation, convert the configuration deliberately or use a separate HOME. Grove rewrites no configuration. |
+| Missing or incompatible Ravel | Install or upgrade the public `ravel` formula and select stable Ravel 2.x from 2.0.0 on the invocation's PATH. Configure `config.rhai` at schema 4. |
+| Configuration does not match the selected Ravel | Preserve Ravel's diagnostic and remedy, including `config_missing`, `unsupported_version` or `settings_invalid`. Repair the Rhai configuration or settings deliberately. Grove rewrites no configuration. |
 | Missing named skill | Repair the formula installation or the configured sources. Do not substitute a native installation. |
 | Unavailable configured source | Preserve Ravel's source-specific diagnostic. Restore the source or deliberately amend owner configuration. |
 | Read access, capture, cache, timeout or limit failure | Preserve Ravel's precise remedy. Do not silently substitute another source or skip guidance. |
@@ -697,42 +605,27 @@ domain packs, in [the keg layout](#the-keg-layout). It holds no private worker
 and no skill resolver. Startup and upgrade write no native skill installation.
 No manual installer and no marketplace package remain.
 
-Check each of the three supported routes alone, in separate prefixes and
-isolated homes, before claiming compatibility. The
-[coordinated release](coordinated-release.md) settles the order. Ravel 2.0.0
-published first, as the keg-only `ravel@2`. Compatible Grove publishes while
-unversioned `ravel` stays 1.1.0. Finish then promotes the same archives to
-unversioned `ravel`.
+Check directory delivery and delivery-disabled launches with the installed
+public Ravel 2 executable in isolated fixture homes. Grove's formula uses the
+unversioned `ravel` dependency. Fresh installs and upgrades must preserve the
+shared directory and pair Grove with a compatible runtime. Release fixtures
+pin independent package identities by SHA-256; update those pins deliberately.
+The split pack sources retain the same resource-preservation checks.
 
-Every published tap state must pair its Grove formula with a compatible Ravel
-dependency, including fresh installs and upgrades between releases. Grove's
-formula keeps its unversioned dependency, which stays 1.1.0 until promotion. Do
-not advance the unversioned dependency before compatible Grove is public and
-checked. Do not rely on users to time or pin an upgrade. Resolver remedies name
-compatible executable and configuration versions.
+Publication does not activate or rewrite owner settings. Release and recovery
+use [Releasing](../RELEASING.md). The
+[coordinated release plan](coordinated-release.md) and its linked acceptance
+records are historical rollout evidence, not a sequence to repeat.
 
-Publication and shared activation remain separate. Preserve old installations
-and settings while their callers still need them. An alternate policy path
-alone does not isolate settings that Ravel reads from the same HOME. Tap
-publication and any corresponding Ravel release-document changes belong to
-their owners. The rollout must check their order before publishing.
-
-Release fixtures explicitly select their dependency builds, check matching
-independent package identities and test each admitted caller combination.
-Update pinned archive identities deliberately. Retain separate legacy-driver
-fixtures. The split pack sources keep the same resource-preservation checks.
-This design changes no owner installation.
+### Historical rollout acceptance
 
 Before the cut, a build of Ravel's feature line reported `ravel 1.1.0`, and
 Grove admitted that output as 1.x. Acceptance therefore identified each Ravel
 build by commit and build identity, not by its version output. Stub
 executables proved the admission of `ravel 2.0.0` output before the cut. After
 the cut, `grove-ravel-two-pins-k314` repeated the admission and installed
-checks against the published archives, pinned by SHA-256.
-
-The [coordinated release contract](coordinated-release.md) supplies the concrete
-combined-release identities, tap sequence, owner handoff and finish extension.
-Its focused review is integrated.
+checks against the published archives, pinned by SHA-256. These are historical
+subjects and do not require retaining the earlier runtime today.
 
 ### The pack record and the release
 
@@ -815,7 +708,7 @@ below: Directory bootstrap, Source and skill failures, Original mandate,
 Settings isolation and Resource lifetime. Its default-directory case copies the
 2.0 build with an installation record, as Ravel's specification defines it.
 The record names a fixture directory of Homebrew-shaped links. `task ravel:directory` runs it, with
-`RAVEL` as the 2.0 front and `OLD` as the 1.1 front. Its fake agents read the
+`RAVEL` as the installed Ravel 2 executable. Its fake agents read the
 paths that the prepared prompt names, and they prove delivery rather than LLM
 behaviour. The explicit plugin-qualified name request, the missing-skill report
 of a real agent and actual harness behaviour belong to acceptance.
@@ -825,8 +718,8 @@ on 2.0 reads the spine, a resource and the named kind from the snapshots. A
 write to a snapshot file fails by its file mode.
 
 `crates/grove/tests/standalone.rs` proves the native part of the Standalone row
-on each runtime. With injection disabled, the scripted agent reads its native
-copies under HOME.
+with installed Ravel 2. With injection disabled, the scripted agent reads its
+native copies under HOME.
 
 The fixture also proves Grove's interpretation of a force-stop. When its
 scripted agent finds no native copy and force-stops, Grove publishes nothing
@@ -835,35 +728,34 @@ because its script decides to stop. `task ravel:directory` runs both parts on
 the 2.0 build.
 
 On each Linux target, the general floor route runs the directory part on the
-2.0 lane. It runs the case at the glibc 2.17 floor and at the emulated CPU
-floor, as uid 1000. A snapshot therefore refuses a write by its file modes. The
+installed Ravel 2 executable. It runs the case at the glibc 2.17 floor and at
+the emulated CPU floor, as uid 1000. A snapshot therefore refuses a write by its file modes. The
 floor userland has no Git, so the two sources of that case are plain local
 directories. The [installed smoke test](../RELEASING.md#installed-smoke-test)
 states the route.
 
 The native part has no floor case. Its earlier floor case needed the sandbox
 to make the native copies unreadable.
-The [dual-Ravel stage record](../grove-dual-ravel-stage-record.md) names the
-builds and the results.
+The historical [stage record](../grove-dual-ravel-stage-record.md) retains
+the original builds and results; its runtime matrix is not a current test obligation.
 
 | Acceptance | Observation |
 | --- | --- |
-| Native-only bootstrap on 1.1 | With Ravel 1.1.0 and `policy.ts`, launch the lifecycle caller using complete native skills. Grove does not demand source configuration. The standalone caller reads the same native roots under the harness sandbox. |
-| Native route on 2.0 | With Ravel 2.0.0, `config.rhai` at schema 4 and delivery disabled, launch the lifecycle and standalone callers using complete native skills. `{"skills": {"schemaVersion": 1, "sources": []}}` disables delivery, or a copied build without an installation record does. `request.prompt` equals `request.originalPrompt` byte for byte, and both equal the mandate. The Rhai assets give the 2.0 outcome of each case in the shared table. They differ from the TypeScript outcomes only where [runtime parity](#runtime-parity) accepts it, and their receipts match byte for byte. This row proves Rhai native compatibility, not directory delivery. |
-| Directory bootstrap | Use Ravel 2.0.0 with the `skills` key, in a HOME separate from any 1.1 reader. With native copies absent, inject complete source directories outside cwd and read the spine, named kind and supporting resources. Exercise local sources, Grove's bare-name mandate and an explicit plugin-qualified name request. Neither name request requires a native loader. With no `skills` key, a launch receives each source of the fixture default directory. With `{"skills": {"schemaVersion": 1, "sources": []}}` beside that directory, it receives none. In the installed distribution, Ravel reads the keg sources from its default skill directory with no `skills` key. |
+| Native route on 2.0 | With Ravel 2.0.0, `config.rhai` at schema 4 and delivery disabled, launch the lifecycle and standalone callers using complete native skills. `{"skills": {"schemaVersion": 1, "sources": []}}` disables delivery, or a copied build without an installation record does. `request.prompt` equals `request.originalPrompt` byte for byte, and both equal the mandate. The Rhai assets satisfy the routing, input and receipt rules above. This row proves Rhai native compatibility, not directory delivery. |
+| Directory bootstrap | Use Ravel 2.0.0 with explicit source settings in an isolated fixture HOME. With native copies absent, inject complete source directories outside cwd and read the spine, named kind and supporting resources. Exercise local sources, Grove's bare-name mandate and an explicit plugin-qualified name request. Neither name request requires a native loader. With no `skills` key, a launch receives each source of the fixture default directory. With `{"skills": {"schemaVersion": 1, "sources": []}}` beside that directory, it receives none. In the installed distribution, Ravel reads the keg sources from its default skill directory with no `skills` key. |
 | Source and skill failures | A missing configured source directory refuses before launch, with Ravel's remedy. For a missing or unreadable mandated skill, the agent reports and uses the prompt's exact force-stop command. The leaf remains live, no teardown is recorded and the loop does not relaunch. Grove's kind parser does not reject it. |
 | Original mandate | The mandate qualifies "first" with "after any mandatory guidance". Observe mandatory reads before the named-kind read. Compare exact caller bytes and ending commands before/after Ravel preparation. `originalPrompt` and the caller block of the prepared prompt each equal the composed mandate byte for byte. The selected command receives the intended launch prompt. |
 | Explicit loading mechanism | Exercise a native loader with a match, absent-match directory fallback with disclosure, an express native-only restriction and a concrete path. Observe the specified route or a report before dependent work. Do not silently substitute. |
-| Compatibility | Check the admission of stable 1.x from 1.1.0 with `policy.ts` and the TypeScript assets. Check the admission of 2.x from 2.0.0 with `config.rhai` and the Rhai assets. Refuse 1.0, prereleases, 3.x and malformed output, with no fallback to another PATH entry. Before the cut, stub executables prove the admission of `ravel 2.0.0` output. |
-| Settings isolation | Ravel 1.1.0 refuses shared settings that hold a 2.0-only key, and a separate prefix cannot prevent it. With a fixture default directory, a 2.0 launch in a shared HOME without `skills` delivers its sources. A separate HOME runs a native lifecycle launch on 1.1 and a directory launch on 2.0 at the same time. A mismatched configuration reaches the user as Ravel's refusal and leaves the leaf live. Existing ending commands stay usable. |
-| Prefix selection | With unversioned 1.1.0 and the keg-only `ravel@2` installed, the default PATH selects 1.1.0. A PATH that puts the `bin` directory of `ravel@2` first selects 2.0.0, and the ending commands quote that canonical path. |
+| Compatibility | Check stable Ravel 2.x from 2.0.0 with `config.rhai` and the Rhai assets. Refuse unsupported versions, prereleases and malformed output without fallback to another PATH entry. |
+| Settings isolation | A fixture HOME isolates its settings and harness configuration. With a fixture default directory and no `skills` key, a launch delivers its sources; `skills.sources: []` disables delivery. Invalid settings preserve Ravel's refusal and leave the leaf live. Existing ending commands stay usable. |
+| Prefix selection | The public unversioned formula supplies Ravel 2. Grove resolves its invocation PATH once, and ending commands quote that canonical executable. |
 | No native mutation | Compare owned/foreign files, links, modes, pointers and bytes before/after startup, failure and installed upgrade. Include legacy homes, aliases and an active old reader. |
 | Manual cleanup guidance | Exercise the documented procedure in disposable legacy layouts. These layouts include stopped readers/writers, owned and foreign links, aliases and uncertain provenance. They also include retained links that reach a skill entry through intermediate links or `..`. Only evidenced, unneeded owned skill-directory links are removable. The legacy root stays unchanged, and the trial leaves the owner's installation untouched. |
 | Resource lifetime | A reader keeps its original resolved directories while sources/configuration change. Subsequent launches can receive the new source view. |
-| Standalone | Grove sends neither `--confine` nor `--runtime-read` to Ravel 1.1 or 2.0. On the directory route of 2.0, the agent reads the required resources outside cwd. A write to a snapshot file fails by its file mode. With injection disabled, the agent reads its native roots. A force-stop publishes no output. A standalone prompt names no guidance, so Grove does not require a report or a force-stop. The confined results of 2026-11-03 and earlier, such as `missing-kind-confined-20261103T062817Z`, are historical, because the human withdrew confinement on that day. |
+| Standalone | Grove sends neither `--confine` nor `--runtime-read` to Ravel. On the directory route of 2.0, the agent reads the required resources outside cwd. A write to a snapshot file fails by its file mode. With injection disabled, the agent reads its native roots. A force-stop publishes no output. A standalone prompt names no guidance, so Grove does not require a report or a force-stop. The confined results of 2026-11-03 and earlier, such as `missing-kind-confined-20261103T062817Z`, are historical, because the human withdrew confinement on that day. |
 | Open tree behaviour | Existing custom-kind, handle, review/integration, result and epoch tests pass. No availability check enters tree verbs or launch admission. |
 | Conformance | Core, external-pack and aggregate checks use exact supplied artefacts. `check:packs` reads Grove's record and checks each pack alone and in the aggregate with core. Removed required resources/edges and duplicate owners fail deliberate controls. The [external pack contract](external-pack-contract.md#controls-that-must-fail) lists the controls. |
-| Installed distribution | The archive manifest, `task release:smoke` and `task release:formula:test` preserve the recorded commits, executable bits, links and source digests. Archive and installed paths follow [The keg layout](#the-keg-layout). Formula acceptance includes the shared-directory seam below, with actual formula output. `task tap:formula:test` applies the same source comparisons to each affected tap formula. Archives and formula tests retain separate packages, both caller-asset sets and runtimes, both configuration formats and no automatic native mutation. Fresh installs and upgrades cover tap states A to D of the coordinated release. Each state's Grove dependency resolves to an admitted Ravel major, and feature advertising follows publication. |
+| Installed distribution | The archive manifest, `task release:smoke` and `task release:formula:test` preserve recorded commits, executable bits, links and source digests. Paths follow [The keg layout](#the-keg-layout). Formula acceptance includes the shared-directory seam on actual formula output; `task tap:formula:test` repeats source comparisons for affected formulae. Archives and formula tests retain independent Grove and Ravel packages, Rhai assets and no automatic native mutation. Fresh installs and upgrades resolve the public compatible Ravel 2 dependency. |
 | Shared default directory | [Shared default directory acceptance](#shared-default-directory-acceptance) runs actual Homebrew linking on formula output, including Ravel's shared ancestors. A private installation record names the shared prefix directory. Direct keg resolution cannot satisfy this seam. |
 | Hook adapters | Repeat the documented commands in isolated Claude Code, Codex and Pi homes against the revised formula output. Both marketplaces name the private writing payload. Claude Code runs its hooks in place through the registered `opt` path, with no native skill. Codex accepts the local source and copies the complete plugin into its cache. Pi reaches the extension through the public alias. After actual upgrade and cleanup, check Claude Code and Pi read the new bytes. Record the Codex registration failure, cached hook behaviour, registration repair and renewed interactive trust of changed bytes. Native-only plugins receive the payload and capability acceptance below. The [readings on the projected keg](../homebrew-skill-delivery-evidence.md#the-hook-adapters-on-the-projected-keg) hold the result, and `task seam:hook-adapters` reruns them. The earlier [readings](../homebrew-skill-delivery-evidence.md#the-hook-adapters-from-a-keg) establish the old layout only. |
 | Retired listing | Before finish, an isolated Claude Code home adds the `linkuistics` marketplace from a Git remote at a commit that lists the packs, and installs `grove@linkuistics`. A refresh against a commit with the retired listing shows whether the plugin stays installed. The release notes state the result. The [evidence](../homebrew-skill-delivery-evidence.md#a-refresh-of-the-retired-listing) holds the reading. |
@@ -890,7 +782,7 @@ this installation guarantee.
 Use a private prefix and actual Homebrew install methods, cleaner and
 `Keg#link` operations. Cover both skill-formula installation orders, absent
 shared ancestors, and Ravel-first dependency installation. Also cover Ravel
-promotion beside installed sources, mixed-layout migration, upgrade, old-keg
+installation beside existing sources, mixed-layout migration, upgrade, old-keg
 cleanup and uninstall. All five skill formulae and Ravel's shared entries
 must participate in the applicable cases. A case for a duplicate ID covers
 fresh installation and upgrade, including rollback of the whole later keg.
@@ -921,7 +813,7 @@ differs from its declaration. Change a declaration with its formula.
 The failure control links the published direct formulae and two direct
 fixture formulae. The fixtures keep the control usable after every tap
 formula is projected. A fixture formula also supplies the duplicate ID and a
-migration pair. The seam identifies Ravel's archive by its lane in
+migration pair. The seam identifies the pinned public Ravel archive in
 `scripts/ravel_target_inputs.py`, because Ravel prints no build identity. The
 [seam evidence](../homebrew-skill-delivery-evidence.md#shared-directory-seam)
 records the instrument's runs and controls.
@@ -944,7 +836,7 @@ holds the trials and describes their runner.
 ## Scope and remaining work
 
 Implementation updates installation guidance, architecture, glossary,
-source-exact books, release checks and both caller-asset sets alongside the
+source-exact books, release checks and Rhai caller assets alongside the
 behaviour they ship. The [evidence and handoff](../grove-skill-delivery-design-evidence.md)
 identify inspected consumers. Research remains the first external-pack proof.
 The [external pack contract](external-pack-contract.md) records the reusable pack
@@ -957,7 +849,7 @@ Grove implements and tests all four.
 `--pack` option and its tests.
 
 Ravel's reviewed contract at `822c0ed2`, this adoption and its integrated
-focused review supply dependent planning. The TypeScript contract at `b93bb927` supplies
-intent only, and the generated-catalogue proposal is historical input. Internal test wiring and
+focused review supply dependent planning. The earlier contract at `b93bb927`
+and generated-catalogue proposal are historical input only. Internal test wiring and
 measured harness delegate behaviour remain implementation questions. No kind redesign, stop command, review simplification,
 repository relocation or native cleanup occurs here.

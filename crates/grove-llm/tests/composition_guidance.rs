@@ -41,12 +41,28 @@ fn assert_absent(surface: &str, text: &str, rejected: &str) {
 
 #[test]
 fn grove_guidance_replaces_the_old_in_session_review_loop() {
-    // One surface, and that is the claim now: the allowance is
+    // One surface owns the routing policy:
     // `references/execute.md`'s alone, and the two files that used to restate it
     // — `driving.md` and `TASK-FORMAT.md`'s doubt-budget table — have shed it
     // (`plugins/grove/conformance/rules.tsv`, `review-budget`).
     const OWNER: &str = "content/references/execute.md";
-    assert_contains(OWNER, EXECUTE_REFERENCE, "whole picked leaf");
+    assert_contains(
+        OWNER,
+        EXECUTE_REFERENCE,
+        "Routine checks have no per-leaf reviewer quota",
+    );
+    assert_contains(
+        OWNER,
+        EXECUTE_REFERENCE,
+        "An adversarial review requires a separate `review-<producer>` leaf",
+    );
+    assert_absent(OWNER, EXECUTE_REFERENCE, "at most one in-session reviewer");
+    assert_contains(OWNER, EXECUTE_REFERENCE, "Prefer bounded subagents");
+    assert_contains(
+        OWNER,
+        EXECUTE_REFERENCE,
+        "Work that requires a different model belongs in a separate Grove task",
+    );
     // Escalation is one ordinary append now, so the owner must name the verb
     // *and* the kind to spell — a session that reads only "cut a review leaf" has
     // to guess `--kind`, which is the one wrong-but-well-formed mistake nothing
@@ -55,7 +71,7 @@ fn grove_guidance_replaces_the_old_in_session_review_loop() {
     assert_contains(
         OWNER,
         EXECUTE_REFERENCE,
-        "substantial redesign as a new producer review chain beside the leaf it is integrating",
+        "substantial redesign needs a producer step",
     );
     // Standalone doubt is unchanged outside the picked-leaf predicate. The
     // skill's half of this composition, and of every doubt assertion that this
@@ -278,7 +294,7 @@ fn guidance_cuts_the_integrate_step_where_pick_reaches_it_next() {
     assert_contains(
         "review mechanics spec",
         SPEC,
-        "`content/references/decompose.md`'s rule and is not restated here",
+        "`plugins/grove/skills/grove/references/decompose.md`'s rule and is not restated here",
     );
 
     // …and the surfaces that only *record* it still carry the verb and the exact
@@ -590,7 +606,7 @@ fn project_guides_name_the_implemented_composition_seams() {
     }
 
     for expected in [
-        "one in-session",
+        "ordinary verification",
         "grove-llm leaf-add <parent> <stem> --kind review-<producer>",
         "reviewable boundary",
     ] {
@@ -772,8 +788,7 @@ fn canonical_guidance_preserves_composition_relationships_and_pruning_scope() {
         (
             "content/references/execute.md",
             EXECUTE_REFERENCE,
-            "`research-a`, `research-b` and `combine-research` spend **none** — the pair supplies \
-             independent corpora and the combiner supplies the adversarial move",
+            "Research pairs retain their independent corpora and the combiner supplies the adversarial move",
         ),
         (
             "content/references/retire.md",

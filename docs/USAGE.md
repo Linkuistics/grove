@@ -18,7 +18,7 @@ This guide covers the whole installed command surface — the `grove` binary you
 run, and the `grove-llm` verbs a session runs over the tree — plus every journey
 from scaffolding a grove to tearing one down. It says what a Grove owner does
 about launch policy and leaves the policy contract to
-[Ravel](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md). It does **not** carry
+[Ravel](https://github.com/Linkuistics/Ravel/blob/v2.0.0/docs/session-cli.md). It does **not** carry
 installation ([README](../README.md)), grove's vocabulary
 ([CONTEXT.md](../CONTEXT.md)), or the methodology a session executes (the
 skills of the `grove` plugin and the five domain packs). Each is linked where it is reached. The set this
@@ -38,20 +38,14 @@ policy.
 ## Launch policy
 
 Grove resolves the first executable `ravel` in an absolute PATH directory. It canonicalises
-the path once and checks the CLI version of that Ravel. Grove admits stable Ravel 1.x from
-1.1.0 and stable 2.x from 2.0.0. The version decides admission only. The PATH of the Grove
-invocation selects the Ravel, and its configuration file and settings select the route.
+the path once and checks the CLI version of that Ravel. Grove admits stable Ravel 2.x from
+2.0.0. The PATH of the Grove invocation selects the installation. The owner’s
+`~/.config/ravel/config.rhai` selects the command, and the optional
+`~/.config/ravel/settings.json` sets bounds, environment grants and skill sources.
 
-Grove supports three routes. On the [directory route](#usage-directory-route), Ravel 2.0
-supplies the skills that Homebrew installs with Grove. On the two native routes, each harness
-supplies its skills from a native installation that already exists. Grove's guidance sets up
-no native installation.
-
-| Route | Ravel | Configuration | Settings | Grove caller assets |
-| --- | --- | --- | --- | --- |
-| Native on 1.1 | 1.x from 1.1.0, Homebrew's `ravel` | `~/.config/ravel/policy.ts`, schema 2 | `~/.config/ravel/settings.json` with only `timeoutMs`, `contextBytes` and `policyEnv` | The TypeScript set |
-| Native on 2.0 | 2.x from 2.0.0, Homebrew's keg-only `ravel@2` until promotion | `~/.config/ravel/config.rhai`, `SCHEMA_VERSION` 4 | `~/.config/ravel/settings.json` with the keys of 2.0.0, and `{"skills": {"schemaVersion": 1, "sources": []}}` while keg sources are installed | The Rhai set |
-| Directory on 2.0 | As native on 2.0 | As native on 2.0 | No settings file, or one with the keys of 2.0.0 and no `sources` | The Rhai set |
+On the [directory route](#usage-directory-route), Ravel supplies the skills that
+Homebrew installs with Grove. Each launch prompt names their captured directories,
+so no harness needs a native copy. Delivery can be disabled explicitly in settings.
 
 Grove's formula installs Homebrew's `ravel` as a dependency. Otherwise, install Ravel with
 `brew install linkuistics/taps/ravel`. Grove and Ravel can have different prefixes and
@@ -66,88 +60,23 @@ trusted refuses to load. Grove's formula depends on `linkuistics/taps/ravel`, so
 [Tap Trust](https://docs.brew.sh/Tap-Trust#installing-from-a-tap) page gives the rules.
 
 The fully qualified installs of `ravel` and `personal` on this page need no trust step.
-Neither formula loads another formula from the tap. The keg-only `ravel@2` does need the
-tap trust. To install it, Homebrew also loads the unversioned `ravel` from the tap.
+Neither formula loads another formula from the tap. Homebrew’s unversioned `ravel`
+is the supported runtime; no versioned prefix is required.
 
-Until a tap promotion makes Homebrew's `ravel` 2.x, Homebrew installs Ravel 2.x only as the
-keg-only `ravel@2`. Its `ravel` is not the default command. To use it, put
-`$(brew --prefix ravel@2)/bin` first on the PATH of the Grove invocation. The ending
-commands in the prompt then name that installation.
+An unsupported or malformed version refuses. Empty and relative PATH entries, decoys
+in the working directory and Grove siblings cannot supply a fallback.
 
-<a id="usage-ravel-promotion"></a>
-**Promotion.** A promotion publishes the same Ravel 2.0.0 archives as Homebrew's
-unversioned `ravel`. `ravel@2` is then deprecated and receives no later release. After
-`brew upgrade`, the default `ravel` is 2.0.0, and Grove needs no PATH prefix. That Ravel
-reads only `config.rhai`. It refuses a HOME that holds only `policy.ts` with
-`config_format_retired` and exit 3.
+Your `config.rhai` exports `SCHEMA_VERSION` 4 and defines `select(request, context)`.
+The selection uses the kind, the prompt, an optional task file and handle, and the
+working directory of the caller. Write or copy the configuration yourself. Upgrades
+do not edit it.
 
-Prepare before that upgrade:
+Ravel has `start-session`, `end-session RESULT` and `skills resolve`, with ordinary
+help and version flags. It has no init, inspect or record command and no SDK. A Rhai
+script imports another by its path. Owner settings live in
+`~/.config/ravel/settings.json`.
 
-1. Copy `$(brew --prefix grove)/libexec/ravel-policy/sample/config.rhai` to
-   `~/.config/ravel/config.rhai`. Preserve an existing `config.rhai`.
-2. Convert your routes from `policy.ts` into it.
-3. Check a launch through `ravel@2`.
-4. Keep `policy.ts` while any Ravel 1.x launch remains.
-
-Upgrade Grove with Ravel. Run `brew upgrade` with no formula name, or upgrade Grove first
-with `brew upgrade grove`. A lone `brew upgrade ravel` does not upgrade Grove. Homebrew
-upgrades a dependent only when the dependent and each of its dependencies have a bottle,
-and neither Grove nor Ravel has one. Grove 22.8 and earlier refuse Ravel 2.x before any
-launch, with this message:
-
-```text
-Error: …/Cellar/ravel/2.0.0/bin/ravel must report a stable Ravel 1.x CLI version from 1.1.0. Run `brew upgrade ravel` and select that installation on PATH. …
-```
-
-That remedy is wrong after promotion, because `brew upgrade ravel` installed the 2.0.0.
-Run `brew upgrade grove` instead. The leaf stays live, and the next `grove` continues it.
-
-After the upgrade, each launch receives the keg sources with no settings change. A native
-installation that remains still loads beside them. To keep the native route, put an empty
-`sources` list in the `skills` object of the settings:
-`{"skills": {"schemaVersion": 1, "sources": []}}`. Ravel 2.0.0 refuses a top-level
-`sources` key as `settings_invalid`. If Homebrew cannot upgrade Grove, keep a complete
-Ravel 1.1.0 prefix, and put its `bin` first on the PATH.
-
-An unsupported or malformed version names both admitted majors with their configuration
-files, and the `ravel@2` directory. Grove refuses Ravel 1.0.x, prereleases and unknown majors
-such as 3.x. Empty and relative PATH entries, decoys in the working directory and Grove
-siblings cannot supply a fallback. Do not upgrade a shared installation that a running
-session or another configuration still uses.
-
-Both configuration files can exist under one HOME. The settings file cannot serve both
-majors with every key. Ravel 1.1.0 refuses the keys of 2.0, such as `configEnv`, and
-Ravel 2.0.0 refuses `policyEnv`. A settings file that both accept holds only `timeoutMs` and
-`contextBytes`. While a 1.1 launch still reads the settings under a HOME, run a 2.0 route
-that needs another key under a separate HOME.
-
-On 1.x, your `policy.ts` exports a policy. On 2.x, your `config.rhai` exports
-`SCHEMA_VERSION` 4 and defines `select(request, context)`. The selection uses the kind, the
-prompt, an optional task file and handle, and the working directory of the caller. Write or
-copy the configuration yourself. Upgrades do not edit it, and Grove converts no
-configuration from one major to the other.
-
-Ravel 1.x has exactly two commands, `start-session` and `end-session RESULT`, with the
-ordinary help and version flags. Ravel 2.x adds `skills resolve`. Neither has an init,
-inspect or record command. Ravel 1.x supplies the
-public SDK `ravel/sdk`. Ravel 2.x has no SDK, and a Rhai script imports another by its path.
-Owner settings live in `~/.config/ravel/settings.json`.
-
-For example, an owner's deterministic fixture policy for 1.x is:
-
-```ts
-export const policy = {
-  schemaVersion: 2,
-  version: 'owner-1',
-  select: request => ({
-    status: 'selected', program: '/bin/sh',
-    args: ['/absolute/path/to/your-harness.sh', request.prompt],
-    provider: 'fixture', model: 'none', effort: 'none', reason: 'owner route'
-  })
-};
-```
-
-The same route in `config.rhai` for 2.x is:
+For example, an owner’s deterministic fixture configuration is:
 
 ```rhai
 export const SCHEMA_VERSION = 4;
@@ -160,12 +89,12 @@ fn select(request, context) {
 }
 ```
 
-Your real routes choose your harness, model, effort and approvals. The generic
-[Ravel 1.x CLI contract](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md)
-describes the SDK, the bounds, the environment grants and the `.ravel-choice` helper. The
-adapter, the examples and the provenance conventions of Grove are caller assets, with one
-set for each major. [The assets guide](../assets/ravel-policy/README.md) says how to copy
-each sample. Configuration imports load them. Ravel does not embed them as modules.
+Your real routes choose your harness, model, effort and approvals. The
+[Ravel CLI contract](https://github.com/Linkuistics/Ravel/blob/v2.0.0/docs/session-cli.md)
+describes bounds and environment grants. Grove’s adapter, examples and provenance
+conventions are readable Rhai caller assets. [The assets guide](../assets/ravel-policy/README.md)
+says how to copy the sample. Configuration imports load them. Ravel embeds no Grove
+module.
 
 The lifecycle command is:
 
@@ -202,9 +131,7 @@ beside the executables, one Ravel source each:
 
 Homebrew links each source into Ravel's default skill directory,
 `$(brew --prefix)/share/ravel/skills/`. Ravel 2.0.0 reads that directory when your settings
-name no `sources`, also when no settings file exists. With a Ravel 2 on the PATH,
-`brew install` and `brew upgrade` are therefore the whole skill setup. Until
-[promotion](#usage-ravel-promotion), that Ravel is `ravel@2`. Grove's release takes each
+name no `sources`, also when no settings file exists. `brew install` and `brew upgrade` are therefore the whole skill setup. Grove's release takes each
 pack at the commit that Grove's pack check accepted.
 
 Other formulae of the `linkuistics/taps` tap install more sources in the same way. The
@@ -251,8 +178,8 @@ default:
 - A `sources` array replaces the default sources. Ravel then reads only the local
   directories that it names, and no default skill directory.
 - An empty `sources` array in this object turns delivery off:
-  `{"skills": {"schemaVersion": 1, "sources": []}}`. A native route on 2.0 uses it while
-  keg sources are installed. Ravel 2.0.0 refuses a top-level `sources` key as
+  `{"skills": {"schemaVersion": 1, "sources": []}}`. Ravel refuses a top-level
+  `sources` key as
   `settings_invalid`.
 
 ```json
@@ -277,12 +204,6 @@ delimited block. `request.originalPrompt` holds the mandate alone.
 **Ravel reads local directories only.** It runs no `git` command and makes no network
 request for a source. It does not fetch, install or update a source. Ravel captures the
 files of each source and leaves out `.git` and `.jj`.
-
-**One HOME serves both majors on this route.** Ravel 1.1.0 refuses a settings file that
-holds `skills`. The default route needs no `skills` key, so a native launch on 1.1 and a
-directory launch on 2.0 can share your usual HOME. A 2.0 route can need a 2.0-only key,
-such as `sources`. While a 1.1 launch still reads the settings of your usual HOME, run that
-route under its own HOME.
 
 A separate HOME also moves Ravel's skill cache, the run logs of
 `grove run` and the HOME-based configuration of your harnesses and VCS. It does not move
@@ -713,10 +634,10 @@ Here the tree holds a leaf of a kind, `spike`, that the policy does not route:
 ```console
 $ grove
 grove: launching spike through Ravel — api-k1
-ravel: refused (policy_refused, stage selection): the policy /home/you/.config/ravel/policy.ts refused the selection: ROUTES names no route for kind "spike"
+ravel: refused (config_refused, stage selection): the configuration script /home/you/.config/ravel/config.rhai refused the selection: ROUTES names no route for kind "spike"
   input: --kind spike
-  source: /home/you/.config/ravel/policy.ts
-  policy code: incomplete_mapping
+  source: /home/you/.config/ravel/config.rhai
+  config code: incomplete_mapping
   remedy: add a route for this kind to ROUTES in your policy
 grove: session ended without a supported Grove result — status exit status: 3, elapsed 0.510s; loop stopped.
        session kind `spike` for `api-k1` failed; if Ravel refused the launch, its diagnostic and remedy are above and the leaf is still live. Either way, rerun `grove` to continue.
@@ -736,7 +657,7 @@ ravel: starting provider anthropic, model claude-opus-5-5, effort high for kind 
 
 The same recovery serves every refusal. Three an owner meets:
 
-- **No policy.** The refusal is `policy_missing`, and its remedy is
+- **No policy.** The refusal is `config_missing`, and its remedy is
   writing the named policy entry, or explicitly reading and copying the
   [Grove policy assets](../assets/ravel-policy/README.md) and importing them
   from that entry. A fresh grove is scaffolded first, so its
@@ -949,8 +870,8 @@ never editing or rebuilding a binary.
 `grove` binary installs none
 ([decision](adr/homebrew-installs-skills-and-ravel-delivers-them.md)). Grove's formula
 installs core and the five domain packs. Ravel 2.0 delivers them to every harness that your
-policy can select, as [the directory route](#usage-directory-route) states. With a Ravel 2
-on the PATH, `brew install` and `brew upgrade` are the whole skill setup.
+policy can select, as [the directory route](#usage-directory-route) states.
+`brew install` and `brew upgrade` are the whole skill setup.
 
 On a native route, each harness reads a native installation that already exists. Grove's
 guidance sets up none, and Grove ships no installer.
@@ -1663,13 +1584,11 @@ Caused by:
 <a id="usage-review-composition"></a>
 ## Review composition and escalation
 
-Review in Grove happens two ways, and only one of them is yours to see in the
-tree. A session may spend at most **one in-session** fresh-context reviewer over
-its whole leaf — *which* kinds may spend it, and on what, is methodology the
-`grove` plugin's skills own (`references/execute.md` in the `grove` skill) and
-this guide does not restate. That reviewer leaves no trace in `.grove/`. What
-does, and what this section covers, is the other way: a **review leaf**, a whole
-session of its own, standing beside the producer as a file you can read.
+Sessions keep ordinary verification in-session and prefer bounded subagents on
+the parent model. Work requiring an adversarial review or a different model
+gets a separate Grove task. The routing policy is owned by
+`references/execute.md` in the `grove` skill. This section covers a **review
+leaf**: a whole session standing beside the producer as a file you can read.
 
 **A review chain is built one step at a time, by the session that needs the next
 one.** There is no chain verb and no chain node — each step is an ordinary

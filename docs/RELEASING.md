@@ -12,12 +12,9 @@ Grove releases are published in two repositories:
 The release scripts build and connect those pieces. Run them from Grove's
 default, colocated Jujutsu workspace, where both `.jj/` and `.git/` exist.
 
-For the planned Rhai and skill-directory cutover, the
-[coordinated release contract](specs/coordinated-release.md) owns cross-product
-publication order and the finish handoff. It requires versioned Ravel delivery
-before compatible Grove and unversioned promotion afterwards. Its new Ravel
-channel/promotion tasks are design requirements, not currently available
-commands. The procedures below describe the existing release machinery.
+Grove uses independently installed Ravel 2 and its public Rhai configuration.
+The procedures below describe Grove’s release machinery; they do not publish
+or promote Ravel.
 
 ## Release tasks
 
@@ -129,30 +126,22 @@ tells the harness to read the file and follow it. The file is outside
 lifecycle. The writer must not depend on the discovery of an installed skill.
 
 Both paths need an independent installed Ravel and your owner configuration.
-Ravel 1.x reads `~/.config/ravel/policy.ts`, and Ravel 2.x reads
-`~/.config/ravel/config.rhai`. The configuration must route `release-notes` to a
+Ravel reads `~/.config/ravel/config.rhai`. The configuration must route `release-notes` to a
 noninteractive command that keeps its writable state in the scratch directory.
-The headless route of each Grove sample runs the staged Codex helper.
+The headless route of Grove’s sample runs the staged Codex helper.
 
-Install Ravel. Copy the sample for your Ravel only if no owner configuration
+Install Ravel. Copy the sample only if no owner configuration
 exists:
 
 ```sh
 brew install linkuistics/taps/ravel
 mkdir -p ~/.config/ravel
 # Preserve an existing configuration; read and edit this copy before launching.
-# Ravel 1.x:
-cp assets/ravel-policy/sample/policy.ts ~/.config/ravel/policy.ts
-# Ravel 2.x:
 cp assets/ravel-policy/sample/config.rhai ~/.config/ravel/config.rhai
 ```
 
 That Ravel install needs no `brew trust` step. A fully qualified name trusts the
 formula that it names, and `ravel` loads no other formula from the tap.
-
-Ravel 2.0.0 refuses a HOME that holds only `policy.ts`, with
-`config_format_retired`. After the unversioned `ravel` formula moves to 2.x, the
-release task therefore needs `config.rhai`.
 
 A release with existing Unreleased notes generates nothing. The generation
 builds only `grove` and `grove-llm`. It resolves Ravel on PATH and uses its
@@ -232,29 +221,22 @@ root `mise.toml` pins.
 
 <!-- tc: on -->
 
-The asset gate covers both caller asset sets. `task check` resolves Ravel from
-PATH, and `GROVE_TEST_RAVEL=/absolute/path/to/ravel` overrides that
-installation. `GROVE_TEST_RAVEL_RUNTIME` names its runtime, `1.1` or `2.0`, and
-an unset runtime means 1.1. With 1.1, the gate typechecks the TypeScript set
-against the installed Ravel SDK with Grove's locked compiler. With 2.0, the gate
-runs the Rhai set through public `start-session`, because Ravel 2.0 has no SDK
-and no typechecker. One case table drives both sets.
+The asset gate runs the Rhai caller assets through Ravel's public
+`start-session`. `task check` resolves Ravel from PATH, and
+`GROVE_TEST_RAVEL=/absolute/path/to/ravel` selects another installation.
+Ravel 2 uses `config.rhai` with schema 4; it has no SDK or typechecker.
 
-Before a release, check each set against its own explicit build:
+Before a release, check the assets against the installed public runtime:
 
-- Run `task ravel:policy RAVEL=<front> RAVEL_RUNTIME=<1.1|2.0>` once for each
-  build.
-- Run `task release:formula:test` and `task release:installed` with
-  `RAVEL_1_1_PREFIX` and `RAVEL_2_0_PREFIX`. The 1.1 build checks the
-  TypeScript set with `policy.ts`, and the 2.0 build checks the Rhai set with
-  `config.rhai`. The 2.0 lane also resolves the six keg sources with no
-  settings.
+- Run `task ravel:policy RAVEL=/absolute/path/to/ravel`.
+- Run `task release:formula:test` and `task release:installed` against the
+  published Ravel 2 installation. The checks use `config.rhai` and resolve
+  the six keg sources with no settings.
 - Give `task release:formula:test` the published Grove keg in `OLD`. The
   test compares the `resourceDigest` of each installed source with that of
   the plain checkout of the same commit. For core, that checkout is `HEAD`, so
   commit `plugins/grove` first. The test then installs and upgrades the keg
-  in a private Homebrew-shaped prefix at each tap state A to D of the
-  coordinated release.
+  in a private Homebrew-shaped prefix and checks the installed skill sources.
 - `task release:formula:test` also needs `claude` on PATH. It checks that
   each marketplace file at the keg root names a plugin in the keg. It then
   runs `claude plugin validate` on the installed keg in a scratch HOME.
@@ -262,7 +244,7 @@ Before a release, check each set against its own explicit build:
   formula or template in `RAVEL_FORMULA` and its archive in `RAVEL_ARCHIVE`.
   It then runs the shared directory seam. Homebrew's own linker links the
   keg beside Ravel's keg and the tap's skill formulae, in private prefixes.
-  The archive must be in a lane of `scripts/ravel_target_inputs.py`. The
+  The archive must be admitted by `scripts/ravel_target_inputs.py`. The
   test downloads the archive of each tap formula. `task tap:formula:test`
   takes the same two Ravel inputs and runs the seam for its formula, beside
   the other skill formulae of the tap. It checks the layout that
@@ -279,12 +261,8 @@ Before a release, check each set against its own explicit build:
   entry, link, mode, pointer and byte must stay the same, and an active 22.8
   session must complete.
 
-A prefix gives the runtime explicitly. Before the cut, a build of Ravel's 2.0
-feature line reported `ravel 1.1.0`, so its version output could not name its
-runtime. The checks also need the layout of each build. The
-1.1 prefix holds the private worker `libexec/ravel/ravel-policy`, and the 2.0
-prefix holds no `libexec/ravel`. Host Bun and Node are not runtime
-dependencies of either installed project.
+The installed checks verify Ravel's public executable and its archive layout.
+Host Bun and Node are not runtime dependencies of either installed project.
 
 <!-- tc: pending because the conversion has not reached the rest of this document -->
 
@@ -311,21 +289,19 @@ as for `task release:archives`.
 <!-- tc: on -->
 
 Each Grove archive must match the exact manifest. Before any executable runs,
-the independent Ravel inputs of both lanes pass the archive admission checks.
-The 1.1 lane is the published Ravel 1.1.0. The 2.0 lane is the published Ravel
-2.0.0. Admission downloads each missing archive of either lane into its default
-directory. The projects unpack into separate prefixes with different versions.
+the independent Ravel inputs pass the archive admission checks. Admission
+uses the published Ravel 2.0.0 archives and downloads each missing target
+archive into its default directory. Grove and Ravel unpack into separate
+prefixes with independent versions.
 
-On each target, the caller cases run the TypeScript set against the 1.1 prefix.
-They run the Rhai set against the 2.0 prefix, in a HOME of its own. On Linux,
-the 2.0 lane then runs the directory case,
-`scripts/grove-floor-directory-case.sh`. It is the only check that publishes
+On each target, the caller cases run the Rhai assets against the Ravel prefix
+with an isolated HOME. On Linux, the smoke also runs the directory case,
+`scripts/grove-floor-directory-case.sh`. It is the check that publishes
 skill snapshots from the release archive at the glibc 2.17 floor.
 
-At the end, the smoke names each target that the 2.0 lane did not run, with
-the reason. The 2.0 lane records every target.
-[ravel-target-inputs.md](ravel-target-inputs.md#replacement-of-the-local-20-record--2026-11-12)
-records how the published 2.0.0 archives replaced the local 2.0 record.
+At the end, the smoke records every target, including any target it could not
+run and the reason. [ravel-target-inputs.md](ravel-target-inputs.md)
+records the pinned archives and admission requirements.
 
 The child PATH holds only selected system utilities and Ravel. The cases exercise
 these subjects: Grove lifecycle, standalone output publication, public result
@@ -731,12 +707,10 @@ The formula relocates its skill sources as stated below.
 bin/grove
 bin/grove-llm
 libexec/ravel-policy/README.md                   readable caller documentation
-libexec/ravel-policy/grove.ts, grove.rhai        Grove task/context adapter
-libexec/ravel-policy/provenance.ts, .rhai        caller-owned provider receipts
-libexec/ravel-policy/examples/                   readable examples of both sets
-libexec/ravel-policy/sample/policy.ts            owner-editable sample, Ravel 1.x
-libexec/ravel-policy/sample/config.rhai          owner-editable sample, Ravel 2.x
-libexec/ravel-policy/typecheck/                  strict TypeScript fixtures
+libexec/ravel-policy/grove.rhai                  Grove task/context adapter
+libexec/ravel-policy/provenance.rhai             caller-owned provider receipts
+libexec/ravel-policy/examples/                   readable Rhai examples
+libexec/ravel-policy/sample/config.rhai          owner-editable configuration, schema 4
 share/ravel/skills/grove-core/                   plugins/grove of the built tree
 share/ravel/skills/<pack>/                       each pack of plugins/packs.json
 LICENSE
@@ -751,12 +725,9 @@ requires actual Homebrew linking beside other skill formulae and Ravel.
 Formula validation and release acceptance run that seam. A resolution that
 names only one keg cannot establish the shared-directory guarantee.
 
-The `*.ts` files are the TypeScript set for Ravel 1.x, and the `*.rhai` files
-are the Rhai set for Ravel 2.x.
-Grove resolves independently installed Ravel from PATH. The formula installs
-`libexec/ravel-policy` and depends on `linkuistics/taps/ravel` only. That
-dependency stays unversioned through promotion, and `ravel@2` is an explicit
-opt-in prefix.
+The `*.rhai` files are caller assets for Ravel 2. Grove resolves independently
+installed Ravel from PATH. The formula installs `libexec/ravel-policy` and
+depends on the unversioned `linkuistics/taps/ravel`.
 
 An archive user must independently install Ravel and keep each project's whole
 prefix intact.
@@ -867,8 +838,8 @@ Make sure that the reported version matches the tag. Make sure that the GitHub
 Release holds all three archives. `grove-llm --version` must match the tag of
 Grove. `ravel --version` has its own version.
 
-`brew test grove` checks the two Grove commands and both installed caller asset
-sets. It also runs a fake lifecycle through the public CLI of Ravel, without
+`brew test grove` checks the two Grove commands and the installed Rhai caller
+assets. It also runs a fake lifecycle through the public CLI of Ravel, without
 Bun or Node on the host. Homebrew runs that test inside its own sandbox. The
 release task also checks the publication of a standalone output outside that
 sandbox:
@@ -878,20 +849,9 @@ bash scripts/grove-installed-smoke.sh "$(brew --prefix grove)" \
   "<released-version>" "$(brew --prefix ravel)"
 ```
 
-The formula test checks each installed Ravel build in a HOME of its own. The
-version of the dependency selects its lane. A 1.x dependency checks the
-TypeScript set, and a 2.x dependency checks the Rhai set. While the dependency
-is 1.x, an installed `ravel@2` adds the Rhai lane. The release task gives the
-installed smoke the same lanes. To check an installed `ravel@2` by hand, give
-its prefix as the fourth argument:
-
-```sh
-bash scripts/grove-installed-smoke.sh "$(brew --prefix grove)" \
-  "<released-version>" "$(brew --prefix ravel)" "$(brew --prefix ravel@2)"
-```
-
-When the unversioned dependency is 2.x, give `-` as the third argument instead
-of a 1.1 prefix.
+The formula test and installed smoke use the unversioned Ravel dependency.
+They exercise Rhai configuration through its installed public CLI with fake
+agents and no model launch.
 
 <!-- tc: pending because the conversion has not reached the rest of this document -->
 
@@ -900,18 +860,13 @@ fails because of the test itself, correct the formula's test, commit/push the sa
 tap, then run `brew test grove` and the installed-smoke command above. Preserve
 the existing tag and tested archives; resume verification without another cut.
 
-The formula's caveats show both configuration formats, Ravel's default skill
-directory, the commands of the hook adapters and the explicit `ravel@2` prefix. They copy the `policy.ts` sample for Ravel 1.x
-and the `config.rhai` sample for Ravel 2.x from the installed caller assets.
-They also state what promotion changes: `ravel@2` is deprecated, and a lone
-`policy.ts` refuses with `config_format_retired`, whose remedy is `config.rhai`.
-They tell the user to upgrade Grove with Ravel or first, because a lone
-`brew upgrade ravel` leaves an earlier Grove that refuses Ravel 2.x. They place
-the off value in the `skills` object of the settings. Preserve an existing configuration, read/edit a new one before running, and keep
-relative helpers together. Installation and upgrade never write an owner
-configuration. Earlier config.kdl/.grove.kdl files are
-ignored. Keep the live original-v22 installation and ending channel until its
-driver ends, as the transition section requires.
+The formula’s caveats show `config.rhai`, Ravel’s default skill directory and
+the commands of the hook adapters. They copy the sample from the installed
+caller assets only when the owner has no configuration. The off value belongs
+in the `skills` object of the settings. Preserve an existing configuration,
+read/edit a new one before running, and keep relative helpers together.
+Installation and upgrade never write an owner configuration. Earlier
+`config.kdl` and `.grove.kdl` files are ignored.
 
 The read-only monitor ships inside `grove`, not as a command of its own. Check
 `grove view --help` from the installed binaries,

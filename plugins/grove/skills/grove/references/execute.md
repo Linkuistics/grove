@@ -51,50 +51,52 @@ available, keep inline progress and a log. Do not detach silently.
 
 ## Review ownership inside a picked leaf
 
-**The allowance is a picked leaf's, and only a picked leaf's.** It applies after
-the driver launched this session with a selected-leaf mandate in its prompt and
-this session adopted that mandate by running Bootstrap. A `.grove/` directory in
-the checkout and inherited Grove control variables do not count; outside that
-predicate, doubt keeps its standalone bounded cycles unchanged.
+This policy applies after the driver launched this session with a selected-leaf
+mandate in its prompt and this session adopted that mandate by running Bootstrap.
+A checkout's `.grove/` directory and inherited control variables are not that
+predicate; outside that predicate, doubt keeps its standalone bounded cycles unchanged.
 
-**A picked plain producer may materialise at most one in-session reviewer across
-the whole picked leaf.** The allowance is leaf-wide rather than per decision or
-per artifact, and each independently materialised context spends it — a
-diverse-lens pass with N subagents spends N, while one reviewer asked to inspect
-several named axes spends one. An explicitly chosen cross-model reviewer spends
-the same one; do not offer a second pass after it. A **second** need — normally
-re-review after a substantive non-mechanical fix — is the mechanical signal that
-review has become tree-sized work: cut a `review-<producer>` leaf, writing the
-specific doubt into its body, and finish only to a coherent reviewable boundary.
-Trivia, noise, a visible accepted trade-off, and a fix conclusively covered by an
-executable test seam do not force it.
+**Classify the purpose of a review before choosing its route.** Checking a named
+requirement, comparing an implementation with its contract, checking sources,
+running tests and verifying a fix are ordinary implementation work. Keep those
+checks in-session. Prefer bounded subagents for separable implementation work,
+routine reviews and follow-up checks that can use the parent session's model
+and framing. **Routine checks have no per-leaf reviewer quota.** A second check
+or a fresh helper context does not itself earn a Grove task. Keep each check
+bounded by a concrete question and stop when it is answered.
 
-The other kinds are deliberate exceptions, and the allowance differs by kind:
+**Work that requires a different model belongs in a separate Grove task**, with
+the kind appropriate to its purpose, so the owner's policy selects the model.
+Do not switch a helper's model to bypass that routing. A model preference alone
+does not justify extra work; use a same-model helper when it can answer the
+question.
 
-- a producer that already has a `review-*` leaf beside it spends **none** — its
-  review is scheduled;
-- a `review-*` session spends **none** — it *is* the adversarial read, and
-  produces findings rather than fixes;
-- an `integrate-review-*` session may spend **one narrow** reviewer, and
-  externalises substantial redesign as a new producer review chain beside the
-  leaf it is integrating;
-- `research-a`, `research-b` and `combine-research` spend **none** — the pair
-  supplies independent corpora and the combiner supplies the adversarial move.
+**An adversarial review requires a separate `review-<producer>` leaf.** Its
+purpose is an independent attempt to break a load-bearing artifact, challenge
+its assumptions or discover defects the producer has not named. Freshness from
+the producer's framing is part of the deliverable. Finish to a coherent,
+reviewable boundary and cut that sibling through `references/decompose.md`;
+write the specific doubt and the artifact's contract into its body. Do not
+substitute an in-session adversarial reviewer, or relabel that work as routine
+verification to bypass the route. The reason to create the task is the need for
+independent challenge, never the number of earlier checks.
 
-**Spending the allowance is a four-step pass**, not an invitation to a second
-opinion. Use it for a narrow, unexpected claim whose correctness the compiler
-cannot establish:
+Give the adversarial reviewer the artifact and its contract, **stripping the conclusion**.
+It reports findings rather than fixes. The integration session re-reads the
+artifact and classifies every finding as an unclear contract, valid and
+actionable, a visible trade-off or noise. It can verify fixes in-session;
+substantial redesign needs a producer step and a new adversarial review only
+when independent challenge is warranted again.
 
-1. State the claim and why it matters.
-2. Extract only the artifact and its contract, stripping the conclusion.
-3. Give one fresh context the artifact and contract with an adversarial *find
-   what is wrong* prompt.
-4. Re-read the artifact and classify **every** finding four ways: a contract you
-   stated unclearly, valid and actionable, a visible trade-off, or noise.
+A scheduled `review-*` leaf owns that adversarial read; do not duplicate it with
+another reviewer in the producer, review or integration session. Ordinary
+verification remains available in each kind. Research pairs retain their
+independent corpora and the combiner supplies the adversarial move; routine
+helpers do not replace either research session or the combiner. The pair is
+`research-a` and `research-b`; the combiner is `combine-research`.
 
 **Once review is escalated to the tree, grove owns the route.** It launches the
-command the owner's policy selects for the `review-*` kind, so do not add a
-competing in-session reviewer beside a scheduled review.
+command the owner's policy selects for the `review-*` kind.
 
 ## Verifying a claim about the repo itself
 

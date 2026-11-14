@@ -1,5 +1,13 @@
 # Owner skill delivery through Ravel
 
+> Historical rollout plan. This document preserves the original cutover's
+> decisions, sequencing and recovery requirements as historical evidence.
+> It is not a current installation or release procedure. Current setup uses
+> public Ravel 2 and `config.rhai` at schema 4; see [Usage](../USAGE.md#launch-policy),
+> [Releasing](../RELEASING.md) and [Grove skill delivery](codex-skill-provisioning.md).
+> Version branches and transition instructions below describe that original
+> rollout and must not be repeated as current compatibility requirements.
+
 This design moves the owner's installed skill collection from native harness
 installations to Ravel's directory delivery. Homebrew installs the ten sources.
 Native registrations retain capabilities that a skill read cannot supply.

@@ -33,7 +33,7 @@ them.
 | Human workflow and commands | [`USAGE.md`](USAGE.md) |
 | Cutting and publishing a release | [`RELEASING.md`](RELEASING.md) |
 | Launch policy, a refused launch, and a review's creator line as a Grove owner meets them | [`USAGE.md`](USAGE.md#usage-launch-policy) |
-| Ravel's process/router CLI and executable behavior | [Ravel CLI](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md), [executable specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md) and [runtime evidence](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/runtime-evidence.md), maintained in its independent project |
+| Ravel's process/router CLI and executable behavior | [Ravel CLI](https://github.com/Linkuistics/Ravel/blob/v2.0.0/docs/session-cli.md), [executable specification](https://github.com/Linkuistics/Ravel/blob/v2.0.0/docs/specs/session-execution.md) and [runtime evidence](https://github.com/Linkuistics/Ravel/blob/v2.0.0/docs/runtime-evidence.md), maintained in its independent project |
 | Grove's Ravel caller contract | [`specs/harness-selection-and-execution.md`](specs/harness-selection-and-execution.md), with its [visual views and evidence locators](design/harness-selection-and-execution/README.md) |
 | Runtime and repository design — the decisions, the constraints, and the measurement records | this document |
 | Grove vocabulary | [`CONTEXT.md`](../CONTEXT.md) |
@@ -109,7 +109,7 @@ skill plugin. Ravel is an independently delivered runtime dependency:
 | Product | Source | Delivery |
 |---|---|---|
 | Grove CLI | `crates/` | Homebrew and the release archives install `grove` and `grove-llm`. |
-| Grove caller assets | `assets/ravel-policy/` | One set for each admitted Ravel major: TypeScript for 1.x and Rhai for 2.x. Grove archives and the formula install `libexec/ravel-policy`. The formula depends on separately versioned Ravel. [Delivery boundary](grove-delivery-contraction.md). |
+| Grove caller assets | `assets/ravel-policy/` | Rhai configurations for Ravel 2, using schema 4 and path imports. Grove archives and the formula install `libexec/ravel-policy`. The formula depends on separately versioned Ravel. [Delivery boundary](grove-delivery-contraction.md). |
 | Agent skill plugins | `plugins/grove/` | Grove's formula stores it at `libexec/skill-sources/grove-core/` of the keg. A relative directory symlink at `share/ravel/skills/grove-core` exposes it to Homebrew. Ravel delivers the intact source. |
 | External packs | Other repositories, such as `plugins/requirements/` in RequirementsSkills, `plugins/design/` in DesignSkills, `plugins/engineering/` in EngineeringSkills, `plugins/research/` in ResearchSkills, `plugins/writing/` in WritingSkills, `plugins/personal/` in PersonalSkills and `plugins/testanyware/` in TestAnyware. WritingSkills also holds the hooks plugin `technical-communication-hooks`, and PersonalSkills holds the native plugin `guardrail` | Grove's record `plugins/packs.json` pins each domain pack by commit, and Grove's formula installs it. The `personal` and `testanyware` formulae install the other two. [External pack contract](specs/external-pack-contract.md). |
 
@@ -328,30 +328,23 @@ Grove chooses the first executable regular `ravel` in an absolute PATH
 directory. Grove canonicalises it once and checks that path's CLI version.
 Relative and empty PATH entries supply no cwd fallback.
 
-Grove admits stable Ravel 1.x from 1.1.0 and stable 2.x from 2.0.0. The
-admission selects no route.
-
-An incompatible or failed probe refuses without trying another installation.
-Its remedy names both admitted majors with their configuration files and the
-keg-only `ravel@2` directory, and it recommends no shared upgrade.
+Grove admits stable Ravel 2.x from 2.0.0. An incompatible or failed probe
+refuses without trying another installation. Its remedy names the public
+Ravel installation and `~/.config/ravel/config.rhai`.
 Launch and the quoted ending command reuse that canonical path. This trusts the
 owner's PATH executable. A version string authenticates no program, and
 canonicalisation pins no inode.
 
-The owner's configuration selects a command: `~/.config/ravel/policy.ts` for
-Ravel 1.x, or `~/.config/ravel/config.rhai` for Ravel 2.x. `policy.ts` serves
-the native route on 1.1. `config.rhai` serves the native and the directory
-route on 2.0.
+The owner's `~/.config/ravel/config.rhai` selects a command through schema 4
+and `fn select(request, context)`. Adjacent `settings.json` bounds selection
+and context, grants environment names, and configures skill delivery.
+`.ravel-choice` selects among options that the configuration offers when it
+reads that file. None of these files belongs to Grove.
 
-Adjacent `settings.json` bounds selection/context and
-grants environment names. Its keys differ by major, so each major refuses a key
-of the other. `.ravel-choice` selects among options that the configuration
-offers when it reads that file. None of these files belongs to Grove.
-
-The owner explicitly reads and copies Grove's sample for the selected major
-from `libexec/ravel-policy`, and preserves any existing policy. Ravel has exactly `start-session` and
-`end-session RESULT`, plus help/version flags. It has no init or inspection
-verb. Refusal leaves the leaf live with a remedy
+The owner explicitly reads and copies Grove's sample `config.rhai` from
+`libexec/ravel-policy`, and preserves any existing policy. Ravel exposes
+`start-session`, `end-session RESULT` and `skills resolve`, plus help/version
+flags. It has no init or routing-inspection verb. Refusal leaves the leaf live with a remedy
 ([usage](USAGE.md#usage-refused-launch)). Old `config.kdl` and `.grove.kdl`
 files remain ignored.
 
@@ -478,20 +471,21 @@ commit.
 ## Independent Ravel and Grove's caller boundary
 
 The retained `harness-dispatch` anchor names the boundary now served by
-independently installed Ravel. Its [CLI contract](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/session-cli.md),
-[executable specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md)
-and [runtime evidence](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/runtime-evidence.md)
+independently installed Ravel. Its [CLI contract](https://github.com/Linkuistics/Ravel/blob/v2.0.0/docs/session-cli.md),
+[executable specification](https://github.com/Linkuistics/Ravel/blob/v2.0.0/docs/specs/session-execution.md)
+and [runtime evidence](https://github.com/Linkuistics/Ravel/blob/v2.0.0/docs/runtime-evidence.md)
 remain in Ravel. Grove's [caller specification](specs/harness-selection-and-execution.md)
 and [supervision decision](adr/dispatch-supervises-the-harness.md) describe its use.
-Ravel injects no instructions, interprets no result token and keeps no persistent
-store, run identity, observation or lookup API. Existing dispatch history stays
+Ravel adds skill-source instructions to the delivered prompt, interprets no
+result token and keeps no persistent run store, run identity, observation or
+lookup API. Existing dispatch history stays
 with the old executable.
 
 | Owner | Boundary |
 |---|---|
-| Ravel | Routes through owner policy, supervises the selected process, cleans up and returns the opaque published argument. Ravel 1.x ships a front, a compiled worker, an SDK and a local runner. Ravel 2.x installs one executable and has no SDK. Each ships independently, without host Bun/Node or Grove. |
+| Ravel | Routes through owner policy, supervises the selected process, cleans up and returns the opaque published argument. Ravel 2 installs one executable and has no SDK. It ships independently, without host Bun/Node or Grove. |
 | Grove | Selects a task, composes prompt/ending instructions, holds epoch admission, captures the public stdout result and decides continuation/teardown. Launches `ravel` as an ordinary child process. |
-| Grove caller assets | Ordinary readable configurations, task/Creator adapters and optional provider-evidence wrappers under Grove's `libexec/ravel-policy`: TypeScript with `ravel/sdk` for 1.x, and Rhai imported by path for 2.x. |
+| Grove caller assets | Ordinary readable configurations, task/Creator adapters and optional provider-evidence wrappers under Grove's `libexec/ravel-policy`: Rhai configurations and helpers imported by path. |
 | Owner | Chooses commands, labels, grants, bounds and any review-provider rule in personal policy. |
 
 Lifecycle launches carry `--kind`, unchanged `--prompt`, `--task-file`, stable
@@ -1063,16 +1057,10 @@ how a vendor pair reaches two different commands without any per-leaf metadata;
 whether those two commands are materially independent is the policy owner's to
 decide, because Grove sees neither command.
 
-<!-- residue(none): the in-session reviewer allowance, `references/execute.md`'s -->
-Once a session has run Bootstrap and adopted its prompt mandate, a plain
-producer may spend one in-session fresh-context reviewer across the whole leaf.
-A second review need is the signal to `leaf-add` a `review-<producer>` leaf, with
-the specific doubt written into its body. Producers that already have a review
-leaf beside them, `review-*`, and research-pair leaves spend none; an
-`integrate-review-*` leaf may spend one narrow reviewer and externalises
-substantial redesign as a new producer review chain beside the leaf it is
-integrating.
-Sessions outside that procedural predicate retain standalone doubt behavior. See
+Review routing is a methodology decision, owned by
+[`references/execute.md`](../plugins/grove/skills/grove/references/execute.md).
+It distinguishes ordinary in-session verification from independent adversarial
+review scheduled as a Grove task. See
 [Grove owns escalated review](adr/grove-owns-escalated-review.md) and
 [doubt-grove-review-mechanics](specs/doubt-grove-review-mechanics.md).
 
@@ -1543,12 +1531,11 @@ any native namespace. The prompt also tells a session that cannot find or read
 the skill to force-stop with its leaf live. Whoever authors an independent kind
 supplies its skill.
 
-Homebrew installs the skill sources, and Ravel 2.0 delivers them to a session in
-every harness the policy can select. Ravel 1.x delivers no skill. Grove ships no
-manual installer. Grove
-installs no skill and alters no harness's skill directories or plugin
+Homebrew installs the skill sources in its shared Ravel directory, and Ravel 2
+delivers them to a session in every harness the policy can select. Grove ships
+no manual installer. It alters no harness's skill directories or plugin
 configuration. The [delivery contract](specs/codex-skill-provisioning.md) owns
-the routes, the Ravel directory route on 2.0 and the missing-skill outcome.
+the routes and the missing-skill outcome.
 
 Grove 22.8 and earlier embedded a plugin snapshot in `grove` and provisioned
 Codex links in `~/.agents/skills` at startup, through snapshots under
@@ -1828,7 +1815,7 @@ responsibility of every `grove-loop` module.
 That map names `ravel_job`, the `grove-loop` module that launches Ravel.
 Ravel is outside the workspace, reached only through the public CLI boundary
 [above](#harness-dispatch). Its executable internals and runtime decisions live
-in its independent [specification](https://github.com/Linkuistics/Ravel/blob/v1.0.0/docs/specs/session-execution.md).
+in its independent [specification](https://github.com/Linkuistics/Ravel/blob/v2.0.0/docs/specs/session-execution.md).
 
 **The workspace root is not a package**, so a module's package is part of its
 identity (`docs/specs/module-decomposition.md`, decision 1).
@@ -1890,16 +1877,12 @@ bash scripts/check.sh
 The script owns the check list: formatting, shell and Rust linting, plugin
 conformance, the external packs that Grove's pack record names,
 release tooling, workspace tests and source-exact
-book validation. It typechecks Grove's caller assets with the pinned compiler
-under `tools/ravel-policy` against independently installed Ravel declarations,
-and runs real-worker/fake-agent caller/provenance fixtures. The gate resolves Ravel from PATH; GROVE_TEST_RAVEL selects another installed
-public front. No bundled dispatch worker or probes are built.
-The script announces the resolved toolchain and reports each failed check.
-
-GROVE_TEST_RAVEL_RUNTIME names the configuration runtime of the Ravel build
-under test: `1.1` for `policy.ts` or `2.0` for `config.rhai`. An unset runtime
-means 1.1, and the fixtures refuse it for a build without the 1.x worker
-(`testing/ravel.rs`).
+book validation. It runs Grove's Rhai caller assets through independently
+installed Ravel's public `start-session`, including fake-agent caller and
+provenance fixtures. The gate resolves Ravel from PATH;
+`GROVE_TEST_RAVEL` selects another installed public executable.
+No bundled dispatch worker or probes are built. The script announces the
+resolved toolchain and reports each failed check.
 
 The two conformance scripts are the methodology's own, and they are shell rather
 than Rust because the thing they assert about — the composed loaded path of an

@@ -134,8 +134,8 @@ directions at once.
   read of the whole book against a *different* charter, and it may not repair its
   predecessor's class, so it neither looks for nor may act on the defects a
   `review-draft` would report. Every stage is therefore a plain producer with the
-  ordinary in-session review allowance `references/execute.md` gives one, `proof`
-  included, and the family claims no exemption from it. Reopen if a stage is ever
+  review-routing policy in `references/execute.md`, `proof` included; the
+  family claims no exemption from independent adversarial review when warranted. Reopen if a stage is ever
   found producing defects the following stage's charter does not own, which is the
   case a review would have caught and this pipeline cannot.
 - **Extract nothing and keep authoring books by hand.** Rejected: it discards a

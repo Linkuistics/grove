@@ -35,6 +35,7 @@ cd "$REPO_ROOT"
 # Tests use an explicit public installation; normal checks resolve it from PATH.
 # An override allows independently staged layouts without changing installation.
 export GROVE_TEST_RAVEL="${GROVE_TEST_RAVEL:-$(command -v ravel || true)}"
+export GROVE_TEST_RAVEL_RUNTIME="${GROVE_TEST_RAVEL_RUNTIME:-2.0}"
 
 failed=()
 checks=0
@@ -131,7 +132,7 @@ run_check "release Codex helper" bash scripts/release-notes/codex-headless.test.
 # GROVE_TEST_RAVEL with it. Without this, a 2.0 front runs the 1.1 typecheck.
 run_check "Ravel caller assets and provenance" task ravel:review \
   "RAVEL=${GROVE_TEST_RAVEL:?Set GROVE_TEST_RAVEL to an installed Ravel front}" \
-  "RAVEL_RUNTIME=${GROVE_TEST_RAVEL_RUNTIME:-}"
+  "RAVEL_RUNTIME=$GROVE_TEST_RAVEL_RUNTIME"
 run_check "release tasks" task release:test
 # nextest runs runtime tests; doctests remain Cargo's responsibility.
 # https://nexte.st/docs/running/#options-and-arguments

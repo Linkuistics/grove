@@ -54,23 +54,15 @@ directory, so an archive user names them in Ravel's settings.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 
-Grove has no launch configuration of its own. Independent Ravel reads your
-owner configuration and returns the selected command. Ravel 1.x reads
-`~/.config/ravel/policy.ts`, and Ravel 2.x reads `~/.config/ravel/config.rhai`.
-Copy the sample for your Ravel into an absent file, read it and edit it:
+Grove has no launch configuration of its own. Independent Ravel 2 reads your
+`~/.config/ravel/config.rhai` and returns the selected command. Grove supports
+stable Ravel 2.x from 2.0.0, supplied by the public unversioned `ravel` formula.
+Copy the schema-4 sample into an absent file, read it and edit it:
 
 ```sh
 mkdir -p ~/.config/ravel
-# Ravel 1.x:
-cp "$(brew --prefix grove)/libexec/ravel-policy/sample/policy.ts" ~/.config/ravel/policy.ts
-# Ravel 2.x, with SCHEMA_VERSION 4:
 cp "$(brew --prefix grove)/libexec/ravel-policy/sample/config.rhai" ~/.config/ravel/config.rhai
 ```
-
-The two files coexist. Ravel 2.0.0 refuses a HOME that holds only `policy.ts`,
-with `config_format_retired`. Write and check `config.rhai` before the unversioned
-`ravel` formula moves to Ravel 2.x. Keep `policy.ts` while any Ravel 1.x launch
-remains.
 
 Preserve an existing policy. The sample launches codex with approvals off and
 full access. Creator-aware examples require the complete caller directory tree
@@ -137,26 +129,17 @@ prompt, and the agent finds and reads its skills there. No harness needs a nativ
 copy, and no setting is necessary.
 [The directory route](docs/USAGE.md#usage-directory-route) gives the details.
 
-Ravel 1.x delivers no skill. While the unversioned `ravel` formula is Ravel 1.x,
-install Ravel 2 as the keg-only `ravel@2`. Put it first on the PATH of each Grove
-invocation:
+The public `ravel` dependency supplies Ravel 2. `brew install grove` or
+`brew upgrade` installs the compatible runtime and skills without a PATH
+prefix. Configure `config.rhai` at schema 4 as [Install Grove](#install-grove)
+states. [Launch policy](docs/USAGE.md#usage-launch-policy) covers configuration
+and executable selection.
 
-```sh
-brew install linkuistics/taps/ravel@2
-PATH="$(brew --prefix ravel@2)/bin:$PATH" grove
-```
-
-That install needs the tap trust of [Install Grove](#install-grove). To install
-the keg-only `ravel@2`, Homebrew also loads the unversioned `ravel`, and it
-refuses that formula from a tap that is not trusted.
-
-When the unversioned `ravel` formula moves to Ravel 2.0.0, `brew upgrade` brings
-the skills to each launch with no PATH prefix. `ravel@2` then receives no later
-release. Write `config.rhai` before that upgrade, as [Install Grove](#install-grove)
-states. Run `brew upgrade` with no formula name, or upgrade Grove first. A lone
-`brew upgrade ravel` leaves Grove 22.8 or earlier, which refuses Ravel 2.0.0 and
-names `brew upgrade ravel` as its remedy. Run `brew upgrade grove` in that state.
-[Promotion](docs/USAGE.md#usage-ravel-promotion) in the user guide gives the reason.
+To disable directory delivery, set
+`{"skills": {"schemaVersion": 1, "sources": []}}` in Ravel's optional
+`settings.json`, with no mandatory file. Such a launch uses existing native
+guidance, if available; Grove installs none. A session that cannot read its
+required kind skill reports the missing guidance and force-stops.
 
 Other formulae of the tap install more skill sources in the same way:
 
@@ -204,7 +187,7 @@ rules and the layout of each source.
 - [Usage](docs/USAGE.md) — the bare `grove` lifecycle, the `grove-llm` verbs
   over the task tree, and the start-to-finish workflow.
 - [Ravel](https://github.com/Linkuistics/Ravel) — independent process/router CLI;
-  [Grove caller assets](assets/ravel-policy/README.md) — ordinary SDK policies,
+  [Grove caller assets](assets/ravel-policy/README.md) — ordinary Rhai policies,
   task conventions and creator evidence.
 
 - [Architecture](docs/ARCHITECTURE.md) — the design decisions, constraints and

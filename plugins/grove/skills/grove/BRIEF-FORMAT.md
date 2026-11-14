@@ -24,9 +24,11 @@ decision log (`docs/adr/`). It exists so that a session executing a leaf can rea
 ADRs, not fifty: the brief chain, root→leaf, is the curated path into the
 project's documented decisions.
 
-**There is one node species, and it always has one node file.** A node is a leaf that
-proved bigger than one session, so the charter is exactly the context those extra
-sessions need, and every node grove writes gets one: `leaf-decompose` moves the
+**There is one node species, and it always has one node file.** A node groups
+session-sized leaves that need a distinct shared scope and context, as judged
+by `references/decompose.md`'s placement test. Needing another session alone does
+not earn another level. Every node grove writes gets a charter:
+`leaf-decompose` moves the
 decomposed leaf's own body in as the brief, and `root-init` scaffolds the root's.
 Nothing composes leaves into a node any more — a review chain's steps are flat
 siblings each session cuts as its last act, and a vendor pair's are three flat
@@ -81,8 +83,9 @@ The done-criteria rollup for the subtree — the conditions under which every
 child is complete and the node retires.
 
 ## Decomposition
-Why this node is split the way it is, and what the child ordering (the per-level
-positions) encodes (dependencies, natural sequence). One line per child is enough.
+Why this scope needs a node rather than inline work or siblings under its parent,
+what new context its children share, and what their ordering encodes. One line
+per child is enough; retain only context new at this level.
 
 ## Pointers
 - ADRs a session here must read: docs/adr/<slug>.md, …

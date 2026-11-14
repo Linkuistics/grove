@@ -47,11 +47,10 @@ explains their meanings.
 
 Grove sends the kind, the prompt and the exit directory. It sends no
 `--confine`, no `--runtime-read`, no task identity and no settings override.
-Ravel 1.1 keeps `--confine`, and Ravel 2.0 refuses it. Grove's request works on
-both majors, because it holds neither flag. The request is the same for both.
+Ravel 2 refuses `--confine`; Grove requests no Ravel confinement.
 
 Ravel's
-[public execution contract](https://github.com/Linkuistics/Ravel/blob/v1.1.0/docs/specs/session-execution.md)
+[public execution contract](https://github.com/Linkuistics/Ravel/blob/v2.0.0/docs/specs/session-execution.md)
 owns cleanup. Ravel returns only an opaque stdout result after the reap. It
 supplies no private ending report, persistent store or run identity.
 
@@ -64,10 +63,9 @@ no effect.
 
 The version admission is that of the
 [caller contract](harness-selection-and-execution.md#package-boundary): stable
-1.x from 1.1.0 and stable 2.x from 2.0.0. On the native route on 1.1, Ravel
-reads the owner's `~/.config/ravel/policy.ts`. On the native route on 2.0, it
-reads `~/.config/ravel/config.rhai`. The standalone caller sends the same
-public verbs and flags to both majors. The admission selects no route.
+Ravel 2.x from 2.0.0. The public unversioned formula supplies the executable,
+and Ravel reads the owner's `~/.config/ravel/config.rhai` at schema 4. Optional
+settings control directory delivery. Runtime admission selects no delivery route.
 
 Selection keeps the owner's bounds and grants. A refused, cancelled or
 timed-out selection launches no managed process and publishes no outputs.
@@ -220,7 +218,7 @@ must never depend on paid LLM calls.
   selection, names the remedy and launches nothing.
 - The policy selects the command. The harness receives its own enclosing
   context and no control variable of an enclosing session.
-- Grove sends neither `--confine` nor `--runtime-read` to Ravel 1.1 or 2.0. A
+- Grove sends neither `--confine` nor `--runtime-read` to Ravel. A
   `--runtime-read` of `grove run` prints its notice and changes no request.
 - The file that runs is the one that Ravel resolved, whatever else of that name
   PATH or Grove's own directory holds.
@@ -230,7 +228,7 @@ must never depend on paid LLM calls.
   receives no repository selector and no multiplexer variable.
 - On the directory route of 2.0, the agent reads the injected skills outside
   cwd. A write to a snapshot file fails by its file mode.
-- On 1.1 and on 2.0 with injection disabled, a scripted agent reads its native
+- With injection disabled, a scripted agent reads its native
   guidance under HOME. After its force-stop, nothing publishes and Grove
   launches the agent once. The fixture proves Grove's interpretation of a
   force-stop, not the behaviour of a real agent.

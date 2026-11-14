@@ -106,7 +106,8 @@ jj-seal	grove/references/commit.md	B	on(the stated VCS is jj) @ grove/references
 name-by-handle	grove/references/commit.md	B	on(the leaf is retired) @ grove/SKILL.md	Name each node the cascade closed the same way
 no-kind-prefix-in-commit-subject	grove/references/commit.md	B	on(writing the commit subject) @ grove/references/commit.md	Do not compensate for the bare stem with a subject convention
 one-focused-commit	grove/references/commit.md	B*	on(the leaf is retired) @ grove/SKILL.md	One task is **one focused commit**
-bigger-than-brief-decomposes	grove/references/decompose.md	B*	on(the leaf is bigger than its brief) @ grove/SKILL.md	doing **only the first child** this session
+bigger-than-brief-decomposes	grove/references/decompose.md	B*	on(the leaf is bigger than its brief) @ grove/SKILL.md	split the work
+task-placement-before-depth	grove/references/decompose.md	B*	on(growing the tree) @ grove/references/decompose.md	Flat siblings are the default; a node must earn its context
 chain-is-lazy	grove/references/decompose.md	B	on(an artifact may need review) @ grove/references/decompose.md	only if it has findings worth acting on
 correction-run-is-not-a-pass	grove/references/decompose.md	B	on(a defect an earlier step owns) @ grove/SKILL.md	a correction run is a repetition **the finding session decided**
 creating-session-writes-the-body	grove/references/decompose.md	B	on(cutting a step) @ grove/references/decompose.md	The creating session writes the new leaf's body
@@ -145,7 +146,7 @@ session-name-suggested-once	grove/references/driver.md	B	on(the session name doe
 check-the-rescued-clause	grove/references/execute.md	B	on(deleting prose) @ grove/references/execute.md	A clause rescued by its neighbour is not correct
 control-must-be-seen-to-fail	grove/references/execute.md	B+S	on(making a repo-wide claim) @ grove/references/execute.md	A control that has never been seen to fail is not a control
 decisions-land-as-they-settle	grove/references/execute.md	B	on(a decision settles) @ grove/SKILL.md	Never reconstruct a session's decisions at the end of it
-doubt-pass-procedure	grove/references/execute.md	B	on(spending the allowance) @ grove/references/execute.md	stripping the conclusion
+doubt-pass-procedure	grove/references/execute.md	B	on(preparing adversarial review) @ grove/references/execute.md	stripping the conclusion
 enumerate-then-classify	grove/references/execute.md	B	on(making a repo-wide claim) @ grove/references/execute.md	Enumerate, then classify. Do not sweep a pattern list
 escalated-review-routes-through-policy	grove/references/execute.md	B	on(a review leaf exists) @ grove/references/execute.md	Once review is escalated to the tree, grove owns the route
 escalation-names-the-tradeoff	grove/references/execute.md	B	on(handing a question back to a human) @ grove/SKILL.md	name the trade-off you want input on
@@ -154,8 +155,9 @@ no-self-invalidating-count	grove/references/execute.md	B	on(making a repo-wide c
 one-measurement-one-writer	grove/references/execute.md	B+S	on(reporting a measured result) @ grove/references/execute.md	never infer that a background job has finished from the return of the thing that launched it
 re-run-is-confirmed-item-by-item	grove/references/execute.md	B+S	on(reporting a measured result) @ grove/references/execute.md	Confirm a re-run item by item, not by matching totals
 reusable-development-tasks	grove/references/execute.md	B	on(starting or continuing work in any project) @ grove/SKILL.md	The Taskfile is the entry point for deterministic reusable development work
-review-budget	grove/references/execute.md	B*	on(considering a reviewer) @ grove/SKILL.md	at most one in-session reviewer across the whole picked leaf
-review-budget-by-kind	grove/references/execute.md	B	on(considering a reviewer) @ grove/references/execute.md	spend **none** — the pair supplies independent corpora
+review-budget	grove/references/execute.md	B*	on(considering a reviewer) @ grove/SKILL.md	Routine checks have no per-leaf reviewer quota
+different-model-routes-through-policy	grove/references/execute.md	B	on(work needs a different model) @ grove/references/execute.md	Work that requires a different model belongs in a separate Grove task
+review-budget-by-kind	grove/references/execute.md	B	on(considering a reviewer) @ grove/references/execute.md	Research pairs retain their independent corpora
 review-budget-predicate	grove/references/execute.md	B	on(considering a reviewer) @ grove/references/execute.md	adopted that mandate by running Bootstrap
 sweep-scope-is-the-claim	grove/references/execute.md	B	on(making a repo-wide claim) @ grove/references/execute.md	The sweep's scope is the claim's scope
 verify-repo-claims-with-controls	grove/references/execute.md	B	on(about to make a repo-wide claim) @ grove/SKILL.md	clean-here plus dirty-there cannot be produced by a broken instrument

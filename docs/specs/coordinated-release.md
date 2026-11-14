@@ -1,5 +1,13 @@
 # Coordinated Grove and Ravel release
 
+> Historical rollout plan. This document preserves the original cutover's
+> decisions, sequencing and recovery requirements as historical evidence.
+> It is not a current installation or release procedure. Current setup uses
+> public Ravel 2 and `config.rhai` at schema 4; see [Usage](../USAGE.md#launch-policy),
+> [Releasing](../RELEASING.md) and [Grove skill delivery](codex-skill-provisioning.md).
+> Version branches and transition instructions below describe that original
+> rollout and must not be repeated as current compatibility requirements.
+
 The owner acknowledged that this is the sole live workstream through cutover.
 This design selects the combined release. Its focused design review and that
 review's integration are complete. Implementation and publication remain ahead.

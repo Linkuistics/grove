@@ -55,6 +55,18 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+- Current setup and operating guidance describes Ravel 2 only; reusable checks
+  select its runtime by default.
+
+- Keep ordinary implementation and fix verification in-session, without a reviewer
+  quota. Prefer bounded subagents on the parent model; route independent
+  adversarial review and work requiring a different model through Grove tasks.
+
+- Grove planning and decomposition now choose inline work or flat siblings
+  before adding a node. New depth needs a distinct shared scope and context;
+  splitting work preserves every requirement and considers the next session's
+  startup reading burden.
+
 ## v22.9.0
 
 This minor release moves skill delivery to Homebrew and Ravel 2. Homebrew

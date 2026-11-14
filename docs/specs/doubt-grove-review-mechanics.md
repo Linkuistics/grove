@@ -18,16 +18,11 @@ Grove's guide-not-gate posture.
 The [Grove owns escalated review](../adr/grove-owns-escalated-review.md)
 decision assigns the orchestration boundary.
 
-**The allowance itself is stated in the corpus, not here.**
-`content/references/execute.md` is the canonical source for the review budget —
-the ownership predicate, the leaf-wide one-reviewer allowance and what spends it,
-the per-kind allowances, the four-step doubt pass, and the rule that an escalated
-review's route belongs to the owner's Ravel policy. A spec describes how an area works and
-**cites** the rules in its area rather than restating them
-(`plugins/grove/conformance/rules.tsv`, transcribed from the ownership spec that
-went with `content/`), and this one predates that map: it
-carried the budget, the per-kind table and the diversity rule at full length,
-which is one source of truth too many for a rule that changes.
+**The routing policy is stated in the corpus, not here.**
+[`references/execute.md`](../../plugins/grove/skills/grove/references/execute.md)
+is the canonical source for its ownership predicate, the distinction between
+routine verification and independent adversarial review, and the route through
+the owner's Ravel policy. This spec cites that policy rather than restating it.
 
 What this spec still owns is **why the ownership predicate is drawn where it
 is**, and what the composition would otherwise cost.
@@ -42,8 +37,8 @@ resolved and adopted that live leaf — deliberately narrower than *there is a
 
 - **A checkout is not a mandate.** A session that merely finds a task tree, or
   inherits Grove control environment, was not scheduled by the loop and has no
-  `review-*` leaf available to escalate into. Binding it to Grove's budget would
-  cap a standalone session's doubt while offering it nothing in exchange.
+  `review-*` leaf available to escalate into. Binding it to Grove's routing would
+  redirect standalone review while offering it no mandated task to complete.
 - **The mandate is what makes escalation possible.** Only a session that resolved
   its own leaf can name the parent to cut a sibling under, so the predicate and
   the escape hatch are the same fact.
@@ -65,7 +60,7 @@ grove-llm leaf-add <parent> <stem> --kind review-<producer>
 reads it there. The conduct rules governing that call — naming the step kind off
 the producer that actually ran, giving every step the producer's bare stem, and
 cutting each step as the previous session's last act — are
-`content/references/decompose.md`'s, and are not restated here.
+`plugins/grove/skills/grove/references/decompose.md`'s, and are not restated here.
 
 The new leaf is an ordinary **flat sibling** at the parent's next free position,
 with a fresh tree-wide key. Nothing about the producer's own leaf changes: its
@@ -98,7 +93,7 @@ naming the matching keys.
 The example takes the simple case: nothing later in the directory still holds
 live work, so the next free position *is* the slot beside the review. Which verb
 places the integration when that is not so — and the condition selecting its
-target — is `content/references/decompose.md`'s rule and is not restated here.
+target — is `plugins/grove/skills/grove/references/decompose.md`'s rule and is not restated here.
 What this spec carries is the walk that rule is true of, below.
 
 The **shape of that body** is what this spec pins, because it is what the verb
@@ -106,7 +101,7 @@ guarantees and a test can assert: the freshly created leaf is the bare template 
 a stable handle and empty sections — carrying no rendered goal, no relationship
 line and no launch metadata, so the creating session has nothing to edit around.
 Why the creating session is the right author is
-`content/references/decompose.md`'s.
+`plugins/grove/skills/grove/references/decompose.md`'s.
 
 The body also carries the composition relationship, written by hand:
 
@@ -149,7 +144,7 @@ a `review-*` step re-derives from its producer's stable handle, an
 `integrate-review-*` step consumes `path:line` citations an intervening edit
 moves silently. The rule that follows from it — where each step is cut, the
 blocking-sibling condition, and why there is no exception to check — is
-`content/references/decompose.md`'s, and this spec cites it rather than carrying a
+`plugins/grove/skills/grove/references/decompose.md`'s, and this spec cites it rather than carrying a
 second full statement of it.
 
 What belongs here is the **implementation** that condition is true of. The seam
@@ -182,7 +177,7 @@ than against filename adjacency.
 
 **The rejected alternative is what this spec records** — that there is no
 exception, and why the check cannot be performed, are
-`content/references/decompose.md`'s. An earlier form allowed departing from
+`plugins/grove/skills/grove/references/decompose.md`'s. An earlier form allowed departing from
 adjacency when the intervening work **provably touches no file the findings
 cite**, and it is kept here so a reader who proposes it again finds why it went:
 it buys a licence that reads as a judgement call, which is the exact failure the
@@ -239,9 +234,9 @@ After cutting the review leaf, the producer session:
 4. ends the session as the prompt directs, as its last action.
 
 Steps 2 and 3 are in that order because the task boundary is, and both rules are
-the corpus's: `content/references/retire.md` for retire-before-commit and for
+the corpus's: `plugins/grove/skills/grove/references/retire.md` for retire-before-commit and for
 retirement being a filename transition and nothing else,
-`content/references/commit.md` for what the boundary contains. What this spec
+`plugins/grove/skills/grove/references/commit.md` for what the boundary contains. What this spec
 adds is the consequence for *this* shape — the review leaf beside the producer is
 byte-identical after the producer retires, so escalation needs no receipt, no
 producer-target record and no recovery protocol. The next driver iteration picks
@@ -255,7 +250,7 @@ the review leaf, and the owner's Ravel policy selects its command.
   an untouched producer. Cover a review step cut after unrelated work, which
   lands after that work rather than beside its producer.
 - Sweep the **owner** for the per-hop placement rule, since no verb can carry it:
-  `content/references/decompose.md` names `leaf-insert` and the exact
+  `plugins/grove/skills/grove/references/decompose.md` names `leaf-insert` and the exact
   blocking-sibling condition for the `review → integrate` hop, and claims fresh
   re-derivation via the stable handle for the `producer → review` hop. Bind each
   property **to its hop in one assertion** — `` `review-*` step re-derives ``,

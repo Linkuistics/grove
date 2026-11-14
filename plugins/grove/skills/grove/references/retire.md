@@ -124,8 +124,8 @@ trigger; `deferred` is a reorder or an issue; `superseded` differs only in
 A node is **never marked**: its done-ness *is* the absence of a live leaf
 anywhere in its subtree, so a close is work in the parent chain rather than a
 write to the node. **The close asks the human nothing** — it infers done-ness
-rather than deciding it. A node represents a leaf that proved bigger, and its
-brief is the context those extra sessions needed. Every close has the same
+rather than deciding it. A node represents a shared goal across its leaves, and
+its brief is the context those sessions needed. Every close has the same
 four steps:
 
 1. **Check** the node's brief `Done when` against what its subtree delivered.

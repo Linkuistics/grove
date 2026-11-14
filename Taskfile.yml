@@ -4,12 +4,14 @@ version: '3'
 # build, and RAVEL_RUNTIME, its configuration runtime: 1.1 for policy.ts with
 # schema 2, or 2.0 for config.rhai with SCHEMA_VERSION 4. Each passes them on as
 # GROVE_TEST_RAVEL and GROVE_TEST_RAVEL_RUNTIME. An exported
-# GROVE_TEST_RAVEL_RUNTIME takes precedence. An unset runtime means 1.1, and
-# the test support refuses it for a build without the 1.x worker
-# (testing/ravel.rs). For example:
+# GROVE_TEST_RAVEL_RUNTIME takes precedence. Normal checks default to 2.0;
+# select 1.1 explicitly only when testing a compatible older build. For example:
 #   task ravel:activation RAVEL=/opt/ravel-2/bin/ravel RAVEL_RUNTIME=2.0
 
 set: [errexit, nounset, pipefail]
+
+vars:
+  RAVEL_RUNTIME: '{{.GROVE_TEST_RAVEL_RUNTIME | default "2.0"}}'
 
 tasks:
   release:floor:seccomp:controls:
@@ -274,6 +276,8 @@ tasks:
 
   check:
     desc: Run the repository's reusable checks
+    env:
+      GROVE_TEST_RAVEL_RUNTIME: '{{.RAVEL_RUNTIME}}'
     cmds:
       - bash scripts/check.sh
 

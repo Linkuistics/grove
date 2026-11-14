@@ -1,4 +1,4 @@
-## Two triggers, two verbs
+## Choose the scope, then the shape
 
 When work surfaces mid-session, default to **externalizing it as a new leaf**
 rather than absorbing it into the current session — grove's value is many small,
@@ -10,9 +10,9 @@ to cover work that should have been its own leaf.
   (or `leaf-insert` when it must sequence ahead of live leaves), **never** inline.
   Both **require `--kind`**, and neither guesses one: the kind is what routes the
   session, and a leaf given the wrong one is well-formed and silently wrong.
-- **The current item proves bigger** than its brief assumed — turn the leaf into
-  a node with `grove-llm leaf-decompose`, doing **only the first child** this
-  session. The remaining children are leaves a later session picks up fresh.
+- **The current item proves bigger** than its brief assumed — split the work
+  into session-sized leaves, choosing their placement by the test below. Do only
+  the first slice this session; leave the rest for fresh sessions.
 
 Continue inline **only** while the work still serves this leaf's stated goal
 *and* fits one focused, low-context session — the bar is *"fits this session,"
@@ -22,6 +22,47 @@ just-in-time, at the genuine seam, never speculatively. Externalizing is cheap,
 so spend it freely — a permanent key never moves, a renumber rewrites zero file
 contents, and `leaf-insert` exists precisely so a late-surfacing concern can slot
 ahead of queued work without disturbing it.
+
+### Flat siblings are the default; a node must earn its context
+
+Before growing the tree, choose between three placements:
+
+1. **Inline work in the current leaf** when it serves that leaf's goal and fits
+   one focused session. A checklist inside a task does not need child tasks.
+   Prefer bounded subagents where the execution policy permits them; helper
+   work does not itself require another leaf.
+2. **Sibling leaves under the existing node** when the work needs separate
+   sessions but shares that node's purpose and context. Sequence dependencies
+   with sibling positions. Implementation steps, follow-up repairs and remaining
+   acceptance work do not acquire a new scope merely by taking another session.
+3. **A child node** only when several leaves share a distinct subgoal, a joint
+   completion condition and new context that their other siblings do not need.
+   State those three things in its brief before using `leaf-decompose`. Being too
+   large for one session establishes a need for more leaves; it does not by
+   itself establish a need for more depth.
+
+For a flat split, keep the current leaf as the first slice and add or insert the
+remaining siblings with their explicit kinds. Update their goals and done
+criteria together: every original requirement must still have an owner, and any
+aggregate acceptance condition belongs in the existing parent brief. Retire the
+first slice only against its stated, narrowed criteria; the remaining work stays
+live. If the existing parent cannot express that shared scope coherently, a new
+node may be justified instead. Never mark unfinished aggregate work complete to
+achieve a flatter shape.
+
+Record a sentence explaining the chosen placement in the planning artifact or
+task. Compare the new brief chain with the existing one: a new brief should add
+useful context, not copy inherited requirements or demand that every session
+reread completed work. Keep historical evidence at its durable source and point
+to the material the next task actually needs. Preserve binding requirements when
+moving them; shortening a brief is not permission to weaken its contract.
+
+For example, a receipt implementation followed by a refusal fix and final
+acceptance normally forms three siblings. Turning each remaining acceptance
+step into another child node creates a continuation chain without adding scope.
+A separate subsystem whose implementation, migration and acceptance share a
+new contract can earn a node. A declared pass series follows the series rules
+below; an unbounded chain of remaining-work nodes is not a series.
 
 **Grove holds no list of kinds.** A kind is any well-formed token — lowercase
 ASCII letters, digits and single dashes — and it names the `grove-<kind>` skill a
@@ -103,17 +144,16 @@ survey off it.
 When more than one leaf serves *one* artifact — or one subject has to be worked
 more than once — three shapes are the habitual answer, and each settles first
 whether it gets a node directory. Two of them do not. A review chain and a
-vendor pair are **flat siblings**, because a node means *this work proved bigger
-than one session* and neither shape is that: their steps each fit a session, and
-what they compose is one artifact. A pass series **is** a node, and by that same
-rule rather than despite it — a leaf whose subject has to be worked again is a
-leaf that did not fit one session, so it decomposes like every other one.
+vendor pair are **flat siblings**: their shared artifact does not need a new
+context boundary. A pass series **is** a node because its declared sequence,
+exit condition and cap supply context shared by its passes. Apply the placement
+test above to other compositions rather than deriving depth from session count.
 
 **A review chain — `X` → `review-X` → `integrate-review-X` — is earned by a
 load-bearing artifact**: a landed spec, a decomposition others will build on for
 months, a subsystem. That is an orchestration boundary, and **artifact size and
-vendor preference are not the test**. Reactively, a picked plain producer that
-reaches its second-review boundary has earned one too (`references/execute.md`).
+vendor preference are not the test**. Classify ordinary verification and
+independent adversarial review by `references/execute.md` before cutting one.
 
 **A vendor pair — `research-a` → `research-b` → `combine-research` — is earned by
 a question load-bearing enough to pay for two corpora.** One survey is one

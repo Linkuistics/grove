@@ -13,8 +13,8 @@ A **grove** is one workstream driven as a VCS-tracked tree of task files under
 proves too big for that decomposes rather than running long.
 
 This file is the **shared spine**: every rule that holds across families. What
-one kind owns — its goal, its deliverable, its human-in-the-loop mark, its review
-allowance, whether it records a teardown before ending — is inline in that
+one kind owns — its goal, its deliverable, its human-in-the-loop mark,
+whether it records a teardown before ending — is inline in that
 kind's own `grove-<kind>` skill and is stated **nowhere twice**.
 
 The rest of this file is a register of **conditions** — that a situation exists
@@ -98,7 +98,7 @@ the brief chain root→leaf, and the task file. Nothing else by reflex.
 - When how this session was launched matters, read `references/driver.md`.
 - When the mandated handle resolves to nothing or to a terminal leaf, stop as
   `references/bootstrap.md` directs.
-- When considering an in-session reviewer, apply the budget in
+- When considering a review, choose its route in
   `references/execute.md`.
 - When about to make a repo-wide claim, verify it as `references/execute.md`
   requires.

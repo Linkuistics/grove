@@ -236,7 +236,7 @@ expect_dirty "${root}" "brief-chain-refuses-gaps" \
 
 root="$(new_skill_set deleted-rule)"
 expect_clean "${root}" "deleted rule: the fixture reads clean"
-drop_lines "${root}/grove/references/execute.md" 'in-session reviewer across'
+drop_lines "${root}/grove/references/execute.md" 'Routine checks have no per-leaf reviewer quota'
 expect_dirty "${root}" "review-budget: stated in [nowhere]" \
   "a rule its owner no longer states is caught"
 
@@ -247,14 +247,14 @@ expect_dirty "${root}" "review-budget: stated in [nowhere]" \
 
 root="$(new_skill_set second-owner)"
 expect_clean "${root}" "second owner: the fixture reads clean"
-printf '\nA picked plain producer may materialise at most one in-session reviewer across the whole picked leaf.\n' \
+printf '\nRoutine checks have no per-leaf reviewer quota.\n' \
   >>"${root}/grove/references/decompose.md"
 expect_dirty "${root}" "review-budget: stated in [grove/references/decompose.md,grove/references/execute.md]" \
   "a rule stated by a second file is caught"
 
 root="$(new_skill_set register-states-procedure)"
 expect_clean "${root}" "condition register: the fixture reads clean"
-printf '\nA picked plain producer may materialise at most one in-session reviewer across the whole picked leaf.\n' \
+printf '\nRoutine checks have no per-leaf reviewer quota.\n' \
   >>"${root}/grove/SKILL.md"
 expect_dirty "${root}" "condition register" \
   "the spine's SKILL.md stating a procedure is caught"
@@ -635,7 +635,7 @@ assert_dirty 'unresolved load: grove-survey-c/SKILL.md loads `no-such-tilde-skil
 fixture="$(new_pack_fixture pack-states-core-phrase)"
 run_aggregate "${fixture}"
 assert_clean "pack states core phrase: the aggregate reads clean"
-printf '\nA picked plain producer may materialise at most one in-session reviewer across the whole picked leaf.\n' \
+printf '\nRoutine checks have no per-leaf reviewer quota.\n' \
   >>"${fixture}/pack/skills/grove-survey-c/SKILL.md"
 run_aggregate "${fixture}"
 assert_dirty "review-budget: stated in [grove-survey-c/SKILL.md,grove/references/execute.md]" \

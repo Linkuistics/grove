@@ -8,14 +8,15 @@ trap 'rm -rf "$scratch"' EXIT
 mkdir -p "$scratch/bin" "$scratch/work"
 export RELEASE_CODEX_TEST_CALLS="$scratch/calls"
 export RELEASE_CODEX_TEST_STATUS="$scratch/status"
+export RELEASE_CODEX_TEST_CERT="${SSL_CERT_FILE-}"
 # The fake Codex answers `login status` from a fixture file and records the
 # arguments of `exec`. It fails if the helper replaced the owner's Codex home
-# or set a certificate bundle.
+# or changed the caller's certificate bundle.
 cat >"$scratch/bin/codex" <<'FAKE'
 #!/usr/bin/env bash
 set -euo pipefail
 IFS=$'\n\t'
-[[ "${CODEX_HOME-}" == "${RELEASE_CODEX_TEST_HOME-}" && -z "${SSL_CERT_FILE-}" ]]
+[[ "${CODEX_HOME-}" == "${RELEASE_CODEX_TEST_HOME-}" && "${SSL_CERT_FILE-}" == "$RELEASE_CODEX_TEST_CERT" ]]
 if [[ "$1" == login && "$2" == status ]]; then
   [[ "$(cat "$RELEASE_CODEX_TEST_STATUS")" == signed-in ]]
   exit

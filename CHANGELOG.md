@@ -55,6 +55,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v22.10.0
+
 - Current setup and operating guidance describes Ravel 2 only; reusable checks
   select its runtime by default.
 

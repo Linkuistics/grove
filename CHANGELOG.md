@@ -55,6 +55,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v22.11.0
+
 ### Fixed
 
 - Grove now restores keyboard reporting in the terminal after a harness exits.

@@ -242,12 +242,10 @@ completion=$(printf '%s\n' "$1" | sed -n '/exact command as your final action:/{
 case "$completion" in *"ravel' end-session grove-continue") ;; *) exit 41 ;; esac
 eval "$completion"
 EOF_HARNESS
-# GROVE_TEST_RAVEL_RUNTIME names the configuration runtime of the build, as in
-# testing/ravel.rs: 1.1 (or unset) for policy.ts, 2.0 for config.rhai. A build
-# of the 2.0 feature line reports `ravel 1.1.0` until the cut, so the layout,
-# not the version output, refuses a mismatch: only a 1.x build has the worker.
+# Current fixtures default to Ravel 2. Historical transition fixtures can
+# explicitly select 1.1; validate that selection against the installed layout.
 ravel_prefix="$(cd "$(dirname "$(realpath "$ravel_source")")/.." && pwd)"
-ravel_runtime="${GROVE_TEST_RAVEL_RUNTIME:-1.1}"
+ravel_runtime="${GROVE_TEST_RAVEL_RUNTIME:-2.0}"
 case "$ravel_runtime" in
   1.1)
     if [[ ! -x "$ravel_prefix/libexec/ravel/ravel-policy" ]]; then

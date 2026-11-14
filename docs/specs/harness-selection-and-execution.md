@@ -270,8 +270,15 @@ After the reap, Grove takes the foreground back by three rules:
 
 Grove restores the saved modes only when its own group then holds the
 foreground. When its group holds the foreground, the loop then resets the
-terminal to cooked mode, the main screen and a visible cursor. Ravel lends and recovers the terminal of its managed job
-by matching rules on its own side.
+terminal to cooked mode, the main screen and a visible cursor. It clears Kitty
+keyboard enhancement flags and nested mode stacks on both screens, so ordinary
+text, Enter, Backspace and Ctrl-C retain their legacy encodings even when the
+harness exits without cleanup. These emulator modes are separate from termios;
+the [keyboard protocol](https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement)
+maintains independent main-screen and alternate-screen stacks. This reset runs
+after the Ravel job returns and before Grove interprets its result, including
+force-stop and unexpected harness termination. Ravel lends and recovers the
+terminal of its managed job by matching rules on its own side.
 
 <a id="notices"></a>
 ### Launch notices

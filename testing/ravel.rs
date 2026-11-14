@@ -3,15 +3,10 @@
 //! This is test-only support. It copies the installed public layout of one
 //! build; it neither builds Ravel nor changes the source installation.
 //!
-//! **The runtime is explicit.** `GROVE_TEST_RAVEL` names the front, and
-//! `GROVE_TEST_RAVEL_RUNTIME` names the configuration runtime that the front
-//! reads: `1.1` for the TypeScript `policy.ts` of schema 2, or `2.0` for the
-//! Rhai `config.rhai` of schema 4. The support never reads the runtime from the
-//! version output, because a build of the 2.0 feature line reports
-//! `ravel 1.1.0` until the release cut. It reads the layout only to refuse a
-//! mismatch: a 1.x build has the `libexec/ravel/ravel-policy` worker, and a
-//! 2.x build installs one executable and no worker. An unset runtime keeps the
-//! established 1.1 meaning, which only a build with that worker can satisfy.
+//! `GROVE_TEST_RAVEL` names the front. The current Ravel 2 runtime is the
+//! default, so no runtime override is required. Historical fixtures can select
+//! `GROVE_TEST_RAVEL_RUNTIME=1.1` explicitly. Layout checks refuse a mismatch:
+//! only 1.x has a `libexec/ravel/ravel-policy` worker.
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -56,7 +51,7 @@ impl Runtime {
                 );
                 Runtime::V1_1
             }
-            "2.0" => {
+            "2.0" | "" => {
                 assert!(
                     !worker,
                     "{variable}=2.0 selects the 2.x layout, but {} holds the 1.x worker \
@@ -64,16 +59,6 @@ impl Runtime {
                     prefix.display()
                 );
                 Runtime::V2_0
-            }
-            "" => {
-                assert!(
-                    worker,
-                    "{variable} is unset, and {} has no {WORKER} worker, so it is no 1.x \
-                     build. Set {variable}=2.0 for a 2.x build. The support never reads \
-                     the runtime from the version output.",
-                    prefix.display()
-                );
-                Runtime::V1_1
             }
             other => panic!("{variable}={other:?} names no runtime: use 1.1 or 2.0"),
         }

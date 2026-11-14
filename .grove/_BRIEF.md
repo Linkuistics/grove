@@ -45,11 +45,24 @@ than reporting an automated PTY test as iTerm/Herdr confirmation.
 
 ## Notes
 
-Extended keyboard reporting left enabled in the terminal emulator is a plausible
-cause; it is not yet reproduced. The reported setup is an LLM in a Herdr pane
-inside iTerm, with the LLM calling Ravel's force-stop. The human also reports
-this after an unexpected LLM quit. The implementation must verify the cause
-before choosing the repair. Grove's
-current shared reset runs before it interprets a Ravel session's result, so the
-investigation should cover both paths. Preserve force-stop's exit status and
-resumability and the existing handling of unexpected exits.
+Extended keyboard reporting survived termios restoration in the affected Herdr
+pane. The PTY regressions reproduced retained flags on independent main and
+alternate screen stacks after force-stop and SIGKILL. Shared foreground cleanup
+now clears both stacks and flags before result interpretation. The human
+confirmed ordinary text, Enter, Backspace and Ctrl-C after both Codex exit paths
+in Herdr/iTerm; a fresh pane was unaffected by the original failure.
+
+The human requested integration, a minor release and local installation in this
+session. This authorizes the project's complete finish/integrate/release cycle
+without another confirmation. Ravel 1.x is no longer installed: normal checks
+must use the current Ravel 2 without requiring a runtime environment override.
+
+Implementation is verified on main v22.10.0: all 18 principal checks pass,
+including 1,346 workspace tests, doctests and all five walkthroughs, with no
+Ravel overrides. The release prerequisite doctor passed. No version has been
+cut, published or installed for this repair yet. The impl session retires and
+seals its commit, then returns to the driver to allocate the reserved finish
+session; that session owns the authorized cleanup/integration/minor release and
+local install. No additional confirmation is needed. Invoke the installed
+`grove-llm` directly for finish-commit, and preserve the ending contract from the
+finish session's own launch prompt after the release completes.

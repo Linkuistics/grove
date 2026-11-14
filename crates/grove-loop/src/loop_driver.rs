@@ -436,7 +436,12 @@ fn reset_terminal() {
     // exception is a rule the next spawn has to re-argue.
     ravel_job::scrub(&mut stty);
     let _ = stty.status();
-    print!("\x1b[?1049l\x1b[?25h\x1b[0m");
+    // Keyboard flags belong to the emulator, not termios. Clear nested Kitty
+    // stacks on both screens, even if the harness already left the alternate
+    // screen. An over-pop resets the flags; explicitly set zero as well for
+    // implementations without a stack. Finish on the main screen.
+    // https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement
+    print!("\x1b[?1049h\x1b[<65535u\x1b[=0u\x1b[?1049l\x1b[<65535u\x1b[=0u\x1b[?25h\x1b[0m");
     let _ = std::io::stdout().flush();
 }
 

@@ -3212,6 +3212,144 @@ fn force_stop_leaves_remaining_work_resumable_after_continuation() {
     assert_eq!(dispatch.launch_count(), 3, "{stderr}");
 }
 
+/// A bounded keyboard-protocol peer, independent of Grove's reset sequence.
+/// Interpret CSI operations, rather than searching for a particular repair.
+/// https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement
+struct KeyboardPeer {
+    alternate: bool,
+    stacks: [Vec<u32>; 2],
+}
+
+impl KeyboardPeer {
+    fn read(output: &[u8]) -> Self {
+        let mut peer = Self {
+            alternate: false,
+            stacks: [vec![0], vec![0]],
+        };
+        let mut rest = output;
+        while let Some(start) = rest.windows(2).position(|bytes| bytes == b"\x1b[") {
+            rest = &rest[start + 2..];
+            let Some(end) = rest.iter().position(|byte| (0x40..=0x7e).contains(byte)) else {
+                break;
+            };
+            let parameters = String::from_utf8_lossy(&rest[..end]);
+            let final_byte = rest[end];
+            let stack = &mut peer.stacks[usize::from(peer.alternate)];
+            match (parameters.as_ref(), final_byte) {
+                ("?1049", b'h') => peer.alternate = true,
+                ("?1049", b'l') => peer.alternate = false,
+                (parameters, b'u') if !parameters.is_empty() => {
+                    let (operation, values) = parameters.split_at(1);
+                    let mut values = values.split(';');
+                    let value = values.next().unwrap().parse::<u32>();
+                    match operation {
+                        ">" => stack.push(value.unwrap_or(0)),
+                        "<" => {
+                            let remaining = stack.len().saturating_sub(value.unwrap_or(1) as usize);
+                            stack.truncate(remaining);
+                            if stack.is_empty() {
+                                stack.push(0);
+                            }
+                        }
+                        "=" => {
+                            let flags = stack.last_mut().unwrap();
+                            let value = value.unwrap_or(0);
+                            match values.next().unwrap_or("1") {
+                                "1" => *flags = value,
+                                "2" => *flags |= value,
+                                "3" => *flags &= !value,
+                                _ => panic!("unsupported keyboard operation"),
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+            rest = &rest[end + 1..];
+        }
+        peer
+    }
+}
+
+fn keyboard_recovery_after(ending: &str, expected_status: i32, leave_alternate: bool) {
+    let dispatch = Dispatch::new("worktree");
+    plant_tree(&dispatch.worktree, "01-impl--subject-k1.md");
+    let go = dispatch.root.join("leave-keyboard-mode");
+    // Leak nested modes on BOTH screens, then die without terminal cleanup.
+    // Flag 9 encodes ordinary text, Enter, Backspace and Ctrl-C as CSI u.
+    dispatch.harness_then(&format!(
+        "/bin/stty raw -echo\n\
+         printf '\\033[>9u\\033[>9u\\033[?1049h\\033[>9u\\033[>9u{screen}KEYBOARD-READY' > /dev/tty\n\
+         touch \"$record/keyboard-ready\"\n\
+         while [ ! -e {go} ]; do sleep 0.01; done\n\
+         {ending}",
+        go = shell_quote(&go),
+        screen = if leave_alternate { "\\033[?1049l" } else { "" },
+    ));
+    support::route_every_kind_to(&dispatch.home, &dispatch.harness);
+    let terminal = Pty::open();
+    let mut driver = DriverProcess::spawn_on(&dispatch.worktree, &dispatch.home, &terminal, PLAIN);
+    driver.wait_for_ready(&dispatch.record(0).join("keyboard-ready"));
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let shown = loop {
+        let shown = terminal.shown();
+        if shown.contains("KEYBOARD-READY") {
+            break shown;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "missing harness output: {shown:?}"
+        );
+        thread::sleep(Duration::from_millis(10));
+    };
+    let before = KeyboardPeer::read(shown.as_bytes());
+    assert_eq!(before.alternate, !leave_alternate, "control: active screen");
+    for stack in &before.stacks {
+        assert_eq!(stack.last(), Some(&9), "control: keys require CSI u");
+        assert!(stack.len() > 2, "control: nested modes must be leaked");
+    }
+    fs::write(go, "").unwrap();
+    let output = driver.finish_within(SESSION_LIMIT);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(output.status.code(), Some(expected_status), "{stderr}");
+    assert!(!stderr.contains("grove finished"), "{stderr}");
+    assert_eq!(dispatch.launch_count(), 1, "{stderr}");
+    assert!(dispatch.task_file("01-impl--subject-k1.md").is_file());
+    let mut transcript = shown.into_bytes();
+    transcript.extend_from_slice(&output.stdout);
+    let after = KeyboardPeer::read(&transcript);
+    assert!(!after.alternate, "recovery must return to the main screen");
+    for (screen, stack) in after.stacks.iter().enumerate() {
+        assert_eq!(
+            stack,
+            &[0],
+            "screen {screen}: text, Enter, Backspace and Ctrl-C must use legacy encoding, including after a subsequent pop"
+        );
+    }
+}
+
+#[test]
+fn force_stop_recovers_keyboard_protocol_on_both_screens() {
+    for leave_alternate in [false, true] {
+        keyboard_recovery_after(
+            &format!(
+                "exec {} end-session grove-force-stop",
+                shell_quote(&ravel())
+            ),
+            1,
+            leave_alternate,
+        );
+    }
+}
+
+#[test]
+fn unexpected_harness_exit_recovers_keyboard_protocol_on_both_screens() {
+    for leave_alternate in [false, true] {
+        keyboard_recovery_after("kill -KILL $$", 0, leave_alternate);
+    }
+}
+
 #[test]
 fn launch_directory_teardown_finishes_after_the_ravel_result() {
     for ending in ["exit_signal", "harness_exit", "force_stop"] {

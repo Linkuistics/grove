@@ -51,7 +51,7 @@ The composite below connects the loop's source fragments in production order.
 The definitions follow the reader's path from caller data through launch to
 interpretation. The root still includes the inline tests.
 
-<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-886" parent="source-loop-driver" -->
+<!-- fragment «loop-driver» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="1-891" parent="source-loop-driver" -->
 <!-- insert «loop-header» -->
 <!-- insert «loop-imports» -->
 <!-- insert «loop-outcome» -->
@@ -747,11 +747,11 @@ fn complete_post_reap_epoch_handoff<T>(
 `ravel_job::launch` restores the attributes saved when Grove handed over the
 terminal.
 After Ravel's signal death it can reclaim from the orphaned harness's group,
-not just Ravel's. `reset_terminal` then runs `stty sane`, leaves the alternate
-screen and shows the cursor. It runs only on tty stdin while the driver owns the
+not just Ravel's. `reset_terminal` then runs `stty sane`, clears keyboard-protocol stacks and
+flags on both screens, leaves the alternate screen and shows the cursor. It runs only on tty stdin while the driver owns the
 foreground. Otherwise an `stty` child could stop on SIGTTOU and hang the driver.
 
-<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="411-442" parent="loop-driver" -->
+<!-- fragment «loop-reset-terminal» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="411-447" parent="loop-driver" -->
 ````rust
 /// Reset the terminal after a (possibly SIGTERM'd) TUI: restore cooked mode,
 /// leave the alternate screen, show the cursor. No-op when stdin isn't a TTY
@@ -781,7 +781,12 @@ fn reset_terminal() {
     // exception is a rule the next spawn has to re-argue.
     ravel_job::scrub(&mut stty);
     let _ = stty.status();
-    print!("\x1b[?1049l\x1b[?25h\x1b[0m");
+    // Keyboard flags belong to the emulator, not termios. Clear nested Kitty
+    // stacks on both screens, even if the harness already left the alternate
+    // screen. An over-pop resets the flags; explicitly set zero as well for
+    // implementations without a stack. Finish on the main screen.
+    // https://sw.kovidgoyal.net/kitty/keyboard-protocol/#progressive-enhancement
+    print!("\x1b[?1049h\x1b[<65535u\x1b[=0u\x1b[?1049l\x1b[<65535u\x1b[=0u\x1b[?25h\x1b[0m");
     let _ = std::io::stdout().flush();
 }
 
@@ -796,7 +801,7 @@ resets the child's terminal-signal dispositions, so Ravel and the harness receiv
 a typed Ctrl-C. TERM and HUP belong to `ravel_job::launch`, which forwards them
 to Ravel.
 
-<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="443-473" parent="loop-driver" -->
+<!-- fragment «loop-ignore-interrupts» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="448-478" parent="loop-driver" -->
 ````rust
 /// Ignore SIGINT in the driver so a terminal Ctrl-C does not kill the loop. The
 /// driver must survive the interrupt to reach the relaunch-vs-stop decision.
@@ -840,7 +845,7 @@ it while the guard is held. `picked_after_finish` selects afresh after
 materialisation. A concurrent root replacement cannot lend an old selection
 the new root's identity.
 
-<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="474-513" parent="loop-driver" -->
+<!-- fragment «loop-picked» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="479-518" parent="loop-driver" -->
 ````rust
 /// The driver's own `pick`, over the worktree it is driving.
 ///
@@ -904,7 +909,7 @@ with a chosen signal. `launch_error` wraps a `JobError` in the context of the
 session kind, as `launch_session` does. The fields of `JobError` are private to
 `ravel_job`, so that module offers a `cfg(test)` constructor, `for_test`.
 
-<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="514-783" parent="loop-driver" -->
+<!-- fragment «loop-tests-open» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="519-788" parent="loop-driver" -->
 ````rust
 // The repository's shared test helpers. Declared out here because a `#[path]`
 // inside the inline module below would resolve against a directory that does
@@ -1181,7 +1186,7 @@ mod tests {
 
 This case supplies simultaneous launch and invalidation failures with no caught signal. It checks that both causes remain visible, that no signal appears and that interpretation never runs.
 
-<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="784-817" parent="loop-driver" -->
+<!-- fragment «loop-test-handoff-preserves» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="789-822" parent="loop-driver" -->
 ````rust
     #[test]
     fn an_epoch_handoff_failure_preserves_the_launch_failure_that_preceded_it() {
@@ -1226,7 +1231,7 @@ Three cases follow it. Each one drives the handoff with a value that Grove owns,
 
 The second gives an interrupted end and a failed invalidation. The failure drops the end, so the signal survives only through `Caught`. The third gives a launch error with HUP and a failed invalidation. It checks that the signal stays a type and does not survive only as text. A change that stops the handoff from attaching `Caught` fails the last two cases.
 
-<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="818-886" parent="loop-driver" -->
+<!-- fragment «loop-test-ordering» owner="four-things-a-runner-cannot-choose" source="crates/grove-loop/src/loop_driver.rs" lines="823-891" parent="loop-driver" -->
 ````rust
     #[test]
     fn signal_interpretation_cannot_run_before_epoch_invalidation_succeeds() {

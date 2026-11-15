@@ -39,7 +39,7 @@ nothing else**; Ravel returns Grove's result after ending and reaping the harnes
 | what the session did | ending |
 |---|---|
 | teardown completed | `grove-llm record-teardown`, then the exact ending command supplied by your launch prompt — the loop finishes |
-| externalised work instead | the exact ending command supplied by your launch prompt — the loop relaunches and picks the new leaf; the sentinel waits |
+| externalised work admitted by `references/decompose.md` instead | the exact ending command supplied by your launch prompt — the loop relaunches and picks the new leaf; the sentinel waits |
 | awaiting human confirmation | follow the shared spine's human-input handoff; the leaf and interactive session stay live |
 | the human declines the finish cycle and stops the run | the launch prompt's exact force-stop command, when supplied — stops without completion with live work resumable; original dispatch launches use no signal and end the harness manually |
 
@@ -54,9 +54,11 @@ does not restore the deleted tree. Use the normal ending after completed,
 authorized finish work; use force-stop to stop the sequence. The launch prompt
 owns both exact commands and their result meanings; Ravel interprets neither.
 
-The externalised-work outcome is the one worth holding on to. You are told, like every
-session, to externalize surfaced work rather than absorb it, and a session that
-does so **cannot** tear down: ordinary work is live, and `pick` passes the
+Apply the scope admission test in `references/decompose.md` to surfaced work,
+as every session must. Externalize work that belongs to the agreed outcome and
+needs another session; record optional improvements for a later grove or the
+project's backlog without adding obligations here. A session that externalizes
+admitted work **cannot** tear down: ordinary work is live, and `pick` passes the
 sentinel over until it is terminal. That is a plain relaunch rather than a
 failure, and it banks no confirmation — the sentinel is never retired, so the
 next `finish` session proposes the cycle and waits for a confirmation of its

@@ -21,20 +21,27 @@ at the genuine seam, never speculatively. Use `grove-llm leaf-add`, or
 Future improvements do not enlarge the grove merely because they are possible.
 Record them for a later grove or the project's backlog, without creating a new
 obligation here. Existing acceptance remains binding: changing a grove's scope
-requires an explicit scope decision, never quietly dropping an obligation or
-calling unproved work done. `grove-planning` owns how the bounded outcome and
+requires explicit human confirmation. Until it arrives, retain the original
+acceptance and live remainder; never quietly drop an obligation or call
+unproved work done. `grove-planning` owns how the bounded outcome and
 proportionate acceptance are chosen.
 
 **Repeated handoffs with unchanged acceptance require an acceptance attempt.**
 Compare the work and evidence across handoffs, not their names, counts or depth.
 If successive slices, prerequisites, readbacks or reviews keep handing off the
 same acceptance work without advancing its evidence, stop delegating that
-remainder. Keep the
-current task live and attempt its acceptance now, doing necessary bounded
-repairs inline. If an actual prerequisite prevents the attempt, record the
+remainder. Keep the current task live and attempt its acceptance now within the
+kind's remit: producers and integrations do necessary bounded repairs inline;
+`review-*` sessions remain inspection-only and report findings. If an actual
+prerequisite prevents the attempt, record the
 concrete blocker, the evidence for it and the work needed to remove it; leave the
 task live. A further split is justified only by that demonstrated unblock, with
-its finite handoff, not by another restatement of the aggregate charter. If the
+its finite handoff, not by another restatement of the aggregate charter. If no
+finite unblock can proceed without human input or an external action, use the
+human-input handoff in `references/execute.md`: ask for the needed action or
+decision, complete independent work, then yield the agent turn with the leaf
+and interactive session open. Do not send the continuation signal while
+awaiting required input; it would reselect the unchanged live task. If the
 session must stop before the attempt or repair completes, record that state
 honestly with the task live. This responds to stalled acceptance, not a numeric
 limit on legitimate slices.

@@ -414,9 +414,12 @@ _Avoid_: "an interrupted finish always leaves that leaf live" — a decline leav
 it selectable, and an interruption leaves whatever the operation log holds, which
 is the operator's to read with `jj op log` and restore with `jj undo`. Grove runs
 no recovery of its own and classifies no interrupted attempt.
-_Avoid_: reading teardown as the cycle's only ending. A `finish` session is told,
-like every session, to externalize surfaced work rather than absorb it, and one
-that does so cannot tear down — ordinary work is live, so [[Pick]] passes the
+_Avoid_: reading teardown as the cycle's only ending. A `finish` session applies
+the scope admission test in `grove/references/decompose.md`, like every session:
+externalize work that belongs to the agreed outcome and needs another session;
+record optional improvements for a later grove or the project's backlog without
+adding obligations here. One that externalizes admitted work cannot tear down —
+ordinary work is live, so [[Pick]] passes the
 sentinel over. Its ending is then a plain **relaunch**: the loop continues into
 the new leaf and the sentinel waits. Three endings, distinguished by what the
 session *did* — teardown (a [[Teardown record]], stop), reopening (the [[Exit

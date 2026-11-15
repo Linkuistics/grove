@@ -34,8 +34,9 @@ finish procedure. Keep future improvements for a later grove or the project's
 backlog; a possible next increment is not automatically a leaf here.
 
 If the existing charter commits to a broader result, retain its acceptance and
-live remainder, or obtain an explicit scope decision. A smaller first delivery
-must never silently erase the rest. `grove/references/decompose.md` owns the
+live remainder until the human explicitly confirms a scope change. A smaller
+first delivery must never silently erase the rest.
+`grove/references/decompose.md` owns the
 admission test for further work and the response to repeated handoffs that leave
 acceptance unchanged.
 

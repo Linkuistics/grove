@@ -13,6 +13,11 @@ does each land green without waiting on a sibling? is anything missing?),
 review; polish is a defect in a prototype), `review-impl` (correctness,
 security, tests, project conventions).
 
+Judge findings against `references/integrate-review.md`'s acceptance and
+material-risk threshold. Distinguish optional improvements from work needed to
+meet that bar; do not use polish to widen the producer's scope. Record adverse
+evidence and necessary safety findings even when they prevent completion.
+
 For `review-design` findings about software interfaces, state, or test seams,
 use the `codebase-design` skill when available. Apply its criteria to the
 inspected artifact; this remains a findings-only review. Grove's procedure and

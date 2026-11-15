@@ -105,8 +105,8 @@ the brief chain root→leaf, and the task file. Nothing else by reflex.
 - When a decision settles, record it as `references/execute.md` directs.
 - When handing a question back to a human or awaiting required input, follow
   `references/execute.md`.
-- When work surfaces that does not serve this leaf's goal, externalise it
-  through `references/decompose.md`.
+- When new work surfaces or acceptance keeps returning unchanged, apply
+  `references/decompose.md` before growing the tree.
 - When this leaf proves bigger than its brief, decompose it through
   `references/decompose.md`.
 - When an artifact may need review, decide it as `references/decompose.md`

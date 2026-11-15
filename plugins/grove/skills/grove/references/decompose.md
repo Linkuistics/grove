@@ -1,27 +1,43 @@
 ## Choose the scope, then the shape
 
-When work surfaces mid-session, default to **externalizing it as a new leaf**
-rather than absorbing it into the current session — grove's value is many small,
-low-context sessions, and that value is lost the moment a session quietly grows
-to cover work that should have been its own leaf.
+**Externalize work that belongs to the agreed outcome and needs another
+session.** Before growing the tree, name the acceptance step the work will
+complete or directly unblock, the present obstacle, and the finite handoff that
+lets the dependent task proceed. Preparation, readers, maps and research earn
+their place by that connection; a useful deliverable can be working behavior,
+a document or a decision. More task files, cleaner wording and more reviews are
+not evidence of progress by themselves.
 
-- **A new concern** — the human raises it, or a tangent appears that does not
-  serve *this leaf's stated goal* — goes to the tree with `grove-llm leaf-add`
-  (or `leaf-insert` when it must sequence ahead of live leaves), **never** inline.
-  Both **require `--kind`**, and neither guesses one: the kind is what routes the
-  session, and a leaf given the wrong one is well-formed and silently wrong.
-- **The current item proves bigger** than its brief assumed — split the work
-  into session-sized leaves, choosing their placement by the test below. Do only
-  the first slice this session; leave the rest for fresh sessions.
+Continue inline while work serves this leaf's stated goal and fits one focused,
+low-context session. Work that needs another session becomes a precise leaf once
+it passes that scope test. When the current item proves bigger, split it, finish
+the first useful slice and leave its actual remainder live. Necessary preparation
+and independently verifiable slices remain valid; explain their contribution to
+acceptance. Decomposition stays lazy (constraint 4): grow the tree just-in-time,
+at the genuine seam, never speculatively. Use `grove-llm leaf-add`, or
+`leaf-insert` when work must sequence ahead of live leaves. Both require
+`--kind` and neither guesses one.
 
-Continue inline **only** while the work still serves this leaf's stated goal
-*and* fits one focused, low-context session — the bar is *"fits this session,"
-not "I can finish it."* You almost always *can* finish it; that is the trap that
-grows a runaway session. Decomposition stays lazy (constraint 4): grow the tree
-just-in-time, at the genuine seam, never speculatively. Externalizing is cheap,
-so spend it freely — a permanent key never moves, a renumber rewrites zero file
-contents, and `leaf-insert` exists precisely so a late-surfacing concern can slot
-ahead of queued work without disturbing it.
+Future improvements do not enlarge the grove merely because they are possible.
+Record them for a later grove or the project's backlog, without creating a new
+obligation here. Existing acceptance remains binding: changing a grove's scope
+requires an explicit scope decision, never quietly dropping an obligation or
+calling unproved work done. `grove-planning` owns how the bounded outcome and
+proportionate acceptance are chosen.
+
+**Repeated handoffs with unchanged acceptance require an acceptance attempt.**
+Compare the work and evidence across handoffs, not their names, counts or depth.
+If successive slices, prerequisites, readbacks or reviews keep handing off the
+same acceptance work without advancing its evidence, stop delegating that
+remainder. Keep the
+current task live and attempt its acceptance now, doing necessary bounded
+repairs inline. If an actual prerequisite prevents the attempt, record the
+concrete blocker, the evidence for it and the work needed to remove it; leave the
+task live. A further split is justified only by that demonstrated unblock, with
+its finite handoff, not by another restatement of the aggregate charter. If the
+session must stop before the attempt or repair completes, record that state
+honestly with the task live. This responds to stalled acceptance, not a numeric
+limit on legitimate slices.
 
 ### Flat siblings are the default; a node must earn its context
 
@@ -109,7 +125,9 @@ the old form once no caller remains.
 
 ## Work you can see coming but cannot yet shape
 
-Which of the two a dim thought earns is the **fog-or-ticket test**: can you state
+First apply the scope test above; precision alone does not make a future
+improvement an obligation here. For work within scope, which of the two a dim
+thought earns is the **fog-or-ticket test**: can you state
 the question precisely *right now* — not whether you can answer it. A question
 you can already phrase precisely earns a leaf immediately, even if it is blocked
 and unanswerable today. One still too dim to phrase stays an **On the horizon**
@@ -123,7 +141,8 @@ is otherwise simply lost.
 A leaf whose design depends on lessons prior tools learned the hard way — and
 that the current codebase cannot show — is under-served by grilling alone, which
 would rediscover those failure modes from scratch. That is a **research leaf of
-its own, cut ahead of the leaf that needs it**, never a tangent inside it. The
+its own, cut ahead of the leaf that needs it**, when it passes the acceptance
+connection above. Keep bounded lookups inline. The
 signs: the leaf sits in an architectural neighbourhood with well-known prior art;
 several downstream `requirements` / `design` leaves share one evidence base; or
 the grilling surfaces *"has anyone tried this before, and what happened to
@@ -154,6 +173,9 @@ load-bearing artifact**: a landed spec, a decomposition others will build on for
 months, a subsystem. That is an orchestration boundary, and **artifact size and
 vendor preference are not the test**. Classify ordinary verification and
 independent adversarial review by `references/execute.md` before cutting one.
+Another review round needs a concrete change or new evidence requiring
+independent challenge; unchanged concerns and speculative polish do not earn a
+round. This does not skip a declared series step or override its cap.
 
 **A vendor pair — `research-a` → `research-b` → `combine-research` — is earned by
 a question load-bearing enough to pay for two corpora.** One survey is one
@@ -183,8 +205,10 @@ act** of the session before it:
 
 A producer cuts the first only once its artifact exists and it judges an
 adversarial read necessary; a review cuts the second **only if it has findings
-worth acting on**. A review that finds nothing creates nothing and simply
-retires — that empty session is what the laziness exists to remove, and deciding
+worth acting on**, using `references/integrate-review.md`'s acceptance and
+material-risk threshold. A review that finds nothing creates nothing and simply
+retires; optional improvements alone create no integration obligation either.
+That empty session is what the laziness exists to remove, and deciding
 against review is a normal outcome at either step.
 
 **A pair is eager**: it lands in one call or not at all. There is no pair verb —

@@ -84,7 +84,8 @@ independent challenge, never the number of earlier checks.
 Give the adversarial reviewer the artifact and its contract, **stripping the conclusion**.
 It reports findings rather than fixes. The integration session re-reads the
 artifact and classifies every finding as an unclear contract, valid and
-actionable, a visible trade-off or noise. It can verify fixes in-session;
+actionable, a visible trade-off or noise, using `references/integrate-review.md`'s
+acceptance and material-risk threshold. It can verify fixes in-session;
 substantial redesign needs a producer step and a new adversarial review only
 when independent challenge is warranted again.
 

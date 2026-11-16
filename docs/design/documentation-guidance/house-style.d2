@@ -1,0 +1,41 @@
+# Which prose contract governs one point, such as the form of a task heading.
+direction: down
+
+vars: {
+  d2-legend: {
+    q: Question the session answers {class: question}
+    r: Source that governs the point {class: result}
+    q -> r: the answer on the arrow leads here
+  }
+}
+
+classes: {
+  step: {shape: rectangle; style.border-radius: 8}
+  question: {shape: diamond}
+  result: {shape: rectangle; style: {border-radius: 8; stroke-width: 3}}
+  start: {style: {fill: "#1f2937"; font-color: "#ffffff"; bold: true}}
+}
+
+**.style.font-size: 20
+(** -> **)[*].style.font-size: 18
+
+point: "Start here:\na stage applies one\nprose-contract point" {class: [step; start]}
+declared: "Does the set's contract\ndeclare a prose contract?" {class: question}
+states: "Does this prose\ncontract state\nthe point?" {class: question}
+base: "What base does\nit name?" {class: question}
+settles: "Does the guide\nsettle the point\notherwise than the\nhouse style?" {class: question}
+
+own: "Its statement\ngoverns" {class: result}
+house: "The house style\ngoverns" {class: result}
+guide: "The style guide\ngoverns the\nwhole point" {class: result}
+
+point -> declared
+declared -> house: "no"
+declared -> states: "yes"
+states -> own: "yes"
+states -> base: "no"
+base -> house: "none, the house style,\nor a base that cannot\nbe followed (record it)"
+base -> settles: "a style guide"
+settles -> guide: "yes"
+settles -> house: "no"
+base -> states: "another prose contract\nnot yet met on this walk:\nask of that one"

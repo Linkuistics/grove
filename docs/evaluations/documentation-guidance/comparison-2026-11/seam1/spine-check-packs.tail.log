@@ -1,0 +1,20 @@
+ok     every assertion holds over the supplied skill set
+=== pack writing
+  reusing the clean checkout of 578f84d1f5a9bb04573a704bca639530d93b6bca
+grove conformance — writing alone
+pack   writing /Users/antony/Development/AgenticOrchestration/grove.documentation-guidance-spine/target/external-packs/writing/578f84d1f5a9bb04573a704bca639530d93b6bca/plugins/writing/skills
+note   external edge: grove-art/SKILL.md loads `grove`, which this pack does not ship
+note   external edge: grove-copy-edit/SKILL.md loads `grove`, which this pack does not ship
+note   external edge: grove-draft/SKILL.md loads `grove`, which this pack does not ship
+note   external edge: grove-proof/SKILL.md loads `grove`, which this pack does not ship
+rules  23 single-source checked, 56 loaded-path checked
+       0 with no pinned wording, 0 bound to no shipped kind, 0 delivered by ${prompt}
+       4 external edge(s) and 0 external resource(s), which the aggregate resolves
+ok     every assertion holds over the supplied skill set
+grove conformance — aggregate of 2 packs
+pack   core /Users/antony/Development/AgenticOrchestration/grove.documentation-guidance-spine/plugins/grove/skills
+pack   writing /Users/antony/Development/AgenticOrchestration/grove.documentation-guidance-spine/target/external-packs/writing/578f84d1f5a9bb04573a704bca639530d93b6bca/plugins/writing/skills
+rules  165 single-source checked, 1184 loaded-path checked
+       51 with no pinned wording, 1 bound to no shipped kind, 1 delivered by ${prompt}
+ok     every assertion holds over the supplied skill set
+check-packs: 5 recorded pack(s) pass alone and in the aggregate

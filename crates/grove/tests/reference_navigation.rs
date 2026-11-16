@@ -453,6 +453,31 @@ fn github_heading_namespace_includes_subsections_fences_and_deduplication() {
 /// is build output and VCS administration.
 const UNSWEPT_DIRECTORIES: [&str; 5] = [".grove", ".git", ".jj", "target", ".grove-worktrees"];
 
+/// Where a model comparison stores what each run changed: one directory per
+/// case and arm under `outputs/`, with the changed files under `files/`.
+const COMPARISON_OUTPUTS: &str =
+    "docs/evaluations/documentation-guidance/comparison-2026-11/outputs";
+
+/// Whether a directory is a run's stored output, which the sweep does not
+/// enter.
+///
+/// A run worked in another repository's working tree in miniature, a case
+/// fixture, and its stored output keeps the links that resolve from that
+/// fixture's root. The fixtures stay in the history of the grove that ran the
+/// comparison, so those links cannot resolve here. The run's transcript, final
+/// message and the comparison's report beside it are swept.
+fn is_stored_run_output(relative: &str) -> bool {
+    relative
+        .strip_prefix(COMPARISON_OUTPUTS)
+        .and_then(|rest| rest.strip_prefix('/'))
+        .is_some_and(|rest| {
+            matches!(
+                rest.split('/').collect::<Vec<_>>()[..],
+                [_case, _arm, "files"]
+            )
+        })
+}
+
 /// History, which keeps the past by contract: a CHANGELOG entry describes the
 /// system as it stood when it was written, so a record it names by a kind that
 /// record has since lost is accurate, not stale.
@@ -482,7 +507,7 @@ fn collect_files(directory: &Path, prefix: &str, extensions: &[&str], into: &mut
             .expect("entry type must be readable")
             .is_dir()
         {
-            if !UNSWEPT_DIRECTORIES.contains(&name.as_str()) {
+            if !UNSWEPT_DIRECTORIES.contains(&name.as_str()) && !is_stored_run_output(&relative) {
                 collect_files(&entry.path(), &relative, extensions, into);
             }
         } else if extensions.iter().any(|extension| name.ends_with(extension)) {
@@ -496,6 +521,42 @@ fn repository_files(extensions: &[&str]) -> Vec<String> {
     collect_files(&repository_root(), "", extensions, &mut paths);
     paths.sort();
     paths
+}
+
+#[test]
+fn the_sweep_leaves_out_a_runs_stored_output_and_nothing_beside_it() {
+    assert!(is_stored_run_output(&format!(
+        "{COMPARISON_OUTPUTS}/d1-draft/current/files"
+    )));
+    for swept in [
+        COMPARISON_OUTPUTS.to_owned(),
+        format!("{COMPARISON_OUTPUTS}/d1-draft"),
+        format!("{COMPARISON_OUTPUTS}/d1-draft/current"),
+        format!("{COMPARISON_OUTPUTS}/d1-draft/files"),
+        format!("{COMPARISON_OUTPUTS}/d1-draft/current/files/docs"),
+        "docs/evaluations/documentation-guidance/comparison-2026-11/files".to_owned(),
+        "docs/evaluations/editorial-pipeline-pilot/cases/smoke/files".to_owned(),
+        "files".to_owned(),
+    ] {
+        assert!(
+            !is_stored_run_output(&swept),
+            "{swept} is not a stored run output"
+        );
+    }
+
+    // The run's own record is still read, and its stored output is not.
+    let documents = repository_files(&[".md"]);
+    let run = format!("{COMPARISON_OUTPUTS}/d1-draft/current");
+    assert!(
+        documents.contains(&format!("{run}/final-message.md")),
+        "the sweep must still reach the run's final message"
+    );
+    assert!(
+        !documents
+            .iter()
+            .any(|document| document.starts_with(&format!("{run}/files/"))),
+        "the sweep must not enter the run's stored output"
+    );
 }
 
 #[test]
@@ -1177,4 +1238,270 @@ fn the_ownership_row_check_reports_a_book_with_no_row() {
         )),
         ["docs/walkthroughs/a-book/README.md"]
     );
+}
+
+// ---------------------------------------------------------------------------
+// Every durable record has one owning context.
+//
+// `CONTEXT-MAP.md` gives each record under `docs/adr/` and `docs/specs/` a
+// maintaining context, and says that a record added later joins its table.
+// Before this check, that sentence depended on the next author's memory, and
+// 22 records had no owner. This check holds the rule: each record has exactly
+// one row, and each row names a context that the map declares.
+//
+// It reads table rows under `## Record ownership` only. A paragraph under the
+// table links some records again to argue for their owner, and such a link is
+// not a second owner. Whether a row's link resolves is
+// [`every_repository_markdown_reference_resolves`]' job, so a row for a deleted
+// record is reported there, once.
+
+const CONTEXT_MAP: &str = "CONTEXT-MAP.md";
+const CONTEXTS_HEADING: &str = "## Contexts";
+const RECORD_OWNERSHIP_HEADING: &str = "## Record ownership";
+const RECORD_DIRECTORIES: [&str; 2] = ["docs/adr", "docs/specs"];
+
+/// The body of the section that `heading` opens, up to the next `##` heading,
+/// with the byte offset where the body starts. The heading must be a whole
+/// line, so a sentence that quotes it opens nothing.
+fn markdown_section<'a>(markdown: &'a str, heading: &str) -> (usize, &'a str) {
+    let mut offset = 0;
+    let mut start = None;
+    for line in markdown.split_inclusive('\n') {
+        let line_start = offset;
+        offset += line.len();
+        match start {
+            None if line.trim_end() == heading => start = Some(offset),
+            Some(start) if line.starts_with("## ") => {
+                return (start, &markdown[start..line_start]);
+            }
+            _ => {}
+        }
+    }
+    let start =
+        start.unwrap_or_else(|| panic!("{CONTEXT_MAP} must carry `{heading}` as a whole line"));
+    (start, &markdown[start..])
+}
+
+/// The context names that the map's `## Contexts` list declares: the label of
+/// each top-level list item's leading link.
+fn declared_contexts(map: &str) -> Vec<String> {
+    markdown_section(map, CONTEXTS_HEADING)
+        .1
+        .lines()
+        .filter_map(|line| line.strip_prefix("- ["))
+        .filter_map(|rest| rest.split_once(']'))
+        .map(|(name, _)| name.to_owned())
+        .collect()
+}
+
+/// One row of the *Record ownership* table.
+#[derive(Debug, PartialEq)]
+struct OwnershipRow {
+    /// The row's line in the map, counted from 1, for the failure message.
+    line: usize,
+    /// Every record the row links to, repository-relative. A well-formed row
+    /// has exactly one.
+    records: Vec<String>,
+    /// The second cell, without emphasis or code marks.
+    context: String,
+}
+
+/// Every row of the *Record ownership* table, the header and separator rows
+/// excluded.
+fn record_ownership_rows(map: &str) -> Vec<OwnershipRow> {
+    let (section_start, section) = markdown_section(map, RECORD_OWNERSHIP_HEADING);
+    let first_line = map[..section_start].lines().count() + 1;
+
+    let mut rows = Vec::new();
+    let mut header_seen = false;
+    for (index, line) in section.lines().enumerate() {
+        let line = line.trim();
+        if !line.starts_with('|') {
+            continue;
+        }
+        let cells: Vec<&str> = line.trim_matches('|').split('|').map(str::trim).collect();
+        if cells
+            .iter()
+            .all(|cell| cell.chars().all(|c| matches!(c, '-' | ':')))
+        {
+            continue;
+        }
+        if !header_seen {
+            header_seen = true;
+            continue;
+        }
+        let records = book_validation::scan_markdown_links(line)
+            .into_iter()
+            .map(|link| repository_relative("", &link.destination))
+            .filter(|path| {
+                RECORD_DIRECTORIES
+                    .iter()
+                    .any(|directory| path.starts_with(&format!("{directory}/")))
+            })
+            .collect();
+        let context = cells
+            .get(1)
+            .map(|cell| cell.trim_matches(|c| c == '*' || c == '`').to_owned())
+            .unwrap_or_default();
+        rows.push(OwnershipRow {
+            line: first_line + index,
+            records,
+            context,
+        });
+    }
+    rows
+}
+
+/// The records on disk: every Markdown file under each of
+/// [`RECORD_DIRECTORIES`], repository-relative and sorted.
+fn record_files(root: &Path) -> Vec<String> {
+    let mut records = Vec::new();
+    for directory in RECORD_DIRECTORIES {
+        collect_files(&root.join(directory), directory, &[".md"], &mut records);
+    }
+    records.sort();
+    records
+}
+
+/// Each way the table fails the map's rule, as one message. Total and pure, so
+/// the check below can be seen failing without a scratch record on disk.
+fn record_ownership_problems(
+    records: &[String],
+    rows: &[OwnershipRow],
+    contexts: &[String],
+) -> Vec<String> {
+    let mut problems = Vec::new();
+    let mut owners: HashMap<&str, usize> = HashMap::new();
+    for row in rows {
+        if row.records.len() != 1 {
+            problems.push(format!(
+                "line {}: a row must name exactly one record, and this one names {:?}",
+                row.line, row.records
+            ));
+        }
+        if !contexts.contains(&row.context) {
+            problems.push(format!(
+                "line {}: `{}` is not a context that {CONTEXTS_HEADING} declares ({contexts:?})",
+                row.line, row.context
+            ));
+        }
+        for record in &row.records {
+            *owners.entry(record.as_str()).or_default() += 1;
+        }
+    }
+    for record in records {
+        match owners.get(record.as_str()).copied().unwrap_or(0) {
+            1 => {}
+            0 => problems.push(format!("{record} has no owning context")),
+            count => problems.push(format!("{record} has {count} rows")),
+        }
+    }
+    problems
+}
+
+#[test]
+fn every_record_has_one_owning_context() {
+    let root = repository_root();
+    let map = std::fs::read_to_string(root.join(CONTEXT_MAP))
+        .unwrap_or_else(|error| panic!("{CONTEXT_MAP} must be readable: {error}"));
+
+    let contexts = declared_contexts(&map);
+    let rows = record_ownership_rows(&map);
+    // The parse must reach the real list and the real table. An empty context
+    // list or an empty table would report every row or every record, which is
+    // a failure for the wrong reason.
+    assert!(
+        contexts.iter().any(|context| context == "grove"),
+        "the {CONTEXTS_HEADING} list was not read: `grove` is missing from {contexts:?}"
+    );
+    assert!(
+        rows.iter()
+            .any(|row| row.records == ["docs/specs/walkthrough-books.md"]),
+        "the {RECORD_OWNERSHIP_HEADING} table was not read: its row for `walkthrough-books` \
+         is missing"
+    );
+
+    let records = record_files(&root);
+    assert!(
+        records.iter().any(|record| record.starts_with("docs/adr/")),
+        "no record found under docs/adr: a table compared against nothing owns every record"
+    );
+
+    let problems = record_ownership_problems(&records, &rows, &contexts);
+    assert!(
+        problems.is_empty(),
+        "{CONTEXT_MAP}'s {RECORD_OWNERSHIP_HEADING} table breaks its own rule. A record added \
+         later joins the table with exactly one owning context:\n{}",
+        problems.join("\n")
+    );
+}
+
+#[test]
+fn the_record_ownership_check_reports_an_unregistered_record() {
+    let map = concat!(
+        "# Context Map\n",
+        "\n",
+        "## Contexts\n",
+        "\n",
+        "- [grove](./CONTEXT.md) — the loop.\n",
+        "  - [nested](./NOT-A-CONTEXT.md) is a continuation, not a context.\n",
+        "- [skills](./plugins/CONTEXT.md) — packaging.\n",
+        "\n",
+        "## Record ownership\n",
+        "\n",
+        "Prose that names [`unregistered`](docs/adr/unregistered.md) owns nothing.\n",
+        "A sentence that quotes ## Record ownership opens nothing.\n",
+        "\n",
+        "| Record | Owning context |\n",
+        "|---|---|\n",
+        "| [`registered`](docs/adr/registered.md) | grove |\n",
+        "| [`doubled`](docs/specs/doubled.md) | grove |\n",
+        "| [`doubled`](docs/specs/doubled.md) | **skills** |\n",
+        "| [`stray`](docs/adr/stray.md) | elsewhere |\n",
+        "| [`not-a-record`](docs/research/notes.md) | grove |\n",
+        "\n",
+        "## Choosing a context\n",
+        "\n",
+        "| [`unregistered`](docs/adr/unregistered.md) | grove |\n",
+    );
+
+    assert_eq!(declared_contexts(map), ["grove", "skills"]);
+
+    let rows = record_ownership_rows(map);
+    assert_eq!(
+        rows.first(),
+        Some(&OwnershipRow {
+            line: 16,
+            records: vec!["docs/adr/registered.md".to_owned()],
+            context: "grove".to_owned(),
+        }),
+        "the first body row is read with its line, its record and its context"
+    );
+
+    let records = [
+        "docs/adr/registered.md".to_owned(),
+        "docs/adr/unregistered.md".to_owned(),
+        "docs/specs/doubled.md".to_owned(),
+    ];
+    assert_eq!(
+        record_ownership_problems(&records, &rows, &declared_contexts(map)),
+        [
+            "line 19: `elsewhere` is not a context that ## Contexts declares ([\"grove\", \
+             \"skills\"])",
+            "line 20: a row must name exactly one record, and this one names []",
+            "docs/adr/unregistered.md has no owning context",
+            "docs/specs/doubled.md has 2 rows",
+        ],
+        "an unregistered record, a doubled record, an unknown context and a row with no \
+         record must each be reported, and links outside the table must not count"
+    );
+
+    // A table that registers each record once, under a declared context, is
+    // clean.
+    let clean = [OwnershipRow {
+        line: 1,
+        records: vec!["docs/adr/registered.md".to_owned()],
+        context: "grove".to_owned(),
+    }];
+    assert!(record_ownership_problems(&records[..1], &clean, &["grove".to_owned()]).is_empty());
 }

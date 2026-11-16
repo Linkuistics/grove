@@ -55,6 +55,44 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+### Added
+
+- `grove`: A document can declare a contract. The new
+  `DOCUMENT-CONTRACT-FORMAT.md` states its four parts and the default for
+  each absent part. The parts are the structure brief, the prose contract,
+  the format and media, and the reader checkpoints. A declared reader
+  checkpoint is information only. The spine reaches the file when a session
+  writes or reads a contract.
+- `grove`: The Execute reference now has a teaching section. Its nine rules
+  bind `draft` and `copy-edit` while they work on a document. Three of the
+  rules bind `draft` alone. One rule binds `copy-edit` alone: headings and
+  openings state the subject positively, and every exact restriction stays
+  recoverable from its rule.
+- `grove`: A set whose contract declares no prose contract now takes the
+  house style, in the new `references/house-style.md`. The file states 15
+  points. Several points follow Google's developer documentation style guide,
+  which is licensed CC BY 4.0. A declared prose contract builds on its base:
+  the first contract on the walk that states a point governs it.
+- `grove`: The format part of a contract now names the admitted figure media,
+  the renderers with pinned versions, and the viewing environments. The new
+  `references/documentation-toolchain.md` holds dated capability facts about
+  formats, renderers and viewers. A session rechecks a fact before a format
+  choice turns on it.
+- `grove`: The new `FIGURE-FORMAT.md` states the figure contract. A figure
+  states its scope, its omissions and its reading entry. Each convention that
+  it chooses is identifiable on or beside it. A figure in a tool-rendered
+  notation commits its source and its SVG together, with the tool version and
+  the regeneration command. A sketch in a live exchange can use a simpler
+  dialect. The C4 adaptation carries the CC BY 4.0 attribution in
+  `LICENSES/c4-model.LICENSE`.
+- `grove`: The handback section of the Execute reference now has rules for
+  requirements and design exchanges. A view in an exchange follows
+  `FIGURE-FORMAT.md`, and the prose follows `references/house-style.md`. The
+  teaching section also binds these exchanges.
+- `grove`: A reader checkpoint that a contract declares is cut as a
+  requirements leaf after the proof of the document. The checkpoint runs
+  outside the four editorial stages and mints no kind.
+
 ## v22.13.0
 
 ### Added

@@ -1,0 +1,57 @@
+# Where the teaching rules that documents and exchanges share live: the agreed
+# placement and the rejected one, drawn by which sessions open the rules.
+grid-columns: 1
+grid-gap: 60
+
+vars: {
+  d2-legend: {
+    s: Session {class: session}
+    f: Skill file {class: file}
+    r: File stating the nine rules {class: rules}
+    s -> f: opens, and is bound by the rules
+    s -> f: opens, but is not bound {class: unbound}
+    f -> r: names the file or section
+  }
+}
+
+classes: {
+  session: {shape: rectangle; style.border-radius: 8}
+  file: {shape: page}
+  rules: {shape: page; style: {fill: "#fef3c7"; font-color: "#1f2937"}}
+  option: {style: {stroke-dash: 4; fill: transparent}}
+  start: {style: {fill: "#1f2937"; font-color: "#ffffff"; bold: true}}
+  unbound: {style.stroke-dash: 4}
+}
+
+**.style.font-size: 20
+(** -> **)[*].style.font-size: 18
+
+A: "A, agreed: stated once in the loop-step reference, as the placement function computes" {
+  class: option
+  direction: down
+  stage: "Start here:\ndraft or copy-edit\nsession" {class: [session; start]}
+  exchange: "requirements or design\nsession, handing back" {class: session}
+  other: "any other kind\n(impl, review, …)" {class: session}
+  skill: "grove-draft/SKILL.md\ngrove-copy-edit/SKILL.md" {class: file}
+  execute: "grove/references/execute.md\nteaching section, ~480 words" {class: rules}
+  stage -> skill: "its own skill"
+  skill -> execute: "names the section"
+  exchange -> execute: "handing back"
+  other -> execute: "every session\nopens the file" {class: unbound}
+}
+
+C: "C, rejected: stated once in a new file of its own, filed by topic" {
+  class: option
+  direction: down
+  stage: "draft or copy-edit\nsession" {class: session}
+  exchange: "requirements or design\nsession, handing back" {class: session}
+  other: "any other kind\n(impl, review, …)" {class: session}
+  skill: "grove-draft/SKILL.md\ngrove-copy-edit/SKILL.md" {class: file}
+  execute: "grove/references/execute.md\nexchange paragraph" {class: file}
+  teaching: "grove/references/teaching.md\n(new)" {class: rules}
+  stage -> skill: "its own skill"
+  skill -> teaching: "names the file"
+  exchange -> execute: "handing back"
+  execute -> teaching: "names the file"
+  other -> execute: "every session\nopens the file" {class: unbound}
+}

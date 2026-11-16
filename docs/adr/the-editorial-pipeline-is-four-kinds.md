@@ -80,7 +80,14 @@ bootstrap reads it, so a session asking only whether *some* brief exists answers
 yes in precisely the case that must stop. The `draft` kind therefore tests three
 things it can cite from a named artifact — the audience, the ordered section plan
 and what deserves emphasis — because those are what the sources do not contain
-and what the two folded charters were pre-empted by.
+and what the two folded charters were pre-empted by. The named artifact is the
+structure brief of the document's contract
+([a document declares its contract](a-document-declares-its-contract.md)). Each
+of the three items grew there, and they are still three. The audience includes
+the reader's expertise per domain and representation. The section plan puts the
+model before its notation and names page purposes and entry routes. The emphasis
+item includes the intended domain. APIAnyware's reader checkpoints found exactly
+these facts missing, and they are just as absent from the sources.
 
 **What the decision buys.** Two skills and two sessions per book, across the four
 books that follow, against the six-stage design; and fifteen marginal defects

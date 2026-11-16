@@ -77,6 +77,42 @@ context-map-when-multiple	grove/CONTEXT-FORMAT.md	B	on(the repo has a context ma
 glossary-is-only-a-glossary	grove/CONTEXT-FORMAT.md	B	on(writing a glossary entry) @ grove/CONTEXT-FORMAT.md	
 glossary-is-the-forcing-function	grove/CONTEXT-FORMAT.md	B+S	on(a term is resolved) @ grove/SKILL.md	Never batch a session's terms for the end
 terms-are-context-specific	grove/CONTEXT-FORMAT.md	B	on(writing a glossary entry) @ grove/CONTEXT-FORMAT.md	
+contract-absent-parts-default	grove/DOCUMENT-CONTRACT-FORMAT.md	B+S	on(writing or reading a document contract) @ grove/SKILL.md	An absent part takes the default in the table above and blocks no stage
+contract-declared-by-path	grove/DOCUMENT-CONTRACT-FORMAT.md	B+S	on(writing or reading a document contract) @ grove/SKILL.md	declares its contract by path from its leaf body or node brief
+contract-outcome-is-find-understand-use	grove/DOCUMENT-CONTRACT-FORMAT.md	B+S	on(writing or reading a document contract) @ grove/SKILL.md	A readability score, grade level or length limit is not an outcome and gates nothing
+contract-prose-contract-fields	grove/DOCUMENT-CONTRACT-FORMAT.md	B+S	on(writing or reading a document contract) @ grove/SKILL.md	names its base and exceptions, its keyword convention, term list, code typography and example labels
+contract-structure-brief-fields	grove/DOCUMENT-CONTRACT-FORMAT.md	B+S	on(writing or reading a document contract) @ grove/SKILL.md	The structure brief states the reader outcome and these fields
+contract-structure-decided-by-the-human	grove/DOCUMENT-CONTRACT-FORMAT.md	B+S	on(writing or reading a document contract) @ grove/SKILL.md	records the human's own words and the locations they identify
+format-declares-media-and-environments	grove/DOCUMENT-CONTRACT-FORMAT.md	B+S	on(writing or reading a document contract) @ grove/SKILL.md	names the admitted figure media and renderers with pinned versions, any generation step
+format-per-set-with-the-human	grove/DOCUMENT-CONTRACT-FORMAT.md	B+S	on(writing or reading a document contract) @ grove/SKILL.md	Before any choice in the format part (format, media, renderers or viewing environments) turns on a dated capability fact
+prose-contract-builds-on-its-base	grove/DOCUMENT-CONTRACT-FORMAT.md	B+S	on(writing or reading a document contract) @ grove/SKILL.md	the first contract on the walk that states the point governs it
+reader-checkpoints-scheduled-after-proof	grove/DOCUMENT-CONTRACT-FORMAT.md	B+S	on(writing or reading a document contract) @ grove/SKILL.md	A declared reader checkpoint is cut as a requirements leaf after the document's proof by the session that cuts the document's leaf
+house-style-task-headings	grove/references/house-style.md	S	on(a set takes the house style) @ grove/DOCUMENT-CONTRACT-FORMAT.md	A task heading starts with a bare infinitive
+house-style-introducing-steps	grove/references/house-style.md	S	on(a set takes the house style) @ grove/DOCUMENT-CONTRACT-FORMAT.md	A complete sentence introduces a procedure
+house-style-register	grove/references/house-style.md	S	on(a set takes the house style) @ grove/DOCUMENT-CONTRACT-FORMAT.md	in a conversational rather than formal tone
+house-style-length	grove/references/house-style.md	S	on(a set takes the house style) @ grove/DOCUMENT-CONTRACT-FORMAT.md	No length target
+house-style-steps	grove/references/house-style.md	S	on(a set takes the house style) @ grove/DOCUMENT-CONTRACT-FORMAT.md	the location, condition or goal the reader needs first comes before the action
+house-style-demonstratives	grove/references/house-style.md	S	on(a set takes the house style) @ grove/DOCUMENT-CONTRACT-FORMAT.md	takes a noun where its referent could be unclear
+house-style-voice	grove/references/house-style.md	S	on(a set takes the house style) @ grove/DOCUMENT-CONTRACT-FORMAT.md	Passive or stative where the reader does not need the actor
+house-style-front-loading	grove/references/house-style.md	S	on(a set takes the house style) @ grove/DOCUMENT-CONTRACT-FORMAT.md	paragraph openings start with their information-carrying words
+house-style-keywords	grove/references/house-style.md	S	on(a set takes the house style) @ grove/DOCUMENT-CONTRACT-FORMAT.md	they carry their BCP 14 meaning
+house-style-terms	grove/references/house-style.md	S	on(a set takes the house style) @ grove/DOCUMENT-CONTRACT-FORMAT.md	A glossary term is linked at its first use on each page
+house-style-code	grove/references/house-style.md	S	on(a set takes the house style) @ grove/DOCUMENT-CONTRACT-FORMAT.md	A code block is fenced, and tagged with its language
+house-style-example-labels	grove/references/house-style.md	S	on(a set takes the house style) @ grove/DOCUMENT-CONTRACT-FORMAT.md	a fragment's label says what it omits
+house-style-stock-phrasing	grove/references/house-style.md	S	on(a set takes the house style) @ grove/DOCUMENT-CONTRACT-FORMAT.md	no reflexive list of three
+house-style-simple-layout	grove/references/house-style.md	S	on(a set takes the house style) @ grove/DOCUMENT-CONTRACT-FORMAT.md	a heading level is added only for a section with at least two subsections
+house-style-normative-text-and-aids	grove/references/house-style.md	S	on(a set takes the house style) @ grove/DOCUMENT-CONTRACT-FORMAT.md	a blank line closes it before any text that follows
+figure-answers-a-question-at-a-level	grove/FIGURE-FORMAT.md	B	static({art,proof,requirements,design})	keep notation, model and renderer distinct
+decompose-where-levels-add-value	grove/FIGURE-FORMAT.md	B	static({art,proof,requirements,design})	Run from context to detail through only the levels that add value
+figure-states-scope-omissions-entry	grove/FIGURE-FORMAT.md	B	static({art,proof,requirements,design})	it has an identifiable reading entry, labels sit on the elements they name
+conventions-identifiable-notation-per-reader	grove/FIGURE-FORMAT.md	B	static({art,proof,requirements,design})	Teaching the notation itself depends on the declared reader, and colour never carries meaning alone
+one-visual-vocabulary	grove/FIGURE-FORMAT.md	B	static({art,proof,requirements,design})	It adds a new diagram kind only when the question changes
+text-reaches-figure-information	grove/FIGURE-FORMAT.md	B	static({art,proof,requirements,design})	without narrating notation a fluent reader reads
+place-by-question	grove/FIGURE-FORMAT.md	B	static({art,proof,requirements,design})	a lookup view at its lookup destination with links from elsewhere
+derived-figure-agrees-with-its-source	grove/FIGURE-FORMAT.md	B	static({art,proof,requirements,design})	what the notation cannot show is stated beside it with rule links
+rendered-figure-ships-with-its-source	grove/FIGURE-FORMAT.md	B	static({art,proof,requirements,design})	commits its editable source and tool-generated SVG together
+checks-establish-different-properties	grove/FIGURE-FORMAT.md	B	static({art,proof,requirements,design})	reader understanding are separate results, and none stands in for another
+sketch-clauses	grove/FIGURE-FORMAT.md	B	static({requirements,design})	sketch in the simplest dialect that answers the question
 signal-is-the-last-action	${prompt}	B*	static(all)	
 bootstrap-order	grove/SKILL.md	B	static(all)	
 hitl-afk-mark-predicts	grove/SKILL.md	B	static(all)	
@@ -163,6 +199,20 @@ review-budget-by-kind	grove/references/execute.md	B	on(considering a reviewer) @
 review-budget-predicate	grove/references/execute.md	B	on(considering a reviewer) @ grove/references/execute.md	adopted that mandate by running Bootstrap
 sweep-scope-is-the-claim	grove/references/execute.md	B	on(making a repo-wide claim) @ grove/references/execute.md	The sweep's scope is the claim's scope
 verify-repo-claims-with-controls	grove/references/execute.md	B	on(about to make a repo-wide claim) @ grove/SKILL.md	clean-here plus dirty-there cannot be produced by a broken instrument
+compare-then-principle-then-limit	grove/references/execute.md	B+S	static({draft,copy-edit,requirements,design})	stating the principle that separates them, and naming where the comparison breaks
+domain-roles-and-choices-kept-distinct	grove/references/execute.md	B+S	static({draft,requirements,design})	keep subject, producer and consumer roles apart
+establish-actors-before-labels	grove/references/execute.md	B+S	static({draft,copy-edit,requirements,design})	what each case actually does. After any passage, whether or not it introduces a label, the intended reader can say who acts
+explain-what-the-reader-cannot-infer	grove/references/execute.md	B+S	static({draft,copy-edit,requirements,design})	Removing narration never compresses an unfamiliar concept back into jargon
+no-invented-observations	grove/references/execute.md	B+S	static({draft,requirements,design})	no output is shown that no tool produced
+normative-text-traces-and-ambiguity-surfaces	grove/references/execute.md	B+S	static({draft,requirements,design})	a rejected form names the rule that rejects it
+one-name-one-entity	grove/references/execute.md	B+S	static({draft,copy-edit,requirements,design})	uses one name for one entity
+positive-subject-restrictions-recoverable	grove/references/execute.md	B+S	static({copy-edit,requirements,design})	every exact prohibition and rejection condition stays recoverable from its rule
+teach-the-model-before-notation	grove/references/execute.md	B+S	static({draft,copy-edit,requirements,design})	Explain the subject model and the reader's task first
+vocabulary-before-trade-off	grove/references/execute.md	B	on(handing a question back to a human) @ grove/SKILL.md	Using, quoting or asking about a term is not that evidence
+problem-before-proposal	grove/references/execute.md	B	on(handing a question back to a human) @ grove/SKILL.md	The question states the problem and what it costs before any option
+restate-agreement-point-decisions	grove/references/execute.md	B	on(handing a question back to a human) @ grove/SKILL.md	asks the human to restate the decision in their own words
+exchange-prose-follows-the-house-style	grove/references/execute.md	B	on(handing a question back to a human) @ grove/SKILL.md	follows the house style's points wherever their form occurs
+exchange-reaches-the-teaching-rules	grove/references/execute.md	B	on(handing a question back to a human) @ grove/SKILL.md	The rules reach every part the human decides from
 absent-tree-proves-nothing	grove-finish/SKILL.md	B	static({finish})	
 declined-finish-stays-live	grove-finish/SKILL.md	B	static({finish})	
 finish-confirmation-gate	grove-finish/SKILL.md	B	static({finish})	

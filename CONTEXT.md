@@ -829,6 +829,88 @@ bare stem, for the reason a [[Review chain]]'s steps do.
 _Avoid_: reading `art` as a licence to add files beside the page. A stage works
 only in the medium the document's own contract admits.
 
+<a id="document-contract"></a>
+### Document contract
+
+What a document in the [[Editorial chain]] declares and every stage works
+against. It has three parts, the [[Structure brief]], the [[Prose contract]]
+and **format and media**, plus its [[Reader checkpoint]]s. Each part is
+declared by path, and the prose contract and format usually serve a whole
+document set. Its shape is `DOCUMENT-CONTRACT-FORMAT.md`.
+_Avoid_: "spec" or "brief" for the whole. A spec is a design agreement, and a
+brief is a task-tree node's context.
+
+<a id="structure-brief"></a>
+### Structure brief
+
+The part of a [[Document contract]] the human decides, per document. It states
+the reader, their outcome and their expertise per domain and representation;
+the section plan, putting the model before its notation, with page purposes
+and entry routes; emphasis, exclusions and the intended domain. `draft` stops
+without one.
+_Avoid_: reading the node's own brief as one. A node file exists automatically;
+a structure brief is three citable things.
+
+<a id="prose-contract"></a>
+### Prose contract
+
+The part of a [[Document contract]] that `copy-edit` applies, and whose
+keyword, example-label, normative-aid and layout conventions `draft` writes to.
+It names its base (a style guide, another prose contract, or the [[House style]])
+and the exceptions the document set takes, its normative-keyword convention,
+term list, code typography and example labels, and how normative text and aids
+are told apart.
+_Avoid_: "style guide" for the whole. A style guide can be a prose contract's
+base; the contract adds the set's exceptions and conventions.
+
+<a id="house-style"></a>
+### House style
+
+The [[Prose contract]] Grove ships. A document set takes it when its
+[[Document contract]] declares no prose contract, and a declared prose contract
+that names no base builds on it. Beneath a style guide named as a base, it
+supplies every point the guide does not settle otherwise.
+Requirements and design sessions write to the human in it. Its closed list of points covers sentences, words and the layout
+of text, following Google's developer documentation style guide where it names
+no other source. Its file is
+`grove/references/house-style.md`.
+_Avoid_: reading its points as stage rules. A declared prose contract replaces
+any of them, which no stage rule allows.
+_Avoid_: "Google style" for it. A set that wants Google's whole guide names that
+guide as its base.
+
+<a id="figure-contract"></a>
+### Figure contract
+
+What every figure answers to, whoever draws it: `art` in a document, or a
+view drawn in a requirements or design exchange. It covers the question and
+level, scope and omissions, a reading entry, identifiable conventions, notation
+teaching per declared reader, placement, and a rendered figure shipped with its
+source. Its shape is `FIGURE-FORMAT.md`.
+_Avoid_: "diagram checklist". It binds tables and text-fence drawings as well.
+
+<a id="exchange"></a>
+### Exchange
+
+What a `requirements` or `design` session hands the human while a decision is
+open, and the human's answers: the messages, each question with its header and
+options, and any view drawn for it. The human is its reader. It follows the
+teaching rules in `execute.md` that documents follow, is written in the
+[[House style]], and draws its views to the [[Figure contract]].
+_Avoid_: "conversation" as the scope of these rules. Any session may stop and
+ask the human, but the rules bind requirements and design exchanges only.
+
+<a id="reader-checkpoint"></a>
+### Reader checkpoint
+
+A read of a document by its intended reader, or a labelled stand-in, outside
+the four stages. A [[Document contract]] declares it, and it runs as a
+`requirements` [[Leaf]] after the document's `proof`. It records the reader's
+words, the locations they report and what stayed unknown, with each class of
+evidence kept apart.
+_Avoid_: counting a model proxy's success, a passing check or a positive comment
+as the reader understanding.
+
 <a id="pass-series"></a>
 ### Pass series / pass
 

@@ -1,0 +1,12 @@
+Load the `grove-draft` skill now. Your kind is `draft`. The leaf selected for this session is `editorconfig-k2`.
+
+This working tree is an evaluation copy of a Grove tree. No Grove driver runs it, and it is not under
+version control. Because of that, these rules replace the parts of the skills that need the driver:
+
+- Do not run `grove-llm`, `ravel` or `jj`. Read the task file directly: `.grove/01-k1/01-draft--editorconfig-k2.md`.
+- Read the brief chain directly: `.grove/_BRIEF.md` and the node brief beside the task file.
+- Do the work of the `draft` stage as your skills describe it, until the task's Done-when holds.
+- Do not retire the leaf, commit, record a teardown or send an ending signal.
+
+When the stage work is complete, end with a short report to the human: what you changed, what you checked,
+and anything you handed forward or left open.

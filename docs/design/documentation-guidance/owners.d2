@@ -1,0 +1,51 @@
+# Owner map: which file owns each new rule, and which sessions open it.
+direction: down
+
+vars: {
+  d2-legend: {
+    s: Session {class: session}
+    f: Skill file {class: file}
+    s -> f: opens, when the labelled condition holds
+  }
+}
+
+classes: {
+  session: {shape: rectangle; style.border-radius: 8}
+  file: {shape: page}
+  start: {style: {fill: "#1f2937"; font-color: "#ffffff"; bold: true}}
+}
+
+**.style.font-size: 20
+(** -> **)[*].style.font-size: 18
+
+authors: "Start here:\nauthoring session\n(requirements, design, planning)" {class: [session; start]}
+stages: "Editorial stage\n(draft, copy-edit, art, proof)" {class: session}
+checkpoint: "Reader checkpoint\n(a requirements leaf)" {class: session}
+exchange: "Requirements or design\nexchange with the human" {class: session}
+
+register: "grove/SKILL.md\ncondition register" {class: file}
+editorial: "grove/references/editorial.md\nfamily procedure" {class: file}
+contract: "grove/DOCUMENT-CONTRACT-FORMAT.md\n(new)" {class: file}
+figure: "grove/FIGURE-FORMAT.md\n(new)" {class: file}
+toolchain: "grove/references/\ndocumentation-toolchain.md\n(new: dated facts)" {class: file}
+housestyle: "grove/references/\nhouse-style.md\n(new: Grove's prose contract)" {class: file}
+execute: "grove/references/execute.md\n(hand-back and teaching,\nextended)" {class: file}
+readertest: "grove-requirements/\nreader-test.md (new)" {class: file}
+vdd: "grove-design/references/\nvisual-design-discussion.md\n(figure rules moved out)" {class: file}
+
+authors -> register: "1. writing a contract"
+register -> contract: "2. names"
+stages -> editorial: "every stage"
+editorial -> contract: "names the parts"
+stages -> figure: "art: every figure\nproof: checking figures"
+contract -> toolchain: "choosing a format"
+contract -> housestyle: "a set takes\nthe house style"
+figure -> toolchain: "choosing a renderer"
+checkpoint -> readertest: "holding a read"
+readertest -> toolchain: "checking a viewer"
+exchange -> execute: "handing back\na question"
+stages -> execute: "draft, copy-edit:\nteaching section"
+exchange -> vdd: "design\nsessions only"
+vdd -> figure: "design views"
+execute -> figure: "a view drawn\nin the exchange"
+execute -> housestyle: "prose handed\nto the human"

@@ -1,0 +1,11 @@
+The C4 model for visualising software architecture
+https://c4model.com
+
+The website and example diagrams are licensed under the Creative Commons
+Attribution 4.0 International License (CC BY 4.0), by Simon Brown.
+Licence text: https://creativecommons.org/licenses/by/4.0/legalcode
+
+Use in Grove: FIGURE-FORMAT.md restates the C4 model's levels of detail and
+its reading order from context to detail. It uses Grove's own words and the
+site as it stood on 2026-11-17. Grove adapted those points and added rules of its own.
+Simon Brown does not endorse Grove or its use of the C4 model.

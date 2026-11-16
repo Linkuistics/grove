@@ -48,7 +48,7 @@ and
 [`restatement-declares-its-class`](../../docs/adr/restatement-declares-its-class.md)
 make checkable.
 
-So the spine carries `SKILL.md`, the five format documents, the seven shared
+So the spine carries `SKILL.md`, the seven format documents, the seven shared
 loop-step references, and the family files of `review` and `integrate-review`.
 It carries no kind reference and no list of kinds: **a kind exists iff a skill
 of that name exists.**
@@ -68,6 +68,23 @@ WritingSkills are the one hybrid: each
 directs a load of its family's file *and* carries its own charter inline, because
 what the four share is the pipeline's mechanics and what divides them is the
 whole point of having four.
+
+**A procedure that a kind reaches only on a condition is the bounded
+exception.** Such a procedure is a file beside that kind's `SKILL.md`, and the
+`SKILL.md` reaches it on one stated condition. The rest of the kind's
+single-kind rules stay inline. A session that never meets the condition never
+loads the file, so the kind's loaded path stays lean.
+
+- `grove-requirements` carries two such procedures. It reaches `grilling.md`
+  when the grilling threshold is met. It reaches `reader-test.md` when the leaf
+  holds a reader checkpoint.
+- `grove-design` carries its visual design reference,
+  `references/visual-design-discussion.md`, which it reaches for a visual
+  design discussion. That reference cites the viewer asset
+  `assets/diagram-viewer.html`, which the skill also carries.
+
+The conformance rows of each procedure name the condition as their load
+predicate. The runner then asserts the edge from the `SKILL.md` to the file.
 
 No kind in core carries a file beside its `SKILL.md`. The one such file was
 `grove-impl/LICENSES/addyosmani-agent-skills.LICENSE`, which only that skill's

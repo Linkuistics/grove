@@ -1,0 +1,70 @@
+task: [check:plugin] if ! command -v claude >/dev/null 2>&1; then
+  echo "skipping check:plugin: Claude Code is not installed"
+  exit 0
+fi
+claude plugin validate 'plugins/design'
+
+Validating plugin manifest: /Users/antony/Development/AgenticOrchestration/DesignSkills/plugins/design/.claude-plugin/plugin.json
+
+⚠ Found 1 warning:
+
+  ❯ version: No version specified. Consider adding a version following semver (e.g., "1.0.0")
+
+Plugin directory checks for /Users/antony/Development/AgenticOrchestration/DesignSkills/plugins/design. The plugin directory is the catalog that plugins are submitted to; this is a subset of what it runs.
+
+⚠ Found 1 plugin directory warning:
+
+  ❯ .claude-plugin/plugin.json icon: No icon (ICON_MISSING). No icon found in the plugin. The validator looked for `icon` in plugin.json and for a file at .claude-plugin/icon.png or .svg, assets/icon.png or .svg, or a similar path.
+    Fix: Add a square PNG to the plugin folder at .claude-plugin/icon.png, or set `icon` in plugin.json to the path of a square PNG or JPEG in the plugin: 512 to 2048 px on each side, under 2 MB. SVG and WebP are not accepted. That file may become the listing icon only once: the first time the plugin is saved or submitted in the developer portal. Adding or changing it later does not change the icon.
+
+About these checks:
+
+  ❯ The repository root was taken to be /Users/antony/Development/AgenticOrchestration/DesignSkills, the nearest parent folder with a .git folder or file. README.md was taken from it, because this plugin folder has none of its own. For a plugin submitted from a git repository, the repository root is the top folder of that repository, with only what is committed there, so check that the folder named above is that top folder.
+
+These plugin directory checks do not change the result below.
+
+The directory also runs a safety scan and a policy review that this command does not.
+
+✔ Validation passed with warnings
+task: [grove:checkout] dir='/Users/antony/Development/AgenticOrchestration/DesignSkills/.cache/grove/72c2b41994b4bc008dcd5b28368095fa24c8e681'
+commit='72c2b41994b4bc008dcd5b28368095fa24c8e681'
+if [ -d "$dir/.git" ] \
+  && [ "$(git -C "$dir" rev-parse HEAD 2>/dev/null)" = "$commit" ] \
+  && [ -z "$(git -C "$dir" status --porcelain --ignored)" ]; then
+  echo "reusing the clean Grove checkout of $commit"
+  exit 0
+fi
+rm -rf "$dir"
+mkdir -p "$dir"
+git init --quiet "$dir"
+git -C "$dir" fetch --quiet --depth 1 '/Users/antony/Development/AgenticOrchestration/grove' "$commit"
+git -C "$dir" checkout --quiet --detach FETCH_HEAD
+head="$(git -C "$dir" rev-parse HEAD)"
+if [ "$head" != "$commit" ]; then
+  echo "error: the Grove checkout is at $head, not $commit" >&2
+  exit 1
+fi
+echo "checked out Grove $commit from /Users/antony/Development/AgenticOrchestration/grove"
+
+checked out Grove 72c2b41994b4bc008dcd5b28368095fa24c8e681 from /Users/antony/Development/AgenticOrchestration/grove
+task: [check:conformance] bash '/Users/antony/Development/AgenticOrchestration/DesignSkills/.cache/grove/72c2b41994b4bc008dcd5b28368095fa24c8e681/plugins/grove/conformance.sh' --pack 'plugins/design' --alone
+grove conformance — design alone
+pack   design /Users/antony/Development/AgenticOrchestration/DesignSkills/plugins/design/skills
+note   external edge: grove-design/SKILL.md loads `grove`, which this pack does not ship
+note   external resource: grove-design/references/visual-design-discussion.md names `FIGURE-FORMAT.md`, which resolves in `grove`, a skill this pack does not ship
+note   external resource: grove-design/references/visual-design-discussion.md names `references/documentation-toolchain.md`, which resolves in `grove`, a skill this pack does not ship
+note   external edge: grove-integrate-review-design/SKILL.md loads `grove`, which this pack does not ship
+note   external resource: grove-integrate-review-design/SKILL.md names `references/integrate-review.md`, which resolves in `grove`, a skill this pack does not ship
+note   external edge: grove-review-design/SKILL.md loads `grove`, which this pack does not ship
+note   external resource: grove-review-design/SKILL.md names `references/review.md`, which resolves in `grove`, a skill this pack does not ship
+rules  5 single-source checked, 7 loaded-path checked
+       2 with no pinned wording, 0 bound to no shipped kind, 0 delivered by ${prompt}
+       3 external edge(s) and 4 external resource(s), which the aggregate resolves
+ok     every assertion holds over the supplied skill set
+task: [check:conformance] bash '/Users/antony/Development/AgenticOrchestration/DesignSkills/.cache/grove/72c2b41994b4bc008dcd5b28368095fa24c8e681/plugins/grove/conformance.sh' --pack 'plugins/design'
+grove conformance — aggregate of 2 packs
+pack   core /Users/antony/Development/AgenticOrchestration/DesignSkills/.cache/grove/72c2b41994b4bc008dcd5b28368095fa24c8e681/plugins/grove/skills
+pack   design /Users/antony/Development/AgenticOrchestration/DesignSkills/plugins/design/skills
+rules  147 single-source checked, 995 loaded-path checked
+       53 with no pinned wording, 0 bound to no shipped kind, 1 delivered by ${prompt}
+ok     every assertion holds over the supplied skill set

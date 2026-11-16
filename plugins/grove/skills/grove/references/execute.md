@@ -217,6 +217,48 @@ Three parts, and the third is what makes the escalation answerable:
 
 That turns an escalation into a decision instead of an open-ended handback.
 
+### The exchange in a requirements or design session
+
+A `requirements` or `design` session hands the human questions in an
+exchange, and these rules bind that exchange. A view drawn for the exchange
+meets `FIGURE-FORMAT.md`. The exchange has no document contract, so its prose
+takes the house style in `references/house-style.md` directly. A point of the
+house style applies only where its form occurs. A comparison of options
+follows the teaching section's rule on comparison, which this section does not
+restate.
+
+<!-- tc: depart long-sentence because the conformance inventory pins this rule statement verbatim -->
+- **Before a trade-off that depends on a term or domain fact, the question
+  defines it or asks about it, unless the exchange has already explained it or
+  the human has shown they know what the trade-off needs of it. The human has
+  shown that by stating it, reasoning with it correctly, or confirming it as
+  the exchange stated it, in the exchange or in their own writing the session
+  has read. Using, quoting or asking about a term is not that evidence. A
+  doubt they voice about a meaning outweighs any earlier explanation or
+  evidence.**
+- **The question states the problem and what it costs before any option.**
+<!-- tc: depart long-sentence because the conformance inventory pins this rule statement verbatim -->
+- **At an agreement point (a spec or a decision that meets the ADR bar), the
+  session asks the human to restate the decision in their own words and
+  records the restatement beside their answer.**
+- **Prose handed to the human in the exchange follows the house style's
+  points wherever their form occurs.**
+<!-- tc: depart long-sentence,semicolon because the conformance inventory pins this rule statement verbatim -->
+- **Prose handed to the human in the exchange follows the teaching section,
+  with the human as its reader. What the exchange has already explained, and
+  what the human has shown they know, as `vocabulary-before-trade-off` defines
+  both, is what they already read. A name they have used for an entity is
+  kept rather than replaced by a synonym, whether or not they have shown they
+  know what it names; where the project uses that name for a different
+  entity, the question says which is meant. A question reasons with plain
+  names: an identifier, code or file name, the human's own included, follows
+  the plain statement of what it names, only as a pointer where the human
+  needs to find the thing. Where a name or notation is itself what the human
+  decides, the candidates follow the plain statement of what they express.
+  The rules reach every part the human decides from: the message, a
+  question's header, each option's label and description, and the text of any
+  view drawn for it.**
+
 **Required unanswered input keeps the leaf live and the interactive harness
 session open.** Follow this handoff:
 
@@ -237,3 +279,59 @@ session open.** Follow this handoff:
 
 If the human explicitly requests termination, honour that request through the
 launch contract's stop procedure.
+
+<!-- tc: on -->
+
+## Teaching the reader
+
+These rules bind `draft` and `copy-edit` while they work on a document. They
+teach the reader that the document's contract declares. They also bind a
+`requirements` or `design` session in its exchange with the human, and there
+the human is the reader. Each rule applies within the charter of the stage
+that applies it. A rule marked with one stage, such as *`draft` alone*, binds
+that editorial stage and no other editorial stage. The mark does not remove
+the rule from an exchange.
+
+`draft` writes what the text teaches. `copy-edit` repairs how its sentences
+carry that teaching, and it sends missing teaching back to `draft`.
+
+- **Teach the model before the notation.** Explain the subject model and the
+  reader's task first, then describe the notation, identifiers or codes that
+  express them by reference to that model. <!-- tc: depart long-sentence because the conformance inventory pins this rule statement verbatim -->
+- **Establish the actors before a label.** Before an abstract label,
+  establish in the local explanation who acts, on what, and with what
+  consequence, whose viewpoint a relative term takes, and what each case
+  actually does. After any passage, whether or not it introduces a label, the
+  intended reader can say who acts, what they do and what follows; a synonym
+  for an abstract noun leaves that gap open. <!-- tc: depart long-sentence,semicolon because the conformance inventory pins this rule statement verbatim -->
+- **Explain what this reader cannot infer.** Explain the referents,
+  relationships, conditions and consequences this reader cannot infer, in an
+  explained example as in running text. Each explanatory sentence adds meaning
+  this reader needs, and none narrates what they already read, such as a
+  familiar token. Explanation length follows that need: a length limit yields
+  to it, and a document's draft records the override. Removing narration never
+  compresses an unfamiliar concept back into jargon.
+- **Compare, then state the principle, then name the limit.** Teach a new
+  distinction, or put a choice between options, by setting the cases or
+  options side by side, stating the principle that separates them, and naming
+  where the comparison breaks. An analogy states its basis and where it fails;
+  a distinction between kinds is shown through their uses. <!-- tc: depart long-sentence,semicolon because the conformance inventory pins this rule statement verbatim -->
+- **One name for one entity.** Text read together (introductions, code
+  labels, captions and tables) uses one name for one entity, and a use
+  colliding with a declared term risk is flagged. <!-- tc: depart long-sentence because the conformance inventory pins this rule statement verbatim -->
+- **Keep the domain, the roles and the choices distinct** (*`draft` alone*).
+  Establish the intended domain before comparing alternatives and judge a
+  source's assumptions against it; keep subject, producer and consumer roles
+  apart; keep what the problem requires apart from what the design chose,
+  with its costs and alternatives in view; a list of examples implies no
+  property the list does not establish. <!-- tc: depart long-sentence,semicolon because the conformance inventory pins this rule statement verbatim -->
+- **Normative text traces to its rule** (*`draft` alone*). Every normative
+  statement traces to its rule, a rejected form names the rule that rejects
+  it, an ambiguity in the subject is recorded rather than resolved in silence,
+  and added teaching preserves normative force and exact restrictions. <!-- tc: depart long-sentence because the conformance inventory pins this rule statement verbatim -->
+- **Invent no observation** (*`draft` alone*). Expected observations are
+  checkable by inspection, and no output is shown that no tool produced.
+- **State the subject positively, and keep every restriction recoverable**
+  (*`copy-edit` alone*). Headings and openings name the subject, its operation
+  and its conditions positively, and every exact prohibition and rejection
+  condition stays recoverable from its rule. <!-- tc: depart long-sentence because the conformance inventory pins this rule statement verbatim -->

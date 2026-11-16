@@ -1,0 +1,45 @@
+# The guidance increments and what each depends on.
+direction: down
+
+vars: {
+  d2-legend: {
+    w: Existing leaf {class: work}
+    i: Proposed increment {class: increment}
+    w -> i: must finish first
+  }
+}
+
+classes: {
+  work: {shape: rectangle; style.border-radius: 8}
+  increment: {shape: rectangle; style.stroke-dash: 4}
+  start: {style: {fill: "#1f2937"; font-color: "#ffffff"; bold: true}}
+}
+
+**.style.font-size: 20
+
+k7: "Start here:\nthis design (k7)" {class: [work; start]}
+review: "Design review\nchain" {class: work}
+hs: "House style design\nand its review\n(k17, k18)" {class: work}
+ex: "Exchange teaching\ndesign (k19)" {class: work}
+k8: "Evaluation\nbaseline (k8)" {class: work}
+k9: "Increment\nplanning (k9)" {class: work}
+i1: "1. Document contract\nand draft" {class: increment}
+i2: "2. Format selection,\ncapability snapshot" {class: increment}
+i3: "3. copy-edit and\nhouse style" {class: increment}
+i4: "4. Figures" {class: increment}
+i5: "5. proof and reader\ncheckpoints" {class: increment}
+i6: "6. Exchange\npractices" {class: increment}
+k10: "Revised\ntrials (k10)" {class: work}
+k11: "Human\nread (k11)" {class: work}
+
+k7 -> review -> hs -> ex -> k8 -> k9 -> i1
+i1 -> i2
+i1 -> i3
+i2 -> i4
+i2 -> i5
+i3 -> i6
+i4 -> i6
+i3 -> k10
+i5 -> k10
+i6 -> k10
+k10 -> k11

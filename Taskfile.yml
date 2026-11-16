@@ -369,6 +369,23 @@ tasks:
     cmds:
       - cargo nextest run --locked -p grove-llm {{.CLI_ARGS}}
 
+  # The figures check covers every directory that holds a regenerate.sh, so a
+  # repository that gains committed rendered figures needs no change here.
+  figures:check:
+    desc: Check that every committed figure directory regenerates byte-identically under its pinned tools
+    cmds:
+      - bash scripts/check-figures.sh {{.CLI_ARGS}}
+
+  figures:regenerate:
+    desc: Regenerate the committed documentation-guidance figures from their sources
+    cmds:
+      - bash docs/design/documentation-guidance/regenerate.sh
+
+  publication:history:check:
+    desc: Fail if a blob that a push to origin could publish exceeds 100 MiB, and report each above 50 MiB (reads jj's Git store, not part of scripts/check.sh)
+    cmds:
+      - bash scripts/check-blob-sizes.sh publication
+
   design:harness-selection:
     desc: Serve the harness selection design at localhost (default port 8769)
     vars:

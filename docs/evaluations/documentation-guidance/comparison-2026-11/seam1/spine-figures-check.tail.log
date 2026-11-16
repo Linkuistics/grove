@@ -1,0 +1,2 @@
+task: [figures:check] bash scripts/check-figures.sh 
+figures: no directory holds a regenerate.sh, so no committed figure needs a check

@@ -1,0 +1,112 @@
+{
+  "title": "Documentation guidance: placement, contracts and increments",
+  "intro": "Design for documentation-guidance-k7, revised by the review integration documentation-guidance-k16 and agreed by the human on 2026-09-30; the house style (default-house-style-k17) was agreed the same day and revised by its review integration (default-house-style-k20). The teaching rules' reach into exchanges (exchange-teaching-k19) was agreed the same day. Each view starts at its dark 'Start here' node, and numbered edge labels give order where it matters. The spec (docs/specs/documentation-guidance.md) owns every decision; captions state scope and omissions only.",
+  "groups": [
+    {
+      "id": "placement",
+      "title": "Placement",
+      "description": "Which file owns each new rule, and which sessions open it."
+    },
+    {
+      "id": "exchange-teaching",
+      "title": "Teaching in exchanges",
+      "description": "How the draft and copy-edit teaching rules reach what requirements and design sessions hand the human."
+    },
+    {
+      "id": "contracts",
+      "title": "Contracts and handoffs",
+      "description": "The document contract's parts, who writes them and who reads them."
+    },
+    {
+      "id": "house-style",
+      "title": "House style",
+      "description": "The prose contract Grove ships, and which contract governs a point."
+    },
+    {
+      "id": "checkpoints",
+      "title": "Reader checkpoints",
+      "description": "A human read outside the four stages, and where its corrections go."
+    },
+    {
+      "id": "increments",
+      "title": "Increments",
+      "description": "The slicing guidance-increments-k9 will cut, with dependencies."
+    }
+  ],
+  "discussion": {
+    "title": "Teaching rules in requirements and design exchanges",
+    "status": "Agreed",
+    "summary": "Nine teaching practices bind requirements and design exchanges, and draft, copy-edit or both. Five bind both stages: explain the model before its notation or IDs; say who acts, on what, and what follows before an abstract label, and after any passage; explain what the reader cannot infer and nothing they already know; compare the cases side by side, state the principle, and say where the comparison breaks; one name per entity. Four keep the one stage they bound before: keep the intended domain and roles apart from a motivating example; keep a rule's force and conditions when quoting or explaining it; show no output a tool did not produce (draft); name subjects positively (copy-edit). The human agreed they live in execute.md's teaching section, as the placement function computes, at about 480 words on every session's path. In an exchange the human is the reader; what the exchange explained and what they stated, reasoned with or confirmed counts as known, unless they voice a doubt; a question reasons with plain names with any ID only as a pointer after them; and the rules reach a question's header and option labels. Three rules merged into others as they moved. A rule reaches an exchange when an exchange can contain its form; the others do not, each for a stated reason (spec section 7). The exchange case is scored with T1, T2, T4, T5, T10, H1, H2 and H3, as T12 already is, and E3 also covers a distinction the exchange teaches. Increments 1, 3 and 6 widen the section's scope in turn.",
+    "diagramIds": [
+      "teaching-options",
+      "owners",
+      "increments"
+    ],
+    "updatedDiagrams": [
+      {
+        "id": "teaching-options",
+        "summary": "Marked A as the agreed placement and C as rejected; the section now states nine rules, about 480 words."
+      },
+      {
+        "id": "owners",
+        "summary": "Added the editorial stages' route to execute.md's teaching section, for draft and copy-edit."
+      }
+    ]
+  },
+  "diagrams": [
+    {
+      "id": "owners",
+      "group": "placement",
+      "title": "Owner map: which file owns each new rule",
+      "renderer": "svg",
+      "source": "owners.d2",
+      "rendered": "owners.svg",
+      "caption": "Only new or changed owner files are drawn. Omitted: the stage skills' own charter lines, the other format files, and every existing rule that does not move. Each edge points from a session, or from the file that names another, to the file opened, and is labelled with its condition."
+    },
+    {
+      "id": "teaching-options",
+      "group": "exchange-teaching",
+      "title": "Where the shared teaching rules live",
+      "renderer": "svg",
+      "source": "teaching-options.d2",
+      "rendered": "teaching-options.svg",
+      "caption": "Scope: the nine teaching rules that bind requirements and design, and draft, copy-edit or both, and which sessions open them. A is the placement agreed on 2026-09-30; C was rejected, and the spec's section 3 gives both reasons. A solid arrow from a session: it opens the file and is bound, a stage by the rules that name it; dashed: it opens the file but is not bound; an arrow between files: the first names the second. The shaded file states the nine rules. Omitted: the stage rules that stay in their skills, the house style and figure contract routes, and art and proof, which open execute.md but are not bound."
+    },
+    {
+      "id": "contract",
+      "group": "contracts",
+      "title": "Who writes each part of the document contract, and which stages read it",
+      "renderer": "svg",
+      "source": "contract.d2",
+      "rendered": "contract.svg",
+      "caption": "Scope: one document, its set-level parts, and every session that writes or reads them. Solid arrows write or decide, in numbered order, or schedule; dashed arrows mean the part is read by that session, and the spec's section 2 table names the fields each reads. Omitted: the glossary, the precedent a prose contract names, and the stages' correction runs. The prose contract and the format part usually serve a whole document set; the structure brief is per document."
+    },
+    {
+      "id": "house-style",
+      "group": "house-style",
+      "title": "Which prose contract governs one point",
+      "renderer": "svg",
+      "source": "house-style.d2",
+      "rendered": "house-style.svg",
+      "caption": "Scope: one point of a prose contract, such as the form of a task heading, for one document set. The first contract on the walk that states the point governs it. A style guide named as a base governs the whole point where it settles the point otherwise; otherwise the house style does. Every other walk ends at the house style, including one that reaches a contract it cannot follow, which the session records; a declared prose contract that names no file is treated the same way. Omitted: which stage applies each point (spec section 9's table), which points Google settles otherwise (only code), and the charters' own tests, which apply whatever governs."
+    },
+    {
+      "id": "checkpoint",
+      "group": "checkpoints",
+      "title": "Where a reader checkpoint runs, and where its corrections go",
+      "renderer": "svg",
+      "source": "checkpoint.d2",
+      "rendered": "checkpoint.svg",
+      "caption": "Scope: one checkpoint on one document. Omitted: the case where the reader accepts with no correction, which simply records and ends, and the escalation after a second re-run of one stage."
+    },
+    {
+      "id": "increments",
+      "group": "increments",
+      "title": "The guidance increments and their dependencies",
+      "renderer": "svg",
+      "source": "increments.d2",
+      "rendered": "increments.svg",
+      "caption": "Arrows mean 'must finish first'. The tree walks the increments in their numbered order; the arrows show which ordering is a real dependency. Omitted: each increment's own review decision."
+    }
+  ]
+}

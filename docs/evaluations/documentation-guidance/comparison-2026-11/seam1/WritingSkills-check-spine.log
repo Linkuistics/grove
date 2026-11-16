@@ -1,0 +1,141 @@
+task: [check:plugin] if ! command -v claude >/dev/null 2>&1; then
+  echo "skipping check:plugin: Claude Code is not installed"
+  exit 0
+fi
+claude plugin validate 'plugins/writing'
+claude plugin validate 'plugins/writing/craft/technical-communication'
+
+Validating plugin manifest: /Users/antony/Development/AgenticOrchestration/WritingSkills/plugins/writing/.claude-plugin/plugin.json
+
+⚠ Found 1 warning:
+
+  ❯ version: No version specified. Consider adding a version following semver (e.g., "1.0.0")
+
+Plugin directory checks for /Users/antony/Development/AgenticOrchestration/WritingSkills/plugins/writing. The plugin directory is the catalog that plugins are submitted to; this is a subset of what it runs.
+
+⚠ Found 1 plugin directory warning:
+
+  ❯ .claude-plugin/plugin.json icon: No icon (ICON_MISSING). No icon found in the plugin. The validator looked for `icon` in plugin.json and for a file at .claude-plugin/icon.png or .svg, assets/icon.png or .svg, or a similar path.
+    Fix: Add a square PNG to the plugin folder at .claude-plugin/icon.png, or set `icon` in plugin.json to the path of a square PNG or JPEG in the plugin: 512 to 2048 px on each side, under 2 MB. SVG and WebP are not accepted. That file may become the listing icon only once: the first time the plugin is saved or submitted in the developer portal. Adding or changing it later does not change the icon.
+
+About these checks:
+
+  ❯ The repository root was taken to be /Users/antony/Development/AgenticOrchestration/WritingSkills, the nearest parent folder with a .git folder or file. README.md was taken from it, because this plugin folder has none of its own. For a plugin submitted from a git repository, the repository root is the top folder of that repository, with only what is committed there, so check that the folder named above is that top folder.
+
+These plugin directory checks do not change the result below.
+
+The directory also runs a safety scan and a policy review that this command does not.
+
+✔ Validation passed with warnings
+Validating plugin manifest: /Users/antony/Development/AgenticOrchestration/WritingSkills/plugins/writing/craft/technical-communication/.claude-plugin/plugin.json
+
+⚠ Found 1 warning:
+
+  ❯ version: No version specified. Consider adding a version following semver (e.g., "1.0.0")
+
+Plugin directory checks for /Users/antony/Development/AgenticOrchestration/WritingSkills/plugins/writing/craft/technical-communication. The plugin directory is the catalog that plugins are submitted to; this is a subset of what it runs.
+
+⚠ Found 1 plugin directory warning:
+
+  ❯ .claude-plugin/plugin.json icon: No icon (ICON_MISSING). No icon found in the plugin. The validator looked for `icon` in plugin.json and for a file at .claude-plugin/icon.png or .svg, assets/icon.png or .svg, or a similar path.
+    Fix: Add a square PNG to the plugin folder at .claude-plugin/icon.png, or set `icon` in plugin.json to the path of a square PNG or JPEG in the plugin: 512 to 2048 px on each side, under 2 MB. SVG and WebP are not accepted. That file may become the listing icon only once: the first time the plugin is saved or submitted in the developer portal. Adding or changing it later does not change the icon.
+
+About these checks:
+
+  ❯ The repository root was taken to be /Users/antony/Development/AgenticOrchestration/WritingSkills, the nearest parent folder with a .git folder or file. README.md was taken from it, because this plugin folder has none of its own. For a plugin submitted from a git repository, the repository root is the top folder of that repository, with only what is committed there, so check that the folder named above is that top folder.
+
+These plugin directory checks do not change the result below.
+
+The directory also runs a safety scan and a policy review that this command does not.
+
+✔ Validation passed with warnings
+task: [grove:checkout] dir='/Users/antony/Development/AgenticOrchestration/WritingSkills/.cache/grove/72c2b41994b4bc008dcd5b28368095fa24c8e681'
+commit='72c2b41994b4bc008dcd5b28368095fa24c8e681'
+if [ -d "$dir/.git" ] \
+  && [ "$(git -C "$dir" rev-parse HEAD 2>/dev/null)" = "$commit" ] \
+  && [ -z "$(git -C "$dir" status --porcelain --ignored)" ]; then
+  echo "reusing the clean Grove checkout of $commit"
+  exit 0
+fi
+rm -rf "$dir"
+mkdir -p "$dir"
+git init --quiet "$dir"
+git -C "$dir" fetch --quiet --depth 1 '/Users/antony/Development/AgenticOrchestration/grove' "$commit"
+git -C "$dir" checkout --quiet --detach FETCH_HEAD
+head="$(git -C "$dir" rev-parse HEAD)"
+if [ "$head" != "$commit" ]; then
+  echo "error: the Grove checkout is at $head, not $commit" >&2
+  exit 1
+fi
+echo "checked out Grove $commit from /Users/antony/Development/AgenticOrchestration/grove"
+
+reusing the clean Grove checkout of 72c2b41994b4bc008dcd5b28368095fa24c8e681
+task: [check:hooks] python3 -I '/Users/antony/Development/AgenticOrchestration/WritingSkills/scripts/hook-count.py' '/Users/antony/Development/AgenticOrchestration/WritingSkills' --plugin 'grove=/Users/antony/Development/AgenticOrchestration/WritingSkills/.cache/grove/72c2b41994b4bc008dcd5b28368095fa24c8e681/plugins/grove' --controls
+writing: plugins writing, grove, technical-communication-hooks; 6 declarations, one for each of 6 hooks
+technical-communication-hooks: plugins technical-communication-hooks; 6 declarations, one for each of 6 hooks
+writing + technical-communication-hooks: plugins writing, technical-communication-hooks, grove; 6 declarations, one for each of 6 hooks
+control failed as required: the writing manifest also declares a Stop hook: installation writing (plugins writing, grove, technical-communication-hooks) gives these declaration counts, and each must be 1: Stop * claude-code reply: 2
+control failed as required: the writing plugin also has a default hooks file: installation writing (plugins writing, grove, technical-communication-hooks) gives these declaration counts, and each must be 1: PostToolUse Write|Edit|NotebookEdit claude-code write: 2; SessionStart * claude-code session-start: 2; Stop * claude-code reply: 2; SubagentStart * claude-code subagent-start: 2; SubagentStop * claude-code reply: 2; UserPromptSubmit * claude-code prompt: 2
+control failed as required: the Stop hook has a second handler: installation writing (plugins writing, grove, technical-communication-hooks) gives these declaration counts, and each must be 1: Stop * claude-code reply: 2
+control failed as required: the hooks file loses SessionStart: installation writing (plugins writing, grove, technical-communication-hooks) gives these declaration counts, and each must be 1: SessionStart * claude-code session-start: 0
+control failed as required: the writing plugin drops the dependency: installation writing (plugins writing, grove) gives these declaration counts, and each must be 1: PostToolUse Write|Edit|NotebookEdit claude-code write: 0; SessionStart * claude-code session-start: 0; Stop * claude-code reply: 0; SubagentStart * claude-code subagent-start: 0; SubagentStop * claude-code reply: 0; UserPromptSubmit * claude-code prompt: 0
+control failed as required: the hooks plugin loses tc-hook: technical-communication-hooks: /var/folders/z1/nw_wk3gj3hqchs4_73xrf2dw0000gn/T/hook-count-acuy2vw8/plugins/writing/craft/technical-communication/hooks/hooks.json runs /var/folders/z1/nw_wk3gj3hqchs4_73xrf2dw0000gn/T/hook-count-acuy2vw8/plugins/writing/craft/technical-communication/scripts/tc-hook, which does not exist
+control failed as required: the hooks manifest drops its skills key: technical-communication-hooks: the manifest needs "skills": [], or Claude Code loads the root SKILL.md as a skill
+control failed as required: the Codex manifest drops its hooks field: the Codex manifest needs "hooks": "./harnesses/codex/hooks.json", or Codex reads the Claude Code hooks/hooks.json
+task: [check:hook-writes] python3 -I '/Users/antony/Development/AgenticOrchestration/WritingSkills/scripts/hook-writes.py' '/Users/antony/Development/AgenticOrchestration/WritingSkills' --controls
+pass   pi loaded the extension from the writable copy
+pass   17 hook commands left the writable copy unchanged and gave the same output from the read-only copy
+pass   control no-bytecode-fix fails: the hooks wrote inside the writable copy: added craft/technical-communication/scripts/__pycache__, added craft/technical-communication/scripts/__pycache__/ste-l
+pass   control log-in-root fails: the hooks wrote inside the writable copy: added craft/technical-communication/scripts/hook.log
+hook-writes: no hook writes inside the source
+task: [check:tc-checker] python3 -I '/Users/antony/Development/AgenticOrchestration/WritingSkills/plugins/writing/craft/technical-communication/scripts/ste-lint.py' --selftest
+selftest OK
+task: [check:tc-hook-lint] shellcheck '/Users/antony/Development/AgenticOrchestration/WritingSkills/plugins/writing/craft/technical-communication/scripts/tc-hook' '/Users/antony/Development/AgenticOrchestration/WritingSkills/scripts/pi-extension-load.test.sh'
+task: [check:tc-pi] bash '/Users/antony/Development/AgenticOrchestration/WritingSkills/scripts/pi-extension-load.test.sh'
+pi-extension-load: the extension loads, logs a start record, obeys the off file
+task: [grove:checkout] dir='/Users/antony/Development/AgenticOrchestration/WritingSkills/.cache/grove/72c2b41994b4bc008dcd5b28368095fa24c8e681'
+commit='72c2b41994b4bc008dcd5b28368095fa24c8e681'
+if [ -d "$dir/.git" ] \
+  && [ "$(git -C "$dir" rev-parse HEAD 2>/dev/null)" = "$commit" ] \
+  && [ -z "$(git -C "$dir" status --porcelain --ignored)" ]; then
+  echo "reusing the clean Grove checkout of $commit"
+  exit 0
+fi
+rm -rf "$dir"
+mkdir -p "$dir"
+git init --quiet "$dir"
+git -C "$dir" fetch --quiet --depth 1 '/Users/antony/Development/AgenticOrchestration/grove' "$commit"
+git -C "$dir" checkout --quiet --detach FETCH_HEAD
+head="$(git -C "$dir" rev-parse HEAD)"
+if [ "$head" != "$commit" ]; then
+  echo "error: the Grove checkout is at $head, not $commit" >&2
+  exit 1
+fi
+echo "checked out Grove $commit from /Users/antony/Development/AgenticOrchestration/grove"
+
+reusing the clean Grove checkout of 72c2b41994b4bc008dcd5b28368095fa24c8e681
+task: [check:conformance] bash '/Users/antony/Development/AgenticOrchestration/WritingSkills/.cache/grove/72c2b41994b4bc008dcd5b28368095fa24c8e681/plugins/grove/conformance.sh' --pack 'plugins/writing' --alone
+grove conformance — writing alone
+pack   writing /Users/antony/Development/AgenticOrchestration/WritingSkills/plugins/writing/skills
+note   external edge: editorial-family/SKILL.md loads `grove`, which this pack does not ship
+note   external resource: editorial-family/SKILL.md names `DOCUMENT-CONTRACT-FORMAT.md`, which resolves in `grove`, a skill this pack does not ship
+note   external edge: grove-art/SKILL.md loads `grove`, which this pack does not ship
+note   external resource: grove-art/SKILL.md names `FIGURE-FORMAT.md`, which resolves in `grove`, a skill this pack does not ship
+note   external edge: grove-copy-edit/SKILL.md loads `grove`, which this pack does not ship
+note   external resource: grove-copy-edit/SKILL.md names `references/execute.md`, which resolves in `grove`, a skill this pack does not ship
+note   external edge: grove-draft/SKILL.md loads `grove`, which this pack does not ship
+note   external resource: grove-draft/SKILL.md names `DOCUMENT-CONTRACT-FORMAT.md`, which resolves in `grove`, a skill this pack does not ship
+note   external resource: grove-draft/SKILL.md names `references/execute.md`, which resolves in `grove`, a skill this pack does not ship
+note   external edge: grove-proof/SKILL.md loads `grove`, which this pack does not ship
+note   external resource: grove-proof/SKILL.md names `FIGURE-FORMAT.md`, which resolves in `grove`, a skill this pack does not ship
+rules  42 single-source checked, 78 loaded-path checked
+       0 with no pinned wording, 0 bound to no shipped kind, 0 delivered by ${prompt}
+       5 external edge(s) and 6 external resource(s), which the aggregate resolves
+ok     every assertion holds over the supplied skill set
+task: [check:conformance] bash '/Users/antony/Development/AgenticOrchestration/WritingSkills/.cache/grove/72c2b41994b4bc008dcd5b28368095fa24c8e681/plugins/grove/conformance.sh' --pack 'plugins/writing'
+grove conformance — aggregate of 2 packs
+pack   core /Users/antony/Development/AgenticOrchestration/WritingSkills/.cache/grove/72c2b41994b4bc008dcd5b28368095fa24c8e681/plugins/grove/skills
+pack   writing /Users/antony/Development/AgenticOrchestration/WritingSkills/plugins/writing/skills
+rules  184 single-source checked, 1206 loaded-path checked
+       51 with no pinned wording, 1 bound to no shipped kind, 1 delivered by ${prompt}
+ok     every assertion holds over the supplied skill set

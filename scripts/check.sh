@@ -99,7 +99,7 @@ echo "check: rustfmt  $(command -v rustfmt || echo '(not found)') — $(rustfmt 
 run_check "cargo fmt" cargo fmt --all --check
 run_check "shellcheck" shellcheck \
   plugins/grove/conformance.sh plugins/grove/conformance.test.sh \
-  scripts/check.sh scripts/check-packs.sh scripts/check-packs.test.sh scripts/pack-record.sh scripts/pinned-bun.sh scripts/ravel-policy-typecheck.sh scripts/ravel-policy-typecheck.test.sh scripts/release-publish.sh scripts/release.test.sh \
+  scripts/check.sh scripts/check-figures.sh scripts/check-packs.sh scripts/check-packs.test.sh scripts/pack-record.sh scripts/pinned-bun.sh scripts/ravel-policy-typecheck.sh scripts/ravel-policy-typecheck.test.sh scripts/release-publish.sh scripts/release.test.sh \
   scripts/release-prepare.sh scripts/release-prepare.test.sh \
   scripts/release-notes.sh \
   scripts/release-notes/codex-headless.sh scripts/release-notes/codex-headless.test.sh \
@@ -110,7 +110,8 @@ run_check "shellcheck" shellcheck \
   scripts/ravel-target-smoke-target.sh scripts/ravel-installed-smoke.sh scripts/ravel-installed-smoke-rhai.sh \
   scripts/ravel-target-inputs.test.sh scripts/grove-installed-smoke.sh scripts/grove-tap-states.sh \
   scripts/grove-installed-upgrade.sh scripts/harness-trials/trial-launch.sh scripts/tap-formula.test.sh scripts/shared-directory-seam.sh \
-  scripts/candidate-keg.sh scripts/homebrew-cleanup-control.sh scripts/promotion-rehearsal.sh
+  scripts/candidate-keg.sh scripts/homebrew-cleanup-control.sh scripts/promotion-rehearsal.sh \
+  docs/design/documentation-guidance/regenerate.sh scripts/check-blob-sizes.sh scripts/check-blob-sizes.test.sh
 run_check "cargo clippy" cargo clippy --workspace --all-targets
 run_check "conformance" bash plugins/grove/conformance.sh
 run_check "conformance suite" bash plugins/grove/conformance.test.sh
@@ -139,6 +140,10 @@ run_check "release tasks" task release:test
 run_check "cargo nextest" cargo nextest run --locked --workspace --no-fail-fast
 run_check "cargo doctests" cargo test --locked --workspace --doc
 run_check "book-check" book_check
+# The tip alone: no tracked file in the working-copy commit is above 50 MiB. The
+# check of the history that a push publishes is `task publication:history:check`.
+run_check "tip blob size" bash scripts/check-blob-sizes.sh tip
+run_check "blob size checks" bash scripts/check-blob-sizes.test.sh
 
 echo
 if ((${#failed[@]} > 0)); then

@@ -1,0 +1,175 @@
+{
+  "case": "e1-design-exchange",
+  "arm": "current",
+  "model": "claude-opus-5-5",
+  "proxy_model": "claude-sonnet-5-5",
+  "revisions": {
+    "grove": "7a2a537c794c4e8cc91ee2f4f3633dd04c40105d",
+    "writing": "578f84d1f5a9bb04573a704bca639530d93b6bca",
+    "requirements": "c51ec8bebd811c0087ad19a1d66d0aa87bd01386",
+    "design": "aa088156d1a55e28dd9b59f0330f4ab9f1f3d330",
+    "engineering": "8d1a2bc3e07bec4ce57e0391a6aa778dff63a017",
+    "research": "8f321f2e99e09a8ba5e60fa4a08871727e84df62"
+  },
+  "prompt": "prompts/e1-design-exchange.txt",
+  "prompt_sha256": "32d24bee464645f3666f4efa946bb32ea7455c193a36721ab7dec45e2b9e50c7",
+  "calls": [
+    {
+      "exit": 0,
+      "seconds": 57.9,
+      "stderr": "",
+      "stopped_after_result": false
+    },
+    {
+      "exit": 0,
+      "seconds": 245.9,
+      "stderr": "",
+      "stopped_after_result": false
+    },
+    {
+      "exit": 0,
+      "seconds": 12.1,
+      "stderr": "",
+      "stopped_after_result": false
+    },
+    {
+      "exit": 0,
+      "seconds": 7.0,
+      "stderr": "",
+      "stopped_after_result": false
+    },
+    {
+      "exit": 0,
+      "seconds": 5.8,
+      "stderr": "",
+      "stopped_after_result": false
+    },
+    {
+      "exit": 0,
+      "seconds": 7.5,
+      "stderr": "",
+      "stopped_after_result": false
+    },
+    {
+      "exit": 0,
+      "seconds": 4.4,
+      "stderr": "",
+      "stopped_after_result": false
+    },
+    {
+      "exit": 0,
+      "seconds": 5.9,
+      "stderr": "",
+      "stopped_after_result": false
+    },
+    {
+      "exit": 0,
+      "seconds": 4.6,
+      "stderr": "",
+      "stopped_after_result": false
+    },
+    {
+      "exit": 0,
+      "seconds": 4.4,
+      "stderr": "",
+      "stopped_after_result": false
+    }
+  ],
+  "turns": [
+    {
+      "turn": 1,
+      "proxy_keys": [
+        "unknown-delivery-receipt",
+        "unknown-receipt-delay",
+        "unknown-segment",
+        "decision-sample-typical",
+        "decision-wait-length",
+        "decision-scope",
+        "decision-legal-notices",
+        "unknown-idempotency-key",
+        "decision-approach"
+      ],
+      "cost_usd": 0.42315980000000003
+    },
+    {
+      "turn": 2,
+      "proxy_keys": [
+        "unknown-receipt-delay",
+        "fallback"
+      ],
+      "cost_usd": 0.8893268
+    },
+    {
+      "turn": 3,
+      "proxy_keys": [
+        "unknown-receipt-delay"
+      ],
+      "cost_usd": 0.9287038
+    },
+    {
+      "turn": 4,
+      "proxy_keys": [
+        "unknown-delivery-receipt",
+        "unknown-receipt-delay"
+      ],
+      "cost_usd": 0.9558936
+    },
+    {
+      "turn": 5,
+      "proxy_keys": [
+        "unknown-delivery-receipt",
+        "unknown-receipt-delay"
+      ],
+      "cost_usd": 0.9800874
+    },
+    {
+      "turn": 6,
+      "proxy_keys": [
+        "unknown-delivery-receipt",
+        "unknown-receipt-delay"
+      ],
+      "cost_usd": 1.0039694000000001
+    },
+    {
+      "turn": 7,
+      "proxy_keys": [
+        "unknown-delivery-receipt",
+        "unknown-receipt-delay"
+      ],
+      "cost_usd": 1.0244116
+    },
+    {
+      "turn": 8,
+      "proxy_keys": [
+        "unknown-delivery-receipt",
+        "unknown-receipt-delay"
+      ],
+      "cost_usd": 1.0433394
+    },
+    {
+      "turn": 9,
+      "proxy_keys": [
+        "unknown-delivery-receipt",
+        "unknown-receipt-delay"
+      ],
+      "cost_usd": 1.0627064
+    },
+    {
+      "turn": 10,
+      "proxy_keys": [
+        "unknown-delivery-receipt",
+        "unknown-receipt-delay"
+      ],
+      "cost_usd": 1.0825574
+    }
+  ],
+  "changed": [
+    "docs/courier/specs/retry-policy.md"
+  ],
+  "removed": [],
+  "gate": {
+    "command": "python3 tools/gate.py docs/courier",
+    "exit": 0,
+    "output": "gate: passed: 6 links and anchors resolve in 8 files; 0 to other sites not followed\n"
+  }
+}

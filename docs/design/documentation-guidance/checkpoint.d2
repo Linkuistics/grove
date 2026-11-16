@@ -1,0 +1,32 @@
+# Where a reader checkpoint runs, and where its corrections go.
+direction: down
+
+vars: {
+  d2-legend: {
+    l: Leaf in the task tree {class: leaf}
+    n: What the checkpoint records {class: outcome}
+    l -> n: then
+  }
+}
+
+classes: {
+  leaf: {shape: rectangle; style.border-radius: 8}
+  outcome: {shape: rectangle; style.stroke-dash: 4}
+  start: {style: {fill: "#1f2937"; font-color: "#ffffff"; bold: true}}
+}
+
+**.style.font-size: 20
+(** -> **)[*].style.font-size: 18
+
+stages: "Start here:\ndraft → copy-edit → art → proof\n(the document's four stages)" {class: [leaf; start]}
+read: "Reader checkpoint\n(a requirements leaf)" {class: leaf}
+frame: "Frame first: audience, tasks,\nentry surfaces, viewing environment;\nconfirm figures load there" {class: outcome}
+record: "Record apart: the reader's words and extent,\nlocations and unknowns;\nproxy and mechanical results kept separate" {class: outcome}
+run: "Correction run:\nowning stage through proof,\nthe reader's words attached" {class: leaf}
+next: "Next read,\nstarting at the repaired entry" {class: leaf}
+
+stages -> read: "1. cut after proof by the session\nthat cut the document's leaf"
+read -> frame: "2."
+frame -> record: "3. read; an early failure stops it"
+record -> run: "4. for each correction"
+run -> next: "5."

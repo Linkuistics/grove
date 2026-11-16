@@ -1,0 +1,20 @@
+task: [check:skills] GROVE_TEST_RAVEL="${GROVE_TEST_RAVEL:-$(command -v ravel)}" cargo nextest run --locked -p grove --test plugin_fallback --test native_skill_delivery
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+────────────
+ Nextest run ID c0513076-f2b4-46f4-b69f-7e591e4429f6 with nextest profile: default
+    Starting 13 tests across 2 binaries
+        PASS [   0.010s] ( 1/13) grove::plugin_fallback an_unregistered_citation_is_caught
+        PASS [   0.010s] ( 2/13) grove::plugin_fallback a_qualified_name_is_caught
+        PASS [   0.011s] ( 3/13) grove::plugin_fallback the_sweep_survives_markup_and_wrapping
+        PASS [   0.037s] ( 4/13) grove::plugin_fallback the_citation_registry_is_exhaustive_over_the_corpus
+        PASS [   0.039s] ( 5/13) grove::plugin_fallback an_ordinary_task_completes_without_reading_a_plugin_skill
+        PASS [   0.041s] ( 6/13) grove::plugin_fallback the_hub_is_reachable_from_the_condition_register
+        PASS [   0.041s] ( 7/13) grove::plugin_fallback no_skill_file_writes_a_plugin_qualified_name
+        PASS [   0.043s] ( 8/13) grove::plugin_fallback every_plugin_citation_states_what_binds_without_it
+        PASS [   1.023s] ( 9/13) grove::native_skill_delivery a_failed_startup_leaves_a_legacy_installation_untouched
+        PASS [   3.041s] (10/13) grove::native_skill_delivery a_native_only_lifecycle_completes_with_explicitly_installed_skills
+        PASS [   3.056s] (11/13) grove::native_skill_delivery fresh_codex_homes_receive_no_native_installation
+        PASS [   5.662s] (12/13) grove::native_skill_delivery startup_leaves_a_legacy_installation_and_its_readers_untouched
+        PASS [   9.350s] (13/13) grove::native_skill_delivery missing_or_unreadable_kind_guidance_force_stops_with_the_leaf_live
+────────────
+     Summary [   9.351s] 13 tests run: 13 passed, 0 skipped

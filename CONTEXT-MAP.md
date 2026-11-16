@@ -209,138 +209,203 @@ of scope.
   launches alone retain dispatch's old empty signal, report and Creator-run
   contract through their last inherited `harness-dispatch exit`.
 
-- **A durable record has one owner.** Every record under `docs/adr/` and
-  `docs/specs/` has a repo-wide unique slug and a maintaining context recorded
-  here. A record added later joins this list. Ownership names who keeps the
-  record current, not every component it binds.
-  `plugins/grove/skills/grove/ADR-FORMAT.md` defines when a flat
-  root set is appropriate.
+## Record ownership
 
-  A term's definition lives in the glossary of its owning
-  context, never in both. The **grove** context owns
-  [`homebrew-installs-skills-and-ravel-delivers-them`](docs/adr/homebrew-installs-skills-and-ravel-delivers-them.md),
-  [`harness-selection-is-owned-by-policy`](docs/adr/harness-selection-is-owned-by-policy.md),
-  [`a-review-carries-its-creator-reference`](docs/adr/a-review-carries-its-creator-reference.md),
-  [`policy-evaluation-precedes-the-launch`](docs/adr/policy-evaluation-precedes-the-launch.md),
-  [`dispatch-supervises-the-harness`](docs/adr/dispatch-supervises-the-harness.md),
-  [`grove-owns-escalated-review`](docs/adr/grove-owns-escalated-review.md),
-  [`one-live-driver-per-working-tree`](docs/adr/one-live-driver-per-working-tree.md),
-  [`corpus-rules-have-one-owner`](docs/adr/corpus-rules-have-one-owner.md),
-  [`restatement-declares-its-class`](docs/adr/restatement-declares-its-class.md),
-  [`behavioural-coverage-asserts-delivery`](docs/adr/behavioural-coverage-asserts-delivery.md),
-  [`task-names-are-canonical`](docs/adr/task-names-are-canonical.md),
-  [`grove-does-not-stage-its-own-renames`](docs/adr/grove-does-not-stage-its-own-renames.md),
-  [`bulk-marks-are-not-atomic`](docs/adr/bulk-marks-are-not-atomic.md),
-  [`obligations-follow-context-not-artifact`](docs/adr/obligations-follow-context-not-artifact.md),
-  [`a-refusal-leaves-nothing-standing`](docs/adr/a-refusal-leaves-nothing-standing.md),
-  [`a-witnessless-root-refuses-what-it-cannot-account-for`](docs/adr/a-witnessless-root-refuses-what-it-cannot-account-for.md),
-  [`a-closed-partition-is-over-outcomes-not-states`](docs/adr/a-closed-partition-is-over-outcomes-not-states.md),
-  [`a-lifecycle-claim-says-what-it-is-over`](docs/adr/a-lifecycle-claim-says-what-it-is-over.md),
-  [`a-shared-safety-claim-names-the-role-not-the-artifact`](docs/adr/a-shared-safety-claim-names-the-role-not-the-artifact.md),
-  [`evidence-outlives-the-instrument`](docs/adr/evidence-outlives-the-instrument.md),
-  [`the-launched-child-is-a-job`](docs/adr/the-launched-child-is-a-job.md),
-  [`a-book-cannot-witness-its-own-corpus`](docs/adr/a-book-cannot-witness-its-own-corpus.md),
-  and the specs
-  [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md),
-  [`module-decomposition`](docs/specs/module-decomposition.md),
-  [`harness-selection-and-execution`](docs/specs/harness-selection-and-execution.md),
-  [`external-pack-contract`](docs/specs/external-pack-contract.md) and
-  [`walkthrough-books`](docs/specs/walkthrough-books.md). The walkthrough records
-  describe the book system and are **grove's while its validator is**.
-  That holds because `crates/book-validation/` is a member of this workspace, and
-  `docs/walkthroughs/` is a surface `scripts/check.sh` gates and
-  [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#documentation-ownership) accounts
-  for. They are not the *skills* context's despite documenting that context's
-  `writing-code-walkthroughs` method, because that glossary's own scope boundary
-  excludes a skill's subject matter.
+Every record under `docs/adr/` and `docs/specs/` has a repo-wide unique slug
+and one maintaining context. The table below records that context. A record
+added later joins this table. Ownership names who keeps the record current,
+not every component it binds.
 
-  Ownership follows the validator if anyone ever relocates it into the skill.
-  [`root-lifecycle-belongs-to-the-store`](docs/adr/root-lifecycle-belongs-to-the-store.md)
-  already made the same move, and made it only once the extraction happened. The rule
-  inventory `corpus-rule-ownership` held is now
-  [`plugins/grove/conformance/rules.tsv`](plugins/grove/conformance/rules.tsv),
-  which is data the conformance runner reads rather than a spec.
+`plugins/grove/skills/grove/ADR-FORMAT.md` defines when a flat root set is
+appropriate. A term's definition lives in the glossary of its owning context,
+never in both. The test `every_record_has_one_owning_context` in
+[`reference_navigation.rs`](crates/grove/tests/reference_navigation.rs)
+compares this table with both directories. It reads table rows only. A record
+with no row, a record with two rows and a context that [*Contexts*](#contexts)
+does not name each fail the test.
 
-  The records of the writing craft skills live in
-  [WritingSkills](https://github.com/Linkuistics/WritingSkills), which ships
-  those skills. They are
-  [`behavioral-acceptance-is-closed-unmet`](https://github.com/Linkuistics/WritingSkills/blob/main/docs/adr/behavioral-acceptance-is-closed-unmet.md)
-  for the `writing-code-walkthroughs` skill, and the spec
-  [`technical-communication`](https://github.com/Linkuistics/WritingSkills/blob/main/docs/specs/technical-communication.md) with the
-  records
-  [`technical-communication-carries-no-standard-text`](https://github.com/Linkuistics/WritingSkills/blob/main/docs/adr/technical-communication-carries-no-standard-text.md),
-  [`documents-are-gated-replies-are-measured`](https://github.com/Linkuistics/WritingSkills/blob/main/docs/adr/documents-are-gated-replies-are-measured.md)
-  and [`the-off-file-is-the-only-switch`](https://github.com/Linkuistics/WritingSkills/blob/main/docs/adr/the-off-file-is-the-only-switch.md)
-  for the always-on `technical-communication` skill. No context of this
-  repository owns them.
+| Record | Owning context |
+|---|---|
+| [`a-book-cannot-witness-its-own-corpus`](docs/adr/a-book-cannot-witness-its-own-corpus.md) | grove |
+| [`a-book-carries-no-asset`](docs/adr/a-book-carries-no-asset.md) | grove |
+| [`a-closed-partition-is-over-outcomes-not-states`](docs/adr/a-closed-partition-is-over-outcomes-not-states.md) | grove |
+| [`a-document-declares-its-contract`](docs/adr/a-document-declares-its-contract.md) | grove |
+| [`a-feedback-edge-is-forward-tree-growth`](docs/adr/a-feedback-edge-is-forward-tree-growth.md) | grove |
+| [`a-kind-is-an-open-token`](docs/adr/a-kind-is-an-open-token.md) | grove |
+| [`a-lifecycle-claim-says-what-it-is-over`](docs/adr/a-lifecycle-claim-says-what-it-is-over.md) | grove |
+| [`a-reader-checkpoint-is-a-requirements-leaf`](docs/adr/a-reader-checkpoint-is-a-requirements-leaf.md) | grove |
+| [`a-refusal-leaves-nothing-standing`](docs/adr/a-refusal-leaves-nothing-standing.md) | grove |
+| [`a-rendered-figure-ships-with-its-source`](docs/adr/a-rendered-figure-ships-with-its-source.md) | grove |
+| [`a-review-carries-its-creator-reference`](docs/adr/a-review-carries-its-creator-reference.md) | grove |
+| [`a-shared-safety-claim-names-the-role-not-the-artifact`](docs/adr/a-shared-safety-claim-names-the-role-not-the-artifact.md) | grove |
+| [`a-skill-states-what-binds-without-its-dependencies`](docs/adr/a-skill-states-what-binds-without-its-dependencies.md) | grove |
+| [`a-witnessless-root-refuses-what-it-cannot-account-for`](docs/adr/a-witnessless-root-refuses-what-it-cannot-account-for.md) | grove |
+| [`behavioural-coverage-asserts-delivery`](docs/adr/behavioural-coverage-asserts-delivery.md) | grove |
+| [`bulk-marks-are-not-atomic`](docs/adr/bulk-marks-are-not-atomic.md) | grove |
+| [`corpus-rules-have-one-owner`](docs/adr/corpus-rules-have-one-owner.md) | grove |
+| [`dispatch-supervises-the-harness`](docs/adr/dispatch-supervises-the-harness.md) | grove |
+| [`entries-are-never-removed`](docs/adr/entries-are-never-removed.md) | ordinal-fs-tree |
+| [`entry-name-is-the-only-seam`](docs/adr/entry-name-is-the-only-seam.md) | ordinal-fs-tree |
+| [`evidence-outlives-the-instrument`](docs/adr/evidence-outlives-the-instrument.md) | grove |
+| [`finish-promotes-after-the-grove-release`](docs/adr/finish-promotes-after-the-grove-release.md) | grove |
+| [`grove-does-not-stage-its-own-renames`](docs/adr/grove-does-not-stage-its-own-renames.md) | grove |
+| [`grove-owns-escalated-review`](docs/adr/grove-owns-escalated-review.md) | grove |
+| [`harness-selection-is-owned-by-policy`](docs/adr/harness-selection-is-owned-by-policy.md) | grove |
+| [`homebrew-installs-skills-and-ravel-delivers-them`](docs/adr/homebrew-installs-skills-and-ravel-delivers-them.md) | grove |
+| [`iteration-reuses-the-existing-species`](docs/adr/iteration-reuses-the-existing-species.md) | grove |
+| [`jj-is-the-only-lane`](docs/adr/jj-is-the-only-lane.md) | grove |
+| [`obligations-follow-context-not-artifact`](docs/adr/obligations-follow-context-not-artifact.md) | grove |
+| [`one-live-driver-per-working-tree`](docs/adr/one-live-driver-per-working-tree.md) | grove |
+| [`oversized-evidence-stays-out-of-main`](docs/adr/oversized-evidence-stays-out-of-main.md) | grove |
+| [`policy-evaluation-precedes-the-launch`](docs/adr/policy-evaluation-precedes-the-launch.md) | grove |
+| [`restatement-declares-its-class`](docs/adr/restatement-declares-its-class.md) | grove |
+| [`root-lifecycle-belongs-to-the-store`](docs/adr/root-lifecycle-belongs-to-the-store.md) | ordinal-fs-tree |
+| [`task-names-are-canonical`](docs/adr/task-names-are-canonical.md) | grove |
+| [`the-editorial-pipeline-is-four-kinds`](docs/adr/the-editorial-pipeline-is-four-kinds.md) | grove |
+| [`the-launched-child-is-a-job`](docs/adr/the-launched-child-is-a-job.md) | grove |
+| [`codex-skill-provisioning`](docs/specs/codex-skill-provisioning.md) | grove |
+| [`coordinated-release`](docs/specs/coordinated-release.md) | grove |
+| [`documentation-guidance`](docs/specs/documentation-guidance.md) | grove |
+| [`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md) | grove |
+| [`external-pack-contract`](docs/specs/external-pack-contract.md) | grove |
+| [`grove-llm-book-structure`](docs/specs/grove-llm-book-structure.md) | grove |
+| [`grove-loop-book-structure`](docs/specs/grove-loop-book-structure.md) | grove |
+| [`harness-selection-and-execution`](docs/specs/harness-selection-and-execution.md) | grove |
+| [`item-status`](docs/specs/item-status.md) | grove |
+| [`jj-workspace-book-structure`](docs/specs/jj-workspace-book-structure.md) | grove |
+| [`module-decomposition`](docs/specs/module-decomposition.md) | grove |
+| [`ordinal-fs-tree-book-structure`](docs/specs/ordinal-fs-tree-book-structure.md) | grove |
+| [`overview-book-structure`](docs/specs/overview-book-structure.md) | grove |
+| [`owner-skill-delivery`](docs/specs/owner-skill-delivery.md) | grove |
+| [`pack-membership`](docs/specs/pack-membership.md) | grove |
+| [`pass-series`](docs/specs/pass-series.md) | grove |
+| [`standalone-invocations`](docs/specs/standalone-invocations.md) | grove |
+| [`user-guide-coverage`](docs/specs/user-guide-coverage.md) | grove |
+| [`walkthrough-books`](docs/specs/walkthrough-books.md) | grove |
 
-  The **ordinal-fs-tree** context owns
-  [`entry-name-is-the-only-seam`](docs/adr/entry-name-is-the-only-seam.md),
-  [`entries-are-never-removed`](docs/adr/entries-are-never-removed.md) and
-  [`root-lifecycle-belongs-to-the-store`](docs/adr/root-lifecycle-belongs-to-the-store.md).
-  The last of these **moved** here, and the move is the decision it records.
-  While root creation and destruction were grove's, so was the record, and it was
-  filed under grove for that reason. They sit
-  in the flat root set like every other record.
-  `plugins/grove/skills/grove/ADR-FORMAT.md`'s split
-  rule keeps one directory while grove occupies the repo root. The rule
-  says to record ownership instead.
+Most records are **grove**'s, because their subject is the task tree, the loop,
+the binary or the contents of the `grove` plugin. The paragraphs below justify
+the owners that are less obvious.
 
-  grove consumes both decisions and maintains
-  neither. Their subject is the library's public surface and its key allocation.
-  Recording grove as their maintainer would say the extraction had not happened.
+The walkthrough records describe the book system and are **grove's while its
+validator is**. They are the spec
+[`walkthrough-books`](docs/specs/walkthrough-books.md), the `*-book-structure`
+specs, and the ADRs
+[`a-book-carries-no-asset`](docs/adr/a-book-carries-no-asset.md) and
+[`a-book-cannot-witness-its-own-corpus`](docs/adr/a-book-cannot-witness-its-own-corpus.md).
+That holds because `crates/book-validation/` is a member of this workspace, and
+`docs/walkthroughs/` is a surface `scripts/check.sh` gates and
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#documentation-ownership) accounts
+for. They are not the *skills* context's despite documenting that context's
+`writing-code-walkthroughs` method, because that glossary's own scope boundary
+excludes a skill's subject matter.
 
-  [`docs/ordinal-fs-tree/ARCHITECTURE.md`](docs/ordinal-fs-tree/ARCHITECTURE.md)
-  explains both at length. It is not a duplicate. The document says what the design *is*, for someone
-  building against it. The records say what it cost and what changing it
-  would cost, for someone proposing to change it.
+Ownership follows the validator if anyone ever relocates it into the skill.
+[`root-lifecycle-belongs-to-the-store`](docs/adr/root-lifecycle-belongs-to-the-store.md)
+already made the same move, and made it only once the extraction happened. The rule
+inventory `corpus-rule-ownership` held is now
+[`plugins/grove/conformance/rules.tsv`](plugins/grove/conformance/rules.tsv),
+which is data the conformance runner reads rather than a spec.
 
-  The first two earn their place the same way. One describes how the embedded
-  corpus files its rules, an area no single increment finishes. The other describes a
-  composition **between** two contexts. Both outlive the increment that wrote
-  them. The doubt skill
-  participates in the review-ownership and promotion contracts, but the mandate,
-  task tree, review routing, and lifecycle are Grove's maintaining seam.
+The documentation-guidance records are **grove**'s too. They are the spec
+[`documentation-guidance`](docs/specs/documentation-guidance.md) and the ADRs
+[`a-document-declares-its-contract`](docs/adr/a-document-declares-its-contract.md),
+[`a-reader-checkpoint-is-a-requirements-leaf`](docs/adr/a-reader-checkpoint-is-a-requirements-leaf.md),
+[`a-rendered-figure-ships-with-its-source`](docs/adr/a-rendered-figure-ships-with-its-source.md)
+and [`the-editorial-pipeline-is-four-kinds`](docs/adr/the-editorial-pipeline-is-four-kinds.md).
+They describe the spine's format files and the contract that the editorial,
+requirements and design kinds share. Those kinds ship in the writing,
+requirements and design packs, but the spine owns what they share. The skills
+glossary excludes the contents of a skill by its own scope boundary.
 
-  The former spec `semantic-contract` stated the tool-neutral semantics of the
-  task tree, the finish protocol and the lifecycle joining them. It was
-  **deleted** with the formal-methods apparatus that checked it
-  (`delete-formal-models-k29`). The last directory of that deletion,
-  `crates/grove-finish/models/`, the finish protocol's own column, went at
-  `delete-finish-models-k30`. It went for the reason the paragraph below gives
-  for `module-decomposition` in advance. A spec earns its place by describing
-  something no other artifact holds. Once its checker is gone and the design
-  it specified is being dismantled, `docs/ARCHITECTURE.md` was where the
-  current-state description belonged.
+The spec [`codex-skill-provisioning`](docs/specs/codex-skill-provisioning.md)
+concerns installation, but its subject is what bare `grove` does at startup.
+[*Choosing a context*](#choosing-a-context) sends a topic about the binary to
+grove. The ADR
+[`a-skill-states-what-binds-without-its-dependencies`](docs/adr/a-skill-states-what-binds-without-its-dependencies.md)
+governs the citations in the contents of the `grove` plugin. A grove test,
+`crates/grove/tests/plugin_fallback.rs`, enforces it.
 
-  The module contract earns its place on the grain rule rather than on novelty.
-  `module-decomposition` was written as the agreement point a whole chain of
-  leaves built against, across many sessions and three bounded contexts. It carried a
-  retirement condition: *delete it once the crates exist*.
-  `spec-to-current-state-k23` reached that condition and did not exercise it.
+The records of the writing craft skills live in
+[WritingSkills](https://github.com/Linkuistics/WritingSkills), which ships
+those skills. They are
+[`behavioral-acceptance-is-closed-unmet`](https://github.com/Linkuistics/WritingSkills/blob/main/docs/adr/behavioral-acceptance-is-closed-unmet.md)
+for the `writing-code-walkthroughs` skill, and the spec
+[`technical-communication`](https://github.com/Linkuistics/WritingSkills/blob/main/docs/specs/technical-communication.md) with the
+records
+[`technical-communication-carries-no-standard-text`](https://github.com/Linkuistics/WritingSkills/blob/main/docs/adr/technical-communication-carries-no-standard-text.md),
+[`documents-are-gated-replies-are-measured`](https://github.com/Linkuistics/WritingSkills/blob/main/docs/adr/documents-are-gated-replies-are-measured.md)
+and [`the-off-file-is-the-only-switch`](https://github.com/Linkuistics/WritingSkills/blob/main/docs/adr/the-off-file-is-the-only-switch.md)
+for the always-on `technical-communication` skill. No context of this
+repository owns them.
 
-  What it describes is **how the module boundaries work**. That is a spec's own
-  grain and not `docs/ARCHITECTURE.md`'s. The architecture records the
-  decisions, constraints and measurements behind the runtime a reader is
-  operating. Its description of what that runtime does moved into the
-  walkthrough books: the system overview first, and each crate's internals with
-  that crate's own book. An ADR records one decision
-  and its trade-off. Neither states the five interfaces as a set a consumer
-  builds against.
+The **ordinal-fs-tree** context owns
+[`entry-name-is-the-only-seam`](docs/adr/entry-name-is-the-only-seam.md),
+[`entries-are-never-removed`](docs/adr/entries-are-never-removed.md) and
+[`root-lifecycle-belongs-to-the-store`](docs/adr/root-lifecycle-belongs-to-the-store.md).
+The last of these **moved** here, and the move is the decision it records.
+While root creation and destruction were grove's, so was the record, and it was
+filed under grove for that reason. They sit
+in the flat root set like every other record.
+`plugins/grove/skills/grove/ADR-FORMAT.md`'s split
+rule keeps one directory while grove occupies the repo root. The rule
+says to record ownership instead.
 
-  Four
-  artifacts link into it. Source comments, `Cargo.toml` headers and tests across
-  the shipped packages cite its decisions *by number*. So the
-  numbering is part of the contract. It was rewritten to current state instead.
-  The rewrite lost its `## Problem`, its *what changes* framing and its
-  ADR-reconciliation table, which were the transient halves. It kept the
-  decisions, the requirements and the test seams.
+grove consumes both decisions and maintains
+neither. Their subject is the library's public surface and its key allocation.
+Recording grove as their maintainer would say the extraction had not happened.
 
-  A spec that only ever described one shipped increment of Grove's own runtime is
-  not a durable record. It is `docs/ARCHITECTURE.md`'s subject written twice.
-  `config-driven-sessions` and `skill-delivered-methodology` were folded there on
-  those grounds, as `mandate-delivered-methodology` went with the machinery it
-  described.
+[`docs/ordinal-fs-tree/ARCHITECTURE.md`](docs/ordinal-fs-tree/ARCHITECTURE.md)
+explains both at length. It is not a duplicate. The document says what the design *is*, for someone
+building against it. The records say what it cost and what changing it
+would cost, for someone proposing to change it.
+
+The spec
+[`doubt-grove-review-mechanics`](docs/specs/doubt-grove-review-mechanics.md)
+earns its place the same way. It describes a composition **between** two
+contexts, and it outlives the increment that wrote it. The doubt skill
+participates in the review-ownership and promotion contracts, but the mandate,
+task tree, review routing, and lifecycle are Grove's maintaining seam.
+
+The former spec `semantic-contract` stated the tool-neutral semantics of the
+task tree, the finish protocol and the lifecycle joining them. It was
+**deleted** with the formal-methods apparatus that checked it
+(`delete-formal-models-k29`). The last directory of that deletion,
+`crates/grove-finish/models/`, the finish protocol's own column, went at
+`delete-finish-models-k30`. It went for the reason the paragraph below gives
+for `module-decomposition` in advance. A spec earns its place by describing
+something no other artifact holds. Once its checker is gone and the design
+it specified is being dismantled, `docs/ARCHITECTURE.md` was where the
+current-state description belonged.
+
+The module contract earns its place on the grain rule rather than on novelty.
+`module-decomposition` was written as the agreement point a whole chain of
+leaves built against, across many sessions and three bounded contexts. It carried a
+retirement condition: *delete it once the crates exist*.
+`spec-to-current-state-k23` reached that condition and did not exercise it.
+
+What it describes is **how the module boundaries work**. That is a spec's own
+grain and not `docs/ARCHITECTURE.md`'s. The architecture records the
+decisions, constraints and measurements behind the runtime a reader is
+operating. Its description of what that runtime does moved into the
+walkthrough books: the system overview first, and each crate's internals with
+that crate's own book. An ADR records one decision
+and its trade-off. Neither states the five interfaces as a set a consumer
+builds against.
+
+Four
+artifacts link into it. Source comments, `Cargo.toml` headers and tests across
+the shipped packages cite its decisions *by number*. So the
+numbering is part of the contract. It was rewritten to current state instead.
+The rewrite lost its `## Problem`, its *what changes* framing and its
+ADR-reconciliation table, which were the transient halves. It kept the
+decisions, the requirements and the test seams.
+
+A spec that only ever described one shipped increment of Grove's own runtime is
+not a durable record. It is `docs/ARCHITECTURE.md`'s subject written twice.
+`config-driven-sessions` and `skill-delivered-methodology` were folded there on
+those grounds, as `mandate-delivered-methodology` went with the machinery it
+described.
 
 <!-- tc: pending because the conversion has not reached this part of the document -->
 

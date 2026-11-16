@@ -281,6 +281,143 @@ drop_lines "${root}/grove/SKILL.md" 'references/bootstrap.md'
 expect_dirty "${root}" "is not on grove-planning's composed loaded path" \
   "a behavioural rule no bound kind can reach is caught"
 
+# -- Assertion 1: authors reach the document contract through its trigger ---
+#
+# `grove/SKILL.md` names `DOCUMENT-CONTRACT-FORMAT.md` as a trigger. The house
+# style and the toolchain facts also name it, and both are on every kind's
+# path: `execute.md` names the house style for an exchange, and the figure
+# contract names the toolchain facts. The fixture removes those two names as
+# well. Without them, the contract rules leave each kind's composed path.
+
+root="$(new_skill_set contract-trigger)"
+add_kind "${root}" planning
+expect_clean "${root}" "contract trigger: the fixture reads clean"
+drop_lines "${root}/grove/SKILL.md" 'When writing or reading a document contract'
+drop_lines "${root}/grove/SKILL.md" '`DOCUMENT-CONTRACT-FORMAT.md`.'
+replace_text "${root}/grove/references/house-style.md" '`DOCUMENT-CONTRACT-FORMAT.md`' 'the contract format'
+replace_text "${root}/grove/references/documentation-toolchain.md" '`DOCUMENT-CONTRACT-FORMAT.md`' 'the contract format'
+expect_dirty "${root}" "contract-declared-by-path: grove/DOCUMENT-CONTRACT-FORMAT.md is not on grove-planning's composed loaded path" \
+  "a document contract that no trigger reaches is caught"
+
+# -- Assertion 2: each contract and teaching rule is pinned at its owner -----
+#
+# Each case drops one line of a pinned statement. The teaching rule
+# `establish-actors-before-labels` pins both of its tests, so dropping the
+# passage test alone must fail.
+
+root="$(new_skill_set contract-and-teaching)"
+expect_clean "${root}" "contract and teaching rules: the fixture reads clean"
+while IFS='|' read -r rule file line; do
+  root="$(new_skill_set "pinned-${rule}")"
+  drop_lines "${root}/grove/${file}" "${line}"
+  expect_dirty "${root}" "${rule}: stated in [nowhere]" \
+    "removing the statement of ${rule} is caught"
+done <<'CASES'
+contract-declared-by-path|DOCUMENT-CONTRACT-FORMAT.md|declares its contract by path
+contract-structure-decided-by-the-human|DOCUMENT-CONTRACT-FORMAT.md|locations they identify
+contract-outcome-is-find-understand-use|DOCUMENT-CONTRACT-FORMAT.md|gates nothing
+contract-structure-brief-fields|DOCUMENT-CONTRACT-FORMAT.md|reader outcome and these fields
+contract-prose-contract-fields|DOCUMENT-CONTRACT-FORMAT.md|term list, code typography and
+contract-absent-parts-default|DOCUMENT-CONTRACT-FORMAT.md|blocks no stage
+teach-the-model-before-notation|references/execute.md|Explain the subject model
+establish-actors-before-labels|references/execute.md|intended reader can say who acts
+explain-what-the-reader-cannot-infer|references/execute.md|back into jargon
+compare-then-principle-then-limit|references/execute.md|where the comparison breaks
+one-name-one-entity|references/execute.md|uses one name for one entity
+domain-roles-and-choices-kept-distinct|references/execute.md|producer and consumer roles
+normative-text-traces-and-ambiguity-surfaces|references/execute.md|a rejected form names
+no-invented-observations|references/execute.md|no tool produced
+positive-subject-restrictions-recoverable|references/execute.md|condition stays recoverable from its rule
+format-per-set-with-the-human|DOCUMENT-CONTRACT-FORMAT.md|part (format, media, renderers or viewing environments) turns on a dated
+format-declares-media-and-environments|DOCUMENT-CONTRACT-FORMAT.md|versions, any generation step, and the viewing environments readers use
+prose-contract-builds-on-its-base|DOCUMENT-CONTRACT-FORMAT.md|contract on the walk that states the point governs it
+reader-checkpoints-scheduled-after-proof|DOCUMENT-CONTRACT-FORMAT.md|document's `proof` by the session
+house-style-task-headings|references/house-style.md|A task heading starts with a bare infinitive
+house-style-introducing-steps|references/house-style.md|Introducing steps.** A complete sentence introduces a procedure
+house-style-register|references/house-style.md|tone, with no slang
+house-style-length|references/house-style.md|No length target
+house-style-steps|references/house-style.md|needs first comes before the action
+house-style-demonstratives|references/house-style.md|be unclear. It is a check
+house-style-voice|references/house-style.md|reader does not need the actor
+house-style-front-loading|references/house-style.md|their information-carrying words
+house-style-keywords|references/house-style.md|states once that they carry their BCP 14 meaning
+house-style-terms|references/house-style.md|first use on each page
+house-style-code|references/house-style.md|literal values. A code block is fenced
+house-style-example-labels|references/house-style.md|or "Fragment", and a fragment's label says what it omits
+house-style-stock-phrasing|references/house-style.md|("leverage", "robust", "seamless"), and no reflexive list of three
+house-style-simple-layout|references/house-style.md|least two subsections
+house-style-normative-text-and-aids|references/house-style.md|before any text that follows
+figure-answers-a-question-at-a-level|FIGURE-FORMAT.md|model and renderer distinct
+decompose-where-levels-add-value|FIGURE-FORMAT.md|Run from context to detail
+figure-states-scope-omissions-entry|FIGURE-FORMAT.md|labels sit on the elements they name
+conventions-identifiable-notation-per-reader|FIGURE-FORMAT.md|colour never carries meaning alone
+one-visual-vocabulary|FIGURE-FORMAT.md|adds a new diagram kind
+text-reaches-figure-information|FIGURE-FORMAT.md|without narrating notation
+place-by-question|FIGURE-FORMAT.md|lookup destination
+derived-figure-agrees-with-its-source|FIGURE-FORMAT.md|notation cannot show
+rendered-figure-ships-with-its-source|FIGURE-FORMAT.md|tool-generated SVG together
+checks-establish-different-properties|FIGURE-FORMAT.md|none stands in for another
+sketch-clauses|FIGURE-FORMAT.md|sketch in the simplest dialect
+vocabulary-before-trade-off|references/execute.md|asking about a term is not that evidence
+problem-before-proposal|references/execute.md|states the problem and what it costs
+restate-agreement-point-decisions|references/execute.md|restate the decision in their own words
+exchange-prose-follows-the-house-style|references/execute.md|points wherever their form occurs
+exchange-reaches-the-teaching-rules|references/execute.md|reach every part the human decides from
+CASES
+
+# -- Assertion 3: a house-style point keeps its wording and its one home -----
+#
+# The house-style points are values of a prose contract, so no kind binds
+# them. Each point is pinned in `house-style.md` alone. A reworded point, and
+# a point copied into another skill file, must both fail.
+
+root="$(new_skill_set house-style-reworded)"
+replace_text "${root}/grove/references/house-style.md" 'No length target' 'No length limit'
+expect_dirty "${root}" "house-style-length: stated in [nowhere]" \
+  "rewording a pinned house-style point is caught"
+
+root="$(new_skill_set house-style-copied)"
+printf '\nA task heading starts with a bare infinitive.\n' >>"${root}/grove/DOCUMENT-CONTRACT-FORMAT.md"
+expect_dirty "${root}" "house-style-task-headings: stated in [" \
+  "a house-style point copied into another file is caught"
+
+# -- Assertion 1: an exchange reaches the figure contract and the house style -
+#
+# `references/execute.md` names `FIGURE-FORMAT.md` for a view drawn in an
+# exchange, and it is the only spine file that names it. No core kind binds the
+# figure rules, so a stub `requirements` kind stands in for the session kinds
+# that do. Without the name, the figure contract leaves that kind's path. The
+# same paragraph names `references/house-style.md` for the exchange's prose.
+# The house-style rows bind no kind, so the verbose run shows that edge.
+
+root="$(new_skill_set exchange-edges)"
+mkdir -p "${root}/grove-requirements"
+cat >"${root}/grove-requirements/SKILL.md" <<'EOF'
+---
+name: grove-requirements
+description: A fixture kind of the conformance controls, bound by the exchange rules.
+---
+
+# requirements
+
+**Load the `grove` skill now** — it is the shared spine and holds everything
+this kind does not own. `grove` is the bare skill name.
+EOF
+expect_clean "${root}" "exchange edges: the fixture reads clean"
+run_core "${root}" --verbose
+assert_output 'ref ok   grove/references/execute.md -> grove/references/house-style.md' \
+  "the exchange paragraph gives an edge to the house style"
+replace_text "${root}/grove/references/execute.md" '`references/house-style.md`' 'the house style file'
+run_core "${root}" --verbose
+if printf '%s\n' "${out}" | command grep -qF 'grove/references/execute.md -> grove/references/house-style.md'; then
+  bad "an exchange paragraph without the name gives no edge to the house style"
+else
+  ok "an exchange paragraph without the name gives no edge to the house style"
+fi
+replace_text "${root}/grove/references/execute.md" '`FIGURE-FORMAT.md`' 'the figure contract'
+expect_dirty "${root}" "figure-answers-a-question-at-a-level: grove/FIGURE-FORMAT.md is not on grove-requirements's composed loaded path" \
+  "a figure contract that no exchange reaches is caught"
+
 # -- Assertion 1: the spine is on a kind's path only through its load --------
 
 root="$(new_skill_set kind-without-load)"

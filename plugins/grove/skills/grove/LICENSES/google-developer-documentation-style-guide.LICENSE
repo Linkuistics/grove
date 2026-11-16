@@ -1,0 +1,11 @@
+Google developer documentation style guide
+https://developers.google.com/style
+
+Content of the guide is licensed under the Creative Commons Attribution 4.0
+International License (CC BY 4.0), by Google LLC.
+Licence text: https://creativecommons.org/licenses/by/4.0/legalcode
+
+Use in Grove: references/house-style.md restates, in Grove's own words,
+several points of the guide as it stood on 2026-09-30. Grove adapted those
+points, added points of its own, and departs from the guide on code blocks.
+Google does not endorse Grove or its use of the guide.

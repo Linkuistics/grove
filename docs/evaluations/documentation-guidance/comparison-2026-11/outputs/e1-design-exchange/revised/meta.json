@@ -1,0 +1,84 @@
+{
+ "case": "e1-design-exchange",
+ "arm": "revised",
+ "model": "claude-opus-5-5",
+ "proxy_model": "claude-sonnet-5-5",
+ "revisions": {
+  "grove": "72c2b41994b4bc008dcd5b28368095fa24c8e681",
+  "writing": "990a555b8276b3cd886c6d6de8e75bbbbf39f70d",
+  "requirements": "636b36242410c69c9e5a9fd59edb0dc257046734",
+  "design": "5c072b792429e7866382ca5c494a6718f4b3e2f2",
+  "engineering": "55aff4acbd58c9d27837d3496bb97b08b216b258",
+  "research": "67cb6c856d93d8102e3dbc2d29519fd39cfb365d"
+ },
+ "prompt": "prompts/e1-design-exchange.txt",
+ "prompt_sha256": "32d24bee464645f3666f4efa946bb32ea7455c193a36721ab7dec45e2b9e50c7",
+ "calls": [
+  {
+   "exit": 0,
+   "seconds": 91.4,
+   "stderr": ""
+  },
+  {
+   "exit": 0,
+   "seconds": 36.9,
+   "stderr": ""
+  },
+  {
+   "exit": 0,
+   "seconds": 742.2,
+   "stderr": ""
+  },
+  {
+   "exit": 0,
+   "seconds": 26.6,
+   "stderr": ""
+  }
+ ],
+ "turns": [
+  {
+   "turn": 1,
+   "proxy_keys": [
+    "unknown-segment",
+    "unknown-delivery-receipt",
+    "unknown-receipt-delay",
+    "unknown-idempotency-key",
+    "decision-approach",
+    "restate-approach"
+   ],
+   "cost_usd": 0.6443354
+  },
+  {
+   "turn": 2,
+   "proxy_keys": [
+    "decision-legal-notices",
+    "restate-legal-notices"
+   ],
+   "cost_usd": 0.781744
+  },
+  {
+   "turn": 3,
+   "proxy_keys": [
+    "fallback"
+   ],
+   "cost_usd": 1.7738082
+  },
+  {
+   "turn": 4,
+   "proxy_keys": [],
+   "cost_usd": 2.061263
+  }
+ ],
+ "changed": [
+  "docs/courier/specs/retry-policy.md"
+ ],
+ "removed": [],
+ "gate": {
+  "command": "python3 tools/gate.py docs/courier",
+  "exit": 0,
+  "output": "gate: passed: 11 links and anchors resolve in 8 files; 0 to other sites not followed\n"
+ },
+ "transcript_repaired_turns": [
+  3
+ ]
+}

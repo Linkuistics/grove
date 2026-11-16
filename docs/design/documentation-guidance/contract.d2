@@ -1,0 +1,54 @@
+# Who writes each part of the document contract, and which stages read it.
+direction: down
+
+vars: {
+  d2-legend: {
+    s: Session or person {class: actor}
+    p: Contract part {class: part}
+    s -> p: writes, or decides (numbered in order)
+    p -> s: is read by that session {class: reads}
+  }
+}
+
+classes: {
+  actor: {shape: rectangle; style.border-radius: 8}
+  part: {shape: document}
+  start: {style: {fill: "#1f2937"; font-color: "#ffffff"; bold: true}}
+  reads: {style.stroke-dash: 4}
+}
+
+**.style.font-size: 20
+(** -> **)[*].style.font-size: 18
+
+human: "Start here:\nthe human decides the structure" {class: [actor; start]}
+author: "Authoring session\nrecords the human's words" {class: actor}
+
+brief: "Structure brief\n(per document)" {class: part}
+prose: "Prose contract\n(per document set)" {class: part}
+format: "Format and media\n(per document set)" {class: part}
+checkpoints: "Reader checkpoints" {class: part}
+
+draft: "draft" {class: actor}
+copy: "copy-edit" {class: actor}
+art: "art" {class: actor}
+proof: "proof" {class: actor}
+read: "Reader checkpoint:\nrequirements leaf after proof" {class: actor}
+
+human -> author: "1. decides"
+author -> brief: "2. writes"
+author -> prose: "2. writes"
+author -> format: "2. writes"
+author -> checkpoints: "2. writes"
+brief -> draft: {class: reads}
+brief -> copy: {class: reads}
+brief -> art: {class: reads}
+brief -> proof: {class: reads}
+prose -> draft: {class: reads}
+prose -> copy: {class: reads}
+prose -> art: {class: reads}
+prose -> proof: {class: reads}
+format -> draft: {class: reads}
+format -> art: {class: reads}
+format -> proof: {class: reads}
+checkpoints -> proof: {class: reads}
+checkpoints -> read: "schedules"

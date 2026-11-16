@@ -55,6 +55,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v22.12.0
+
 ### Changed
 
 - `grove`: Sessions now admit new work by acceptance, not by default

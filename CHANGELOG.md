@@ -55,6 +55,49 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+### Changed
+
+- `grove`: Sessions now admit new work by acceptance, not by default
+  externalisation. Before a session adds a task, it names the acceptance step
+  the work completes or directly unblocks. It also names the present obstacle
+  and the finite handoff that lets the dependent task proceed. Preparation,
+  readers, maps and research count only through that connection.
+- `grove`: Optional improvements do not enlarge the grove. A session records
+  them for a later grove or the project's backlog and adds no obligation. Existing
+  acceptance stays binding. A change of scope needs explicit human confirmation.
+  Until it arrives, the original acceptance and the live remainder stay.
+- `grove-planning`: Planning now bounds the first useful outcome. A grove states
+  the result it delivers and the acceptance that shows it works. When that bar is
+  met and required work is settled, planning stops expanding the grove and the
+  normal finish procedure applies. A smaller first delivery never silently
+  erases a broader existing charter. Each prerequisite now ties to the next
+  working behaviour and its finite handoff.
+- `grove-finish`: A `finish` session applies the same scope admission test as
+  every other session. Only admitted work that needs another session blocks
+  teardown. Optional improvements do not.
+
+### Added
+
+- `grove`: Repeated handoffs with unchanged acceptance now trigger an
+  acceptance attempt. If successive slices, prerequisites, readbacks or reviews
+  hand off the same acceptance work without advancing its evidence, the task
+  stays live and attempts its acceptance within its kind's remit. Producers and
+  integrations make bounded repairs inline. `review-*` sessions stay
+  inspection-only and report findings.
+- `grove`: When an actual prerequisite prevents that attempt, the session
+  records the blocker, its evidence and the work needed to remove it, and leaves
+  the task live. When no finite unblock can proceed without human input, the
+  session uses the human-input handoff in `references/execute.md`. It does not
+  send the continuation signal while it awaits input.
+- `grove`: Another review round needs a concrete change or new evidence that
+  requires independent challenge. Unchanged concerns and speculative polish do
+  not earn a round. A declared series step and its cap are unaffected.
+- `grove`: Reviews and integrations share one finding threshold. A finding earns
+  repair or further work when it blocks agreed acceptance or identifies a
+  material risk to the intended result. Optional polish and hypothetical
+  hardening do not. Necessary safety work, adverse verification evidence and
+  declared series obligations still bind.
+
 ## v22.11.0
 
 ### Fixed

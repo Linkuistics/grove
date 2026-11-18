@@ -40,3 +40,24 @@ fails for a reason outside the grove's design.
   machine owner's environment rules govern a pin. Read the Cargo release notes
   for 1.100 before you depend on the layout. If the choice needs the owner,
   ask.
+
+## Decisions (running log)
+
+- **Adapt the lookup, do not pin the toolchain.** The Cargo 1.100 changelog
+  lists the new layout under *Changed* (rust-lang/cargo#17354). It also says
+  that the layout "is not a stable interface and is subject to change", and
+  that tools must use Cargo's JSON messages to find artifacts. A pin would
+  only postpone the break, and it would make each contributor install an old
+  toolchain. The lookup therefore must not depend on where Cargo puts the test
+  executable.
+- **The lookup has two stages.** First, the helper searches each ancestor
+  directory of the test executable for the uplifted binary. Both layouts put
+  it in the profile directory, which is an ancestor of the test executable.
+  This stage needs no subprocess, and it keeps the profile of the test run.
+  Second, if no ancestor holds the binary, the helper builds the package with
+  `--message-format=json` and reads the `executable` path. This stage covers a
+  binary that is not built yet, and a `build.build-dir` outside the target
+  directory. A lookup with no work to do measured 0.17 seconds.
+- **The `grove-llm` tests use the shared helper for the `grove` binary.**
+  `assert_cmd` 2.2.2 knows a binary of another package only through the old
+  `deps` layout, so those calls change to `support::grove_bin()`.

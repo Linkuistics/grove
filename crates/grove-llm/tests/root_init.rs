@@ -331,8 +331,7 @@ fn root_init_listed_in_grove_llm_help() {
 
 #[test]
 fn grove_binary_does_not_expose_root_init() {
-    let out = Command::cargo_bin("grove")
-        .unwrap()
+    let out = Command::new(support::grove_bin())
         .arg("--help")
         .output()
         .unwrap();

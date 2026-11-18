@@ -160,8 +160,7 @@ fn brief_chain_listed_in_grove_llm_help() {
 
 #[test]
 fn grove_help_does_not_list_brief_chain() {
-    let out = Command::cargo_bin("grove")
-        .unwrap()
+    let out = Command::new(support::grove_bin())
         .arg("--help")
         .output()
         .unwrap();

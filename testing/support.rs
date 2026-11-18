@@ -718,26 +718,68 @@ pub fn observe_dirty_entry(probe: &Path, home: &Path) {
     }
 }
 
+/// A workspace binary, found without depending on Cargo's build-directory layout.
+///
+/// Cargo uplifts each binary to `<target>/<profile>/<name>`. The test
+/// executable sits somewhere below that profile directory, and where it sits
+/// changed: Cargo 1.100 moved it from `<profile>/deps/` to
+/// `<profile>/build/<package>/<hash>/out/`. Cargo states that the new layout
+/// "is not a stable interface and is subject to change".
+/// <https://doc.rust-lang.org/nightly/cargo/CHANGELOG.html#cargo-1100-2026-11-12>
+///
+/// So the first stage tries every ancestor of the test executable, nearest
+/// first. It needs no subprocess, and it keeps the profile of the test run.
+/// If no ancestor holds the binary, the second stage asks Cargo, which is the
+/// route that changelog entry recommends.
 fn workspace_binary(name: &str) -> PathBuf {
-    // `target/<profile>/deps/<test binary>` — so the profile directory is two
-    // levels up from the running test executable, whatever the profile is and
-    // wherever `CARGO_TARGET_DIR` put it.
     let exe = std::env::current_exe().expect("a running test has a path");
-    let profile = exe
-        .parent()
-        .and_then(Path::parent)
-        .expect("a test binary sits under <target>/<profile>/deps");
-    let binary = profile.join(name);
-    if !binary.is_file() {
-        let built = std::process::Command::new(env!("CARGO"))
-            .args(["build", "--quiet", "-p", name])
-            .current_dir(repo_root())
-            .status()
-            .unwrap_or_else(|error| panic!("building {name}: {error}"));
-        assert!(built.success(), "building {name} failed");
-    }
+    exe.ancestors()
+        .skip(1)
+        .map(|dir| dir.join(name))
+        .find(|candidate| candidate.is_file())
+        .unwrap_or_else(|| cargo_built_binary(name))
+}
+
+/// Build `name` and return the path that Cargo's JSON messages give for it.
+///
+/// This stage covers a binary that a narrow test run did not build. It also
+/// covers a `build.build-dir` outside the target directory. There, no ancestor
+/// of the test executable is the profile directory.
+/// <https://doc.rust-lang.org/cargo/reference/external-tools.html#artifact-messages>
+pub fn cargo_built_binary(name: &str) -> PathBuf {
+    let output = std::process::Command::new(env!("CARGO"))
+        .args(["build", "--quiet", "--message-format=json", "-p", name])
+        .args(["--bin", name])
+        .current_dir(repo_root())
+        .stderr(std::process::Stdio::inherit())
+        .output()
+        .unwrap_or_else(|error| panic!("building {name}: {error}"));
+    assert!(output.status.success(), "building {name} failed");
+    let messages = String::from_utf8_lossy(&output.stdout);
+    let binary = messages
+        .lines()
+        .filter(|line| line.contains(r#""reason":"compiler-artifact""#))
+        .filter_map(|line| json_string_field(line, "executable"))
+        .map(PathBuf::from)
+        .find(|path| path.file_name() == Some(name.as_ref()))
+        .unwrap_or_else(|| panic!("Cargo reported no executable for {name}"));
     assert!(binary.is_file(), "{} was not built", binary.display());
     binary
+}
+
+/// The value of a string field in one line of Cargo's JSON output.
+///
+/// The test packages share no JSON parser, so this reads only the one field
+/// it needs. It refuses a value with an escape sequence rather than guess its
+/// meaning.
+fn json_string_field(line: &str, field: &str) -> Option<String> {
+    let start = line.find(&format!(r#""{field}":""#))? + field.len() + 4;
+    let value = &line[start..start + line[start..].find('"')?];
+    assert!(
+        !value.contains('\\'),
+        "Cargo reported an escaped {field} path: {value}"
+    );
+    Some(value.to_owned())
 }
 
 /// Every Rust source file grove itself ships, as `(repo-relative path, body)`.

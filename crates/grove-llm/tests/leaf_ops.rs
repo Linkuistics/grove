@@ -596,8 +596,7 @@ fn leaf_decompose_and_retire_listed_in_grove_llm_help() {
 
 #[test]
 fn grove_binary_does_not_expose_leaf_decompose_or_retire() {
-    let out = Command::cargo_bin("grove")
-        .unwrap()
+    let out = Command::new(support::grove_bin())
         .arg("--help")
         .output()
         .unwrap();

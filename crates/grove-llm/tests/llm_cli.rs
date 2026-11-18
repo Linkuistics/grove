@@ -4,6 +4,8 @@
 
 use assert_cmd::Command;
 
+mod support;
+
 #[test]
 fn help_lists_only_llm_verbs() {
     let out = Command::cargo_bin("grove-llm")
@@ -49,8 +51,7 @@ fn the_two_binaries_report_one_version() {
         .arg("--version")
         .output()
         .unwrap();
-    let human = Command::cargo_bin("grove")
-        .unwrap()
+    let human = Command::new(support::grove_bin())
         .arg("--version")
         .output()
         .unwrap();
@@ -66,4 +67,14 @@ fn the_two_binaries_report_one_version() {
         Some("0.1.0"),
         "grove-llm is answering with its own package version: {llm:?}"
     );
+}
+
+/// Both stages of the shared binary lookup name the same file. A full run
+/// stops at the first stage, the ancestor search. Without this test, the gate
+/// would never parse a real Cargo JSON message in the second stage.
+#[test]
+fn the_binary_lookup_stages_agree() {
+    let searched = support::grove_bin().canonicalize().unwrap();
+    let reported = support::cargo_built_binary("grove").canonicalize().unwrap();
+    assert_eq!(searched, reported);
 }

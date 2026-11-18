@@ -547,8 +547,7 @@ fn leaf_add_and_insert_listed_in_grove_llm_help() {
 
 #[test]
 fn grove_binary_does_not_expose_leaf_verbs() {
-    let out = Command::cargo_bin("grove")
-        .unwrap()
+    let out = Command::new(support::grove_bin())
         .arg("--help")
         .output()
         .unwrap();

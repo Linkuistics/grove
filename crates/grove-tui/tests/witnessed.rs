@@ -282,15 +282,10 @@ fn real_launch_keeps_lifecycle_running_and_finish_forecast_independent() {
     let mut viewer = Viewer::new(work.path().into());
     viewer.act(Action::End); // Selected running row must retain its own styles.
     let mut old = "02-impl--work-k1.md";
-    for (name, lifecycle, color, glyph) in [
-        ("02-impl--work-k1.md", "LIVE", Color::Reset, " "),
-        ("02-DONE-impl--work-k1.md", "DONE", Color::Green, "✓"),
-        (
-            "02-ABANDONED-impl--work-k1.md",
-            "ABANDONED",
-            Color::Red,
-            "✗",
-        ),
+    for (name, color, glyph) in [
+        ("02-impl--work-k1.md", Color::Reset, "◦"),
+        ("02-DONE-impl--work-k1.md", Color::Green, "✓"),
+        ("02-ABANDONED-impl--work-k1.md", Color::Red, "✗"),
     ] {
         if old != name {
             fs::rename(root.join(old), root.join(name)).unwrap();
@@ -307,29 +302,33 @@ fn real_launch_keeps_lifecycle_running_and_finish_forecast_independent() {
             text.lines().nth(3).unwrap().contains("NEXT: finish-k2"),
             "{text}"
         );
-        let y = text
+        let y = 4 + text
             .lines()
-            .position(|line| line.contains(lifecycle) && line.contains("work-k1"))
+            .skip(4)
+            .position(|line| line.contains("work-k1"))
             .unwrap();
-        assert!(text.lines().nth(y).unwrap().contains("RUNNING"), "{text}");
-        assert_eq!(buffer[(1, y as u16)].symbol(), ">");
-        assert_eq!(buffer[(3, y as u16)].symbol(), glyph);
-        assert_eq!(buffer[(5, y as u16)].fg, color);
-        for x in [15, 27] {
+        // Cursor at 4, lifecycle at 6, activity at 8, handle at 14, kind at 22.
+        assert_eq!(buffer[(4, y as u16)].symbol(), ">");
+        assert_eq!(buffer[(6, y as u16)].symbol(), glyph);
+        assert_eq!(buffer[(6, y as u16)].fg, color);
+        assert_eq!(buffer[(8, y as u16)].symbol(), "►", "{text}");
+        assert_eq!(text.lines().nth(y).unwrap().matches('►').count(), 1);
+        for x in [8, 14, 22] {
             let cell = &buffer[(x, y as u16)];
             assert_eq!(cell.fg, Color::Yellow, "{text}");
             assert!(cell.modifier.contains(Modifier::BOLD));
             assert!(!cell.modifier.contains(Modifier::REVERSED));
         }
-        let next_y = text
+        let next_y = 4 + text
             .lines()
-            .position(|line| line.contains("LIVE") && line.contains("finish-k2"))
+            .skip(4)
+            .position(|line| line.contains("finish-k2"))
             .unwrap();
-        assert_eq!(buffer[(15, next_y as u16)].fg, Color::Reset);
-        assert!(buffer[(15, next_y as u16)]
-            .modifier
-            .contains(Modifier::BOLD));
-        assert!(!buffer[(27, next_y as u16)]
+        assert_eq!(buffer[(6, next_y as u16)].symbol(), "◦");
+        assert_eq!(buffer[(8, next_y as u16)].symbol(), "»", "{text}");
+        assert_eq!(buffer[(8, next_y as u16)].fg, Color::Reset);
+        assert!(buffer[(8, next_y as u16)].modifier.contains(Modifier::BOLD));
+        assert!(!buffer[(14, next_y as u16)]
             .modifier
             .contains(Modifier::BOLD));
         viewer.act(Action::Focus);
@@ -380,13 +379,16 @@ fn real_launch_follows_key_into_a_renamed_moved_branch_and_hidden_summaries() {
         .skip(4)
         .find(|line| line.contains(renamed))
         .unwrap();
-    assert!(row.contains("RUNNING") && row.contains("branch"), "{text}");
+    assert!(
+        row.contains('►') && row.contains(&format!("{renamed}-k1 ◦1 ✓0 ✗0")),
+        "{text}"
+    );
     assert!(!text
         .lines()
         .skip(4)
         .find(|line| line.contains("container-k3"))
         .unwrap()
-        .contains("RUNNING"));
+        .contains('►'));
     assert!(
         text.lines().nth(3).unwrap().contains("NEXT: child-k4"),
         "{text}"
@@ -400,7 +402,7 @@ fn real_launch_follows_key_into_a_renamed_moved_branch_and_hidden_summaries() {
         let (text, _) = screen(&mut viewer, 60, 10);
         let summary = text.lines().nth(2).unwrap();
         assert!(
-            summary.starts_with("RUNNING: a-very-long") && summary.trim_end().ends_with("-k1"),
+            summary.starts_with("► RUNNING: a-very-long") && summary.trim_end().ends_with("-k1"),
             "{text}"
         );
         assert!(
@@ -410,7 +412,7 @@ fn real_launch_follows_key_into_a_renamed_moved_branch_and_hidden_summaries() {
         assert!(!text
             .lines()
             .skip(4)
-            .any(|line| line.contains("RUNNING") || line.contains("NEXT")));
+            .any(|line| line.contains('►') || line.contains('»')));
     }
 }
 
@@ -438,7 +440,7 @@ fn real_launch_never_attaches_to_retained_rows_or_selects_an_invalid_tree() {
         !text
             .lines()
             .skip(4)
-            .any(|line| line.contains("RUNNING") || line.contains("NEXT")),
+            .any(|line| line.contains('►') || line.contains('»')),
         "{text}"
     );
     assert!(viewer.act(Action::Quit));
@@ -464,7 +466,7 @@ fn real_launch_never_attaches_to_retained_rows_or_selects_an_invalid_tree() {
             !text
                 .lines()
                 .skip(4)
-                .any(|line| line.contains("RUNNING") || line.contains("NEXT")),
+                .any(|line| line.contains('►') || line.contains('»')),
             "{text}"
         );
         fs::remove_file(root.join(invalid)).unwrap();
@@ -509,7 +511,7 @@ fn real_launch_preserves_absent_item_and_tree_identity_at_minimum_width() {
             for _ in 0..2 {
                 let (text, _) = screen(current, 60, 10);
                 let running = text.lines().nth(2).unwrap();
-                assert!(running.starts_with("RUNNING: a-very-long"), "{text}");
+                assert!(running.starts_with("► RUNNING: a-very-long"), "{text}");
                 assert!(running.contains("-k1"), "{text}");
                 assert!(
                     running.contains(if absent_tree {
@@ -528,7 +530,7 @@ fn real_launch_preserves_absent_item_and_tree_identity_at_minimum_width() {
                     "{text}"
                 );
                 assert!(
-                    !text.lines().skip(4).any(|line| line.contains("RUNNING")),
+                    !text.lines().skip(4).any(|line| line.contains('►')),
                     "{text}"
                 );
                 current.act(Action::Focus);
@@ -622,7 +624,7 @@ fn real_launch_replacement_does_not_attach_or_exclude_reused_key() {
             text.lines()
                 .nth(3)
                 .unwrap()
-                .starts_with("NEXT: a-very-long"),
+                .starts_with("» NEXT: a-very-long"),
             "{text}"
         );
         assert!(
@@ -630,7 +632,7 @@ fn real_launch_replacement_does_not_attach_or_exclude_reused_key() {
             "{text}"
         );
         assert!(
-            !text.lines().skip(4).any(|line| line.contains("RUNNING")),
+            !text.lines().skip(4).any(|line| line.contains('►')),
             "{text}"
         );
         current.act(Action::Focus);
@@ -728,7 +730,7 @@ fn real_launch_root_open_failure_retains_summary_and_recovers() {
         );
         assert!(text.contains("NEXT: unavailable"), "{text}");
         assert!(
-            !text.lines().skip(4).any(|line| line.contains("RUNNING")),
+            !text.lines().skip(4).any(|line| line.contains('►')),
             "{text}"
         );
         assert!(current.retry_after(Instant::now()).unwrap() <= Duration::from_millis(500));

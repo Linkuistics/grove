@@ -30,6 +30,10 @@ and `zb` add.
 2. `vim-keys`: the movement keys and the help overlay.
 3. `follow-current-leaf`: following, centring, the startup position and `c`.
 
+`glyph-rows` inserted `cargo-build-layout` after itself. That `impl` leaf
+repairs the gate, which fails with the installed Cargo 1.100 before any change
+of this grove. It changes nothing in the settled design.
+
 ## Pointers
 
 - Glossary terms in play: **Current leaf**, **RUNNING**, **NEXT** and **Tree

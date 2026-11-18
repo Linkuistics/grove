@@ -46,20 +46,51 @@ pub enum Action {
 
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
-/// The List owns the two cursor cells; spans own the remaining status and item.
-fn tree_item(
+/// Activity glyphs. Like the lifecycle glyphs, each has neutral East Asian
+/// width, so it takes one cell in every terminal locale.
+const RUNNING_GLYPH: &str = "►";
+const NEXT_GLYPH: &str = "»";
+
+/// One glyph and one colour for each lifecycle. The shapes differ with colour off.
+fn lifecycle_cue(lifecycle: Lifecycle) -> (&'static str, Style) {
+    match lifecycle {
+        Lifecycle::Live => ("◦", Style::default()),
+        Lifecycle::Done => ("✓", Style::default().fg(Color::Green)),
+        Lifecycle::Abandoned => ("✗", Style::default().fg(Color::Red)),
+        Lifecycle::Empty => ("∅", Style::default()),
+    }
+}
+
+/// The depth column is two cells wide. A tree deeper than 99 widens it for
+/// every row, so the columns stay aligned and no digit is lost.
+fn depth_width(rows: &[Row]) -> usize {
+    rows.iter()
+        .map(|row| row.depth)
+        .max()
+        .unwrap_or(0)
+        .to_string()
+        .len()
+        .max(2)
+}
+
+/// The fixed area before the item: depth, a space, the cursor and a space, the
+/// lifecycle glyph and a space, the activity glyph and a space.
+fn fixed_width(depth_width: usize) -> usize {
+    depth_width + 7
+}
+
+/// Each row draws its own cursor cell, because the `List` highlight symbol
+/// always comes first in a row and the depth column must precede it.
+fn tree_line(
     row: &Row,
     width: usize,
+    depth_width: usize,
+    selected: bool,
     running: Option<u32>,
     next: Option<u32>,
-) -> ListItem<'static> {
-    let (marker, word, style) = match row.lifecycle {
-        Lifecycle::Live => ("  ", "LIVE", Style::default()),
-        Lifecycle::Done => ("✓ ", "DONE", Style::default().fg(Color::Green)),
-        Lifecycle::Abandoned => ("✗ ", "ABANDONED", Style::default().fg(Color::Red)),
-        Lifecycle::Empty => ("  ", "EMPTY", Style::default()),
-    };
-    let item_width = width.saturating_sub(22);
+) -> Line<'static> {
+    let (glyph, style) = lifecycle_cue(row.lifecycle);
+    let item_width = width.saturating_sub(fixed_width(depth_width));
     // Preserve two fold cells and at least sixteen handle cells at 60 columns.
     let indent = row
         .depth
@@ -94,34 +125,52 @@ fn tree_item(
             format!("{slug}{suffix}")
         },
     );
-    let details = if let Some(kind) = &row.kind {
-        format!(" {}", kind.label())
-    } else {
-        let [live, done, abandoned] = row.counts;
-        format!(" branch [LIVE {live} DONE {done} ABANDONED {abandoned}]")
-    };
-    let details = fit_text(
-        &details,
-        available.saturating_sub(Line::raw(&handle).width()),
-    );
     let running = running.is_some() && row.key == running;
     let running_style = Style::default()
         .fg(Color::Yellow)
         .add_modifier(Modifier::BOLD);
-    ListItem::new(Line::from(vec![
-        Span::styled(format!("{marker}{word:10}"), style),
-        if running {
-            Span::styled("RUNNING ", running_style)
-        } else if next.is_some() && row.key == next {
-            Span::styled("NEXT    ", Style::default().add_modifier(Modifier::BOLD))
+    let item_style = if running { running_style } else { style };
+    // Kinds and counts use the space that the handle leaves.
+    let budget = available.saturating_sub(Line::raw(&handle).width());
+    let details = if let Some(kind) = &row.kind {
+        if budget > 0 {
+            vec![
+                Span::styled(" ", item_style),
+                Span::styled(
+                    fit_text(kind.label(), budget - 1),
+                    item_style.add_modifier(Modifier::BOLD),
+                ),
+            ]
         } else {
-            Span::raw("        ")
+            Vec::new()
+        }
+    } else {
+        let [live, done, abandoned] = row.counts;
+        let counts = format!(
+            " {}{live} {}{done} {}{abandoned}",
+            lifecycle_cue(Lifecycle::Live).0,
+            lifecycle_cue(Lifecycle::Done).0,
+            lifecycle_cue(Lifecycle::Abandoned).0,
+        );
+        vec![Span::styled(fit_text(&counts, budget), item_style)]
+    };
+    let mut spans = vec![
+        Span::raw(format!("{:>depth_width$} ", row.depth)),
+        Span::raw(if selected { "> " } else { "  " }),
+        Span::styled(glyph, style),
+        Span::raw(" "),
+        if running {
+            Span::styled(RUNNING_GLYPH, running_style)
+        } else if next.is_some() && row.key == next {
+            Span::styled(NEXT_GLYPH, Style::default().add_modifier(Modifier::BOLD))
+        } else {
+            Span::raw(" ")
         },
-        Span::styled(
-            format!("{indentation}{fold}{handle}{details}"),
-            if running { running_style } else { style },
-        ),
-    ]))
+        Span::raw(" "),
+        Span::styled(format!("{indentation}{fold}{handle}"), item_style),
+    ];
+    spans.extend(details);
+    Line::from(spans)
 }
 
 /// Fit a single-line terminal field without splitting a grapheme.
@@ -162,7 +211,49 @@ fn activity_summary(label: &str, handle: &Handle, qualifier: &str, width: usize)
 
 #[cfg(test)]
 mod row_text_tests {
-    use super::fit_text;
+    use super::{depth_width, fit_text, tree_line, Lifecycle, Row};
+
+    fn branch_at(depth: usize) -> Row {
+        Row {
+            key: None,
+            path: std::path::PathBuf::new(),
+            handle: None,
+            kind: None,
+            lifecycle: Lifecycle::Empty,
+            depth,
+            branch: true,
+            expanded: true,
+            counts: [0; 3],
+        }
+    }
+
+    #[test]
+    fn depth_column_is_two_digits_and_widens_beyond_ninety_nine() {
+        for (deepest, width) in [(0, 2), (9, 2), (99, 2), (100, 3), (1234, 4)] {
+            let rows = [branch_at(0), branch_at(deepest)];
+            assert_eq!(depth_width(&rows), width, "deepest {deepest}");
+        }
+        // Every row in a deep tree uses the wider column, right-aligned.
+        let rows = [branch_at(0), branch_at(123)];
+        let width = depth_width(&rows);
+        let text = |row: &Row| {
+            tree_line(row, 200, width, false, None, None)
+                .spans
+                .iter()
+                .map(|span| span.content.to_string())
+                .collect::<String>()
+        };
+        assert!(
+            text(&rows[0]).starts_with("  0   ∅   - root ◦0 ✓0 ✗0"),
+            "{}",
+            text(&rows[0])
+        );
+        assert!(
+            text(&rows[1]).starts_with("123   ∅   …"),
+            "{}",
+            text(&rows[1])
+        );
+    }
 
     #[test]
     fn fitting_preserves_graphemes_and_neutralizes_controls() {
@@ -732,25 +823,28 @@ Escape: close help | ?: toggle help",
         if !self.file_active {
             let visible = self.visible();
             let running = self.running_row_for(&self.activity).and_then(|row| row.key);
+            let depth_width = depth_width(&self.rows);
             self.tree_state
                 .select(visible.iter().position(|&i| i == self.selected));
             let items: Vec<_> = visible
                 .iter()
                 .map(|&i| {
-                    tree_item(
+                    ListItem::new(tree_line(
                         &self.rows[i],
                         usize::from(body.width.saturating_sub(2)),
+                        depth_width,
+                        i == self.selected,
                         running,
                         self.next,
-                    )
+                    ))
                 })
                 .collect();
             // Stateful List keeps the selection visible; the state owns no tree data.
+            // Without a highlight symbol the List reserves no cursor cells and
+            // the default highlight style adds nothing, so rows draw the cursor.
             // https://docs.rs/ratatui/0.29.0/ratatui/widgets/struct.List.html
             frame.render_stateful_widget(
-                List::new(items)
-                    .block(Block::bordered().title("Tree [active] | Tab: File"))
-                    .highlight_symbol("> "),
+                List::new(items).block(Block::bordered().title("Tree [active] | Tab: File")),
                 body,
                 &mut self.tree_state,
             );
@@ -804,13 +898,16 @@ Escape: close help | ?: toggle help",
             "Tree | Tab: File"
         };
         let location = format!("{view} | {}", self.worktree.join(".grove").display());
+        // Each summary line starts with its row glyph and a space, as a legend.
+        let legend = format!("{RUNNING_GLYPH} ");
+        let width_after_legend = width.saturating_sub(Line::raw(&legend).width());
         let next_summary = || {
             self.next
                 .and_then(|key| self.rows.iter().find(|row| row.key == Some(key)))
                 .and_then(|row| row.handle.as_ref())
                 .map_or_else(
                     || "NEXT: none".into(),
-                    |handle| activity_summary("NEXT: ", handle, "", width),
+                    |handle| activity_summary("NEXT: ", handle, "", width_after_legend),
                 )
         };
         let (running, next) = match &self.activity {
@@ -836,7 +933,7 @@ Escape: close help | ?: toggle help",
                     ),
                 };
                 (
-                    activity_summary("RUNNING: ", handle, qualifier, width),
+                    activity_summary("RUNNING: ", handle, qualifier, width_after_legend),
                     next_summary(),
                 )
             }
@@ -850,6 +947,8 @@ Escape: close help | ?: toggle help",
         } else {
             "NEXT: unavailable — tree unavailable".into()
         };
+        let running = format!("{RUNNING_GLYPH} {running}");
+        let next = format!("{NEXT_GLYPH} {next}");
         [location, self.status.clone(), running, next]
             .into_iter()
             .map(|line| Line::raw(fit_text(&line, width)))

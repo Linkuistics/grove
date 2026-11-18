@@ -270,16 +270,24 @@ surviving ancestor, and moved selections reveal their ancestors.
 
 Observation folds descendant totals in reverse preorder, including hidden leaves.
 Both root and branch lifecycle are LIVE if any descendant is live, otherwise
-DONE, otherwise ABANDONED, or EMPTY without leaves. Rendering owns all row text:
-a fixed 22-cell prefix reserves cursor (2), lifecycle marker (2), explicit word
-(10) and activity (8). The NEXT word uses bold normal-foreground text;
-the rest of an ordinary live row remains normal. DONE marker/word/item spans are
-green, ABANDONED red, and LIVE/EMPTY normal. RUNNING overrides only the activity
-and item spans to bold yellow, leaving lifecycle colors intact. Ratatui's cursor gutter supplies
-selection without a row-wide style override; fold markers stay beside the item.
-At 60 columns the bordered tree has 36 cells after the prefix. Indentation is
+DONE, otherwise ABANDONED, or EMPTY without leaves.
+
+Rendering owns all row text.
+A fixed prefix of nine cells holds the depth, the cursor, a lifecycle glyph and
+an activity glyph, and a space follows each one. The deepest row in the tree
+sets the depth width, which is two cells at least. Each row draws its own
+cursor, because Ratatui's `List` highlight symbol always comes first in a row.
+The `List` keeps only its selection state, which scrolls the cursor into view.
+
+The NEXT glyph `»` is bold in the normal foreground, and the rest of an ordinary
+live row remains normal. DONE glyph and item spans are green, ABANDONED spans
+are red, and LIVE and EMPTY spans are normal. RUNNING changes only the `►` glyph
+and the item spans to bold yellow, and the lifecycle colours stay. The kind span
+adds bold to the item style. Fold markers stay beside the item.
+
+At 60 columns the bordered tree has 49 cells after the prefix. Indentation is
 capped to retain two fold cells and at least sixteen handle cells, with an
-ellipsis for compressed depth. Slugs elide before their key suffix; kinds and
+ellipsis for compressed depth. Slugs elide before their key suffix. Kinds and
 counts fit afterward. Fitting uses Ratatui's grapheme iterator and display width,
 with inert control text. Valid handles and kinds remain ASCII by Grove's grammar.
 

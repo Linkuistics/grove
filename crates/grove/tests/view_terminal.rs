@@ -199,7 +199,8 @@ fn actual_binary_reads_wide_markdown_recovers_and_allows_grove_retirement() {
     pty.until("✓");
     pty.output.clear();
     pty.resize(31, 121);
-    pty.until("✓ DONE");
+    // The full redraw shows the root's counts, which now hold one DONE leaf.
+    pty.until("◦0 ✓1 ✗0");
     pty.until("probe-k1");
     let mut expected = recovered;
     let body = expected.remove("01-impl--probe-k1.md").unwrap();

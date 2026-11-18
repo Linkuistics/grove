@@ -355,19 +355,28 @@ item’s full-width **File** view and back; the title and footer name the active
 view and Tab destination. The root opens `_BRIEF.md`, a branch opens its named
 node brief, and a task opens its task file. Branches start expanded.
 
-Every row begins with a fixed status area before its indentation and handle:
-**LIVE**, **✓ DONE**, **✗ ABANDONED**, or **EMPTY**. DONE markers, words and item
-text are green; ABANDONED is red; LIVE and EMPTY use normal text. The separate
-`>` cursor marks selection without changing those colors. The `+`/`-` beside a
-branch's name marks folding, so lifecycle, selection and expansion remain
-distinct without color. A witnessed **RUNNING** item uses bold yellow for its
-activity word and item text; its lifecycle marker and word retain their colors.
-A task can therefore show green **✓ DONE** beside **RUNNING** until its session
-ends. The next eligible leaf has a bold **NEXT**
-word in normal text color; selecting it does not highlight the rest of its row.
+Every row begins with a fixed area of nine cells before its indentation and
+handle. In order, the area shows the row's depth, the `>` cursor, a lifecycle
+glyph and an activity glyph. The depth column is two digits wide. The root is
+at depth 0, and a child of the root is at depth 1. A tree deeper than 99 widens
+the column for every row. The lifecycle glyphs are `◦` LIVE, `✓` DONE,
+`✗` ABANDONED and `∅` EMPTY.
+
+DONE glyphs and item text are green, and ABANDONED glyphs and item text are red.
+LIVE and EMPTY use normal text. The kind after each handle is bold. The `>`
+cursor marks the selection and changes no colour. The `+` or `-` beside a
+branch's name marks folding. So lifecycle, selection and expansion remain
+distinct without colour.
+
+The activity glyph `►` marks the witnessed **RUNNING** item. That glyph and the
+item text are bold yellow, and the lifecycle glyph keeps its colour. So a task
+can show a green `✓` beside `►` until its session ends. The glyph `»` marks the
+**NEXT** eligible leaf. It is bold in the normal text colour, and the rest of
+the row keeps its own style. Each glyph takes one terminal cell in every locale.
 
 Both views keep **RUNNING** and **NEXT** summary lines above the body, even when
-either item is folded or offscreen. Idle shows `RUNNING: none (idle)` and the
+either item is folded or offscreen. Each summary line starts with the glyph of
+its row, `►` or `»`, as a legend. Idle shows `RUNNING: none (idle)` and the
 ordinary Grove selection as NEXT: the first live non-finish leaf in depth-first
 position order, or the sole live finish leaf when no ordinary task remains.
 For a witnessed running item in the current tree, NEXT applies that rule after
@@ -399,11 +408,11 @@ An incomplete Started publication shows activity waiting.
 
 The root and branches count all descendant leaves, including folded ones.
 Their status is LIVE if any are live, otherwise DONE if any are done, otherwise
-ABANDONED, or EMPTY with no leaves. Separate LIVE/DONE/ABANDONED totals expose
-mixed terminal branches. Handles come before kinds and counts. At narrow widths,
+ABANDONED, or EMPTY with no leaves. Separate totals after the handle, such as
+`◦1 ✓2 ✗0`, expose mixed terminal branches. Handles come before kinds and counts. At narrow widths,
 deep indentation compresses to an ellipsis and long slugs are shortened before
 their `-k<key>` suffix; trailing kinds and counts use the remaining space.
-The lifecycle stays visible even at the supported minimum of 60 × 10.
+The depth and both glyphs stay visible even at the supported minimum of 60 × 10.
 
 | Key | Action |
 |---|---|

@@ -68,11 +68,15 @@ fn idle_next_survives_folding_file_view_and_minimum_chrome() {
         }
         let shown = screen(&mut viewer, 60, 10);
         assert!(
-            shown.lines().nth(2).unwrap().contains("RUNNING: none"),
+            shown.lines().nth(2).unwrap().starts_with("► RUNNING: none"),
             "{shown}"
         );
         assert!(
-            shown.lines().nth(3).unwrap().contains("NEXT: forecast-k3"),
+            shown
+                .lines()
+                .nth(3)
+                .unwrap()
+                .starts_with("» NEXT: forecast-k3"),
             "{shown}"
         );
         assert!(shown.lines().nth(4).unwrap().ends_with('┐'), "{shown}");
@@ -198,7 +202,7 @@ fn real_runtime_transitions_clear_next_and_retry_in_both_views() {
         assert!(!shown.contains("NEXT: next-k1"));
         assert!(shown.contains(if file { "READABLE ROOT" } else { "next-k1" }));
         assert!(!shown.contains("STALE")); // Runtime failure did not reject the tree.
-        assert!(!shown.lines().skip(4).any(|line| line.contains("NEXT")));
+        assert!(!shown.lines().skip(4).any(|line| line.contains("»")));
         assert_eq!(snapshot(work.path()), before);
 
         screen(&mut viewer, 20, 5);
@@ -214,7 +218,7 @@ fn real_runtime_transitions_clear_next_and_retry_in_both_views() {
         let shown = screen(&mut viewer, 100, 15);
         assert!(shown.contains("RUNNING: WAITING"), "{shown}");
         assert!(shown.contains("NEXT: WAITING"), "{shown}");
-        assert!(!shown.lines().skip(4).any(|line| line.contains("NEXT")));
+        assert!(!shown.lines().skip(4).any(|line| line.contains("»")));
         assert!(start.elapsed() < Duration::from_secs(1));
         assert!(viewer.act(Action::Quit));
         drop(holder);
@@ -227,7 +231,7 @@ fn real_runtime_transitions_clear_next_and_retry_in_both_views() {
         assert!(shown.contains("duplicate key k1"), "{shown}");
         assert!(shown.contains("RUNNING: none (idle)"), "{shown}");
         assert!(shown.contains("NEXT: unavailable"));
-        assert!(!shown.lines().skip(4).any(|line| line.contains("NEXT")));
+        assert!(!shown.lines().skip(4).any(|line| line.contains("»")));
     }
 }
 
@@ -276,8 +280,9 @@ fn long_next_keeps_its_key_offscreen_and_tree_contention_withholds_next() {
     viewer.act(Action::End);
     let shown = screen(&mut viewer, 60, 10);
     let summary = shown.lines().nth(3).unwrap();
-    assert!(summary.starts_with("NEXT: long-name"), "{shown}");
-    assert!(summary.contains("…-k4294967295"), "{shown}");
+    assert!(summary.starts_with("» NEXT: long-name"), "{shown}");
+    // The legend glyph costs slug text, never the permanent key.
+    assert!(summary.trim_end().ends_with("…-k4294967295"), "{shown}");
     assert!(!shown
         .lines()
         .skip(4)
@@ -292,7 +297,7 @@ fn long_next_keeps_its_key_offscreen_and_tree_contention_withholds_next() {
         shown.contains("NEXT: unavailable — tree unavailable"),
         "{shown}"
     );
-    assert!(!shown.lines().skip(4).any(|line| line.contains("NEXT")));
+    assert!(!shown.lines().skip(4).any(|line| line.contains("»")));
     drop(holder);
     viewer.act(Action::Refresh);
     assert!(screen(&mut viewer, 60, 10).contains("…-k4294967295"));
@@ -467,10 +472,10 @@ fn nested_browser_selects_briefs_and_tasks_without_writing() {
         "branch-k1",
         "first-k2",
         "unusual-kind",
-        "DONE",
-        "ABANDONED",
+        "✓",
+        "✗",
         "third-k4",
-        "LIVE",
+        "◦",
     ] {
         assert!(initial.contains(text), "missing {text}: {initial}");
     }
@@ -480,8 +485,7 @@ fn nested_browser_selects_briefs_and_tasks_without_writing() {
     viewer.act(Action::Toggle);
     let collapsed = screen(&mut viewer, 180, 24);
     assert!(!collapsed.contains("first-k2"));
-    assert!(collapsed.contains("DONE 1"));
-    assert!(collapsed.contains("ABANDONED 1"));
+    assert!(collapsed.contains("branch-k1 ◦0 ✓1 ✗1"), "{collapsed}");
     viewer.act(Action::Down);
     assert!(visit_file(&mut viewer, 180, 24).contains("THIRD BODY"));
     viewer.act(Action::Up);
@@ -506,24 +510,20 @@ fn branch_aggregates_include_hidden_leaves_and_empty_branches() {
     put(&root, "03-k5/_empty.md", "");
     let mut viewer = Viewer::new(work.path().into());
     let text = screen(&mut viewer, 220, 24);
-    for (handle, status) in [
-        ("root", "DONE"),
-        ("done-k1", "DONE"),
-        ("abandoned-k3", "ABANDONED"),
-        ("empty-k5", "EMPTY"),
+    for (handle, glyph, counts) in [
+        ("root", "✓", "◦0 ✓1 ✗1"),
+        ("done-k1", "✓", "◦0 ✓1 ✗0"),
+        ("abandoned-k3", "✗", "◦0 ✓0 ✗1"),
+        ("empty-k5", "∅", "◦0 ✓0 ✗0"),
     ] {
         let row = text.lines().find(|row| row.contains(handle)).unwrap();
-        assert_eq!(
-            row.chars().skip(5).take(10).collect::<String>().trim(),
-            status,
-            "{row}"
-        );
-        assert!(row.contains("branch"), "{row}");
+        assert_eq!(row.chars().nth(6).unwrap().to_string(), glyph, "{row}");
+        assert!(row.contains(&format!("{handle} {counts}")), "{row}");
     }
 }
 
 #[test]
-fn lifecycle_prefix_and_colors_survive_cursor_selection() {
+fn glyph_rows_keep_depth_colors_and_bold_kinds_under_cursor_selection() {
     use ratatui::style::{Color, Modifier};
     let work = tempfile::tempdir().unwrap();
     let root = work.path().join(".grove");
@@ -534,48 +534,55 @@ fn lifecycle_prefix_and_colors_survive_cursor_selection() {
     put(&root, "04-k4/_empty.md", "");
     let before = snapshot(work.path());
     let mut viewer = Viewer::new(work.path().into());
+    // Columns inside the border: depth 1..3, cursor 4, lifecycle 6, activity 8,
+    // item from 10. The symbols alone are what a terminal without colour shows.
     for selected in 0..5 {
         let mut terminal = Terminal::new(TestBackend::new(100, 14)).unwrap();
         terminal.draw(|frame| viewer.render(frame)).unwrap();
         let buffer = terminal.backend().buffer();
-        for (index, (prefix, color, name)) in [
-            ("  LIVE      ", Color::Reset, "root"),
-            ("  LIVE      ", Color::Reset, "live-k1"),
-            ("✓ DONE      ", Color::Green, "done-k2"),
-            ("✗ ABANDONED ", Color::Red, "gone-k3"),
-            ("  EMPTY     ", Color::Reset, "empty-k4"),
+        for (index, (depth, glyph, color, item)) in [
+            (" 0", "◦", Color::Reset, "- root ◦1 ✓1 ✗1"),
+            (" 1", "◦", Color::Reset, "    live-k1 impl"),
+            (" 1", "✓", Color::Green, "    done-k2 impl"),
+            (" 1", "✗", Color::Red, "    gone-k3 impl"),
+            (" 1", "∅", Color::Reset, "  - empty-k4 ◦0 ✓0 ✗0"),
         ]
         .into_iter()
         .enumerate()
         {
             let cells = &buffer.content[(index + 5) * 100..(index + 6) * 100];
             let text: String = cells.iter().map(|cell| cell.symbol()).collect();
-            assert_eq!(cells[1].symbol(), if selected == index { ">" } else { " " });
-            assert_eq!(
-                cells[3..15].iter().map(|c| c.symbol()).collect::<String>(),
-                prefix
-            );
-            assert_eq!(
-                cells[15..23]
-                    .iter()
-                    .map(|cell| cell.symbol())
-                    .collect::<String>(),
-                if index == 1 { "NEXT    " } else { "        " }
-            );
-            for cell in &cells[15..23] {
-                assert_eq!(cell.fg, Color::Reset);
-                assert_eq!(cell.modifier.contains(Modifier::BOLD), index == 1);
-            }
-            let name_at = text[..text.find(name).unwrap()].chars().count();
-            for cell in cells[3..15]
-                .iter()
-                .chain(&cells[name_at..name_at + name.len()])
-            {
+            let symbols = |range: std::ops::Range<usize>| {
+                cells[range].iter().map(|c| c.symbol()).collect::<String>()
+            };
+            assert_eq!(symbols(1..3), depth, "{text}");
+            assert_eq!(symbols(3..4), " ");
+            assert_eq!(symbols(4..6), if selected == index { "> " } else { "  " });
+            assert_eq!(symbols(6..8), format!("{glyph} "), "{text}");
+            assert_eq!(symbols(8..10), if index == 1 { "» " } else { "  " });
+            assert_eq!(symbols(10..10 + item.chars().count()), item, "{text}");
+            // NEXT is bold in the normal foreground, in its glyph cell only.
+            assert_eq!(cells[8].fg, Color::Reset);
+            assert_eq!(cells[8].modifier.contains(Modifier::BOLD), index == 1);
+            // The lifecycle glyph and the whole item share the lifecycle colour.
+            let item_end = 10 + item.chars().count();
+            for cell in std::iter::once(&cells[6]).chain(&cells[12..item_end]) {
                 assert_eq!(cell.fg, color, "{text}");
             }
-            assert!(cells[..15].iter().chain(&cells[23..]).all(|cell| !cell
-                .modifier
-                .intersects(Modifier::REVERSED | Modifier::BOLD)));
+            // Only the kind is bold within the item; counts and handles are not.
+            let kind_at = item.find(" impl").map(|at| 10 + at + 1);
+            for (x, cell) in cells.iter().enumerate() {
+                let bold =
+                    (x == 8 && index == 1) || kind_at.is_some_and(|k| (k..k + 4).contains(&x));
+                assert_eq!(
+                    cell.modifier.contains(Modifier::BOLD),
+                    bold,
+                    "x {x}: {text}"
+                );
+                assert!(!cell.modifier.contains(Modifier::REVERSED), "{text}");
+            }
+            // Depth and cursor cells carry no colour of their own.
+            assert!(cells[1..6].iter().all(|cell| cell.fg == Color::Reset));
         }
         viewer.act(Action::Down);
     }
@@ -607,17 +614,47 @@ fn deep_rows_keep_status_and_key_at_minimum_size() {
         .buffer()
         .content
         .chunks(60)
-        .find(|row| row[1].symbol() == ">")
+        .find(|row| row[4].symbol() == ">")
         .unwrap_or_else(|| panic!("{}", screen(&mut viewer, 60, 10)));
+    // The fixed area is nine cells, so 49 of the 58 inner cells hold the item.
     assert_eq!(
-        cells[3..15].iter().map(|c| c.symbol()).collect::<String>(),
-        "✗ ABANDONED "
+        cells[1..10].iter().map(|c| c.symbol()).collect::<String>(),
+        "16 > ✗   "
     );
-    assert!(cells[15..23].iter().all(|c| c.symbol() == " "));
-    let item: String = cells[23..59].iter().map(|c| c.symbol()).collect();
+    let item: String = cells[10..59].iter().map(|c| c.symbol()).collect();
     assert!(item.starts_with('…'), "{item}");
     assert!(item.contains("…-k4294967295"), "{item}");
     assert!(item.contains("rec…-k4294967295"), "{item}");
+}
+
+#[test]
+fn depth_column_widens_for_every_row_beyond_ninety_nine() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "");
+    let mut parent = root.clone();
+    for key in 1..=99 {
+        parent = parent.join(format!("01-k{key}"));
+        put(&parent, "_b.md", "");
+    }
+    put(&parent, "01-impl--deep-k100.md", "");
+    let mut viewer = Viewer::new(work.path().into());
+    let cursor_row = |viewer: &mut Viewer| {
+        let mut terminal = Terminal::new(TestBackend::new(60, 10)).unwrap();
+        terminal.draw(|frame| viewer.render(frame)).unwrap();
+        let buffer = terminal.backend().buffer();
+        // A three-digit depth moves the cursor from cell 4 to cell 5.
+        buffer
+            .content
+            .chunks(60)
+            .find(|row| row[5].symbol() == ">")
+            .map(|row| row[1..10].iter().map(|c| c.symbol()).collect::<String>())
+            .unwrap_or_else(|| panic!("{}", screen(viewer, 60, 10)))
+    };
+    assert_eq!(cursor_row(&mut viewer), "  0 > ◦  ");
+    viewer.act(Action::End);
+    assert_eq!(cursor_row(&mut viewer), "100 > ◦ »");
+    assert!(screen(&mut viewer, 60, 10).contains("deep-k100"));
 }
 
 #[test]
@@ -1549,7 +1586,7 @@ fn live_ticks_follow_keys_and_reveal_a_moved_selection() {
         .lines()
         .find(|row| row.contains("renamed-k3 impl"))
         .unwrap();
-    assert!(row.starts_with("│> ✓ DONE"), "{tree}");
+    assert!(row.starts_with("│ 2 > ✓"), "{tree}");
     assert!(shown.contains("CHOSEN BODY"), "{shown}");
     assert!(!shown.contains("HIDDEN BODY"));
     assert!(
@@ -1610,9 +1647,9 @@ fn live_decomposition_and_duplicate_key_recovery() {
     );
     let row = shown
         .lines()
-        .find(|row| row.contains("chosen-k1 branch"))
+        .find(|row| row.contains("chosen-k1 ◦0 ✓0 ✗0"))
         .unwrap();
-    assert!(row.starts_with("│>   EMPTY"), "{shown}");
+    assert!(row.starts_with("│ 1 > ∅"), "{shown}");
     assert!(row.contains("- chosen-k1"), "{shown}");
     put(&root, "02-impl--duplicate-k1.md", "WRONG BODY");
     viewer.act(Action::Refresh);
@@ -1872,7 +1909,7 @@ fn production_clock_recovers_from_interrupted_decomposition_and_duplicate_keys()
     .unwrap();
     let expected = snapshot(work.path());
     await_live(&mut viewer, started, |s| {
-        s.contains("selected-k1 branch") && !s.contains("STALE")
+        s.contains("selected-k1 ◦0 ✓0 ✗0") && !s.contains("STALE")
     });
     assert_eq!(snapshot(work.path()), expected);
     let started = std::time::Instant::now();
@@ -1906,7 +1943,7 @@ fn production_clock_replacement_between_polls_resets_reused_keys() {
     let expected = snapshot(work.path());
     await_live(&mut viewer, started, |s| {
         s.lines()
-            .any(|row| row.starts_with("│> ") && row.contains("- root"))
+            .any(|row| row.starts_with("│ 0 > ") && row.contains("- root"))
     });
     let frame = visit_file(&mut viewer, 140, 24);
     assert!(frame.contains("REPLACEMENT_ROOT"));

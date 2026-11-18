@@ -10,9 +10,9 @@ file also needs the terminal's full width without losing the reader's place.
 ## Solution
 
 `grove view` starts in Tree view. Tab switches between a full-width tree and
-the selected item's full-width Markdown file. Lifecycle begins each row label;
-RUNNING and NEXT have their own fixed column and a summary visible in either
-view. Activity is a sampled observation, refreshed on the existing 500 ms
+the selected item's full-width Markdown file. Each row starts with its depth,
+the cursor, a lifecycle glyph and an activity glyph. RUNNING and NEXT also have
+a summary line in either view. Activity is a sampled observation, refreshed on the existing 500 ms
 cadence, while lifecycle continues to come from the task tree.
 
 [One live driver owns each working tree](../adr/one-live-driver-per-working-tree.md#read-only-activity-observation)
@@ -333,48 +333,62 @@ including folded subtrees, and retain the separate LIVE/DONE/ABANDONED totals.
 
 ## Tree layout
 
-The status area has a constant width and precedes depth indentation:
+A fixed area precedes depth indentation. Each part has a constant width, and a
+space follows each part:
 
 | Area | Cells | Contents |
 |---|---:|---|
-| Cursor gutter | 2 | `> ` on the selected row, spaces otherwise |
-| First part of label | 2 | `✓ ` for DONE, `✗ ` for ABANDONED, spaces for LIVE/EMPTY |
-| Lifecycle | 10 | Full word, padded: LIVE, DONE, ABANDONED or EMPTY |
-| Activity | 8 | RUNNING, NEXT or spaces, padded |
-| Item | Remaining width | Bounded indentation, fold indicator, handle, kind and branch counts |
+| Depth | 2 | The row's tree depth, right-aligned. The root is at 0, and a child of the root is at 1 |
+| Cursor | 1 | `>` on the selected row, a space otherwise |
+| Lifecycle | 1 | `◦` LIVE, `✓` DONE, `✗` ABANDONED or `∅` EMPTY |
+| Activity | 1 | `►` RUNNING, `»` NEXT or a space |
+| Item | Remaining width | Bounded indentation, fold indicator, handle, then the bold kind or the branch counts |
 
-For example, the start of an ordinary retired row reads `✓ DONE`; a retired
-item whose session is still finishing reads `✓ DONE` followed by `RUNNING`.
-The tick/cross starts the label after the separate cursor gutter. Expansion
-continues to use its own plus/minus indicator beside the indented item name.
+With its four spaces, the fixed area takes nine cells. A tree deeper than 99
+widens the depth column for every row, so no digit is lost. The deepest row of
+the whole tree sets that width, including folded rows. So folding never moves a
+column. Branch counts use the lifecycle glyphs, for example `◦1 ✓2 ✗0`.
 
-Ordinary LIVE items use the normal foreground. DONE uses green marker, word and
-item text; ABANDONED uses red; EMPTY uses the normal neutral foreground. Reserve
-the active highlight for the RUNNING item: its item text and RUNNING word use
-bold yellow, while its lifecycle marker and word retain their own treatment.
-Thus a session that has retired its task still shows a green `✓ DONE` beside
-its highlighted running name. NEXT uses bold normal-foreground text in its activity column only.
+Each glyph has neutral East Asian width, so it takes one cell in every terminal
+locale. The ambiguous-width shapes `○` and `▶` are not used, because some
+locales draw them two cells wide. A retired item whose session is still
+finishing has `✓` followed by `►`. Expansion keeps its own plus or minus
+indicator beside the indented item name.
 
-Selection adds the cursor gutter only, with no added row-wide style modifier;
-it preserves lifecycle foreground colors and the RUNNING highlight. It never
-applies a uniform highlight color or reverse-video style. Words, glyphs, cursor and fold indicators remain distinguishable with
-color disabled. Selecting an ordinary LIVE item does not give it the active
-highlight.
+Ordinary LIVE items use the normal foreground. DONE uses a green glyph and item
+text, and ABANDONED uses red. EMPTY uses the normal foreground. Reserve the
+active highlight for the RUNNING item: its `►` glyph and its item text use bold
+yellow. Its lifecycle glyph keeps its own colour. So a session that has retired
+its task still has a green `✓` beside its highlighted running name.
 
-At the supported minimum of 60 columns, a bordered tree has 58 inner cells;
-the fixed area uses 22 and leaves 36 for the item. Reserve at least 16 cells
-for recognizable handle text and two for the fold indicator. Cap indentation to
+NEXT uses a bold `»` in the normal foreground, in its activity cell only. The
+kind is bold and keeps the colour of its item text. The depth and cursor cells
+have no colour of their own. Each row draws its own cursor cell, because the
+Ratatui `List` highlight symbol always comes first in a row.
+
+Selection adds the cursor only, with no added row-wide style modifier. It
+preserves lifecycle colours and the RUNNING highlight. It never applies a
+uniform highlight colour or reverse video. With colour disabled, the glyphs,
+cursor and fold indicators remain distinct by shape. Selecting an ordinary LIVE
+item does not give it the active highlight.
+
+At the supported minimum of 60 columns, a bordered tree has 58 inner cells.
+The fixed area uses 9 and leaves 49 for the item.
+
+Reserve at least 16 cells
+for recognisable handle text and two for the fold indicator. Cap indentation to
 the remaining budget, marking compressed depth with an ellipsis inside that
-budget. Elide the slug before losing the permanent-key suffix; kind and counts
+budget. Elide the slug before losing the permanent-key suffix. Kind and counts
 use the space left after the handle. Clip by terminal display width without
 splitting graphemes or emitting control characters. Neither deep indentation nor
-long text may consume status cells.
+long text may consume the fixed area.
 
 ## View switching and chrome
 
 Show one full-width body at a time. Chrome identifies Tree or File as active,
 states `Tab` and its destination, and keeps one line each for RUNNING and NEXT.
-Each summary line reserves its label and any `item absent`, `previous tree`,
+Each summary line starts with the glyph of its row, `►` or `»`, as a legend.
+The summary glyphs take no colour. Each summary line reserves its label and any `item absent`, `previous tree`,
 waiting, unavailable or stale qualifier before eliding handle text. Prefer
 truncating the slug to the permanent key. Keep tree-observation diagnostics
 separate from activity freshness.
@@ -421,10 +435,11 @@ terminal fixture owns key translation and terminal cleanup checks.
 
 | Scenario | Required observation | Seam |
 |---|---|---|
-| DONE, ABANDONED and LIVE rows, selected and unselected | Leading tick/cross and lifecycle words survive selection and disabled color; DONE/ABANDONED have status colors and ordinary LIVE is unaccented | Application |
-| RUNNING differs from cursor selection and includes an already-DONE item | Only RUNNING has the active item-text highlight; its leading lifecycle cue stays readable and the cursor remains independent | Application |
-| Long handles and a deep tree at 60 × 10 | All status cells remain visible; recognizable handle/key survives bounded indentation | Application |
-| Folded mixed and empty branches | Aggregate lifecycle and all descendant counts are correct | Application |
+| LIVE, DONE, ABANDONED and EMPTY rows, selected and unselected | Depth, cursor and lifecycle glyphs survive selection and read by shape alone. DONE and ABANDONED have status colours, ordinary LIVE is unaccented and only the kind is bold | Application |
+| A tree deeper than 99 | Every row widens the depth column together, and no digit is lost | Application |
+| RUNNING differs from cursor selection and includes an already-DONE item | Only RUNNING has `►` and the active item-text highlight. Its lifecycle glyph keeps its colour, and the cursor remains independent | Application |
+| Long handles and a deep tree at 60 × 10 | The whole fixed area remains visible, and a recognisable handle and key survive bounded indentation | Application |
+| Folded mixed and empty branches | Aggregate lifecycle glyphs and all descendant counts, such as `◦0 ✓1 ✗1`, match the leaves beneath them | Application |
 | Tab from root, branch and leaf; repeated switches | Correct full-width file; saved tree viewport, folds, file source anchor and horizontal offset survive | Application; terminal key mapping |
 | Resize or edit a hidden/revisited file | Source reading location is preserved, with existing fallback/clamping rules | Application |
 | RUNNING or NEXT folded/offscreen; File active | Both summary entries remain visible and are independent of cursor selection | Application |
@@ -450,7 +465,7 @@ terminal fixture owns key translation and terminal cleanup checks.
 | Exact workspace reached through symlink or /var alias | Same directory identity yields same activity; subdirectory observation never borrows ancestor runtime | Typed observer; application |
 | Foreign shared holder of either the task root or a newly allocated private witness; reported directory-locking error | Exclusive acquisition returns promptly, prepared observation locks are released, launch/admission proceed and activity is Unavailable | Lock barrier and controlled launch |
 | Directory witness held while a session mutates or deletes the root | The containing-directory tree lock remains usable; root replacement remains possible and never inherits the old root's witness | Real filesystem/process fixture |
-| Help in both views; selected LIVE, DONE, RUNNING and NEXT with color disabled | Active view and Tab destination are named; gutter alone marks selection, NEXT is bold normal text, RUNNING retains its specified styles | Application; terminal fixture |
+| Help in both views; selected LIVE, DONE, RUNNING and NEXT with color disabled | Active view and Tab destination are named; the cursor alone marks selection, the NEXT glyph is bold normal text, RUNNING retains its specified styles | Application; terminal fixture |
 | Tree or epoch contention and rapid start/end changes | Current pair is withheld when unverifiable; navigation/quit remain responsive; cadence recovers | Application and process fixtures |
 | Multiple viewers, non-jj location, missing namespace, absent tree | Browsing creates no files/directories or persisted state and never resolves a launch policy | Application filesystem snapshots; typed observer |
 | Ambient old session after rotation; an admitted operation during replacement | Existing admission rejection and handoff semantics still hold; observation grants no authority | Existing lease/admission process fixtures |

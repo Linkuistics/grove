@@ -412,9 +412,38 @@ shows the appropriate brief. File keeps Markdown rendering, line/page movement,
 Home/End and horizontal scrolling of code and tables. File scrolling actions
 apply only while File is active. Help, refresh and quit remain global.
 
+Both views take the vim-style movement keys. `gg` and `G` act as Home and End.
+PageDown, Ctrl-f and `f` move a page down, and PageUp, Ctrl-b and `b` move a
+page up. Ctrl-d and `d` move half a page down, and Ctrl-u and `u` move half a
+page up. A page key moves at least one row.
+
+In Tree, a page key moves the cursor and the viewport by the same number of
+rows. So the cursor keeps its place on the screen. The viewport stops at the
+first or the last page, and the cursor then moves on alone. In File, the page
+keys scroll the text, and Ctrl-u and Ctrl-d move half a page.
+
+`zz`, `zt` and `zb` set the tree viewport so that the cursor row sits in the
+middle, at the top or at the bottom of the pane. They do not move the cursor.
+A pane with an even number of rows uses the upper of its two middle rows. Each
+placement clamps at both ends of the tree, so it leaves no blank rows that a
+nearer placement could fill. The viewport then holds until the cursor leaves
+the pane. File has no cursor, so these three sequences do nothing there.
+
+Apply a placement at the next tree render, with the pane height and the
+visible rows of that frame. A placement requested before the first render thus
+waits for a known pane height.
+
+The viewer holds a pending `g` or `z`, not the key decoder. After a prefix, any
+other key cancels the prefix and then acts as usual. That includes Tab, help,
+Escape, refresh and an unbound key, so the decoder passes an unbound key to the
+viewer. A Ctrl-modified `g`, `z`, `t` or `G` is unbound. While help or the
+resize notice shows, the viewer holds no prefix.
+
 Help names the active Tree/File view. It explains that Tab switches to the
-other full-width view, and it replaces “switch pane”. The overlay pauses
-navigation. The existing resize notice applies below 60 columns or 10 rows.
+other full-width view, and it replaces “switch pane”. It lists every key and a
+legend of the lifecycle and activity glyphs, in eight lines that fit the
+bordered overlay at 60 × 10. The overlay pauses navigation. The existing resize
+notice applies below 60 columns or 10 rows.
 
 Switching views changes neither tree selection/expansion/viewport nor the
 selected file's source reading anchor and horizontal offset. Keep independent
@@ -472,6 +501,11 @@ The terminal fixture owns key translation and terminal cleanup checks.
 | Exact workspace reached through symlink or /var alias | Same directory identity yields same activity. Subdirectory observation never borrows ancestor runtime | Typed observer and application |
 | Foreign shared holder of either the task root or a newly allocated private witness. Reported directory-locking error | Exclusive acquisition returns promptly, prepared observation locks are released, launch/admission proceed and activity is Unavailable | Lock barrier and controlled launch |
 | Directory witness held while a session mutates or removes the root | The containing-directory tree lock remains usable. Root replacement remains possible and never inherits the old root's witness | Real filesystem/process fixture |
+| Tree page, half-page, `gg` and `G` keys, including at both ends of the tree | The cursor and the viewport move by the same rows, so the cursor keeps its screen row until the viewport reaches an end. The selected file follows the cursor | Application through key decoding |
+| `zz`, `zt` and `zb` in Tree and in File | In Tree, the cursor row moves to the middle, the top or the bottom, clamped at both ends, and the cursor stays. The viewport holds through refreshes until the cursor leaves the pane. File does not scroll, and `zb` is not a page up | Application through key decoding |
+| File page and half-page keys, and `gg` and `G` | The text scrolls by a page, by half a page, or to the top or the end | Application through key decoding |
+| A prefix, then another key, an unbound key, Tab, help, Escape or refresh | The prefix cancels, and the other key acts as usual. A prefix typed in help is not held afterwards | Application through key decoding |
+| Key help at 60 × 10 in both views | Every key and the glyph legend show in full, one line per row | Application |
 | Help in both views. Selected LIVE, DONE, RUNNING and NEXT with colour disabled | Help names the active view and the Tab destination. The cursor alone marks selection, the NEXT glyph is bold normal text, and RUNNING keeps its specified styles | Application and terminal fixture |
 | Tree or epoch contention, and sessions that launch and end in quick succession | The current pair is withheld when unverifiable. Navigation/quit remain responsive. Cadence recovers | Application and process fixtures |
 | Multiple viewers, non-jj location, missing namespace, absent tree | Browsing creates no files/directories or persisted state and never resolves a launch policy | Application filesystem snapshots and typed observer |

@@ -30,30 +30,38 @@ impl Action {
         if key.kind == KeyEventKind::Release {
             return None;
         }
-        match key.code {
-            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => Some(Self::Quit),
-            KeyCode::Char('q') => Some(Self::Quit),
-            KeyCode::Char('r') => Some(Self::Refresh),
-            KeyCode::Up | KeyCode::Char('k') => Some(Self::Up),
-            KeyCode::Down | KeyCode::Char('j') => Some(Self::Down),
-            KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                Some(Self::PageUp)
-            }
-            KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                Some(Self::PageDown)
-            }
-            KeyCode::Left | KeyCode::Char('h') => Some(Self::Left),
-            KeyCode::Right | KeyCode::Char('l') => Some(Self::Right),
-            KeyCode::Home => Some(Self::Home),
-            KeyCode::End => Some(Self::End),
-            KeyCode::Tab => Some(Self::Focus),
-            KeyCode::Char('?') => Some(Self::Help),
-            KeyCode::Esc => Some(Self::Dismiss),
-            KeyCode::Enter | KeyCode::Char(' ') => Some(Self::Toggle),
-            KeyCode::PageUp => Some(Self::PageUp),
-            KeyCode::PageDown => Some(Self::PageDown),
-            _ => None,
-        }
+        let control = key.modifiers.contains(KeyModifiers::CONTROL);
+        Some(match key.code {
+            KeyCode::Char('c') if control => Self::Quit,
+            KeyCode::Char('f') if control => Self::PageDown,
+            KeyCode::Char('b') if control => Self::PageUp,
+            KeyCode::Char('d') if control => Self::HalfPageDown,
+            KeyCode::Char('u') if control => Self::HalfPageUp,
+            KeyCode::Char('f') => Self::PageDown,
+            KeyCode::Char('b') => Self::B,
+            KeyCode::Char('d') => Self::HalfPageDown,
+            KeyCode::Char('u') => Self::HalfPageUp,
+            KeyCode::Char('g') if !control => Self::G,
+            KeyCode::Char('G') if !control => Self::End,
+            KeyCode::Char('z') if !control => Self::Z,
+            KeyCode::Char('t') if !control => Self::T,
+            KeyCode::Char('q') => Self::Quit,
+            KeyCode::Char('r') => Self::Refresh,
+            KeyCode::Up | KeyCode::Char('k') => Self::Up,
+            KeyCode::Down | KeyCode::Char('j') => Self::Down,
+            KeyCode::Left | KeyCode::Char('h') => Self::Left,
+            KeyCode::Right | KeyCode::Char('l') => Self::Right,
+            KeyCode::Home => Self::Home,
+            KeyCode::End => Self::End,
+            KeyCode::Tab => Self::Focus,
+            KeyCode::Char('?') => Self::Help,
+            KeyCode::Esc => Self::Dismiss,
+            KeyCode::Enter | KeyCode::Char(' ') => Self::Toggle,
+            KeyCode::PageUp => Self::PageUp,
+            KeyCode::PageDown => Self::PageDown,
+            // An unbound key still reaches the viewer, so it cancels a prefix.
+            _ => Self::Unbound,
+        })
     }
 }
 

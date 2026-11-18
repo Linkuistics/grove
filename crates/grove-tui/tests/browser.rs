@@ -388,8 +388,14 @@ fn full_width_switching_preserves_independent_views_and_poll_deadline() {
     }
     let saved = screen(&mut viewer, 60, 10);
     viewer.act(Action::Focus);
-    viewer.act(Action::PageUp); // Tree must not scroll the saved File either.
+    // Tree pages move the cursor, not the saved File. A page up and a page
+    // down return to the same row and the same Tree screen.
+    viewer.act(Action::PageUp);
+    assert_ne!(screen(&mut viewer, 60, 10), tree);
+    viewer.act(Action::PageDown);
     assert_eq!(screen(&mut viewer, 60, 10), tree);
+    // A selection move observes the tree. Switching views after it must not.
+    let deadline = viewer.retry_after(now);
     // Hidden File must not be clamped to the wider Tree dimensions.
     screen(&mut viewer, 220, 30);
     screen(&mut viewer, 60, 10);
@@ -1031,7 +1037,7 @@ fn help_and_small_frames_preserve_navigation_and_allow_global_actions() {
         "Tab: Tree",
         "full-width",
         "Ctrl-u",
-        "Escape",
+        "Esc",
     ] {
         assert!(help.contains(expected), "{help}");
     }
@@ -2032,4 +2038,334 @@ fn production_clock_recovers_from_busy_and_unreadable_selected_content() {
         s.contains("SELECTED_CONTENT") && !s.contains("STALE")
     });
     assert_eq!(snapshot(work.path()), expected);
+}
+
+fn press(
+    viewer: &mut Viewer,
+    code: crossterm::event::KeyCode,
+    modifiers: crossterm::event::KeyModifiers,
+) -> bool {
+    Action::from_key(crossterm::event::KeyEvent::new(code, modifiers))
+        .is_some_and(|action| viewer.act(action))
+}
+
+/// Type plain keys, one character each, as a terminal reports them. An
+/// uppercase letter carries Shift. Like the terminal driver, draw a frame
+/// (100 × 15) before each key, so each key sees the view that it acts on.
+fn type_keys(viewer: &mut Viewer, keys: &str) {
+    use crossterm::event::{KeyCode::Char, KeyModifiers};
+    for key in keys.chars() {
+        let modifiers = if key.is_uppercase() {
+            KeyModifiers::SHIFT
+        } else {
+            KeyModifiers::NONE
+        };
+        screen(viewer, 100, 15);
+        press(viewer, Char(key), modifiers);
+    }
+}
+
+/// The cursor row's place in the tree pane, counted from the pane's first
+/// content row, and its handle.
+fn cursor(screen: &str) -> (usize, String) {
+    // Four chrome lines and the top border precede the first content row.
+    // The cursor follows the border and the two-cell depth column.
+    let (row, line) = screen
+        .lines()
+        .skip(5)
+        .enumerate()
+        .find(|(_, line)| line.chars().nth(4) == Some('>'))
+        .unwrap_or_else(|| panic!("no cursor:\n{screen}"));
+    let handle = line
+        .split_whitespace()
+        .find(|word| word.starts_with("task-k") || *word == "root")
+        .unwrap_or_else(|| panic!("no handle: {line}"));
+    (row, handle.to_owned())
+}
+
+/// The root and 29 leaves, `task-k1` to `task-k29`, so row n shows `task-kn`.
+fn thirty_rows(root: &Path) {
+    put(root, "_BRIEF.md", "ROOT BODY");
+    for n in 1..30 {
+        put(
+            root,
+            &format!("{n:02}-impl--task-k{n}.md"),
+            &format!("BODY {n:02}"),
+        );
+    }
+}
+
+fn at(row: usize, handle: &str) -> (usize, String) {
+    (row, handle.to_owned())
+}
+
+#[test]
+fn vim_keys_decode_to_their_actions() {
+    use crossterm::event::{KeyCode::*, KeyEvent, KeyEventKind, KeyModifiers};
+    let control = KeyModifiers::CONTROL;
+    let none = KeyModifiers::NONE;
+    for (code, modifiers, action) in [
+        (Char('f'), control, Action::PageDown),
+        (Char('f'), none, Action::PageDown),
+        (PageDown, none, Action::PageDown),
+        (Char('b'), control, Action::PageUp),
+        (Char('b'), none, Action::B),
+        (PageUp, none, Action::PageUp),
+        (Char('d'), control, Action::HalfPageDown),
+        (Char('d'), none, Action::HalfPageDown),
+        (Char('u'), control, Action::HalfPageUp),
+        (Char('u'), none, Action::HalfPageUp),
+        (Char('g'), none, Action::G),
+        (Char('G'), KeyModifiers::SHIFT, Action::End),
+        (Char('z'), none, Action::Z),
+        (Char('t'), none, Action::T),
+        (Char('z'), control, Action::Unbound),
+        (Char('x'), none, Action::Unbound),
+        (F(5), none, Action::Unbound),
+        (Char('c'), control, Action::Quit),
+    ] {
+        assert_eq!(
+            Action::from_key(KeyEvent::new(code, modifiers)),
+            Some(action),
+            "{code:?} {modifiers:?}"
+        );
+    }
+    let mut release = KeyEvent::new(Char('g'), none);
+    release.kind = KeyEventKind::Release;
+    assert_eq!(Action::from_key(release), None);
+}
+
+#[test]
+fn tree_jumps_and_pages_move_the_cursor_and_the_view_together() {
+    use crossterm::event::{KeyCode::*, KeyModifiers};
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    thirty_rows(&root);
+    let before = snapshot(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    // 100 × 15 leaves eight tree rows, so half a page is four rows.
+    let view = |viewer: &mut Viewer| cursor(&screen(viewer, 100, 15));
+    assert_eq!(view(&mut viewer), at(0, "root"));
+    type_keys(&mut viewer, "G");
+    assert_eq!(view(&mut viewer), at(7, "task-k29"));
+    assert!(visit_file(&mut viewer, 100, 15).contains("BODY 29"));
+    type_keys(&mut viewer, "gg");
+    assert_eq!(view(&mut viewer), at(0, "root"));
+    assert!(visit_file(&mut viewer, 100, 15).contains("ROOT BODY"));
+    type_keys(&mut viewer, "jj");
+    assert_eq!(view(&mut viewer), at(2, "task-k2"));
+    // Each page key keeps the cursor on the third row of the pane.
+    let control = KeyModifiers::CONTROL;
+    let none = KeyModifiers::NONE;
+    for (code, modifiers, handle) in [
+        (Char('f'), none, "task-k10"),
+        (Char('b'), none, "task-k2"),
+        (Char('f'), control, "task-k10"),
+        (Char('b'), control, "task-k2"),
+        (PageDown, none, "task-k10"),
+        (PageUp, none, "task-k2"),
+        (Char('d'), none, "task-k6"),
+        (Char('u'), none, "task-k2"),
+        (Char('d'), control, "task-k6"),
+        (Char('u'), control, "task-k2"),
+    ] {
+        press(&mut viewer, code, modifiers);
+        assert_eq!(view(&mut viewer), at(2, handle), "{code:?} {modifiers:?}");
+    }
+    assert!(visit_file(&mut viewer, 100, 15).contains("BODY 02"));
+    // At the ends of the tree the view stops and the cursor moves on alone.
+    type_keys(&mut viewer, "fff");
+    assert_eq!(view(&mut viewer), at(4, "task-k26"));
+    type_keys(&mut viewer, "f");
+    assert_eq!(view(&mut viewer), at(7, "task-k29"));
+    type_keys(&mut viewer, "bbb");
+    assert_eq!(view(&mut viewer), at(5, "task-k5"));
+    type_keys(&mut viewer, "b");
+    assert_eq!(view(&mut viewer), at(0, "root"));
+    type_keys(&mut viewer, "u");
+    assert_eq!(view(&mut viewer), at(0, "root"));
+    assert_eq!(snapshot(work.path()), before);
+}
+
+#[test]
+fn z_placements_scroll_the_tree_and_leave_the_cursor_until_it_leaves_the_pane() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    thirty_rows(&root);
+    let mut viewer = Viewer::new(work.path().into());
+    let view = |viewer: &mut Viewer| cursor(&screen(viewer, 100, 15));
+    view(&mut viewer);
+    type_keys(&mut viewer, &"j".repeat(15));
+    assert_eq!(view(&mut viewer), at(7, "task-k15"));
+    type_keys(&mut viewer, "zt");
+    assert_eq!(view(&mut viewer), at(0, "task-k15"));
+    type_keys(&mut viewer, "zb");
+    assert_eq!(view(&mut viewer), at(7, "task-k15"));
+    // Eight rows have two middle rows. The cursor takes the upper one.
+    type_keys(&mut viewer, "zz");
+    assert_eq!(view(&mut viewer), at(3, "task-k15"));
+    assert!(visit_file(&mut viewer, 100, 15).contains("BODY 15"));
+    // The placement holds through refreshes, ticks and moves inside the pane.
+    type_keys(&mut viewer, "r");
+    viewer.tick(std::time::Instant::now() + std::time::Duration::from_secs(1));
+    assert_eq!(view(&mut viewer), at(3, "task-k15"));
+    type_keys(&mut viewer, "jjjj");
+    assert_eq!(view(&mut viewer), at(7, "task-k19"));
+    type_keys(&mut viewer, &"k".repeat(7));
+    assert_eq!(view(&mut viewer), at(0, "task-k12"));
+    // Once the cursor leaves the pane, the view moves only as far as it must.
+    type_keys(&mut viewer, "k");
+    assert_eq!(view(&mut viewer), at(0, "task-k11"));
+    // Near either end of the tree the placement clamps, with no blank rows.
+    type_keys(&mut viewer, "ggjzzzb");
+    assert_eq!(view(&mut viewer), at(1, "task-k1"));
+    type_keys(&mut viewer, "Gzt");
+    assert_eq!(view(&mut viewer), at(7, "task-k29"));
+    type_keys(&mut viewer, "kzz");
+    assert_eq!(view(&mut viewer), at(6, "task-k28"));
+    let tree = screen(&mut viewer, 100, 15);
+    assert!(tree.lines().nth(12).unwrap().contains("task-k29"), "{tree}");
+}
+
+#[test]
+fn a_prefix_waits_for_its_second_key_and_any_other_key_cancels_it() {
+    use crossterm::event::{KeyCode::*, KeyModifiers};
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    thirty_rows(&root);
+    let mut viewer = Viewer::new(work.path().into());
+    let view = |viewer: &mut Viewer| cursor(&screen(viewer, 100, 15));
+    view(&mut viewer);
+    type_keys(&mut viewer, "jjjjj");
+    // A prefix alone moves nothing.
+    type_keys(&mut viewer, "g");
+    assert_eq!(view(&mut viewer), at(5, "task-k5"));
+    // A key that ends no sequence cancels the prefix, then acts as usual.
+    type_keys(&mut viewer, "j");
+    assert_eq!(view(&mut viewer), at(6, "task-k6"));
+    type_keys(&mut viewer, "g");
+    press(&mut viewer, F(5), KeyModifiers::NONE);
+    type_keys(&mut viewer, "g");
+    assert_eq!(view(&mut viewer), at(6, "task-k6"));
+    type_keys(&mut viewer, "zj");
+    assert_eq!(view(&mut viewer), at(7, "task-k7"));
+    type_keys(&mut viewer, "zgg");
+    assert_eq!(view(&mut viewer), at(0, "root"));
+    type_keys(&mut viewer, &format!("G{}", "k".repeat(10)));
+    assert_eq!(view(&mut viewer), at(0, "task-k19"));
+    type_keys(&mut viewer, "gzz");
+    assert_eq!(view(&mut viewer), at(3, "task-k19"));
+    // `t` alone does nothing. `b` alone pages up.
+    type_keys(&mut viewer, "t");
+    assert_eq!(view(&mut viewer), at(3, "task-k19"));
+    type_keys(&mut viewer, "b");
+    assert_eq!(view(&mut viewer), at(3, "task-k11"));
+    // Tab, help, Escape and refresh also cancel a prefix.
+    for interrupt in [&[Tab, Tab][..], &[Char('?'), Esc], &[Esc], &[Char('r')]] {
+        type_keys(&mut viewer, "g");
+        for &code in interrupt {
+            press(&mut viewer, code, KeyModifiers::NONE);
+        }
+        type_keys(&mut viewer, "g");
+        assert_eq!(view(&mut viewer), at(3, "task-k11"), "{interrupt:?}");
+        type_keys(&mut viewer, "k");
+        type_keys(&mut viewer, "j");
+    }
+    // A prefix typed while help is open is not held after help closes.
+    type_keys(&mut viewer, "?g");
+    press(&mut viewer, Esc, KeyModifiers::NONE);
+    type_keys(&mut viewer, "g");
+    assert_eq!(view(&mut viewer), at(3, "task-k11"));
+}
+
+#[test]
+fn file_view_takes_the_scroll_keys_without_the_tree_placements() {
+    use crossterm::event::{KeyCode::*, KeyModifiers};
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    let content = (0..50)
+        .map(|n| format!("line {n:02}\n"))
+        .collect::<String>();
+    put(&root, "_BRIEF.md", &format!("```\n{content}```"));
+    let before = snapshot(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    // The first file row of a 100 × 15 screen, which shows eight file rows.
+    let top = |viewer: &mut Viewer| {
+        let file = screen(viewer, 100, 15);
+        file.lines().nth(5).unwrap().to_owned()
+    };
+    key(&mut viewer, Tab);
+    assert!(top(&mut viewer).contains("line 00"));
+    let control = KeyModifiers::CONTROL;
+    let none = KeyModifiers::NONE;
+    for (code, modifiers, expected) in [
+        (Char('f'), none, "line 08"),
+        (Char('b'), none, "line 00"),
+        (Char('f'), control, "line 08"),
+        (Char('b'), control, "line 00"),
+        (PageDown, none, "line 08"),
+        (PageUp, none, "line 00"),
+        (Char('d'), none, "line 04"),
+        (Char('u'), none, "line 00"),
+        (Char('d'), control, "line 04"),
+        (Char('u'), control, "line 00"),
+    ] {
+        press(&mut viewer, code, modifiers);
+        assert!(
+            top(&mut viewer).contains(expected),
+            "{code:?} {modifiers:?}: {}",
+            top(&mut viewer)
+        );
+    }
+    type_keys(&mut viewer, "G");
+    assert!(screen(&mut viewer, 100, 15).contains("line 49"));
+    type_keys(&mut viewer, "gg");
+    assert!(top(&mut viewer).contains("line 00"));
+    // File view has no cursor. `zz`, `zt` and `zb` move nothing, and `zb`
+    // is not a page up.
+    type_keys(&mut viewer, "ff");
+    for keys in ["zz", "zt", "zb"] {
+        type_keys(&mut viewer, keys);
+        assert!(top(&mut viewer).contains("line 16"), "{keys}");
+    }
+    type_keys(&mut viewer, "b");
+    assert!(top(&mut viewer).contains("line 08"));
+    // The placements typed in File view do not wait for Tree view.
+    key(&mut viewer, Tab);
+    let tree = screen(&mut viewer, 100, 15);
+    assert_eq!(cursor(&tree), at(0, "root"));
+    assert_eq!(snapshot(work.path()), before);
+}
+
+#[test]
+fn help_lists_every_key_and_the_glyph_legend_at_the_minimum_size() {
+    use crossterm::event::KeyCode::*;
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    thirty_rows(&root);
+    let mut viewer = Viewer::new(work.path().into());
+    let lines = [
+        "Tab: switch full-width view | r refresh | q/Ctrl-c quit",
+        "?: toggle help | Esc: close help | Enter/Space: fold",
+        "j/k Up/Down: row or line | gg/G Home/End: first or last",
+        "l/Right expand/child | h/Left fold/parent | File: scroll",
+        "f/b Ctrl-f/Ctrl-b PageDown/PageUp: page down/up",
+        "d/u Ctrl-d/Ctrl-u: half page down/up",
+        "zz/zt/zb: tree cursor row to middle/top/bottom",
+        "◦ LIVE ✓ DONE ✗ ABANDONED ∅ EMPTY ► RUNNING » NEXT",
+    ];
+    for title in ["Tree active | Tab: File", "File active | Tab: Tree"] {
+        key(&mut viewer, Char('?'));
+        let help = screen(&mut viewer, 60, 10);
+        assert!(help.contains(title), "{help}");
+        // Each line shows in full inside the border, one per content row.
+        for (row, line) in lines.iter().enumerate() {
+            assert!(
+                help.lines().nth(row + 1).unwrap().contains(line),
+                "{line}\n{help}"
+            );
+        }
+        key(&mut viewer, Esc);
+        key(&mut viewer, Tab);
+    }
 }

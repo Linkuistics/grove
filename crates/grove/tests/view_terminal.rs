@@ -33,9 +33,10 @@ fn actual_binary_restores_terminal_on_quit_interrupt_and_termination() {
         pty.resize(24, 100);
         pty.until("SELECTED_CONTENT");
         pty.send(b"\t?");
-        // Help paints this previously blank line. Once it is active, force a
-        // full frame: raw PTY diffs may reuse the header's existing 'e' in Key.
-        pty.until("Escape:");
+        // Help paints its glyph legend on a previously blank line, and no
+        // other screen text holds this word. Once help is active, force a full
+        // frame: raw PTY diffs may reuse the header's existing 'e' in Key.
+        pty.until("ABANDONED");
         pty.output.clear();
         pty.resize(25, 101);
         pty.until("Key");

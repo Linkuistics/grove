@@ -27,6 +27,10 @@ use observation::{capture, safe_text, Item, Lifecycle, Observation, Root, Row};
 pub use terminal::run;
 
 /// Inputs shared by the terminal driver and application tests.
+///
+/// One action decodes one key. The viewer holds a pending `g` or `z`, so the
+/// letters of the two-key sequences are actions of their own.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Action {
     Up,
     Down,
@@ -40,11 +44,66 @@ pub enum Action {
     Toggle,
     PageUp,
     PageDown,
+    HalfPageUp,
+    HalfPageDown,
+    /// `g`: the first key of `gg`, which goes to the first row.
+    G,
+    /// `z`: the first key of `zz`, `zt` and `zb`, and the second key of `zz`.
+    Z,
+    /// `t`: the second key of `zt`. Alone it does nothing.
+    T,
+    /// `b`: a page up, or the second key of `zb`.
+    B,
+    /// A key with no binding. It does nothing, but it cancels a pending prefix.
+    Unbound,
     Refresh,
     Quit,
 }
 
+/// The first key of a two-key sequence, held until the next key arrives.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Prefix {
+    G,
+    Z,
+}
+
+/// Where a tree placement puts the cursor row in the pane.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Place {
+    Top,
+    Middle,
+    Bottom,
+}
+
+impl Place {
+    /// The tree offset that puts row `at` in this place. The offset clamps at
+    /// both ends of the tree, so the pane never shows blank rows that a nearer
+    /// placement could fill. A pane with an even number of rows puts the
+    /// middle row on the upper of its two middle rows.
+    fn offset(self, at: usize, height: usize, rows: usize) -> usize {
+        let above = match self {
+            Self::Top => 0,
+            Self::Middle => height.saturating_sub(1) / 2,
+            Self::Bottom => height.saturating_sub(1),
+        };
+        at.saturating_sub(above).min(rows.saturating_sub(height))
+    }
+}
+
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
+
+/// Every key and a glyph legend. Each line fits the 58 inner columns of the
+/// bordered overlay at the 60 × 10 minimum, and the 8 lines fill its height.
+const HELP: [&str; 8] = [
+    "Tab: switch full-width view | r refresh | q/Ctrl-c quit",
+    "?: toggle help | Esc: close help | Enter/Space: fold",
+    "j/k Up/Down: row or line | gg/G Home/End: first or last",
+    "l/Right expand/child | h/Left fold/parent | File: scroll",
+    "f/b Ctrl-f/Ctrl-b PageDown/PageUp: page down/up",
+    "d/u Ctrl-d/Ctrl-u: half page down/up",
+    "zz/zt/zb: tree cursor row to middle/top/bottom",
+    "◦ LIVE ✓ DONE ✗ ABANDONED ∅ EMPTY ► RUNNING » NEXT",
+];
 
 /// Activity glyphs. Like the lifecycle glyphs, each has neutral East Asian
 /// width, so it takes one cell in every terminal locale.
@@ -171,6 +230,12 @@ fn tree_line(
     ];
     spans.extend(details);
     Line::from(spans)
+}
+
+/// The rows that one page key moves: a whole page, or half of one. A page key
+/// always moves at least one row.
+fn page_step(height: usize, half: bool) -> usize {
+    if half { height / 2 } else { height }.max(1)
 }
 
 /// Fit a single-line terminal field without splitting a grapheme.
@@ -307,6 +372,13 @@ pub struct Viewer {
     tree_absent: bool,
     next: Option<u32>,
     tree_current: bool,
+    /// The first key of a two-key sequence that waits for its second key.
+    pending: Option<Prefix>,
+    /// A placement of the cursor row that the next tree render applies, when
+    /// it knows the pane height and the visible rows.
+    tree_place: Option<Place>,
+    /// The content rows of the tree pane at its last render.
+    tree_height: usize,
 }
 
 impl Viewer {
@@ -340,6 +412,9 @@ impl Viewer {
             tree_absent: false,
             next: None,
             tree_current: false,
+            pending: None,
+            tree_place: None,
+            tree_height: 1,
         };
         viewer.refresh();
         viewer
@@ -347,6 +422,8 @@ impl Viewer {
 
     /// Deliver an input. Returns true when the caller should leave the viewer.
     pub fn act(&mut self, action: Action) -> bool {
+        // Any key after a prefix cancels the prefix, then acts as usual.
+        let pending = self.pending.take();
         match action {
             Action::Quit => return true,
             Action::Refresh => {
@@ -369,8 +446,40 @@ impl Viewer {
         if self.help {
             return false;
         }
+        let action = match (pending, action) {
+            (Some(Prefix::G), Action::G) => Action::Home,
+            (Some(Prefix::Z), Action::Z | Action::T | Action::B) => {
+                // File view has no cursor, so it has no placement either.
+                if !self.file_active {
+                    self.tree_place = Some(match action {
+                        Action::T => Place::Top,
+                        Action::B => Place::Bottom,
+                        _ => Place::Middle,
+                    });
+                }
+                return false;
+            }
+            (_, Action::G) => {
+                self.pending = Some(Prefix::G);
+                return false;
+            }
+            (_, Action::Z) => {
+                self.pending = Some(Prefix::Z);
+                return false;
+            }
+            (_, Action::B) => Action::PageUp,
+            (_, action) => action,
+        };
         match action {
-            Action::Quit | Action::Refresh | Action::Help | Action::Dismiss => {}
+            Action::Quit
+            | Action::Refresh
+            | Action::Help
+            | Action::Dismiss
+            | Action::G
+            | Action::Z
+            | Action::T
+            | Action::B
+            | Action::Unbound => {}
             Action::Focus => self.file_active = !self.file_active,
             Action::Up | Action::Down if self.file_active => {
                 self.scroll = if matches!(action, Action::Up) {
@@ -432,16 +541,49 @@ impl Viewer {
                     }
                 }
             }
-            Action::PageUp if self.file_active => {
-                self.scroll = self.scroll.saturating_sub(self.page_height);
+            Action::PageUp | Action::PageDown | Action::HalfPageUp | Action::HalfPageDown => {
+                let down = matches!(action, Action::PageDown | Action::HalfPageDown);
+                let half = matches!(action, Action::HalfPageUp | Action::HalfPageDown);
+                if self.file_active {
+                    let step = page_step(self.page_height, half);
+                    self.scroll = if down {
+                        self.scroll.saturating_add(step)
+                    } else {
+                        self.scroll.saturating_sub(step)
+                    };
+                    self.clamp_scroll();
+                } else {
+                    self.tree_page(down, half);
+                }
             }
-            Action::PageDown if self.file_active => {
-                self.scroll = self.scroll.saturating_add(self.page_height);
-                self.clamp_scroll();
-            }
-            Action::PageUp | Action::PageDown => {}
         }
         false
+    }
+
+    /// Move the cursor and the tree view together by one page or half a page,
+    /// as vim does, so the cursor keeps its place on the screen. At either end
+    /// of the tree the view stops and the cursor moves on alone.
+    fn tree_page(&mut self, down: bool, half: bool) {
+        let visible = self.visible();
+        let Some(at) = visible.iter().position(|&row| row == self.selected) else {
+            return;
+        };
+        let height = self.tree_height;
+        let step = page_step(height, half);
+        let last_offset = visible.len().saturating_sub(height);
+        let offset = self.tree_state.offset().min(last_offset);
+        let (at, offset) = if down {
+            (
+                (at + step).min(visible.len() - 1),
+                (offset + step).min(last_offset),
+            )
+        } else {
+            (at.saturating_sub(step), offset.saturating_sub(step))
+        };
+        // The List keeps a preset offset while the selection stays in view.
+        // https://docs.rs/ratatui/0.29.0/src/ratatui/widgets/list/rendering.rs.html
+        *self.tree_state.offset_mut() = offset;
+        self.select(visible[at]);
     }
 
     fn save_position(&mut self) {
@@ -792,20 +934,13 @@ impl Viewer {
         }
         if self.help {
             frame.render_widget(
-                Paragraph::new(
-                    "Tab: switch full-width view | r: refresh | q/Ctrl-c: quit\n\
-Tree: Up/Down j/k select | Home/End first/last\n\
-Right/l expand/enter | Left/h collapse/parent\n\
-Enter/Space: toggle branch\n\
-File: Up/Down j/k line | Left/Right h/l code/table\n\
-PageUp/PageDown Ctrl-u/Ctrl-d: page | Home/End: top/end\n\
-Escape: close help | ?: toggle help",
-                )
-                .block(Block::bordered().title(if self.file_active {
-                    "Key help — File active | Tab: Tree"
-                } else {
-                    "Key help — Tree active | Tab: File"
-                })),
+                Paragraph::new(HELP.join("\n")).block(Block::bordered().title(
+                    if self.file_active {
+                        "Key help — File active | Tab: Tree"
+                    } else {
+                        "Key help — Tree active | Tab: File"
+                    },
+                )),
                 frame.area(),
             );
             return;
@@ -824,8 +959,12 @@ Escape: close help | ?: toggle help",
             let visible = self.visible();
             let running = self.running_row_for(&self.activity).and_then(|row| row.key);
             let depth_width = depth_width(&self.rows);
-            self.tree_state
-                .select(visible.iter().position(|&i| i == self.selected));
+            self.tree_height = usize::from(body.height.saturating_sub(2)).max(1);
+            let at = visible.iter().position(|&i| i == self.selected);
+            self.tree_state.select(at);
+            if let (Some(place), Some(at)) = (self.tree_place.take(), at) {
+                *self.tree_state.offset_mut() = place.offset(at, self.tree_height, visible.len());
+            }
             let items: Vec<_> = visible
                 .iter()
                 .map(|&i| {

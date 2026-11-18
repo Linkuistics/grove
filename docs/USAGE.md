@@ -436,12 +436,30 @@ minimum of 60 × 10.
 | Right or l | In the tree, expand a branch or enter its first child. In the file, scroll right |
 | Left or h | In the tree, collapse a branch or select its parent. In the file, scroll left |
 | Enter or Space | In the tree, fold or expand the selected root or branch |
-| Home/End | First or last visible tree row, or top or end of the file, according to the active view |
-| PageUp/PageDown or Ctrl-u/Ctrl-d | In File view, scroll by one page |
-| ? | Show key help. Navigation pauses until you close help |
+| Home/End or gg/G | First or last visible tree row, or top or end of the file, according to the active view |
+| PageDown, Ctrl-f or f | Move a page down |
+| PageUp, Ctrl-b or b | Move a page up |
+| Ctrl-d or d | Move half a page down |
+| Ctrl-u or u | Move half a page up |
+| zz, zt or zb | In the tree, scroll the cursor row to the middle, the top or the bottom of the pane. The cursor does not move |
+| ? | Show key help, which lists every key and the glyphs. Navigation pauses until you close help |
 | Escape | Close help |
 | r | Refresh immediately, and keep the selected item and the reading position |
 | q or Ctrl-c | Quit from either view or from help |
+
+In the tree, a page key moves the cursor and the view together, as in vim. So
+the cursor keeps its place on the screen. At the first or the last page, the
+view stops and the cursor moves on alone. In the file, the same keys scroll the
+text. File view has no cursor, so `zz`, `zt` and `zb` do nothing there.
+
+After `zz`, `zt` or `zb`, the view holds until the cursor leaves the pane. Near
+either end of the tree, the cursor row stops short of its place, so the pane
+shows no blank rows. A pane with an even number of rows puts `zz` on the upper
+of its two middle rows.
+
+The keys `g` and `z` wait for a second key. Any other key cancels the wait and
+then acts as usual. For example, `g` and then `j` selects the next row. While
+help or the resize notice shows, no key waits.
 
 Files render as **formatted Markdown**: headings, emphasis, nested lists,
 quotes, rules, inline code, fenced or indented code blocks and aligned tables.

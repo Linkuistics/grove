@@ -94,8 +94,11 @@ rest:
 
 - Arrows or hjkl navigate.
 - Enter or Space folds a branch.
-- Home/End jumps.
-- PageUp/PageDown reads files.
+- Home/End or gg/G jumps to the first or the last row.
+- PageUp/PageDown, f/b and Ctrl-f/Ctrl-b move a page. d/u and Ctrl-d/Ctrl-u
+  move half a page. In the tree, the cursor and the view move together.
+- zz, zt and zb scroll the cursor row to the middle, the top or the bottom of
+  the tree pane.
 - Left/Right scrolls wide code and tables.
 - `?` shows key help.
 - q or Ctrl-c quits.

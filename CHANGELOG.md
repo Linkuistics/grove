@@ -55,6 +55,20 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+### Added
+
+- `grove`: `grove view` takes vim-style movement keys. `gg` and `G` go to the
+  first and the last row. `f`, `b`, Ctrl-f and Ctrl-b move a page, and `d`,
+  `u`, Ctrl-d and Ctrl-u move half a page. In Tree view, the page keys move the
+  cursor and the view together. `zz`, `zt` and `zb` scroll the cursor row to the
+  middle, the top or the bottom of the tree pane. Key help lists every key and a
+  legend of the glyphs.
+
+### Changed
+
+- `grove`: In the File view of `grove view`, Ctrl-u and Ctrl-d move half a page,
+  not a whole page.
+
 ## v22.12.0
 
 ### Changed

@@ -55,6 +55,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v22.13.0
+
 ### Added
 
 - `grove`: `grove view` takes vim-style movement keys. `gg` and `G` go to the

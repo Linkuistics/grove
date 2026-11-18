@@ -61,7 +61,7 @@ trusted refuses to load. Grove's formula depends on `linkuistics/taps/ravel`, so
 
 The fully qualified installs of `ravel` and `personal` on this page need no trust step.
 Neither formula loads another formula from the tap. Homebrew’s unversioned `ravel`
-is the supported runtime; no versioned prefix is required.
+is the supported runtime. No versioned prefix is required.
 
 An unsupported or malformed version refuses. Empty and relative PATH entries, decoys
 in the working directory and Grove siblings cannot supply a fallback.

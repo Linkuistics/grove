@@ -1,5 +1,7 @@
 # Item status and full-width viewing
 
+<!-- tc: pending because the conversion has not reached this part of the document -->
+
 ## Problem
 
 A reader needs to distinguish what work remains, what finished, what was
@@ -331,6 +333,8 @@ LIVE if any descendant leaf is live, otherwise DONE if any is done, otherwise
 ABANDONED if any is abandoned, otherwise EMPTY. Counts include every descendant,
 including folded subtrees, and retain the separate LIVE/DONE/ABANDONED totals.
 
+<!-- tc: on -->
+
 ## Tree layout
 
 A fixed area precedes depth indentation. Each part has a constant width, and a
@@ -379,7 +383,7 @@ Reserve at least 16 cells
 for recognisable handle text and two for the fold indicator. Cap indentation to
 the remaining budget, marking compressed depth with an ellipsis inside that
 budget. Elide the slug before losing the permanent-key suffix. Kind and counts
-use the space left after the handle. Clip by terminal display width without
+use the space left after the handle. Clip by terminal cell width without
 splitting graphemes or emitting control characters. Neither deep indentation nor
 long text may consume the fixed area.
 
@@ -387,51 +391,54 @@ long text may consume the fixed area.
 
 Show one full-width body at a time. Chrome identifies Tree or File as active,
 states `Tab` and its destination, and keeps one line each for RUNNING and NEXT.
-Each summary line starts with the glyph of its row, `►` or `»`, as a legend.
-The summary glyphs take no colour. Each summary line reserves its label and any `item absent`, `previous tree`,
-waiting, unavailable or stale qualifier before eliding handle text. Prefer
-truncating the slug to the permanent key. Keep tree-observation diagnostics
-separate from activity freshness.
+The first cell of each summary line holds the glyph of its row, `►` or `»`, as
+a legend. The summary glyphs take no colour.
 
-One location/view line, one tree-observation line, two activity lines and a
-one-line key footer leave a bordered body with three visible content rows at
-60 × 10. Longer diagnostics use the body where needed; they do not displace
-either activity line during ordinary Tree or File viewing. Hidden, folded and
-offscreen RUNNING/NEXT items remain identifiable in the summary.
+Each summary line reserves its label and any qualifier before it elides handle
+text. The qualifiers are `item absent`, `previous tree`, waiting, unavailable
+and stale. Prefer truncating the slug to the permanent key. Keep
+tree-observation diagnostics separate from activity freshness.
+
+The chrome has one location/view line, one tree-observation line, two activity
+lines and a one-line key footer. At 60 × 10, it leaves a bordered body with
+three visible content rows. Longer diagnostics use the body where needed. They
+do not displace either activity line during ordinary Tree or File viewing.
+Hidden, folded and offscreen RUNNING/NEXT items remain identifiable in the
+summary.
 
 Tree keeps the existing selection, parent/child and folding keys, including
 Enter/Space. Tab works on root and branches as well as leaves: their File view
 shows the appropriate brief. File keeps Markdown rendering, line/page movement,
 Home/End and horizontal scrolling of code and tables. File scrolling actions
 apply only while File is active. Help, refresh and quit remain global.
-Help names the active Tree/File view and
-explains Tab switching to the other full-width view, replacing “switch pane”; the
-overlay pauses navigation, and the existing resize notice applies below
-60 columns or 10 rows.
+
+Help names the active Tree/File view. It explains that Tab switches to the
+other full-width view, and it replaces “switch pane”. The overlay pauses
+navigation. The existing resize notice applies below 60 columns or 10 rows.
 
 Switching views changes neither tree selection/expansion/viewport nor the
 selected file's source reading anchor and horizontal offset. Keep independent
-tree and file viewport state. Hidden views are not rendered into zero-sized
-rectangles and are not clamped using the other view's dimensions. Reflow and
-clamp the visible file from its saved source anchor after a resize. Returning to
-Tree preserves its viewport, adjusting only as needed to keep the selection
-visible after resize or tree changes.
+tree and file viewport state. Do not render hidden views into zero-sized
+rectangles, and do not clamp them with the dimensions of the other view. Reflow
+and clamp the visible file from its saved source anchor after a resize.
+Returning to Tree preserves its viewport, and adjusts it only as needed to keep
+the selection visible after resize or tree changes.
 
-Keep the existing per-item reading-position behavior across revisits and edits,
-bounded to the accepted tree lifetime. Both views observe tree and selected-file
-changes. Selection follows keys, reveals a moved item's ancestors, and falls
-back to the nearest surviving old ancestor when its item disappears. File
-errors retain saved reading positions. Changing views does not force a reload
-or reset the automatic observation deadline.
+Keep the existing per-item reading-position behaviour across revisits and
+edits, bounded to the accepted tree lifetime. Both views observe tree and
+selected-file changes. Selection follows keys, reveals a moved item's
+ancestors, and falls back to the nearest surviving old ancestor when its item
+disappears. File errors retain saved reading positions. Changing views does not
+force a reload or reset the automatic observation deadline.
 
 ## Acceptance scenarios and test seams
 
 The shared application seam remains `Viewer::new`, `act`, `tick` and `render`,
 using temporary trees and Ratatui TestBackend. Application tests and production
-observation use the same typed loop operation; there is no test-only status
-implementation. The existing controlled launcher, process fixtures and internal
-lock/filesystem barriers exercise actual lease and witness behavior. The
-terminal fixture owns key translation and terminal cleanup checks.
+observation use the same typed loop operation. No test-only status
+implementation exists. The existing controlled launcher, process fixtures and
+internal lock/filesystem barriers exercise actual lease and witness behaviour.
+The terminal fixture owns key translation and terminal cleanup checks.
 
 | Scenario | Required observation | Seam |
 |---|---|---|
@@ -440,66 +447,73 @@ terminal fixture owns key translation and terminal cleanup checks.
 | RUNNING differs from cursor selection and includes an already-DONE item | Only RUNNING has `►` and the active item-text highlight. Its lifecycle glyph keeps its colour, and the cursor remains independent | Application |
 | Long handles and a deep tree at 60 × 10 | The whole fixed area remains visible, and a recognisable handle and key survive bounded indentation | Application |
 | Folded mixed and empty branches | Aggregate lifecycle glyphs and all descendant counts, such as `◦0 ✓1 ✗1`, match the leaves beneath them | Application |
-| Tab from root, branch and leaf; repeated switches | Correct full-width file; saved tree viewport, folds, file source anchor and horizontal offset survive | Application; terminal key mapping |
+| Tab from root, branch and leaf, and repeated switches | The full-width file of that item shows. The saved tree viewport, folds, file source anchor and horizontal offset survive | Application and terminal key mapping |
 | Resize or edit a hidden/revisited file | Source reading location is preserved, with existing fallback/clamping rules | Application |
-| RUNNING or NEXT folded/offscreen; File active | Both summary entries remain visible and are independent of cursor selection | Application |
-| Session has retired or decomposed its item | DONE plus RUNNING, or RUNNING on the branch; descendants can be NEXT | Controlled launch through application |
-| Only ordinary running leaf plus finish remains | Finish becomes NEXT after exclusion; no sentinel is created by viewing | Typed selection; application |
-| Running ordinary leaf, later ordinary leaves and early finish | First remaining ordinary leaf wins; malformed duplicate finishes are still refused before exclusion | Typed selection |
-| Successful, immediate-exit and failed spawn | Started evidence is published only on success; failure never reports RUNNING; reap clears activity before epoch handoff | Real runner/process fixtures |
-| Completion precedes reap | RUNNING persists through Ravel's grace and escalation until Grove reaps its Ravel job; it does not disappear at result publication, a teardown record or retirement | Real runner/process fixtures |
+| RUNNING or NEXT folded or offscreen, with File active | Both summary entries remain visible and are independent of cursor selection | Application |
+| A session retired or decomposed its item | DONE plus RUNNING, or RUNNING on the branch. Descendants can be NEXT | Controlled launch through application |
+| Only ordinary running leaf plus finish remains | Finish becomes NEXT after exclusion. Viewing creates no sentinel | Typed selection and application |
+| Running ordinary leaf, later ordinary leaves and early finish | The first remaining ordinary leaf wins. Selection still refuses malformed duplicate finishes before exclusion | Typed selection |
+| Successful, immediate-exit and failed spawn | The runner publishes Started evidence only on success. Failure never reports RUNNING. Reap clears activity before epoch handoff | Real runner/process fixtures <!-- tc: depart synonym-rotation because Started names the runtime record that a launch writes --> |
+| Completion precedes reap | RUNNING persists through Ravel's grace and escalation until Grove reaps its Ravel job. It does not disappear at result publication, a teardown record or retirement | Real runner/process fixtures |
 | Driver killed with started bytes left behind | Next observation cannot report that launch RUNNING, even if a child still exists | Real process fixture |
-| Multiple observers probe an unlocked started witness while replacement retains old lease bytes | Shared probes do not contend with one another and cannot manufacture RUNNING; observers never lock the driver lease | Process fixture and lock barriers |
-| Replacement holds lease with old bytes while an old epoch guard blocks handoff | Old witness cannot establish RUNNING; viewer attempts return promptly and do not wait for handoff | Process fixture and lock barriers |
-| Root replaced while a session runs, including reused key and first viewer opened after replacement | Old mandate is marked previous tree and never attaches to the new row; new NEXT uses no old-key exclusion | Real launch plus application |
-| Directory witness closes before the private witness, with forced inode/key reuse before the observer opens the replacement | Numeric equality plus the old locked file witness yields Busy, no RUNNING row and no NEXT exclusion; the missing directory lock is decisive | Observer lock/filesystem barriers |
-| Private witness closes before the directory witness, or both close | The final private probe yields Idle; the old directory lock alone cannot establish RUNNING | Observer lock/filesystem barriers |
-| Root release occurs after the directory probe but before the private probe | The observer's retained pin still binds the captured lifetime; a later directory is never joined to this result | Observer lock/filesystem barriers |
+| Multiple observers probe an unlocked started witness while replacement retains old lease bytes | Shared probes do not contend with one another and cannot manufacture RUNNING. Observers never lock the driver lease | Process fixture and lock barriers |
+| Replacement holds lease with old bytes while an old epoch guard blocks handoff | Old witness cannot establish RUNNING. Viewer attempts return promptly and do not wait for handoff | Process fixture and lock barriers |
+| Root replaced while a session runs, including reused key and first viewer opened after replacement | Old mandate is marked previous tree and never attaches to the new row. New NEXT uses no old-key exclusion | Real launch plus application |
+| Directory witness closes before the private witness, with forced inode/key reuse before the observer opens the replacement | Numeric equality plus the old locked file witness yields Busy, no RUNNING row and no NEXT exclusion. The missing directory lock is decisive | Observer lock/filesystem barriers |
+| Private witness closes before the directory witness, or both close | The final private probe yields Idle. The old directory lock alone cannot establish RUNNING | Observer lock/filesystem barriers |
+| Root release occurs after the directory probe but before the private probe | The observer's retained pin still binds the captured lifetime. The observer never joins a later directory to this result | Observer lock/filesystem barriers |
 | Item absent or whole tree removed during a launch | Summary retains the witnessed identity with the appropriate absence qualifier | Application plus real launch |
-| Old, missing, malformed, truncated, oversized or mismatched observation records | Typed unavailable/busy state where evidence is missing; readable trees still browse | Typed observer; application |
-| Witness allocation or started-marker write fails | Session authority and outcome are preserved; activity is Unavailable for missing metadata/invalid bytes or Busy for an incomplete marker | Runner/observer fault seam |
-| Control path replaced by a FIFO or a directory; open/lock identity race | Bounded quiet failure/retry, with no blocking read or invented RUNNING | Existing filesystem barriers/process fixtures |
-| Observer paused after tree/file capture, and separately inside runtime read | No epoch guard spans tree/file capture or caller work; runtime suspension alone can reach the documented handoff bound; release permits recovery | Lock barriers and process fixture |
-| Supervision error without confirmed reap; unwind and normal lease drop | Lease-owned witness survives helper return; every orderly release closes witness before root pin and driver ownership | Runner/lease event trace |
-| Duplicate keys with and without running-key exclusion, including terminal/branch duplicates | Driver and viewer refuse before selection/exclusion; valid trees retain ordinary ordering | Typed selection; driver/application |
-| Exact workspace reached through symlink or /var alias | Same directory identity yields same activity; subdirectory observation never borrows ancestor runtime | Typed observer; application |
-| Foreign shared holder of either the task root or a newly allocated private witness; reported directory-locking error | Exclusive acquisition returns promptly, prepared observation locks are released, launch/admission proceed and activity is Unavailable | Lock barrier and controlled launch |
-| Directory witness held while a session mutates or deletes the root | The containing-directory tree lock remains usable; root replacement remains possible and never inherits the old root's witness | Real filesystem/process fixture |
-| Help in both views; selected LIVE, DONE, RUNNING and NEXT with color disabled | Active view and Tab destination are named; the cursor alone marks selection, the NEXT glyph is bold normal text, RUNNING retains its specified styles | Application; terminal fixture |
-| Tree or epoch contention and rapid start/end changes | Current pair is withheld when unverifiable; navigation/quit remain responsive; cadence recovers | Application and process fixtures |
-| Multiple viewers, non-jj location, missing namespace, absent tree | Browsing creates no files/directories or persisted state and never resolves a launch policy | Application filesystem snapshots; typed observer |
-| Ambient old session after rotation; an admitted operation during replacement | Existing admission rejection and handoff semantics still hold; observation grants no authority | Existing lease/admission process fixtures |
+| Old, missing, malformed, truncated, oversized or mismatched observation records | Typed unavailable/busy state where evidence is missing. Readable trees still browse | Typed observer and application |
+| Witness allocation or started-marker write fails | Session authority and outcome are preserved. Activity is Unavailable for missing metadata/invalid bytes, or Busy for an incomplete marker | Runner/observer fault seam |
+| Control path replaced by a FIFO or a directory, or an open/lock identity race | Bounded quiet failure/retry, with no blocking read or invented RUNNING | Existing filesystem barriers/process fixtures |
+| Observer paused after tree/file capture, and separately inside runtime read | No epoch guard spans tree/file capture or caller work. Runtime suspension alone can reach the documented handoff bound. Release permits recovery | Lock barriers and process fixture |
+| Supervision error with no proof of reap. Unwind and normal lease drop | Lease-owned witness survives helper return. Every orderly release closes witness before root pin and driver ownership | Runner/lease event trace |
+| Duplicate keys with and without running-key exclusion, including terminal/branch duplicates | Driver and viewer refuse before selection/exclusion. Valid trees retain ordinary ordering | Typed selection and driver/application |
+| Exact workspace reached through symlink or /var alias | Same directory identity yields same activity. Subdirectory observation never borrows ancestor runtime | Typed observer and application |
+| Foreign shared holder of either the task root or a newly allocated private witness. Reported directory-locking error | Exclusive acquisition returns promptly, prepared observation locks are released, launch/admission proceed and activity is Unavailable | Lock barrier and controlled launch |
+| Directory witness held while a session mutates or removes the root | The containing-directory tree lock remains usable. Root replacement remains possible and never inherits the old root's witness | Real filesystem/process fixture |
+| Help in both views. Selected LIVE, DONE, RUNNING and NEXT with colour disabled | Help names the active view and the Tab destination. The cursor alone marks selection, the NEXT glyph is bold normal text, and RUNNING keeps its specified styles | Application and terminal fixture |
+| Tree or epoch contention, and sessions that launch and end in quick succession | The current pair is withheld when unverifiable. Navigation/quit remain responsive. Cadence recovers | Application and process fixtures |
+| Multiple viewers, non-jj location, missing namespace, absent tree | Browsing creates no files/directories or persisted state and never resolves a launch policy | Application filesystem snapshots and typed observer |
+| Ambient old session after rotation. An admitted operation during replacement | Existing admission rejection and handoff semantics still hold. Observation grants no authority | Existing lease/admission process fixtures |
 
 Process assertions wait on fixture events and actual reap/lock transitions,
-with a failure timeout; they do not infer death from file existence or elapsed
+with a failure timeout. They do not infer death from file existence or elapsed
 sleep. A stale-record rejection needs the positive control that the same
-observer recognizes a genuinely running launch. The tree-replacement control
-starts with the same key in both lifetimes. Render tests inspect semantic text
-and styles, rather than pinning every border cell.
+observer recognises a genuinely running launch. The tree-replacement control
+uses the same key in both lifetimes. Render tests inspect semantic text and
+styles, rather than pinning every border cell.
 
-The death controls have two layers. On macOS and Linux, real subprocess fixtures
-hold the two exclusive witnesses, acknowledge readiness through a pipe, and are
-then killed and reaped with `waitpid` before observing the leftover records.
-Use independent read-only descriptors to check both contended probes before
-death and both successful probes afterwards. Rename/remove and recreate the
-root while the original witnesses are held; observers opened afterwards must
-see the replacement as a different lifetime. This checks identity comparison
-and activity binding, not whether the pin prevents inode reuse; a host that
-does not reuse inode numbers can pass it without a working pin. A separate
-shared-holder process must permit another shared probe and make exclusive
-preparation fail promptly.
+The death controls have two layers. On macOS and Linux, real subprocess
+fixtures hold the two exclusive witnesses and acknowledge readiness through a
+pipe. The test then kills them and reaps them with `waitpid`, before it
+observes the leftover records. Use independent read-only descriptors to check
+both contended probes before death and both successful probes afterwards.
+
+Rename/remove and recreate the root while the original witnesses are held.
+Observers opened afterwards must see the replacement as a different lifetime.
+This checks identity comparison and activity binding, not whether the pin
+prevents inode reuse. A host that does not reuse inode numbers can pass it
+without a working pin. A separate shared-holder process must permit another
+shared probe and make exclusive preparation fail promptly.
 
 The internal lock/filesystem barrier seam separately permits the two close
-orders and makes a replacement report the old device/inode pair and task key.
+orders. It makes a replacement report the old device/inode pair and task key.
 Do not depend on the host allocator reusing an inode in a timeout. Pause once
-between root-pin release and private-witness release, and once after a successful
-directory verification but before the final private probe. These controls model
-kernel interleavings; they are not a claim to have paused kernel teardown.
-The first must reject the replacement with a still-positive private witness;
-disabling the directory check must make that control attach activity wrongly.
-Disabling replacement's epoch-before-directory-acquisition rule must similarly
-expose a new directory witness under an old epoch. Keep the valid running-launch
-control passing in both mutation checks, so blanket unavailability cannot pass.
+between root-pin release and private-witness release. Pause once more after a
+successful directory verification but before the final private probe.
+
+These controls model kernel interleavings. They are not a claim to have paused
+kernel teardown.
+
+The first control must reject the replacement with a still-positive private
+witness. Disabling the directory check must make that control attach activity
+wrongly. Disabling replacement's epoch-before-directory-acquisition rule must
+similarly expose a new directory witness under an old epoch. Keep the valid
+running-launch control passing in both mutation checks, so blanket
+unavailability cannot pass.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 ## Scope
 

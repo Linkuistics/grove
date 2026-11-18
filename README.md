@@ -81,32 +81,40 @@ and `codebase-design` for module design, structural simplicity and test seams.
 Both skills ship in the `design` source of DesignSkills, which Grove's formula
 installs.
 
-<!-- tc: pending because the conversion has not reached this part of the document -->
-
 ## Browse a task tree
 
-Run `grove view` for the current directory's `.grove`, or
+Run `grove view` for the `.grove` of the current directory, or
 `grove view /path/to/worktree` for another tree. The browser is permanently
-read-only and needs no jj workspace, launch policy or installed skills.
-It never searches parent directories. Files render as formatted Markdown and
-refresh automatically every 500 ms; `r` requests an immediate refresh.
-Tab switches between tree navigation and file scrolling;
-use arrows or hjkl, Enter/Space to fold branches, Home/End to jump,
-PageUp/PageDown to read files, Left/Right to scroll wide code and tables,
-`?` for key help, and q or Ctrl-c to quit. Resize reflows prose while retaining
-the reading location; returning to a file restores its saved position.
-Selection follows permanent keys across renames, moves and retirement. Replacing
-the root starts a fresh view. Reading positions follow unchanged source passages
-through edits, including on revisit; deleted passages fall back to nearby surviving
-text. Identical passages use source context and proximity to choose consistently.
-While a writer holds the tree, reads show WAITING and retry without blocking input.
-Quit, handled termination signals and errors restore the terminal; unwinding
-panics restore it before printing their diagnostic.
-See [Viewing a tree](docs/USAGE.md#usage-viewing-tree) for details and recovery.
+read-only and needs no jj workspace, launch policy or installed skills. It
+never searches parent directories. Files render as formatted Markdown and
+refresh automatically every 500 ms. `r` requests an immediate refresh.
+
+Tab switches between tree navigation and file scrolling. These keys do the
+rest:
+
+- Arrows or hjkl navigate.
+- Enter or Space folds a branch.
+- Home/End jumps.
+- PageUp/PageDown reads files.
+- Left/Right scrolls wide code and tables.
+- `?` shows key help.
+- q or Ctrl-c quits.
+
+Resize reflows prose and keeps the reading location. Returning to a file
+restores its saved position. Selection follows permanent keys across renames,
+moves and retirement. Replacing the root gives a fresh view.
+
+Reading positions follow unchanged source passages through edits, including on
+revisit. Removed passages fall back to nearby surviving text. Identical
+passages use source context and proximity to choose consistently.
+
+While a writer holds the tree, reads show WAITING and retry without blocking
+input. Quit, handled termination signals and errors restore the terminal.
+Unwinding panics restore it before they print their diagnostic. See
+[Viewing a tree](docs/USAGE.md#usage-viewing-tree) for details and recovery.
 
 ## Skills
 
-<!-- tc: on -->
 
 Grove's formula installs six skill sources. Each is one Ravel source:
 

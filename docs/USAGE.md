@@ -333,8 +333,6 @@ fails this invocation and publishes no outputs, even when every declared output 
 continue result succeeds after the cleanup, even when the managed process later exits with a
 nonzero status.
 
-<!-- tc: pending because the conversion has not reached this part of the document -->
-
 <a id="usage-viewing-tree"></a>
 ## Viewing a tree
 
@@ -343,20 +341,24 @@ $ grove view
 $ grove view /path/to/another/worktree
 ```
 
-The argument is the directory containing `.grove`. It defaults to the current
-working directory, with **no upward search**: from a subdirectory, view observes
-that subdirectory's `.grove`. The path is made absolute once. Temporary non-jj
-directories and concurrent viewers work; viewing uses no driver lease or launch
-policy. It never creates, repairs, renames or writes tree files, and all
-selection, expansion and scrolling state disappears on exit.
+The argument is the directory that contains `.grove`. It defaults to the
+current working directory, with **no upward search**. From a subdirectory, the
+viewer observes the `.grove` of that subdirectory. The viewer makes the path
+absolute once.
 
-The viewer starts in full-width **Tree** view. **Tab** switches to the selected
-item’s full-width **File** view and back; the title and footer name the active
-view and Tab destination. The root opens `_BRIEF.md`, a branch opens its named
-node brief, and a task opens its task file. Branches start expanded.
+Temporary directories without jj, and concurrent viewers, work. Viewing uses no
+driver lease or launch policy. The viewer never creates, corrects, renames or
+writes tree files. All selection, expansion and scrolling state disappears on
+exit.
 
-Every row begins with a fixed area of nine cells before its indentation and
-handle. In order, the area shows the row's depth, the `>` cursor, a lifecycle
+The viewer opens in the full-width **Tree** view. **Tab** switches to the
+full-width **File** view of the selected item, and back. The title and the
+footer name the active view and the Tab destination. The root opens
+`_BRIEF.md`, a branch opens its named node brief, and a task opens its task
+file. At first, every branch is expanded.
+
+Nine cells come first in every row, before its indentation and handle. In
+order, they show the row's depth, the `>` cursor, a lifecycle
 glyph and an activity glyph. The depth column is two digits wide. The root is
 at depth 0, and a child of the root is at depth 1. A tree deeper than 99 widens
 the column for every row. The lifecycle glyphs are `◦` LIVE, `✓` DONE,
@@ -375,139 +377,170 @@ can show a green `✓` beside `►` until its session ends. The glyph `»` marks
 the row keeps its own style. Each glyph takes one terminal cell in every locale.
 
 Both views keep **RUNNING** and **NEXT** summary lines above the body, even when
-either item is folded or offscreen. Each summary line starts with the glyph of
-its row, `►` or `»`, as a legend. Idle shows `RUNNING: none (idle)` and the
-ordinary Grove selection as NEXT: the first live non-finish leaf in depth-first
-position order, or the sole live finish leaf when no ordinary task remains.
+either item is folded or offscreen. The first cell of each summary line holds
+the glyph of its row, `►` or `»`, as a legend. Idle shows `RUNNING: none (idle)` and the
+ordinary Grove selection as NEXT. That selection is the first live non-finish
+leaf in depth-first position order, or the sole live finish leaf when no
+ordinary task remains.
+
 For a witnessed running item in the current tree, NEXT applies that rule after
-excluding its permanent key. Finish can thus be NEXT while the last ordinary
-session is still running. Renaming, moving, retiring or decomposing the running
-item preserves its marker, using its current handle; a running branch's children
-remain eligible. Ancestors do not inherit RUNNING.
-This is a forecast, not a promised launch. No eligible leaf means `NEXT: none`;
-viewing never creates a finish sentinel. Long summary slugs shorten before their
+it excludes the permanent key of that item. So finish can be NEXT while the
+last ordinary session still runs. Renaming, moving, retiring or decomposing the
+running item preserves its marker, and the marker uses its current handle. The
+children of a running branch remain eligible. Ancestors do not inherit RUNNING.
+
+This is a forecast, not a promised launch. No eligible leaf means `NEXT: none`.
+Viewing never creates a finish sentinel. Long summary slugs shorten before their
 permanent keys. The location/view, tree observation, RUNNING, NEXT and footer
 lines leave three bordered content rows at the minimum 60 × 10 size.
+
+<!-- tc: depart synonym-rotation because Started names the runtime record that a launch writes -->
 A missing, unreadable or changing tree makes NEXT unavailable while the RUNNING
-summary continues to report independently observed runtime activity. For example,
-verified idle still reads `RUNNING: none (idle)` beside
+summary continues to report independently observed runtime activity. For
+example, verified idle still reads `RUNNING: none (idle)` beside
 `NEXT: unavailable — tree unavailable`. An active legacy epoch record without a
-supported witness makes activity unavailable; that record alone does not prove
-that a session is alive. A released, validated launch witness establishes idle
-even if an active epoch and Started bytes remain after the session ends.
+supported witness makes activity unavailable. That record alone does not prove
+that a session is alive. A released launch witness that passes the observer's
+checks establishes idle, even if an active epoch and Started bytes remain after
+the session ends.
+
 If the running item disappears, its launch handle remains in the summary with
-`item absent`; NEXT still selects from the current tree. Removing the root shows
-`tree absent`, and failed or stale tree reads show `tree unavailable`, with no
-row attachment or NEXT. Replacing the root shows `previous tree`: the old mandate
-attaches to no new row and excludes no reused key from NEXT. Replacement clears
-old selection, folds and file positions; edits to the same root's brief preserve
-them. Summary qualifiers and permanent keys survive shortened slugs at 60 × 10.
-The exit signal alone does not clear RUNNING; it remains until the driver
-reaps the session. Driver death releases the evidence even if a child survives.
-An incomplete Started publication shows activity waiting.
+`item absent`. NEXT still selects from the current tree. Removing the root
+shows `tree absent`, and failed or stale tree reads show `tree unavailable`.
+Both show no row attachment and no NEXT. Replacing the root shows
+`previous tree`. The old mandate then attaches to no new row and excludes no
+reused key from NEXT.
+
+Replacement clears old selection, folds and file positions. Edits to the brief
+of the same root preserve them. Summary qualifiers and permanent keys survive
+shortened slugs at 60 × 10. The exit signal alone does not clear RUNNING, which
+remains until the driver reaps the session. Driver death releases the evidence
+even if a child survives. An incomplete Started publication shows activity
+waiting.
 
 The root and branches count all descendant leaves, including folded ones.
 Their status is LIVE if any are live, otherwise DONE if any are done, otherwise
 ABANDONED, or EMPTY with no leaves. Separate totals after the handle, such as
-`◦1 ✓2 ✗0`, expose mixed terminal branches. Handles come before kinds and counts. At narrow widths,
-deep indentation compresses to an ellipsis and long slugs are shortened before
-their `-k<key>` suffix; trailing kinds and counts use the remaining space.
-The depth and both glyphs stay visible even at the supported minimum of 60 × 10.
+`◦1 ✓2 ✗0`, expose mixed terminal branches. Handles come before kinds and
+counts.
+
+At narrow widths, deep indentation compresses to an ellipsis. Long slugs
+shorten before their `-k<key>` suffix. Trailing kinds and counts use the
+remaining space. The depth and both glyphs stay visible even at the supported
+minimum of 60 × 10.
 
 | Key | Action |
 |---|---|
-| Tab | Switch full-width Tree/File views; the visible view is labeled `[active]` |
-| Up/Down or k/j | In the tree, select the previous/next visible row; in the file, scroll one line |
-| Right or l | In the tree, expand a branch or enter its first child; in the file, scroll right |
-| Left or h | In the tree, collapse a branch or select its parent; in the file, scroll left |
-| Enter or Space | In the tree, fold or expand the selected root/branch |
-| Home/End | First/last visible tree row, or beginning/end of the file, according to the active view |
+| Tab | Switch the full-width Tree and File views. The visible view has the label `[active]` |
+| Up/Down or k/j | In the tree, select the previous or next visible row. In the file, scroll one line |
+| Right or l | In the tree, expand a branch or enter its first child. In the file, scroll right |
+| Left or h | In the tree, collapse a branch or select its parent. In the file, scroll left |
+| Enter or Space | In the tree, fold or expand the selected root or branch |
+| Home/End | First or last visible tree row, or top or end of the file, according to the active view |
 | PageUp/PageDown or Ctrl-u/Ctrl-d | In File view, scroll by one page |
-| ? | Show key help; navigation pauses until help is dismissed |
-| Escape | Dismiss help |
-| r | Refresh immediately, preserving the selected item and reading position |
-| q or Ctrl-c | Quit from either view or help |
+| ? | Show key help. Navigation pauses until you close help |
+| Escape | Close help |
+| r | Refresh immediately, and keep the selected item and the reading position |
+| q or Ctrl-c | Quit from either view or from help |
 
 Files render as **formatted Markdown**: headings, emphasis, nested lists,
-quotes, rules, inline code, fenced/indented code blocks and aligned tables.
-Prose wraps to the full view width. Code keeps its indentation and tables keep
-their columns; Left/Right scrolls those wide blocks without shifting prose. Links show
-labels and destinations, images show alt text, and HTML is inert text. Nothing
-opens a link, fetches an image, runs code or executes terminal control characters.
-Syntax highlighting is not provided. The tree and selected bytes refresh every
-500 ms, including same-size edits; `r` refreshes immediately. Captured names and
-file bytes remain readable after the shared tree lock is released, so reading
-a file does not hold up tree mutations.
+quotes, rules, inline code, fenced or indented code blocks and aligned tables.
+Prose wraps to the full view width. Code keeps its indentation, and tables keep
+their columns. Left and Right scroll those wide blocks without shifting prose.
+Links show labels and destinations, images show alt text, and HTML is inert
+text. Nothing opens a link, fetches an image, runs code or executes terminal
+control characters.
 
-Resize preserves the reading location through prose reflow, clamping near the
-end of a file. Returning to a previously selected file restores its reading
+The viewer provides no syntax highlighting. The tree and the selected bytes
+refresh every 500 ms, including same-size edits. `r` refreshes immediately.
+Captured names and file bytes remain readable after the viewer releases the
+shared tree lock. So reading a file does not hold up tree mutations.
+
+Resize preserves the reading location through prose reflow, and it clamps near
+the end of a file. Returning to a previously selected file restores its reading
 position, including horizontal scroll. These positions live only in memory.
-Switching preserves tree selection, expansion and viewport, as well as each
-file’s reading position. Hidden views keep their saved dimensions until shown;
-returning to Tree adjusts its viewport only as needed to keep selection visible.
-Switching does not force a reload or restart the refresh deadline. Automatic
-observation continues in both views, in help and during the resize notice.
-The footer points to key help.
+
+Switching preserves tree selection, expansion and viewport, and the reading
+position of each file. Hidden views keep their saved dimensions until they show
+again. Returning to Tree adjusts its viewport only as needed to keep the
+selection visible. Switching does not force a reload or restart the refresh
+deadline. Automatic observation continues in both views, in help and during the
+resize notice. The footer points to key help.
 
 Selection and expansion follow permanent keys across renumbering, renaming,
 moves and retirement. Decomposing a selected task opens its new branch brief.
 A moved selection reveals its new ancestors. If an item disappears, the viewer
 selects its nearest surviving old ancestor and shows a notice. Replacing or
-removing `.grove` clears saved item state, even if a new tree reuses its keys;
-replacing only `_BRIEF.md` is an ordinary content edit. Duplicate permanent keys
-anywhere in the tree, including terminal leaves and branches, or multiple live
-`finish` leaves show an error. The driver and `grove-llm pick` refuse the same
-ambiguities. Follow the [selection repair guidance](#reading-the-tree);
-viewing never allocates a finish leaf. Reading positions follow unchanged source
-lines through insertions and
-deletions, including when you return to a file edited while reading another item.
-Repeated lines use surrounding unchanged text, then proximity and source order
-to choose consistently. A deleted line falls back to the nearest surviving old
-line (the following line wins a tie), or a clamped position if none survives.
-Saved reading positions survive file errors until readable content returns.
+removing `.grove` clears saved item state, even if a new tree reuses its keys.
+Replacing only `_BRIEF.md` is an ordinary content edit.
+
+Duplicate permanent keys anywhere in the tree, including terminal leaves and
+branches, show an error. Multiple live `finish` leaves also show an error. The
+driver and `grove-llm pick` refuse the same ambiguities. Follow the
+[selection correction guidance](#reading-the-tree). Viewing never allocates a
+finish leaf.
+
+Reading positions follow unchanged source lines through insertions and
+deletions. This includes a return to a file that changed while you read another
+item. Repeated lines use surrounding unchanged text, then proximity and source
+order, to choose consistently. A removed line falls back to the nearest
+surviving old line (the following line wins a tie). If no old line survives, the
+position clamps. Saved reading positions survive file errors until readable
+content returns.
 
 A missing tree shows its observed path and a Missing message. A malformed or
-unreadable reload shows an error; a retained previous tree is explicitly STALE.
-A selected-file failure is shown in File view. Fix the external problem;
-the viewer retries automatically and never repairs it. An empty document has an
-empty File view. Resize keeps the selected item. Below 60
-columns or 10 rows, a resize message replaces the view; navigation pauses and
-state is retained until the view fits again. Quit and refresh still work, including
-while help is open. Refresh retains the selected item while the views are hidden.
+unreadable reload shows an error. A retained previous tree is explicitly STALE.
+File view shows a failure of the selected file. Correct the external problem.
+The viewer retries automatically and never corrects it.
+
+An empty document has an empty File view. Resize keeps the selected item. Below
+60 columns or 10 rows, a resize message replaces the view. Navigation pauses,
+and the viewer keeps its state until the view fits again. Quit and refresh
+still work, including while help is open. Refresh keeps the selected item while
+the views are hidden.
 
 Startup, selection and reload use a quiet nonblocking reader. While a writer
-holds the tree, the viewer shows WAITING and retains its previous display;
-navigation and quit remain responsive. It retries the pending read every 500 ms
-until contention ends. Other external changes and repairs are observed on the
-same deadline, with at most one pending observation.
+holds the tree, the viewer shows WAITING and keeps what it showed before.
+Navigation and quit remain responsive. The viewer retries the pending read
+every 500 ms until contention ends. It observes other external changes and
+corrections on the same deadline, with at most one pending observation.
+
 Tree capture releases its shared guard before a separate, nonblocking runtime
 read. Runtime failure does not prevent browsing. Epoch contention or changing
-activity shows WAITING; unsupported, missing or malformed evidence beside a
+activity shows WAITING. Unsupported, missing or malformed evidence beside a
 lease shows activity unavailable. Both suppress the current pair and clear row
 activity until observation recovers. Failed tree capture also withholds NEXT
-and clears old row activity. Tree diagnostics remain separate from activity
-freshness, so consistent tree updates still appear while activity is changing.
-Legacy active drivers have no supported activity witness and therefore show
-activity unavailable. Current-tree RUNNING and exclusion-aware NEXT require the
-observer's verified same-tree relation; numeric identity or leftover bytes alone
-cannot attach a mandate to a row.
-All advisory guards release before rendering or waiting for input.
+and clears old row activity.
 
-A driver handoff overlapping a runtime read can briefly print
+Tree diagnostics remain separate from activity freshness, so consistent tree
+updates still appear while activity changes. Legacy active drivers have no
+supported activity witness and therefore show activity unavailable.
+Current-tree RUNNING and exclusion-aware NEXT require the verified same-tree
+relation of the observer. Numeric identity or leftover bytes alone cannot
+attach a mandate to a row. All advisory guards release before rendering or
+waiting for input.
+
+A driver handoff that overlaps a runtime read can briefly print
 `waiting for exclusive session epoch lock` with its operation name. Ordinary
-reads finish promptly. If an observer is suspended while holding that runtime
-guard, the driver fails the handoff after 30 seconds; resume or stop the suspended
-holder so its guard releases, then restart the driver. Pausing after tree capture
-or while displaying a captured result holds no epoch guard. Do not delete the
-control files to bypass a waiting reader.
+reads finish promptly. If an observer stops while it holds that runtime guard,
+the driver fails the handoff after 30 seconds. A pause after tree capture, or
+while the viewer shows a captured result, holds no epoch guard.
 
-Run directly with interactive stdin and stdout; piping either is refused before
-terminal setup. Quit, Ctrl-c, SIGINT, SIGTERM and SIGHUP restore raw mode,
-alternate screen and cursor. Signal handlers only request an exit; cleanup runs
-on the viewer thread. Partial setup failures and input/draw errors restore the
-terminal before an error is printed, as do unwinding panics before their panic
-diagnostic. A disconnected terminal causes the viewer to exit; cleanup output
-cannot be delivered to a closed endpoint.
+To recover from a failed handoff, resume or stop the suspended holder, so that
+its guard releases. Then restart the driver. Do not remove the control files to
+bypass a waiting reader.
+
+Run the viewer directly with interactive stdin and stdout. The viewer refuses a
+pipe on either before terminal setup. Quit, Ctrl-c, SIGINT, SIGTERM and SIGHUP
+restore raw mode, the alternate screen and the cursor. Signal handlers only
+request an exit, and cleanup runs on the viewer thread.
+
+Partial setup failures and input or draw errors restore the terminal before the
+viewer prints an error. Unwinding panics also restore it before their panic
+diagnostic. A disconnected terminal causes the viewer to exit. Cleanup output
+cannot reach a closed endpoint.
+
+<!-- tc: pending because the conversion has not reached this part of the document -->
 
 <a id="usage-running-grove"></a>
 ## Running Grove: start, resume, and finish

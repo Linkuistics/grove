@@ -35,3 +35,28 @@ moments, the startup position and the `c` key.
   file.
 - A tree replacement clears the remembered current leaf with the other saved
   state.
+
+## Decisions (running log)
+
+The viewer remembers the last current leaf that it saw. It observes RUNNING
+when an accepted row binds a same-tree session. It observes NEXT otherwise,
+which covers idle and a session on a previous tree. A same-tree session
+with no bound row is unobservable, so NEXT does not stand in for it.
+
+Before the viewer learns its first current leaf, the cursor sits at the
+startup position. It goes to the first current leaf only if the human has
+not moved it since startup or the last tree replacement. So a busy startup
+never moves a cursor that the human has already placed.
+
+`c` works in both views, because the views share one selection. In File view
+the file changes to the current leaf, and the tree centres it at the next
+tree render. With no current leaf, `c` shows a notice that stays until the
+selection moves or a current leaf appears.
+
+A following move needs a second capture, because a capture reads the file of
+the selection that it starts from. The viewer captures at most twice per
+refresh. A change that the second capture shows waits for the next poll.
+
+Old tests that assumed a start on the root now open with Home, as a human
+can. The PTY tests of the real binary send `gg` for the same reason. The tree-replacement tests keep their intent with a retired reused key,
+or they assert the startup position on the new tree's current leaf.

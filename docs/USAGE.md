@@ -355,7 +355,10 @@ The viewer opens in the full-width **Tree** view. **Tab** switches to the
 full-width **File** view of the selected item, and back. The title and the
 footer name the active view and the Tab destination. The root opens
 `_BRIEF.md`, a branch opens its named node brief, and a task opens its task
-file. At first, every branch is expanded.
+file.
+
+At first, every branch is expanded. The cursor is on the current leaf, centred
+in the tree. With no current leaf, the cursor is on the root.
 
 Nine cells come first in every row, before its indentation and handle. In
 order, they show the row's depth, the `>` cursor, a lifecycle
@@ -442,6 +445,7 @@ minimum of 60 × 10.
 | Ctrl-d or d | Move half a page down |
 | Ctrl-u or u | Move half a page up |
 | zz, zt or zb | In the tree, scroll the cursor row to the middle, the top or the bottom of the pane. The cursor does not move |
+| c | Go to the current leaf, reveal it and centre it, from either view. With no current leaf, show a notice and move nothing |
 | ? | Show key help, which lists every key and the glyphs. Navigation pauses until you close help |
 | Escape | Close help |
 | r | Refresh immediately, and keep the selected item and the reading position |
@@ -452,7 +456,8 @@ the cursor keeps its place on the screen. At the first or the last page, the
 view stops and the cursor moves on alone. In the file, the same keys scroll the
 text. File view has no cursor, so `zz`, `zt` and `zb` do nothing there.
 
-After `zz`, `zt` or `zb`, the view holds until the cursor leaves the pane. Near
+After `zz`, `zt` or `zb`, the view holds until the cursor leaves the pane or
+follows the current leaf. Near
 either end of the tree, the cursor row stops short of its place, so the pane
 shows no blank rows. A pane with an even number of rows puts `zz` on the upper
 of its two middle rows.
@@ -460,6 +465,23 @@ of its two middle rows.
 The keys `g` and `z` wait for a second key. Any other key cancels the wait and
 then acts as usual. For example, `g` and then `j` selects the next row. While
 help or the resize notice shows, no key waits.
+
+The **current leaf** is the RUNNING item while a session runs, otherwise NEXT.
+The cursor follows the current leaf only while it rests on it. When the current
+leaf changes, a cursor on the old one moves to the new one. The tree reveals
+and centres it. A cursor elsewhere stays where you left it. To follow again,
+move the cursor onto the current leaf, or press `c`.
+
+The viewer centres the current leaf when it opens, when the cursor follows it,
+and when you press `c`. Otherwise the view scrolls only as far as it must to keep
+the cursor visible. Near either end of the tree, the current leaf sits
+off-centre, so the pane shows no blank rows.
+
+Following works in both views. In the file view, the file changes to the new
+current leaf, and each file keeps its reading position. While the viewer shows
+WAITING or `NEXT: none`, it keeps the last current leaf that it saw. So the
+cursor still follows when a new leaf becomes current. Replacing the tree clears
+that memory, and the viewer then behaves as when it opens.
 
 Files render as **formatted Markdown**: headings, emphasis, nested lists,
 quotes, rules, inline code, fenced or indented code blocks and aligned tables.
@@ -481,9 +503,12 @@ position, including horizontal scroll. These positions live only in memory.
 Switching preserves tree selection, expansion and viewport, and the reading
 position of each file. Hidden views keep their saved dimensions until they show
 again. Returning to Tree adjusts its viewport only as needed to keep the
-selection visible. Switching does not force a reload or restart the refresh
-deadline. Automatic observation continues in both views, in help and during the
-resize notice. The footer points to key help.
+selection visible. If the cursor followed the current leaf or you pressed `c`
+in the file view, the tree centres the cursor instead.
+
+Switching does not force a reload or restart the refresh deadline. Automatic
+observation continues in both views, in help and during the resize notice. The
+footer points to key help.
 
 Selection and expansion follow permanent keys across renumbering, renaming,
 moves and retirement. Decomposing a selected task opens its new branch brief.

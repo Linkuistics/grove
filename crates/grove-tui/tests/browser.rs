@@ -21,6 +21,14 @@ fn screen(viewer: &mut Viewer, width: u16, height: u16) -> String {
         .join("\n")
 }
 
+/// Open a viewer and take its cursor to the root with Home, as a human can.
+/// The cursor then rests away from the current leaf, so it does not follow.
+fn from_root(worktree: &Path) -> Viewer {
+    let mut viewer = Viewer::new(worktree.into());
+    viewer.act(Action::Home);
+    viewer
+}
+
 // Visit the selected file and return to Tree without changing selection.
 fn visit_file(viewer: &mut Viewer, width: u16, height: u16) -> String {
     viewer.act(Action::Focus);
@@ -61,7 +69,7 @@ fn idle_next_survives_folding_file_view_and_minimum_chrome() {
     put(&root, "02-k2/01-impl--forecast-k3.md", "TASK BODY");
     put(&root, "03-impl--later-k4.md", "");
     let before = snapshot(work.path());
-    let mut viewer = Viewer::new(work.path().into());
+    let mut viewer = from_root(work.path());
     for file in [false, true] {
         if file {
             viewer.act(Action::Focus);
@@ -186,7 +194,7 @@ fn real_runtime_transitions_clear_next_and_retry_in_both_views() {
         put(work.path(), ".grove/_BRIEF.md", "READABLE ROOT");
         put(work.path(), ".grove/01-impl--next-k1.md", "READABLE TASK");
         runtime_records(work.path(), false);
-        let mut viewer = Viewer::new(work.path().into());
+        let mut viewer = from_root(work.path());
         if file {
             viewer.act(Action::Focus);
         }
@@ -245,8 +253,8 @@ fn aliases_and_multiple_viewers_only_read_exact_workspace_administration() {
     let alias = alias_dir.path().join("alias");
     std::os::unix::fs::symlink(work.path(), &alias).unwrap();
     let before = snapshot(work.path());
-    let mut first = Viewer::new(work.path().into());
-    let mut second = Viewer::new(alias);
+    let mut first = from_root(work.path());
+    let mut second = from_root(&alias);
     for viewer in [&mut first, &mut second] {
         assert!(screen(viewer, 60, 10).contains("NEXT: next-k1"));
         viewer.act(Action::Focus);
@@ -472,7 +480,7 @@ fn nested_browser_selects_briefs_and_tasks_without_writing() {
     );
     put(&root, "02-impl--third-k4.md", "THIRD BODY");
     let before = snapshot(work.path());
-    let mut viewer = Viewer::new(work.path().into());
+    let mut viewer = from_root(work.path());
     let initial = screen(&mut viewer, 180, 24);
     for text in [
         "branch-k1",
@@ -539,7 +547,7 @@ fn glyph_rows_keep_depth_colors_and_bold_kinds_under_cursor_selection() {
     put(&root, "03-ABANDONED-impl--gone-k3.md", "");
     put(&root, "04-k4/_empty.md", "");
     let before = snapshot(work.path());
-    let mut viewer = Viewer::new(work.path().into());
+    let mut viewer = from_root(work.path());
     // Columns inside the border: depth 1..3, cursor 4, lifecycle 6, activity 8,
     // item from 10. The symbols alone are what a terminal without colour shows.
     for selected in 0..5 {
@@ -644,7 +652,7 @@ fn depth_column_widens_for_every_row_beyond_ninety_nine() {
         put(&parent, "_b.md", "");
     }
     put(&parent, "01-impl--deep-k100.md", "");
-    let mut viewer = Viewer::new(work.path().into());
+    let mut viewer = from_root(work.path());
     let cursor_row = |viewer: &mut Viewer| {
         let mut terminal = Terminal::new(TestBackend::new(60, 10)).unwrap();
         terminal.draw(|frame| viewer.render(frame)).unwrap();
@@ -692,7 +700,7 @@ fn disappearance_selects_root_with_an_explicit_notice() {
     let root = work.path().join(".grove");
     put(&root, "_BRIEF.md", "ROOT BODY");
     put(&root, "01-impl--task-k1.md", "TASK BODY");
-    let mut viewer = Viewer::new(work.path().into());
+    let mut viewer = from_root(work.path());
     fs::remove_file(root.join("01-impl--task-k1.md")).unwrap();
     viewer.act(Action::Down);
     let text = screen(&mut viewer, 180, 24);
@@ -812,7 +820,7 @@ fn busy_selection_retries_the_latest_file_without_an_event_backlog() {
     put(&root, "01-impl--first-k1.md", "FIRST FILE");
     put(&root, "02-impl--second-k2.md", "SECOND FILE");
     let before = snapshot(work.path());
-    let mut viewer = Viewer::new(work.path().into());
+    let mut viewer = from_root(work.path());
     let release = hold_writer(work.path());
     let start = Instant::now();
     viewer.act(Action::Down);
@@ -914,7 +922,7 @@ fn keys_navigate_visible_rows_and_parents_and_keep_selection_visible() {
         );
     }
     let before = snapshot(work.path());
-    let mut viewer = Viewer::new(work.path().into());
+    let mut viewer = from_root(work.path());
     assert!(screen(&mut viewer, 160, 12).contains("Tree [active]"));
     key(&mut viewer, Right);
     assert!(visit_file(&mut viewer, 160, 12).contains("BRANCH BODY"));
@@ -1156,7 +1164,7 @@ fn markdown_reflow_and_revisits_keep_the_visible_source_marker() {
     put(&root, "_BRIEF.md", &text);
     put(&root, "01-impl--task-k1.md", "other document");
     let before = snapshot(work.path());
-    let mut viewer = Viewer::new(work.path().into());
+    let mut viewer = from_root(work.path());
     screen(&mut viewer, 160, 15);
     viewer.act(Action::Focus);
     // Put the marker at the top, not merely at an arbitrary visible row.
@@ -1208,7 +1216,7 @@ fn edited_reading_positions_follow_source_on_refresh_and_revisit() {
         );
         put(&root, "_BRIEF.md", &text);
         put(&root, "01-impl--other-k1.md", "other document");
-        let mut viewer = Viewer::new(work.path().into());
+        let mut viewer = from_root(work.path());
         screen(&mut viewer, 160, 15);
         viewer.act(Action::Focus);
         scroll_to(&mut viewer, "MARKER");
@@ -1388,7 +1396,7 @@ fn edited_file_errors_keep_the_saved_source_until_recovery_and_revisit() {
     );
     put(&root, "_BRIEF.md", &text);
     put(&root, "01-impl--other-k1.md", "other document");
-    let mut viewer = Viewer::new(work.path().into());
+    let mut viewer = from_root(work.path());
     screen(&mut viewer, 160, 15);
     viewer.act(Action::Focus);
     scroll_to(&mut viewer, "MARKER");
@@ -1488,7 +1496,7 @@ fn transformed_markdown_and_blank_code_lines_keep_reading_anchors() {
         let root = work.path().join(".grove");
         put(&root, "_BRIEF.md", &body);
         put(&root, "01-impl--other-k1.md", "other");
-        let mut viewer = Viewer::new(work.path().into());
+        let mut viewer = from_root(work.path());
         screen(&mut viewer, 100, 15);
         viewer.act(Action::Focus);
         let mut found = false;
@@ -1538,7 +1546,7 @@ fn edited_wide_code_preserves_horizontal_offset_and_item_positions() {
     let body = format!("```\n{lines}```");
     put(&root, "_BRIEF.md", &body);
     put(&root, "01-impl--other-k1.md", "other starts at top");
-    let mut viewer = Viewer::new(work.path().into());
+    let mut viewer = from_root(work.path());
     screen(&mut viewer, 160, 15);
     viewer.act(Action::Focus);
     scroll_to(&mut viewer, "WIDE 020");
@@ -1622,7 +1630,8 @@ fn live_root_replacement_clears_reused_key_state_but_brief_edits_do_not() {
     assert!(visit_file(&mut viewer, 160, 20).contains("OLD ITEM"));
     fs::rename(&root, work.path().join("old-tree")).unwrap();
     put(&root, "_BRIEF.md", "NEW ROOT");
-    put(&root, "01-impl--chosen-k1.md", "NEW ITEM");
+    // A retired reused key: the new tree has no current leaf to start on.
+    put(&root, "01-DONE-impl--chosen-k1.md", "NEW ITEM");
     let expected = snapshot(work.path());
     viewer.act(Action::Refresh);
     let shown = visit_file(&mut viewer, 160, 20);
@@ -1945,7 +1954,8 @@ fn production_clock_replacement_between_polls_resets_reused_keys() {
     let started = std::time::Instant::now();
     fs::rename(&root, work.path().join("old-root")).unwrap();
     put(&root, "_BRIEF.md", "REPLACEMENT_ROOT");
-    put(&root, "01-impl--selected-k1.md", "REUSED_SELECTION");
+    // A retired reused key: the new tree has no current leaf to start on.
+    put(&root, "01-DONE-impl--selected-k1.md", "REUSED_SELECTION");
     let expected = snapshot(work.path());
     await_live(&mut viewer, started, |s| {
         s.lines()
@@ -2119,6 +2129,7 @@ fn vim_keys_decode_to_their_actions() {
         (Char('G'), KeyModifiers::SHIFT, Action::End),
         (Char('z'), none, Action::Z),
         (Char('t'), none, Action::T),
+        (Char('c'), none, Action::Current),
         (Char('z'), control, Action::Unbound),
         (Char('x'), none, Action::Unbound),
         (F(5), none, Action::Unbound),
@@ -2142,7 +2153,7 @@ fn tree_jumps_and_pages_move_the_cursor_and_the_view_together() {
     let root = work.path().join(".grove");
     thirty_rows(&root);
     let before = snapshot(work.path());
-    let mut viewer = Viewer::new(work.path().into());
+    let mut viewer = from_root(work.path());
     // 100 × 15 leaves eight tree rows, so half a page is four rows.
     let view = |viewer: &mut Viewer| cursor(&screen(viewer, 100, 15));
     assert_eq!(view(&mut viewer), at(0, "root"));
@@ -2192,7 +2203,7 @@ fn z_placements_scroll_the_tree_and_leave_the_cursor_until_it_leaves_the_pane() 
     let work = tempfile::tempdir().unwrap();
     let root = work.path().join(".grove");
     thirty_rows(&root);
-    let mut viewer = Viewer::new(work.path().into());
+    let mut viewer = from_root(work.path());
     let view = |viewer: &mut Viewer| cursor(&screen(viewer, 100, 15));
     view(&mut viewer);
     type_keys(&mut viewer, &"j".repeat(15));
@@ -2233,7 +2244,7 @@ fn a_prefix_waits_for_its_second_key_and_any_other_key_cancels_it() {
     let work = tempfile::tempdir().unwrap();
     let root = work.path().join(".grove");
     thirty_rows(&root);
-    let mut viewer = Viewer::new(work.path().into());
+    let mut viewer = from_root(work.path());
     let view = |viewer: &mut Viewer| cursor(&screen(viewer, 100, 15));
     view(&mut viewer);
     type_keys(&mut viewer, "jjjjj");
@@ -2351,7 +2362,7 @@ fn help_lists_every_key_and_the_glyph_legend_at_the_minimum_size() {
         "l/Right expand/child | h/Left fold/parent | File: scroll",
         "f/b Ctrl-f/Ctrl-b PageDown/PageUp: page down/up",
         "d/u Ctrl-d/Ctrl-u: half page down/up",
-        "zz/zt/zb: tree cursor row to middle/top/bottom",
+        "zz/zt/zb: cursor to middle/top/bottom | c: current leaf",
         "◦ LIVE ✓ DONE ✗ ABANDONED ∅ EMPTY ► RUNNING » NEXT",
     ];
     for title in ["Tree active | Tab: File", "File active | Tab: Tree"] {
@@ -2368,4 +2379,291 @@ fn help_lists_every_key_and_the_glyph_legend_at_the_minimum_size() {
         key(&mut viewer, Esc);
         key(&mut viewer, Tab);
     }
+}
+
+/// Retire the leaves `task-k<first>` to `task-k<last>` of `thirty_rows` in
+/// place, as `grove-llm leaf-retire` does. NEXT moves to the next live leaf.
+fn retire(root: &Path, first: usize, last: usize) {
+    for n in first..=last {
+        fs::rename(
+            root.join(format!("{n:02}-impl--task-k{n}.md")),
+            root.join(format!("{n:02}-DONE-impl--task-k{n}.md")),
+        )
+        .unwrap();
+    }
+}
+
+#[test]
+fn startup_centres_the_current_leaf_and_only_a_resting_cursor_follows_it() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    thirty_rows(&root);
+    retire(&root, 1, 14);
+    let before = snapshot(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    // Eight tree rows have two middle rows. The current leaf takes the upper.
+    let view = |viewer: &mut Viewer| cursor(&screen(viewer, 100, 15));
+    assert_eq!(view(&mut viewer), at(3, "task-k15"));
+    assert!(visit_file(&mut viewer, 100, 15).contains("BODY 15"));
+    assert_eq!(snapshot(work.path()), before);
+    // A cursor that leaves and returns rests on the current leaf again.
+    type_keys(&mut viewer, "jk");
+    assert_eq!(view(&mut viewer), at(3, "task-k15"));
+    retire(&root, 15, 15);
+    type_keys(&mut viewer, "r");
+    assert_eq!(view(&mut viewer), at(3, "task-k16"));
+    assert!(visit_file(&mut viewer, 100, 15).contains("BODY 16"));
+    // A cursor elsewhere stays where the human left it, and so does the view.
+    type_keys(&mut viewer, "k");
+    retire(&root, 16, 16);
+    type_keys(&mut viewer, "r");
+    let shown = screen(&mut viewer, 100, 15);
+    assert!(shown.contains("NEXT: task-k17"), "{shown}");
+    assert_eq!(cursor(&shown), at(2, "task-k15"));
+    // Back on the current leaf, the cursor follows and centres again.
+    type_keys(&mut viewer, "jj");
+    assert_eq!(view(&mut viewer), at(4, "task-k17"));
+    retire(&root, 17, 17);
+    viewer.tick(std::time::Instant::now() + std::time::Duration::from_secs(1));
+    assert_eq!(view(&mut viewer), at(3, "task-k18"));
+}
+
+#[test]
+fn startup_without_a_current_leaf_stays_on_the_root_until_one_appears() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "ROOT BODY");
+    put(&root, "01-DONE-impl--task-k1.md", "BODY 01");
+    let mut viewer = Viewer::new(work.path().into());
+    let view = |viewer: &mut Viewer| cursor(&screen(viewer, 100, 15));
+    assert_eq!(view(&mut viewer), at(0, "root"));
+    // The cursor still awaits its startup place, so it takes the first one.
+    put(&root, "02-impl--task-k2.md", "BODY 02");
+    type_keys(&mut viewer, "r");
+    assert_eq!(view(&mut viewer), at(2, "task-k2"));
+    // After a tree replacement, the viewer behaves as at startup, even for
+    // a cursor that the human moved away from the current leaf.
+    type_keys(&mut viewer, "gg");
+    fs::rename(&root, work.path().join("old-tree")).unwrap();
+    put(&root, "_BRIEF.md", "NEW ROOT");
+    put(&root, "01-impl--task-k1.md", "NEW BODY");
+    type_keys(&mut viewer, "r");
+    assert_eq!(view(&mut viewer), at(1, "task-k1"));
+    assert!(visit_file(&mut viewer, 100, 15).contains("NEW BODY"));
+    // A cursor that the human moves before any current leaf appears stays.
+    fs::rename(&root, work.path().join("older-tree")).unwrap();
+    put(&root, "_BRIEF.md", "THIRD ROOT");
+    put(&root, "01-DONE-impl--task-k1.md", "");
+    put(&root, "02-DONE-impl--task-k2.md", "");
+    type_keys(&mut viewer, "r");
+    assert_eq!(view(&mut viewer), at(0, "root"));
+    type_keys(&mut viewer, "j");
+    put(&root, "03-impl--task-k3.md", "");
+    type_keys(&mut viewer, "r");
+    let shown = screen(&mut viewer, 100, 15);
+    assert!(shown.contains("NEXT: task-k3"), "{shown}");
+    assert_eq!(cursor(&shown), at(1, "task-k1"));
+}
+
+#[test]
+fn centring_clamps_at_both_ends_of_the_tree() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    thirty_rows(&root);
+    let mut viewer = Viewer::new(work.path().into());
+    // Near the top, the current leaf sits above the middle, with no blank rows.
+    let shown = screen(&mut viewer, 100, 15);
+    assert_eq!(cursor(&shown), at(1, "task-k1"));
+    assert!(shown.lines().nth(5).unwrap().contains("root"), "{shown}");
+    // Near the bottom, it sits below the middle, and the last row fills the pane.
+    retire(&root, 1, 27);
+    type_keys(&mut viewer, "r");
+    let shown = screen(&mut viewer, 100, 15);
+    assert_eq!(cursor(&shown), at(6, "task-k28"));
+    assert!(
+        shown.lines().nth(12).unwrap().contains("task-k29"),
+        "{shown}"
+    );
+}
+
+#[test]
+fn z_placements_hold_until_the_current_leaf_changes() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    thirty_rows(&root);
+    retire(&root, 1, 14);
+    let mut viewer = Viewer::new(work.path().into());
+    let view = |viewer: &mut Viewer| cursor(&screen(viewer, 100, 15));
+    assert_eq!(view(&mut viewer), at(3, "task-k15"));
+    type_keys(&mut viewer, "zt");
+    assert_eq!(view(&mut viewer), at(0, "task-k15"));
+    // Refreshes and ticks that show the same current leaf keep the placement.
+    type_keys(&mut viewer, "r");
+    viewer.tick(std::time::Instant::now() + std::time::Duration::from_secs(1));
+    assert_eq!(view(&mut viewer), at(0, "task-k15"));
+    type_keys(&mut viewer, "zb");
+    assert_eq!(view(&mut viewer), at(7, "task-k15"));
+    retire(&root, 15, 15);
+    type_keys(&mut viewer, "r");
+    assert_eq!(view(&mut viewer), at(3, "task-k16"));
+}
+
+#[test]
+fn waiting_and_no_next_keep_the_last_current_leaf_so_following_survives() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "ROOT BODY");
+    put(&root, "01-impl--task-k1.md", "BODY 01");
+    put(&root, "02-impl--task-k2.md", "BODY 02");
+    runtime_records(work.path(), false);
+    let mut viewer = Viewer::new(work.path().into());
+    let view = |viewer: &mut Viewer| cursor(&screen(viewer, 100, 15));
+    assert_eq!(view(&mut viewer), at(1, "task-k1"));
+    // A tree writer hides the change, then its release reveals it.
+    let holder = hold_writer(work.path());
+    retire(&root, 1, 1);
+    type_keys(&mut viewer, "r");
+    let shown = screen(&mut viewer, 100, 15);
+    assert!(shown.contains("WAITING for tree writer"), "{shown}");
+    assert_eq!(cursor(&shown), at(1, "task-k1"));
+    drop(holder);
+    type_keys(&mut viewer, "r");
+    assert_eq!(view(&mut viewer), at(2, "task-k2"));
+    assert!(visit_file(&mut viewer, 100, 15).contains("BODY 02"));
+    // Unavailable activity withholds NEXT, and so does a tree with no live leaf.
+    runtime_records(work.path(), true);
+    retire(&root, 2, 2);
+    type_keys(&mut viewer, "r");
+    let shown = screen(&mut viewer, 100, 15);
+    assert!(shown.contains("NEXT: unavailable"), "{shown}");
+    assert_eq!(cursor(&shown), at(2, "task-k2"));
+    runtime_records(work.path(), false);
+    type_keys(&mut viewer, "r");
+    let shown = screen(&mut viewer, 100, 15);
+    assert!(shown.contains("NEXT: none"), "{shown}");
+    assert_eq!(cursor(&shown), at(2, "task-k2"));
+    // The cursor still rests on the last current leaf, so it follows.
+    put(&root, "03-impl--task-k3.md", "BODY 03");
+    type_keys(&mut viewer, "r");
+    assert_eq!(view(&mut viewer), at(3, "task-k3"));
+}
+
+#[test]
+fn following_in_file_view_changes_the_file_and_keeps_each_reading_position() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    let long = |n: usize| {
+        let lines = (0..40)
+            .map(|line| format!("FILE {n} LINE {line:02}\n"))
+            .collect::<String>();
+        format!("```\n{lines}```")
+    };
+    put(&root, "_BRIEF.md", "ROOT BODY");
+    put(&root, "01-impl--task-k1.md", &long(1));
+    put(&root, "02-impl--task-k2.md", &long(2));
+    let mut viewer = Viewer::new(work.path().into());
+    // The first file row of a 100 × 15 screen, which shows eight file rows.
+    let top = |viewer: &mut Viewer| screen(viewer, 100, 15).lines().nth(5).unwrap().to_owned();
+    viewer.act(Action::Focus);
+    assert!(top(&mut viewer).contains("FILE 1 LINE 00"));
+    type_keys(&mut viewer, "f");
+    assert!(top(&mut viewer).contains("FILE 1 LINE 08"));
+    retire(&root, 1, 1);
+    viewer.tick(std::time::Instant::now() + std::time::Duration::from_secs(1));
+    assert!(top(&mut viewer).contains("FILE 2 LINE 00"));
+    // The tree centres the followed leaf when it next shows.
+    viewer.act(Action::Focus);
+    assert_eq!(cursor(&screen(&mut viewer, 100, 15)), at(2, "task-k2"));
+    // The first file keeps its own reading position.
+    type_keys(&mut viewer, "k");
+    viewer.act(Action::Focus);
+    assert!(top(&mut viewer).contains("FILE 1 LINE 08"));
+}
+
+#[test]
+fn c_goes_to_the_current_leaf_unfolds_it_and_centres_it() {
+    use crossterm::event::KeyCode::Tab;
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "ROOT BODY");
+    put(&root, "01-impl--task-k1.md", "BODY 01");
+    // The branch brief's name gives the branch the handle `task-k2`.
+    put(&root, "02-k2/_task.md", "BRANCH BODY");
+    for n in 3..20 {
+        put(
+            &root,
+            &format!("02-k2/{:02}-impl--task-k{n}.md", n - 2),
+            &format!("BODY {n:02}"),
+        );
+    }
+    let before = snapshot(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    let view = |viewer: &mut Viewer| cursor(&screen(viewer, 100, 15));
+    assert_eq!(view(&mut viewer), at(1, "task-k1"));
+    // Fold the branch, then rest the cursor on the current leaf again.
+    type_keys(&mut viewer, "j ");
+    assert!(!screen(&mut viewer, 100, 15).contains("task-k3"));
+    type_keys(&mut viewer, "k");
+    // Following unfolds the branch to reveal the new current leaf.
+    retire(&root, 1, 1);
+    type_keys(&mut viewer, "r");
+    assert_eq!(view(&mut viewer), at(3, "task-k3"));
+    // `c` returns a cursor from elsewhere, unfolds and centres.
+    type_keys(&mut viewer, "k ");
+    fs::rename(
+        root.join("02-k2/01-impl--task-k3.md"),
+        root.join("02-k2/01-DONE-impl--task-k3.md"),
+    )
+    .unwrap();
+    type_keys(&mut viewer, "r");
+    let shown = screen(&mut viewer, 100, 15);
+    assert!(shown.contains("NEXT: task-k4"), "{shown}");
+    assert!(!shown.lines().skip(5).any(|line| line.contains("task-k4")));
+    assert_eq!(cursor(&shown), at(2, "task-k2"));
+    type_keys(&mut viewer, "c");
+    assert_eq!(view(&mut viewer), at(3, "task-k4"));
+    // `c` works in File view too, because both views share the selection.
+    type_keys(&mut viewer, "gg");
+    key(&mut viewer, Tab);
+    type_keys(&mut viewer, "c");
+    assert!(screen(&mut viewer, 100, 15).contains("BODY 04"));
+    key(&mut viewer, Tab);
+    assert_eq!(view(&mut viewer), at(3, "task-k4"));
+    assert_eq!(snapshot(work.path()), {
+        let mut expected = before;
+        for (old, new) in [
+            ("01-impl--task-k1.md", "01-DONE-impl--task-k1.md"),
+            (
+                "02-k2/01-impl--task-k3.md",
+                "02-k2/01-DONE-impl--task-k3.md",
+            ),
+        ] {
+            let bytes = expected.remove(&format!(".grove/{old}")).unwrap();
+            expected.insert(format!(".grove/{new}"), bytes);
+        }
+        expected
+    });
+}
+
+#[test]
+fn c_without_a_current_leaf_shows_a_notice_and_moves_nothing() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "ROOT BODY");
+    put(&root, "01-DONE-impl--task-k1.md", "BODY 01");
+    let mut viewer = Viewer::new(work.path().into());
+    type_keys(&mut viewer, "jc");
+    let shown = screen(&mut viewer, 100, 15);
+    assert!(shown.contains("No current leaf"), "{shown}");
+    assert_eq!(cursor(&shown), at(1, "task-k1"));
+    // The notice survives refreshes, and a new current leaf clears it.
+    viewer.tick(std::time::Instant::now() + std::time::Duration::from_secs(1));
+    assert!(screen(&mut viewer, 100, 15).contains("No current leaf"));
+    put(&root, "02-impl--task-k2.md", "BODY 02");
+    type_keys(&mut viewer, "r");
+    let shown = screen(&mut viewer, 100, 15);
+    assert!(!shown.contains("No current leaf"), "{shown}");
+    assert_eq!(cursor(&shown), at(1, "task-k1"));
+    type_keys(&mut viewer, "c");
+    assert_eq!(cursor(&screen(&mut viewer, 100, 15)), at(2, "task-k2"));
 }

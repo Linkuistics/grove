@@ -3,6 +3,7 @@
 //! `Viewer` owns display data only. Every action attempts a quiet read and
 //! drops the shared guard before rendering or waiting for input. Fresh witnessed
 //! activity survives tree failures; only accepted same-tree rows bind RUNNING.
+//! A cursor that rests on the current leaf follows it.
 
 mod markdown;
 mod observation;
@@ -54,6 +55,8 @@ pub enum Action {
     T,
     /// `b`: a page up, or the second key of `zb`.
     B,
+    /// `c`: go to the current leaf and centre it.
+    Current,
     /// A key with no binding. It does nothing, but it cancels a pending prefix.
     Unbound,
     Refresh,
@@ -92,6 +95,12 @@ impl Place {
 
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
+/// The tree-observation line while observation is current and nothing is noticed.
+const LIVE_STATUS: &str = "Read-only | live refresh 500 ms";
+
+/// The notice that `c` shows when the viewer knows no current leaf.
+const NO_CURRENT: &str = "No current leaf — c moves nothing";
+
 /// Every key and a glyph legend. Each line fits the 58 inner columns of the
 /// bordered overlay at the 60 × 10 minimum, and the 8 lines fill its height.
 const HELP: [&str; 8] = [
@@ -101,7 +110,7 @@ const HELP: [&str; 8] = [
     "l/Right expand/child | h/Left fold/parent | File: scroll",
     "f/b Ctrl-f/Ctrl-b PageDown/PageUp: page down/up",
     "d/u Ctrl-d/Ctrl-u: half page down/up",
-    "zz/zt/zb: tree cursor row to middle/top/bottom",
+    "zz/zt/zb: cursor to middle/top/bottom | c: current leaf",
     "◦ LIVE ✓ DONE ✗ ABANDONED ∅ EMPTY ► RUNNING » NEXT",
 ];
 
@@ -379,6 +388,14 @@ pub struct Viewer {
     tree_place: Option<Place>,
     /// The content rows of the tree pane at its last render.
     tree_height: usize,
+    /// The last current leaf that an observation showed: RUNNING while a
+    /// session runs, otherwise NEXT. It survives intervals that cannot observe
+    /// it and intervals with no NEXT, so a brief WAITING never breaks following.
+    current: Option<u32>,
+    /// True from startup or a tree replacement until the cursor first moves.
+    /// The cursor then still sits at the startup position, so it goes to the
+    /// first current leaf that the viewer learns.
+    awaiting_start: bool,
 }
 
 impl Viewer {
@@ -415,6 +432,8 @@ impl Viewer {
             pending: None,
             tree_place: None,
             tree_height: 1,
+            current: None,
+            awaiting_start: true,
         };
         viewer.refresh();
         viewer
@@ -481,6 +500,18 @@ impl Viewer {
             | Action::B
             | Action::Unbound => {}
             Action::Focus => self.file_active = !self.file_active,
+            // Both views share the selection, so `c` works in both.
+            Action::Current => match self.current_row() {
+                Some(target) => {
+                    self.reveal(target);
+                    self.select(target);
+                    self.tree_place = Some(Place::Middle);
+                }
+                None => {
+                    self.notice = Some(NO_CURRENT.into());
+                    self.status = NO_CURRENT.into();
+                }
+            },
             Action::Up | Action::Down if self.file_active => {
                 self.scroll = if matches!(action, Action::Up) {
                     self.scroll.saturating_sub(1)
@@ -602,13 +633,82 @@ impl Viewer {
     }
 
     fn select(&mut self, target: usize) {
-        if self.selected != target {
-            self.save_position();
-            self.selected = target;
-            self.notice = None;
-            self.restore_position();
+        if self.move_selection(target) {
             self.refresh();
         }
+    }
+
+    /// Move the selection without observing. The caller reads the new file.
+    fn move_selection(&mut self, target: usize) -> bool {
+        if self.selected == target {
+            return false;
+        }
+        self.save_position();
+        self.selected = target;
+        self.notice = None;
+        self.awaiting_start = false;
+        self.restore_position();
+        true
+    }
+
+    /// Expand every ancestor of a row, so the row is visible.
+    fn reveal(&mut self, target: usize) {
+        let Some(mut depth) = self.rows.get(target).map(|row| row.depth) else {
+            return;
+        };
+        for row in self.rows[..target].iter_mut().rev() {
+            if row.depth < depth {
+                row.expanded = true;
+                depth = row.depth;
+            }
+        }
+    }
+
+    /// The row of the remembered current leaf, if the tree still holds it.
+    fn current_row(&self) -> Option<usize> {
+        let key = self.current?;
+        self.rows.iter().position(|row| row.key == Some(key))
+    }
+
+    /// Learn the current leaf from the latest observation. A cursor that rests
+    /// on the previous current leaf, or that still awaits its startup place,
+    /// moves to the new one. The next tree render centres it. Returns true
+    /// when the selection moved, so the caller reads the new file.
+    fn follow_current(&mut self) -> bool {
+        // RUNNING is the current leaf while a session runs in this tree. An
+        // unbound RUNNING is unobservable, so NEXT does not stand in for it.
+        // NEXT is already none while the tree or activity is not current.
+        let observed = match &self.activity {
+            ActivityObservation::Running(mandate) if mandate.relation == TreeRelation::SameTree => {
+                self.running_row_for(&self.activity).and_then(|row| row.key)
+            }
+            _ => self.next,
+        };
+        let Some(observed) = observed else {
+            return false;
+        };
+        if self.notice.as_deref() == Some(NO_CURRENT) {
+            self.notice = None;
+            self.status = LIVE_STATUS.into();
+        }
+        let previous = self.current.replace(observed);
+        if previous == Some(observed) {
+            return false;
+        }
+        let resting = match previous {
+            Some(old) => self
+                .rows
+                .get(self.selected)
+                .is_some_and(|row| row.key == Some(old)),
+            None => self.awaiting_start,
+        };
+        let Some(target) = self.current_row().filter(|_| resting) else {
+            return false;
+        };
+        self.reveal(target);
+        self.tree_place = Some(Place::Middle);
+        self.awaiting_start = false;
+        self.move_selection(target)
     }
 
     fn restore_position(&mut self) {
@@ -680,7 +780,18 @@ impl Viewer {
         Ok(changed || removed)
     }
 
+    /// Observe, then follow the current leaf. A capture reads the file of the
+    /// selection that it starts from, so a cursor that follows needs a second
+    /// capture for its new file. A change that this capture shows waits for
+    /// the next observation.
     fn refresh_at(&mut self, now: Instant) {
+        self.observe_at(now);
+        if self.follow_current() {
+            self.observe_at(now);
+        }
+    }
+
+    fn observe_at(&mut self, now: Instant) {
         // A single deadline coalesces all selection/manual/timed observations.
         self.next_poll = now + POLL_INTERVAL;
         self.next = None;
@@ -771,10 +882,7 @@ impl Viewer {
                 } else if self.restore_anchor.is_none() {
                     self.restore_anchor = Some(self.content.anchor(self.scroll));
                 }
-                self.status = self
-                    .notice
-                    .clone()
-                    .unwrap_or_else(|| "Read-only | live refresh 500 ms".into());
+                self.status = self.notice.clone().unwrap_or_else(|| LIVE_STATUS.into());
                 self.set_content(content);
                 self.tree_current = true;
                 self.next = if matches!(&activity, ActivityObservation::Idle)
@@ -830,7 +938,10 @@ impl Viewer {
         self.horizontal = 0;
         self.content_width = 0;
         self.tree_state = ListState::default();
+        self.tree_place = None;
         self.file_active = false;
+        self.current = None;
+        self.awaiting_start = true;
     }
 
     fn missing(&mut self) {

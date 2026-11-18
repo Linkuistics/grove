@@ -45,6 +45,7 @@ impl Action {
             KeyCode::Char('G') if !control => Self::End,
             KeyCode::Char('z') if !control => Self::Z,
             KeyCode::Char('t') if !control => Self::T,
+            KeyCode::Char('c') => Self::Current,
             KeyCode::Char('q') => Self::Quit,
             KeyCode::Char('r') => Self::Refresh,
             KeyCode::Up | KeyCode::Char('k') => Self::Up,

@@ -426,8 +426,8 @@ keys scroll the text, and Ctrl-u and Ctrl-d move half a page.
 middle, at the top or at the bottom of the pane. They do not move the cursor.
 A pane with an even number of rows uses the upper of its two middle rows. Each
 placement clamps at both ends of the tree, so it leaves no blank rows that a
-nearer placement could fill. The viewport then holds until the cursor leaves
-the pane. File has no cursor, so these three sequences do nothing there.
+nearer placement could fill. File has no cursor, so these three sequences do
+nothing there.
 
 Apply a placement at the next tree render, with the pane height and the
 visible rows of that frame. A placement requested before the first render thus
@@ -438,6 +438,41 @@ other key cancels the prefix and then acts as usual. That includes Tab, help,
 Escape, refresh and an unbound key, so the decoder passes an unbound key to the
 viewer. A Ctrl-modified `g`, `z`, `t` or `G` is unbound. While help or the
 resize notice shows, the viewer holds no prefix.
+
+### Following the current leaf
+
+The viewer follows the [current leaf](../../CONTEXT.md#current-leaf). That is
+the RUNNING item while a session runs in this tree, otherwise NEXT. When the
+viewer opens, the cursor is on the current leaf. With no current leaf, the
+cursor is on the root. It then takes the first current leaf that the viewer
+learns, unless the human moved it first.
+
+The cursor follows the current leaf only while it rests on it. When the current
+leaf changes, a cursor on the old one moves to the new one. A cursor elsewhere
+stays where the human left it, and it never moves by itself. Following reveals
+the ancestors of the new current leaf, as a selection move does. Both views
+share the selection, so following works in both. In File, the file changes to
+the new current leaf, and each file keeps its own reading position.
+
+The viewer remembers the last current leaf that it saw. The memory stays while
+activity or the tree cannot be observed, and while NEXT is none. A resting
+cursor follows when a different leaf next becomes current, so a brief WAITING
+never breaks following. A same-tree RUNNING without a row is unobservable, and
+NEXT does not stand in for it. A session of a previous tree binds no row, so
+NEXT is then the current leaf.
+
+A tree replacement clears the memory with the other saved state. The viewer
+then behaves as when it opens.
+
+`c` takes the cursor to the current leaf in either view, reveals it and centres
+it. With no current leaf, `c` shows a notice and moves nothing. The notice stays
+until the selection moves or a current leaf appears.
+
+The viewer centres the current leaf at three moments: when the viewer opens, when
+following moves the cursor, and when the human presses `c`. A centring is the `zz`
+placement, so it clamps at both ends of the tree. Between those moments, the
+viewport moves only as far as it must to keep the cursor visible. So a placement
+holds until the cursor leaves the pane or follows a new current leaf.
 
 Help names the active Tree/File view. It explains that Tab switches to the
 other full-width view, and it replaces “switch pane”. It lists every key and a
@@ -450,13 +485,14 @@ selected file's source reading anchor and horizontal offset. Keep independent
 tree and file viewport state. Do not render hidden views into zero-sized
 rectangles, and do not clamp them with the dimensions of the other view. Reflow
 and clamp the visible file from its saved source anchor after a resize.
-Returning to Tree preserves its viewport, and adjusts it only as needed to keep
-the selection visible after resize or tree changes.
+Returning to Tree applies a centring that following or `c` requested in File.
+Otherwise it preserves its viewport, and adjusts it only as needed to keep the
+selection visible after resize or tree changes.
 
 Keep the existing per-item reading-position behaviour across revisits and
 edits, bounded to the accepted tree lifetime. Both views observe tree and
-selected-file changes. Selection follows keys, reveals a moved item's
-ancestors, and falls back to the nearest surviving old ancestor when its item
+selected-file changes. Selection follows keys and the current leaf. It reveals
+a moved item's ancestors, and it falls back to the nearest surviving old ancestor when its item
 disappears. File errors retain saved reading positions. Changing views does not
 force a reload or reset the automatic observation deadline.
 
@@ -473,7 +509,7 @@ The terminal fixture owns key translation and terminal cleanup checks.
 |---|---|---|
 | LIVE, DONE, ABANDONED and EMPTY rows, selected and unselected | Depth, cursor and lifecycle glyphs survive selection and read by shape alone. DONE and ABANDONED have status colours, ordinary LIVE is unaccented and only the kind is bold | Application |
 | A tree deeper than 99 | Every row widens the depth column together, and no digit is lost | Application |
-| RUNNING differs from cursor selection and includes an already-DONE item | Only RUNNING has `►` and the active item-text highlight. Its lifecycle glyph keeps its colour, and the cursor remains independent | Application |
+| RUNNING differs from cursor selection and includes an already-DONE item | Only RUNNING has `►` and the active item-text highlight. Its lifecycle glyph keeps its colour, and a cursor elsewhere does not move to RUNNING | Application |
 | Long handles and a deep tree at 60 × 10 | The whole fixed area remains visible, and a recognisable handle and key survive bounded indentation | Application |
 | Folded mixed and empty branches | Aggregate lifecycle glyphs and all descendant counts, such as `◦0 ✓1 ✗1`, match the leaves beneath them | Application |
 | Tab from root, branch and leaf, and repeated switches | The full-width file of that item shows. The saved tree viewport, folds, file source anchor and horizontal offset survive | Application and terminal key mapping |
@@ -502,7 +538,13 @@ The terminal fixture owns key translation and terminal cleanup checks.
 | Foreign shared holder of either the task root or a newly allocated private witness. Reported directory-locking error | Exclusive acquisition returns promptly, prepared observation locks are released, launch/admission proceed and activity is Unavailable | Lock barrier and controlled launch |
 | Directory witness held while a session mutates or removes the root | The containing-directory tree lock remains usable. Root replacement remains possible and never inherits the old root's witness | Real filesystem/process fixture |
 | Tree page, half-page, `gg` and `G` keys, including at both ends of the tree | The cursor and the viewport move by the same rows, so the cursor keeps its screen row until the viewport reaches an end. The selected file follows the cursor | Application through key decoding |
-| `zz`, `zt` and `zb` in Tree and in File | In Tree, the cursor row moves to the middle, the top or the bottom, clamped at both ends, and the cursor stays. The viewport holds through refreshes until the cursor leaves the pane. File does not scroll, and `zb` is not a page up | Application through key decoding |
+| `zz`, `zt` and `zb` in Tree and in File | In Tree, the cursor row moves to the middle, the top or the bottom, clamped at both ends, and the cursor stays. The viewport holds through refreshes until the cursor leaves the pane or follows a new current leaf. File does not scroll, and `zb` is not a page up | Application through key decoding |
+| Opening with a current leaf in the middle, near either end, or absent | The cursor is on the current leaf, centred, and the viewport clamps near the ends. With none, the cursor is on the root. It takes the first current leaf unless the human moved it first | Application |
+| NEXT changes with the cursor on the current leaf, elsewhere, or back on it | A resting cursor follows, reveals and centres the new leaf, in Tree and in File. A cursor elsewhere and its viewport stay | Application |
+| Tree writer contention, unavailable activity or no NEXT between two current leaves | The viewer keeps the last current leaf, and a resting cursor follows the next one | Application |
+| `c` with a current leaf in a folded branch, in File, or with none | The cursor goes to the leaf, which unfolds and centres. With none, a notice shows and nothing moves | Application through key decoding |
+| A session runs, its leaf retires, and the session ends | The cursor is first on RUNNING and stays through the retirement. When the session ends, it follows NEXT | Real launch through application |
+| Tree replacement, after the human moved the cursor | The memory clears, and the cursor goes to the new tree's current leaf | Application and real launch |
 | File page and half-page keys, and `gg` and `G` | The text scrolls by a page, by half a page, or to the top or the end | Application through key decoding |
 | A prefix, then another key, an unbound key, Tab, help, Escape or refresh | The prefix cancels, and the other key acts as usual. A prefix typed in help is not held afterwards | Application through key decoding |
 | Key help at 60 × 10 in both views | Every key and the glyph legend show in full, one line per row | Application |

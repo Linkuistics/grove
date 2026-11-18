@@ -23,7 +23,8 @@ fn actual_binary_restores_terminal_on_quit_interrupt_and_termination() {
         std::fs::write(tree.join("01-impl--probe-k1.md"), "SELECTED_CONTENT").unwrap();
         let mut pty = Pty::spawn(binary().arg("view").arg(directory.path()));
         pty.until("[active]");
-        pty.send(b"\t");
+        // The cursor opens on the current leaf, probe-k1. `gg` takes it to the root.
+        pty.send(b"gg\t");
         pty.until("ROOT_CONTENT");
         pty.send(b"\tj\t");
         pty.until("SELECTED_CONTENT");
@@ -94,7 +95,8 @@ fn actual_binary_observes_selected_bytes_without_input() {
     std::fs::write(&file, "AAAAAAAAAAAA").unwrap();
     let mut pty = Pty::spawn(binary().arg("view").arg(directory.path()));
     pty.until("[active]");
-    pty.send(b"\t");
+    // The cursor opens on the current leaf, probe-k1. `gg` takes it to the root.
+    pty.send(b"gg\t");
     pty.until("ROOT_CONTENT");
     pty.send(b"\tj\t");
     pty.until("AAAAAAAAAAAA");
@@ -146,7 +148,8 @@ fn actual_binary_reads_wide_markdown_recovers_and_allows_grove_retirement() {
     let initial = snapshot();
     let mut pty = Pty::spawn(binary().arg("view").arg(directory.path()));
     pty.until("[active]");
-    pty.send(b"\t");
+    // The cursor opens on the current leaf, probe-k1. `gg` takes it to the root.
+    pty.send(b"gg\t");
     pty.until("ROOT_CONTENT");
     pty.send(b"\tj\t");
     pty.until("xxxxxxxxxxxx");

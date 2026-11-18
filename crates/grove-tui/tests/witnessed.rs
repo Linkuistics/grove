@@ -586,14 +586,16 @@ fn witnessed_replacement_resets_folds_and_reading_positions_but_brief_edit_prese
         tree.lines().skip(4).any(|line| line.contains("work-k1")),
         "{tree}"
     );
-    viewer.act(Action::Focus);
-    assert!(screen(&mut viewer, 60, 10).0.contains("NEW ROOT"));
-    viewer.act(Action::Focus);
-    viewer.act(Action::End);
+    // The cursor starts on the new tree's current leaf, as at startup, with
+    // a fresh reading position.
     viewer.act(Action::Focus);
     let fresh_file = screen(&mut viewer, 60, 10).0;
     assert!(fresh_file.contains("LINE00"), "{fresh_file}");
     assert!(fresh_file.contains("previous tree"), "{fresh_file}");
+    viewer.act(Action::Focus);
+    viewer.act(Action::Home);
+    viewer.act(Action::Focus);
+    assert!(screen(&mut viewer, 60, 10).0.contains("NEW ROOT"));
 }
 
 #[test]
@@ -635,10 +637,12 @@ fn real_launch_replacement_does_not_attach_or_exclude_reused_key() {
             !text.lines().skip(4).any(|line| line.contains('►')),
             "{text}"
         );
+        // Each viewer starts on the new tree's current leaf, as at startup.
+        // The reused key carries no state from the old tree.
         current.act(Action::Focus);
         let (text, _) = screen(current, 60, 10);
         assert!(
-            text.contains("NEW ROOT") && !text.contains("NEW ITEM"),
+            text.contains("NEW ITEM") && !text.contains("OLD ITEM"),
             "{text}"
         );
         assert!(
@@ -794,4 +798,54 @@ fn failed_and_immediate_launches_leave_no_running_attachment() {
         );
         assert_eq!(snapshot(work.path()), before);
     }
+}
+
+#[test]
+fn real_launch_cursor_rests_on_running_then_follows_the_handoff_to_next() {
+    let work = tempfile::tempdir().unwrap();
+    let root = work.path().join(".grove");
+    put(&root, "_BRIEF.md", "root");
+    put(&root, "01-impl--first-k1.md", "first");
+    put(&root, "02-impl--second-k2.md", "second");
+    let launch = Launch::start(work.path());
+    let mut viewer = Viewer::new(work.path().into());
+    // The cursor cell follows the border and the two-cell depth column.
+    let cursor_row = |viewer: &mut Viewer| {
+        let (text, _) = screen(viewer, 60, 10);
+        let row = text
+            .lines()
+            .skip(5)
+            .find(|line| line.chars().nth(4) == Some('>'))
+            .unwrap_or_else(|| panic!("no cursor:\n{text}"))
+            .to_owned();
+        (text, row)
+    };
+    // RUNNING is the current leaf while the session runs, not NEXT.
+    let (text, row) = cursor_row(&mut viewer);
+    assert!(
+        text.contains("RUNNING: first-k1") && text.contains("NEXT: second-k2"),
+        "{text}"
+    );
+    assert!(row.contains("first-k1"), "{text}");
+    // A retirement moves neither RUNNING nor the cursor.
+    fs::rename(
+        root.join("01-impl--first-k1.md"),
+        root.join("01-DONE-impl--first-k1.md"),
+    )
+    .unwrap();
+    viewer.act(Action::Refresh);
+    let (text, row) = cursor_row(&mut viewer);
+    assert!(text.contains("RUNNING: first-k1"), "{text}");
+    assert!(row.contains("first-k1"), "{text}");
+    // When the session ends, NEXT becomes the current leaf and the cursor follows.
+    launch.finish();
+    viewer.act(Action::Refresh);
+    let (text, row) = cursor_row(&mut viewer);
+    assert!(
+        text.contains("RUNNING: none (idle)") && text.contains("NEXT: second-k2"),
+        "{text}"
+    );
+    assert!(row.contains("second-k2"), "{text}");
+    viewer.act(Action::Focus);
+    assert!(screen(&mut viewer, 60, 10).0.contains("second"));
 }

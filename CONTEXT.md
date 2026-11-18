@@ -637,6 +637,16 @@ The [[Pick]] forecast over the current tree after excluding the [[RUNNING]]
 item in that same [[Tree lifetime]], with finish eligibility applied to the
 remaining leaves. It is at most one leaf and is not a promised future launch.
 
+<a id="current-leaf"></a>
+### Current leaf
+
+The item that `grove view` treats as the loop's position: the [[RUNNING]] item
+while a session runs, otherwise [[NEXT]]. It is usually a [[Leaf]], but a
+running session that decomposes its leaf moves RUNNING, and so the current leaf,
+onto the new branch.
+_Avoid_: the cursor or the selection. The cursor stays independent of the
+current leaf until the human moves it onto that leaf.
+
 <a id="session-kind"></a>
 ### Session kind
 

@@ -2,12 +2,12 @@
   "requirements": {
     "url": "https://github.com/Linkuistics/RequirementsSkills.git",
     "path": "plugins/requirements",
-    "sha": "c51ec8bebd811c0087ad19a1d66d0aa87bd01386"
+    "sha": "efaeeef917d89383902142d99c227db1df14f888"
   },
   "design": {
     "url": "https://github.com/Linkuistics/DesignSkills.git",
     "path": "plugins/design",
-    "sha": "aa088156d1a55e28dd9b59f0330f4ab9f1f3d330"
+    "sha": "561f3da808ecc1da291d3eeab5070c4ca1cddacd"
   },
   "engineering": {
     "url": "https://github.com/Linkuistics/EngineeringSkills.git",
@@ -22,6 +22,6 @@
   "writing": {
     "url": "https://github.com/Linkuistics/WritingSkills.git",
     "path": "plugins/writing",
-    "sha": "578f84d1f5a9bb04573a704bca639530d93b6bca"
+    "sha": "c15934c379fb9ac6e065bb540d28f68001016d21"
   }
 }

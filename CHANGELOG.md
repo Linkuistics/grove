@@ -93,6 +93,14 @@ stood at the graft — a closed record, not part of the versioned sequence above
   requirements leaf after the proof of the document. The checkpoint runs
   outside the four editorial stages and mints no kind.
 
+### Changed
+
+- Packs: `plugins/packs.json` now pins the writing, requirements and design
+  packs at the commits that carry the documentation guidance. The writing
+  pack gives `draft`, `copy-edit`, `art` and `proof` their rules. The
+  requirements pack adds the reader test procedure of a reader checkpoint.
+  The design pack moves its shared figure rules to `FIGURE-FORMAT.md`.
+
 ## v22.13.0
 
 ### Added

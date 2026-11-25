@@ -55,6 +55,8 @@ stood at the graft — a closed record, not part of the versioned sequence above
 
 ## Unreleased
 
+## v22.14.0
+
 ### Added
 
 - `grove`: A document can declare a contract. The new
